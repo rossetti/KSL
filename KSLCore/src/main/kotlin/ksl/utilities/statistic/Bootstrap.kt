@@ -136,7 +136,7 @@ interface BootstrapEstimateIfc {
      * @return the confidence interval
      */
     fun stdNormalBootstrapCI(level: Double = defaultCILevel): Interval {
-        require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
+        require(level > 0.0 && level < 1.0) { "Confidence Level must be (0,1), was $level" }
         val alpha = 1.0 - level
         val z: Double = Normal.stdNormalInvCDF(1.0 - (alpha / 2.0))
         val estimate = originalDataEstimate
@@ -157,7 +157,7 @@ interface BootstrapEstimateIfc {
      * @return the confidence interval
      */
     fun basicBootstrapCI(level: Double = defaultCILevel): Interval {
-        require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
+        require(level > 0.0 && level < 1.0) { "Confidence Level must be (0,1), was $level" }
         val a = 1.0 - level
         val ad2 = a / 2.0
         val bse = bootstrapEstimates
@@ -180,7 +180,7 @@ interface BootstrapEstimateIfc {
      * @return the confidence interval
      */
     fun percentileBootstrapCI(level: Double = defaultCILevel): Interval {
-        require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
+        require(level > 0.0 && level < 1.0) { "Confidence Level must be (0,1), was $level" }
         val a = 1.0 - level
         val ad2 = a / 2.0
         val bse = bootstrapEstimates
@@ -231,7 +231,7 @@ open class BootstrapEstimate(
      */
     override var defaultCILevel: Double = 0.95
         set(level) {
-            require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
+            require(level > 0.0 && level < 1.0) { "Confidence Level must be (0,1), was $level" }
             field = level
         }
 
@@ -312,7 +312,7 @@ open class Bootstrap(
      */
     override var defaultCILevel: Double = 0.95
         set(level) {
-            require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
+            require(level > 0.0 && level < 1.0) { "Confidence Level must be (0,1), was $level" }
             field = level
         }
 
@@ -579,18 +579,35 @@ open class Bootstrap(
     }
 
     /**
+     *  True when the BCa interval is defined for these data: its bias correction and acceleration are finite. The
+     *  bias correction is infinite when every bootstrap estimate lies on one side of the original estimate, with
+     *  none equal to it; [bcaBootstrapCI] fails for such data, so check here first.
+     */
+    fun canComputeBcaBootstrapCI(): Boolean = biasCorrectionFactor().isFinite() && accelerationFactor().isFinite()
+
+    /**
      * The BCa bootstrap confidence interval which accounts for bias correction
      * and adjusted for acceleration.
      *
      * @param level the confidence level, must be between 0 and 1
      * @return the confidence interval
+     * @throws IllegalStateException if the interval is not defined for these data; see [canComputeBcaBootstrapCI]
      */
     fun bcaBootstrapCI(level: Double = defaultCILevel): Interval {
-        require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
-        val a = 1.0 - level
-        val ad2 = a / 2.0
+        require(level > 0.0 && level < 1.0) { "Confidence Level must be (0,1), was $level" }
         val z0 = biasCorrectionFactor()
         val ac = accelerationFactor()
+        check(z0.isFinite()) {
+            "The BCa interval is not defined for these data: every bootstrap estimate lies on one side of the " +
+                    "original estimate ($originalDataEstimate), so the bias correction is infinite. " +
+                    "Check first with canComputeBcaBootstrapCI()."
+        }
+        check(ac.isFinite()) {
+            "The BCa interval is not defined for these data: the acceleration is not finite. " +
+                    "Check first with canComputeBcaBootstrapCI()."
+        }
+        val a = 1.0 - level
+        val ad2 = a / 2.0
         val z1ad2: Double = Normal.stdNormalInvCDF(1.0 - ad2)
         val zad2 = Normal.stdNormalInvCDF(ad2)
         val alpha1 = Normal.stdNormalCDF(z0 + (z0 + zad2) / (1.0 - ac * (z0 + zad2)))
@@ -613,7 +630,7 @@ open class Bootstrap(
      * @return the confidence interval
      */
     fun bootstrapTCI(level: Double = defaultCILevel): Interval {
-        require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
+        require(level > 0.0 && level < 1.0) { "Confidence Level must be (0,1), was $level" }
         val tValues = myStudentizedTValues.savedData()
         if (tValues.isEmpty()) {
             return Interval()
@@ -629,8 +646,12 @@ open class Bootstrap(
 
     override fun toString(): String {
         val sb = StringBuilder(asString())
-        sb.appendLine("BCa c.i. = ${bcaBootstrapCI()}")
-        val btci = bcaBootstrapCI()
+        if (canComputeBcaBootstrapCI()) {
+            sb.appendLine("BCa c.i. = ${bcaBootstrapCI()}")
+        } else {
+            sb.appendLine("BCa c.i. = not defined for these data")
+        }
+        val btci = bootstrapTCI()
         if (btci.lowerLimit.isFinite() && btci.upperLimit.isFinite()){
             sb.appendLine("bootstrap-t c.i. = $btci")
         }
@@ -667,16 +688,26 @@ open class Bootstrap(
          *  correction factor which in essence measures the median bias of the
          *  bootstrap replicates for the estimated quantity. This function
          *  computes the bias correction factor based on the bootstrap estimates
-         *  and the original estimated quantity.
+         *  and the original estimated quantity. A bootstrap estimate equal to the original estimate counts as half
+         *  below it, which keeps the factor finite for data with ties, as data from discrete inputs have. The factor
+         *  is infinite only when every estimate lies strictly on one side of the original estimate.
          *  @param bootstrapEstimates the bootstrap replicates from the bootstrapping process
          *  @param originalDataEstimate the original estimate from the original data using the estimator
          */
         fun biasCorrectionFactor(bootstrapEstimates: DoubleArray, originalDataEstimate: Double): Double {
             val s = Statistic()
             for (estimate in bootstrapEstimates) {
-                s.collect(estimate < originalDataEstimate)
+                s.collect(
+                    when {
+                        estimate < originalDataEstimate -> 1.0
+                        estimate == originalDataEstimate -> 0.5
+                        else -> 0.0
+                    }
+                )
             }
             val p = s.average
+            if (p <= 0.0) return Double.NEGATIVE_INFINITY
+            if (p >= 1.0) return Double.POSITIVE_INFINITY
             return Normal.stdNormalInvCDF(p)
         }
 
@@ -685,7 +716,10 @@ open class Bootstrap(
          *  The acceleration factor measures the rate of change of the standard error
          *  of the estimator with respect to the target parameter on a normalized scale.
          *  This function computes the acceleration factor based on the bootstrap estimates
-         *  and the original estimated quantity using jackknifing.
+         *  and the original estimated quantity using jackknifing: the sum of the cubed deviations of the jackknife
+         *  replicates from their mean, divided by 6 times the 3/2 power of the sum of their squared deviations
+         *  (Efron and Tibshirani, An Introduction to the Bootstrap, eq. 14.15). When the jackknife estimates do not
+         *  vary, as for the median of data with many ties, there is no skewness to correct and the factor is 0.
          *  @param originalData the original data used in the bootstrapping process
          *  @param estimator the estimator used in the bootstrapping process
          */
@@ -693,14 +727,16 @@ open class Bootstrap(
             val jackKnifeEstimator = JackKnifeEstimator(originalData, estimator)
             val je = jackKnifeEstimator.jackKnifeEstimate
             val jr = jackKnifeEstimator.jackKnifeReplicates
-            var nom = 0.0
-            var dnom = 0.0
+            // a = sum of d^3 / (6 (sum of d^2)^(3/2)), d the deviations of the jackknife replicates from their mean
+            var sumCubes = 0.0
+            var sumSquares = 0.0
             for (x in jr) {
-                val s2 = (je - x) * (je - x)
-                nom = nom + s2 * (je - x)
-                dnom = dnom + s2.pow(1.5)
+                val d = je - x
+                sumSquares = sumSquares + d * d
+                sumCubes = sumCubes + d * d * d
             }
-            return nom / (6.0 * dnom)
+            if (sumSquares == 0.0) return 0.0
+            return sumCubes / (6.0 * sumSquares.pow(1.5))
         }
 
 

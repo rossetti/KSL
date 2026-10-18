@@ -38,7 +38,20 @@ abstract class MVRVariable @JvmOverloads constructor(
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    protected val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
+    /** The stream this variable draws from; a variable built from component variables may point it at its own. */
+    private var myRNStream: RNStreamIfc = streamProvider.rnStream(streamNum)
+
+    protected val rnStream: RNStreamIfc
+        get() = myRNStream
+
+    /**
+     *  Makes this variable draw from [stream] from now on. A variable built from component variables uses it so
+     *  that its components draw from its one stream, in turn, and its stream controls (reset, substreams, the
+     *  antithetic flag) govern everything it samples. A variable with components passes the stream on to them.
+     */
+    internal open fun drawFrom(stream: RNStreamIfc) {
+        myRNStream = stream
+    }
 
     // The number this was built with. A provider serves an antithetic stream as a derived copy
     // it does not hold, so it cannot name that stream and reports -1; since the number is what

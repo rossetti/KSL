@@ -1,14 +1,11 @@
 package ksl.modeling.guidedpath
 
-import ch.qos.logback.classic.Level
-import ch.qos.logback.classic.Logger
 import ksl.examples.book.chapter7.PaintingFlowLineWithAgvs
 import ksl.examples.book.chapter7.PaintingFlowLineWithAgvs.PendingRequestTest
 import ksl.simulation.Model
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import org.slf4j.LoggerFactory
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.test.assertTrue
@@ -17,10 +14,9 @@ import kotlin.test.assertTrue
  *  Exercise 7.15: the two-colour painting flow line moved by three AGVs on a one-way guide path,
  *  compared against the same model built in the reference implementation.
  *
- *  This is the largest of the cross-checks and the only one where the two tools part company on
- *  something structural rather than numerical. **The shop agrees exactly** -- every utilization,
- *  both throughputs, and three of the four station queues, worst z = 0.59. **The aisle does not**,
- *  and the reason is not a length or a bearing that could be corrected: the two models mean
+ *  This is the largest of the cross-checks. **The shop agrees** -- every utilization, both
+ *  throughputs, the station queues, and the flow times of both part types. **Two things about the
+ *  aisle do not**, and neither is a length or a bearing that could be corrected: the two models mean
  *  different things by sending an idle vehicle to a staging area.
  *
  *  ## The layout
@@ -52,89 +48,105 @@ import kotlin.test.assertTrue
  *  reading is the one the reference implementation ran.
  *
  *  Both are run below. The wider reading is the primary case; the narrower is run beside it, and it
- *  is worse on the shop queues and worse on the fleet.
+ *  is worse on the pack queue and commits more of the fleet.
  *
  *  ## Where the two tools genuinely differ
  *
  *  The reference implementation has no way to move an unallocated transporter while this model
  *  leaves a freed vehicle where it stands, so the staging trip is made as an ordinary
- *  **transport**:
- *  the entity that has just been set down is duplicated, and the copy keeps the vehicle and rides
- *  it to I12 before freeing it. That is not read off the numbers -- its model listing has the
- *  duplication, the transport to the staging station, and the release that follows it. A vehicle on
- *  its way to the staging area is therefore *busy* and *cannot be diverted*.
+ *  **transport**: the entity that has just been set down is duplicated, and the copy keeps the
+ *  vehicle and rides it to I12 before freeing it. That is not read off the numbers -- its model
+ *  listing has the duplication, the transport to the staging station, and the release that follows
+ *  it. A vehicle on its way to the staging area is therefore *busy* and *cannot be diverted*.
  *
  *  In this subsystem a repositioning vehicle is neither. It is unallocated, so it does not count as
  *  busy; it is still in the pool, so it can be allocated; and it is redirected at the next zone
- *  boundary when it is. That is the better arrangement in general -- a vehicle that can be turned
- *  round is worth more than one that cannot -- and the arithmetic below says it is worth less here.
+ *  boundary when it is. Those are the two differences, and they show up in two places.
  *
- *  ### The total agrees; the split does not
+ *  ### Classification: the fleet's utilization
  *
- *  Committed vehicle time -- allocated plus repositioning, which is the one figure the reference
- *  implementation reports as busy and which this subsystem splits in two:
+ *  Committed vehicle time -- allocated plus repositioning -- is the one figure the reference
+ *  implementation reports as busy, and this subsystem splits it in two:
  *
  *  ```
  *                                allocated   repositioning   committed
  *  reference (busy, one figure)         --              --      0.6930
- *  KSL, until collected             0.5768          0.1318      0.7087
- *  KSL, queued only                 0.5405          0.2567      0.7972
+ *  KSL                              0.5178          0.1729      0.6908
  *  ```
  *
- *  Under the reading the reference implementation ran, the two fleets are committed for the same
- *  share of the horizon to within 2.3%, and the whole of the 69.76 that `agvUtilization` scores is
- *  the classification rather than the quantity. That is asserted below, not merely printed.
+ *  The fleets are committed for the same share of the horizon, and the whole of the 94 that
+ *  `agvUtilization` scores is the classification rather than the quantity. That is asserted below,
+ *  not merely printed.
  *
- *  ### Where the extra flow time goes
+ *  ### Diversion: the waits for a vehicle
  *
- *  Flow time is 7.61 minutes longer here, which is 3.9%. Taking each model's own reported figures
- *  and subtracting what is accounted for -- station queueing, mean service, the four minutes a leg
- *  of loading and unloading, the waits for a vehicle, and the nominal loaded travel of 8.1 minutes
- *  a part for the old route and 8.3 for the new -- leaves the time a part spends being fetched and
- *  being held up:
+ *  The request waits are the time from a part asking to a vehicle being allocated to it. They are
+ *  small -- 2.03 minutes a part here, 2.13 in the reference -- and they differ in both directions: the
+ *  entry station's is shorter here (0.68 against 0.87, z = 8.6), the workstation's and the two paint
+ *  stations' are longer (z = 2.4 to 3.9), and the pack station's agrees.
+ *
+ *  Diversion is measured directly by running this model with a pool that withholds a repositioning
+ *  vehicle until it reaches I12, which is what the reference implementation does. That run is not
+ *  kept as a test, because it needs a pool written for the purpose; its figures are:
  *
  *  ```
- *                              station queues   waits for a vehicle   fetching and blocking   total
- *  difference, minutes/part             1.157                 0.602                   5.830   7.589
+ *                               reference      KSL   KSL, no diversion
+ *  legs collected by diversion         --     5.0%                  --
+ *  entry request wait               0.870    0.678               0.738
+ *  workstation request wait         0.362    0.389               0.445
+ *  paint request wait               0.494    0.553               0.592
+ *  pack request wait                0.423    0.424               0.460
+ *  fetching and blocking, a leg     4.629    4.852               4.664
+ *  system time                     194.66   194.42              193.88
  *  ```
  *
- *  So **77% of the gap is empty running and blocking on the guide path**: 6.08 minutes a leg here
- *  against 4.62 in the reference model. (It reports no such figure; 4.62 is what its own numbers
- *  leave over, by the same subtraction. The residual is empty running *plus* blocking while loaded,
- *  since a journey's elapsed time contains its own blocking -- an earlier reading of this that took
- *  it for empty running alone was wrong by the two minutes a part that blocking accounts for.)
+ *  So **the entry wait is not wholly diversion.** A diverted vehicle is allocated at once, and 5.9%
+ *  of entry collections are made that way; forbidding it closes a third of the entry gap (z = 6.0)
+ *  and pushes every other station's wait further above the reference's (z = 3.1 to 7.5). What a
+ *  diversion saves in waiting for a vehicle it gives back in fetching: a vehicle turned round on a
+ *  one-way network takes longer to arrive. The flow time does not move. What remains of the entry
+ *  gap, and the other stations' longer waits, are not explained by these runs; they are at most a
+ *  fifth of a minute a leg and net to a tenth of a minute a part.
  *
- *  That the loaded travel is right on this side is checkable and checks out: the fleet spends
- *  0.0971 of the horizon moving loaded, which is 8.16 minutes a part, against the 8.16 the route
- *  lengths predict for a 70/30 mix.
+ *  ### Where the flow time goes
  *
- *  ### The reading the evidence supports
+ *  Taking each model's own figures and subtracting what is accounted for -- station queueing, mean
+ *  service, the four minutes a leg of loading and unloading, the waits for a vehicle, and the nominal
+ *  loaded travel of 8.1 minutes a part for the old route and 8.3 for the new -- leaves the time a part
+ *  spends being fetched and being held up, a journey's elapsed time containing its own blocking:
  *
- *  What the residual is *made of* is not settled by these runs, and the mechanism below is offered
- *  as the reading the code and the numbers support rather than as something measured. Link 11 is
- *  one-way and I12 holds one vehicle, so a second vehicle sent to the staging area stops at the end
- *  of link 11. While stopped it is idle and available, and it reports itself as being at I12,
- *  because a transporter part way along a link is located at that link's far end -- so
- *  `ClosestByNetworkDistanceRule` ranks it exactly as it ranks the vehicle actually sitting in I12,
- *  and ties go to the earlier of the two in declaration order. Choosing it commits the request to a
- *  vehicle that cannot move until whatever is in I12 is dispatched. It never offers that vehicle at
- *  all, and the obstruction count below says the situation arises about 25,000 times a replication.
+ *  ```
+ *                       station queues   waits for a vehicle   fetching and blocking   system time
+ *  reference                    73.878                 2.133                  18.517       194.655
+ *  KSL                          72.857                 2.033                  19.407       194.424
+ *  ```
  *
- *  The paint queue is the one station statistic that does not agree, at 3.13 minutes against 2.51.
- *  It is the most sensitive of the four and the least about the paint station: the workstation
- *  ahead of it runs at 82% on a nearly deterministic 21-to-25-minute service, so what arrives at
- *  the paint station is a smoothed stream whose remaining variability is almost entirely put there
- *  by the transport. A queue that would be 13.8 minutes under Poisson arrivals is 2.5, and it moves
- *  with the aisle rather than with the shop.
+ *  No column differs by more than about a minute a part, inside the system time's half-width of 2.5,
+ *  and the system times agree (z = 0.07).
  *
- *  ## The obstruction diagnostic fires throughout, and is right to
+ *  The paint queue, at z = 1.64, is the one station statistic outside agreement, and it is the most
+ *  sensitive of them and the least about the paint station: the workstation ahead of it runs at 82% on
+ *  a nearly deterministic 21-to-25-minute service, so what arrives at the paint station is a smoothed
+ *  stream whose remaining variability is almost entirely put there by the transport. A queue that
+ *  would be 13.8 minutes under Poisson arrivals is 2.5, and it moves with the aisle rather than with
+ *  the shop: without diversion it is at z = 1.07.
  *
- *  Roughly 25,000 times per replication a vehicle stops behind an idle one, which the deadlock
- *  detector reports and counts. Every one of them is the fleet queueing for the staging area, which
- *  is what the exercise says should happen -- "if there are multiple vehicles idle, they should
- *  wait on Link 11". The diagnostic's own advice, to give idle transporters a staging area, is what
- *  this model already does. The count is reported below rather than suppressed, because it is a
- *  true reading of a real cost: those vehicles are idle, in the way, and cannot leave.
+ *  ## Obstructions
+ *
+ *  About 9,800 times a replication a vehicle stops behind an idle one other than in the staging
+ *  queue. They are counted and printed below; they are not logged.
+ *
+ *  ## Before R1.8
+ *
+ *  In R1.7.1 the flow time was 7.61 minutes, 3.9%, longer here, and 77% of that was fetching and
+ *  blocking: 6.08 minutes a leg against 4.62. The cause was in the allocation rule. Link 11 is one-way
+ *  and I12 holds one vehicle, so a second vehicle sent to the staging area stopped at the end of link
+ *  11; a transporter part way along a link was located at that link's far end, so it tied with the
+ *  vehicle in I12 and was chosen ahead of it by declaration order, committing the request to a vehicle
+ *  that could not move until I12 was cleared. The obstruction count, about 25,000 a replication, was
+ *  mostly that queue. R1.8 measures a vehicle from the zone it holds, prefers the one with fewer zones
+ *  still to enter at equal distance, and does not count the staging queue as an obstruction; the flow
+ *  times have agreed since.
  */
 @Tag("slow")
 class PaintingFlowLineCrossCheckTest {
@@ -275,27 +287,9 @@ class PaintingFlowLineCrossCheckTest {
         println()
     }
 
-    /**
-     *  Runs with the obstruction warning silenced and restores it afterwards.
-     *
-     *  About 25,000 of them are emitted per replication, all of them true and all of them the same
-     *  thing: the fleet queueing for a staging area that holds one vehicle. The count is reported
-     *  instead, which says the same and can be read.
-     */
-    private fun <T> withoutObstructionWarnings(block: () -> T): T {
-        val logger = LoggerFactory.getLogger(GuidedPathTransportSystem::class.java) as Logger
-        val previous = logger.level
-        logger.level = Level.ERROR
-        try {
-            return block()
-        } finally {
-            logger.level = previous
-        }
-    }
-
     @Test
     @DisplayName("7.15 three AGVs: the shop agrees exactly; the fleet's committed time agrees, its split does not")
-    fun threeAgvsOnAOneWayNetwork() = withoutObstructionWarnings {
+    fun threeAgvsOnAOneWayNetwork() {
         val reference = referenceFixture("/reference/P7-15.csv")
         val referenceBusy = reference.getValue("agvUtilization").first
 
@@ -319,10 +313,10 @@ class PaintingFlowLineCrossCheckTest {
         val worstShop = SHOP.mapNotNull { z[it] }.max()
         assertTrue(worstShop <= 1.0, "the two models are not the same shop: worst z = %.2f".format(worstShop))
 
-        // The wider reading is the reference implementation's. It is better on the shop queues, which is where the choice
-        // shows up at all: the narrower one sends a vehicle to the staging area twice as often and
-        // the extra traffic reaches the stations.
-        for (name in listOf("workStationQueueWait", "packQueueWait")) {
+        // The wider reading is the reference implementation's. The narrower one sends a vehicle to the
+        // staging area twice as often, and the extra traffic reaches the pack queue; both readings agree
+        // on the workstation queue.
+        for (name in listOf("packQueueWait")) {
             assertTrue(
                 z.getValue(name) < zQueuedOnly.getValue(name),
                 "counting a request pending until collection should fit the reference better on $name, " +
@@ -330,14 +324,19 @@ class PaintingFlowLineCrossCheckTest {
             )
         }
 
+        // Agreement since R1.8 (see "Before R1.8" in this class's KDoc).
+        for (name in listOf("systemTime", "oldPartSystemTime", "newPartSystemTime", "packRequestWait")) {
+            assertTrue(z.getValue(name) <= 1.0, "$name should agree with the reference: z = %.2f".format(z.getValue(name)))
+        }
+
         // NOT agreement: see this class's KDoc. Held where they stand so they cannot drift further
-        // without the reason being re-examined.
+        // without the reason being re-examined. Re-pinned for R1.8 (z then: paint queue 1.64 and 1.59,
+        // request waits 8.57 at the entry, 2.39, 3.88 and 3.22, AGV busy and utilization 94.2).
         val pinned = mapOf(
-            "systemTime" to 3.0, "oldPartSystemTime" to 3.0, "newPartSystemTime" to 3.0,
-            "paintQueueWait" to 13.0, "paintQueueLength" to 13.0,
-            "enterRequestWait" to 3.0, "workStationRequestWait" to 20.0,
-            "paintRequestWait" to 20.0, "newPaintRequestWait" to 17.0, "packRequestWait" to 14.0,
-            "agvNumberBusy" to 80.0, "agvUtilization" to 80.0
+            "paintQueueWait" to 3.0, "paintQueueLength" to 3.0,
+            "enterRequestWait" to 13.0, "workStationRequestWait" to 4.0,
+            "paintRequestWait" to 6.0, "newPaintRequestWait" to 5.0,
+            "agvNumberBusy" to 140.0, "agvUtilization" to 140.0
         )
         for ((name, limit) in pinned) {
             assertTrue(

@@ -17,9 +17,15 @@
  */
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
+ * A mixture of random variables: each value is a value of one of them, selected with the probabilities given by
+ * the cdf. The mixture samples its own copies of the supplied variables, which draw from its one stream, in turn
+ * with the selection; the supplied variables themselves are not used, and each must be able to draw from a stream
+ * it is given (see [canShareStream]).
+ *
  * @param list   a list holding the random variables to select from
  * @param cdf    the cumulative probability associated with each element of the list
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
@@ -37,7 +43,15 @@ class MixtureRV @JvmOverloads constructor(
     val cdf: DoubleArray = cdf.copyOf()
         get() = field.copyOf()
 
-    private val myRVList = list
+    // copies of the supplied variables, drawing from this variable's stream, not the caller's objects
+    private val myRVList: List<RVariable> = list.map { componentOn(it, streamNumber, streamProvider, rnStream) }
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        for (rv in myRVList) {
+            rv.drawFrom(stream)
+        }
+    }
 
     init {
         require(list.size >= 2) {"The number of random variables in the list must be greater than or equal to two." }

@@ -39,13 +39,8 @@ private object GuidedPathGuideSnippets {
     // -- §3 Quick start: the network -------------------------------------
 
     fun buildNetwork(): GuidedPathNetwork = GuidedPathNetwork.builder("SimpleAgv")
-        .intersection("I1", x = 0.0, y = 72.0)
-        .intersection("I2", x = 48.0, y = 72.0)
-        .intersection("I3", x = 48.0, y = 0.0)
-        .intersection("I4", x = 0.0, y = 0.0)
-        .intersection("I5", x = 0.0, y = -36.0)
-        .intersection("I6", x = 54.0, y = 72.0)
-        .intersection("I7", x = 54.0, y = 0.0)
+        .intersection("I1").intersection("I2").intersection("I3").intersection("I4")
+        .intersection("I5").intersection("I6").intersection("I7")
         // The main loop, clockwise and one way.
         .link("Link1", "I1", "I2", length = 48.0, zoneLength = 12.0)
         .link("Link2", "I2", "I3", length = 72.0, zoneLength = 12.0)

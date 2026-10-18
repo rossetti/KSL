@@ -18,6 +18,7 @@
 
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
@@ -51,7 +52,12 @@ class RVUFunction private constructor (
     init {
         require(rv !is ConstantRV ) {"A constant random variable cannot be transformed."}
     }
-    private val first = rv.instance(streamNum, streamProvider)
+    private val first: RVariable = componentOn(rv, streamNumber, streamProvider, rnStream)
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        first.drawFrom(stream)
+    }
     private val transform = theTransform
 
     override fun instance(streamNum: Int, rnStreamProvider: RNStreamProviderIfc): RVariableIfc {

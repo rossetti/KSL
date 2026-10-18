@@ -25,6 +25,20 @@ abstract class AbstractResourcePool<T: Resource>(
      */
     protected val myResources: MutableList<T> = mutableListOf()
 
+    /** True when [resource] is a member of this pool. */
+    internal fun isMember(resource: Resource): Boolean = myResources.any { it === resource }
+
+    /**
+     *  Registers [queue] on every member, so that units freed on a member are offered to the requests waiting
+     *  in it. Called by a seize of this pool; members cannot be added once the model is running, so the
+     *  members at the time of the seize are all of them.
+     */
+    internal fun registerQueueOnMembers(queue: RequestQ) {
+        for (r in myResources) {
+            r.registerCapacityChangeQueue(queue)
+        }
+    }
+
     protected val myNumBusy: AggregateTWResponse = AggregateTWResponse(this, "${this.name}:NumBusy")
     val numBusyUnits: TWResponseCIfc
         get() = myNumBusy

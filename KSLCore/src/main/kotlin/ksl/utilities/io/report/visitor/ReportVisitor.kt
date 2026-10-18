@@ -112,18 +112,21 @@ abstract class AbstractReportVisitor : ReportVisitor {
          * @param confidenceLevel confidence level for half-width and CI columns
          * @param fmt             renderer-supplied formatting function for [Double] values
          *                        (typically [ksl.utilities.io.report.renderer.RenderContext.fmt])
+         * @param fmtCount        formatting function for the Count column; by default `fmt`
+         *                        (renderers pass [ksl.utilities.io.report.renderer.RenderContext.fmtCount])
          * @return one row per statistic; each row aligns with [COMPACT_STAT_HEADERS]
          */
         fun compactStatRows(
             stats: List<StatisticIfc>,
             confidenceLevel: Double,
-            fmt: (Double) -> String
+            fmt: (Double) -> String,
+            fmtCount: (Double) -> String = fmt
         ): List<List<String>> = stats.map { stat ->
             val myCI = stat.confidenceInterval(confidenceLevel)
             val myHW = stat.halfWidth(confidenceLevel)
             listOf(
                 stat.name,
-                fmt(stat.count),
+                fmtCount(stat.count),
                 fmt(stat.average),
                 fmt(stat.standardDeviation),
                 fmt(stat.standardError),
@@ -144,11 +147,13 @@ abstract class AbstractReportVisitor : ReportVisitor {
          *
          * @param stats statistics to tabulate
          * @param fmt   renderer-supplied formatting function for [Double] values
+         * @param fmtCount formatting function for the Missing column; by default `fmt`
          * @return one row per statistic; each row aligns with [DIAGNOSTIC_STAT_HEADERS]
          */
         fun diagnosticStatRows(
             stats: List<StatisticIfc>,
-            fmt: (Double) -> String
+            fmt: (Double) -> String,
+            fmtCount: (Double) -> String = fmt
         ): List<List<String>> = stats.map { stat ->
             listOf(
                 stat.name,
@@ -157,7 +162,7 @@ abstract class AbstractReportVisitor : ReportVisitor {
                 fmt(stat.lag1Correlation),
                 fmt(stat.vonNeumannLag1TestStatistic),
                 fmt(stat.vonNeumannLag1TestStatisticPValue),
-                fmt(stat.numberMissing)
+                fmtCount(stat.numberMissing)
             )
         }
     }

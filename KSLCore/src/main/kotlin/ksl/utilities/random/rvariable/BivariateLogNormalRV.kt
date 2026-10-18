@@ -17,6 +17,7 @@
  */
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import kotlin.math.abs
 import kotlin.math.exp
@@ -64,11 +65,16 @@ class BivariateLogNormalRV @JvmOverloads constructor(
         // calculate the correlation
         val cov = ln(1.0 + corr * sqrt(v1 * v2) / abs(m1 * m2))
         val rho = cov / sqrt(var1 * var2)
-        myBVN = BivariateNormalRV(mean1, var1, mean2, var2, rho, streamNum, streamProvider)
+        myBVN = BivariateNormalRV(mean1, var1, mean2, var2, rho, streamNumber, streamProvider).also { it.drawFrom(rnStream) }
     }
 
     override fun instance(streamNumber: Int, rnStreamProvider: RNStreamProviderIfc): MVRVariableIfc {
         return BivariateLogNormalRV(m1, v1, m2, v2, corr, streamNumber, rnStreamProvider)
+    }
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        myBVN.drawFrom(stream)
     }
 
     override fun generate(array: DoubleArray) {

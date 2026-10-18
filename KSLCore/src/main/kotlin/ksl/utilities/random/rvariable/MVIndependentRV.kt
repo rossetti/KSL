@@ -18,6 +18,7 @@
 
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
@@ -25,6 +26,10 @@ import ksl.utilities.random.rng.RNStreamProviderIfc
  * The sampling of each dimension is independent. That is the resulting
  * distribution has independent marginals that are represented by the same
  * distribution as provided by the supplied random variable
+ *
+ * The variable samples its own copy of the supplied random variable, which draws from this variable's stream; the
+ * supplied variable itself is not used, so sampling one does not move the other. The supplied variable must be
+ * able to draw from a stream it is given (see [canShareStream]).
  * @param theDimension the dimension must be at least 2
  * @param theRandomVariable the random variable for the marginals
  * @param streamNum the random number stream number, defaults to 0, which means the next stream
@@ -48,10 +53,20 @@ class MVIndependentRV @JvmOverloads constructor(
         return MVIndependentRV(dimension, myRV, streamNumber, rnStreamProvider, name)
     }
 
-    private val myRV: RVariableIfc = if (theRandomVariable.streamProvider != streamProvider) {
-        theRandomVariable.instance(streamNum, streamProvider)
-    } else {
-        theRandomVariable
+    init {
+        require(theRandomVariable.canShareStream()) {
+            "The random variable must be able to draw from this variable's stream (see canShareStream()); " +
+                    "one that is not an RVariable cannot"
+        }
+    }
+
+    // its own copy of the supplied variable, drawing from this variable's stream, never the caller's object
+    private val myRV: RVariable =
+        (theRandomVariable.instance(streamNumber, streamProvider) as RVariable).also { it.drawFrom(rnStream) }
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        myRV.drawFrom(stream)
     }
 
     override fun generate(array: DoubleArray) {

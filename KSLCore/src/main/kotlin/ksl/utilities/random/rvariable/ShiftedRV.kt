@@ -18,6 +18,7 @@
 
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
@@ -41,7 +42,12 @@ class ShiftedRV @JvmOverloads constructor(
         require(shift >= 0.0) { "The shift should not be < 0.0" }
     }
 
-    private val myRV: RVariableIfc = rv.instance(streamNum, streamProvider)
+    private val myRV: RVariable = componentOn(rv, streamNumber, streamProvider, rnStream)
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        myRV.drawFrom(stream)
+    }
 
     override fun generate(): Double {
         return shift + myRV.value

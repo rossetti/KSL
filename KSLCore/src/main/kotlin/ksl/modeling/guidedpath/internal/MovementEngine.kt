@@ -94,6 +94,7 @@ internal class MovementEngine(
         transporter.currentRoute =
             myNetwork.routeFrom(front, destination, transporter.travellingForward)
         creditOwnLengthIfReversing(transporter, front)
+        transporter.journeyPurpose = purpose
         transporter.transporterState = transporter.movingStateFor(purpose)
         mySystem.refreshFleetCounts()
         advance(transporter)
@@ -498,6 +499,7 @@ internal class MovementEngine(
                 myNetwork.routeFrom(zone, redirect, transporter.travellingForward)
             // Derived when the redirection is actually applied rather than when it was issued, so
             // the state describes what the transporter is carrying at the moment it sets off.
+            transporter.journeyPurpose = transporter.pendingPurpose
             transporter.transporterState = transporter.movingStateFor(transporter.pendingPurpose)
         }
         mySystem.refreshFleetCounts()

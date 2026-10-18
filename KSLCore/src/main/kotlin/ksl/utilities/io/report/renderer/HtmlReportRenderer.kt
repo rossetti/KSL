@@ -149,7 +149,7 @@ $myStyleBlock
         val myCI = node.stat.confidenceInterval(node.confidenceLevel)
         val myHW = node.stat.halfWidth(node.confidenceLevel)
         val myRows = listOf(
-            listOf("Count",              ctx.fmtProperty(node.stat.count)),
+            listOf("Count",              ctx.fmtCount(node.stat.count)),
             listOf("Average",            ctx.fmtProperty(node.stat.average)),
             listOf("Std Dev",            ctx.fmtProperty(node.stat.standardDeviation)),
             listOf("Std Error",          ctx.fmtProperty(node.stat.standardError)),
@@ -167,7 +167,7 @@ $myStyleBlock
             listOf("Lag-1 Covariance",   ctx.fmtProperty(node.stat.lag1Covariance)),
             listOf("Lag-1 Correlation",  ctx.fmtProperty(node.stat.lag1Correlation)),
             listOf("Von Neumann Stat",   ctx.fmtProperty(node.stat.vonNeumannLag1TestStatistic)),
-            listOf("Missing",            ctx.fmtProperty(node.stat.numberMissing))
+            listOf("Missing",            ctx.fmtCount(node.stat.numberMissing))
         )
         myOutput.appendLine(buildHtmlTable(listOf("Property", "Value"), myRows))
         myOutput.appendLine()
@@ -178,12 +178,12 @@ $myStyleBlock
         if (node.caption != null) {
             myOutput.appendLine("<p class=\"table-caption\">${node.caption.escapeHtml()}</p>")
         }
-        val myRows = compactStatRows(node.stats, node.confidenceLevel, ctx::fmt)
+        val myRows = compactStatRows(node.stats, node.confidenceLevel, ctx::fmt, ctx::fmtCount)
         myOutput.appendLine(buildHtmlTable(COMPACT_STAT_HEADERS, myRows))
         myOutput.appendLine()
         if (node.detail) {
             myOutput.appendLine("<p class=\"table-caption\"><strong>Diagnostic Statistics</strong></p>")
-            val myDiagRows = diagnosticStatRows(node.stats, ctx::fmt)
+            val myDiagRows = diagnosticStatRows(node.stats, ctx::fmt, ctx::fmtCount)
             myOutput.appendLine(buildHtmlTable(DIAGNOSTIC_STAT_HEADERS, myDiagRows))
             myOutput.appendLine()
         }
@@ -193,7 +193,7 @@ $myStyleBlock
         val myCaption = node.caption ?: node.stat.name
         myOutput.appendLine("<p class=\"table-caption\">${myCaption.escapeHtml()}</p>")
         val myRows = listOf(
-            listOf("Count",                   ctx.fmtProperty(node.stat.count)),
+            listOf("Count",                   ctx.fmtCount(node.stat.count)),
             listOf("Weighted Average",         ctx.fmtProperty(node.stat.weightedAverage)),
             listOf("Unweighted Average",       ctx.fmtProperty(node.stat.unWeightedAverage)),
             listOf("Weighted Sum",             ctx.fmtProperty(node.stat.weightedSum)),
@@ -201,7 +201,7 @@ $myStyleBlock
             listOf("Weighted Sum of Squares",  ctx.fmtProperty(node.stat.weightedSumOfSquares)),
             listOf("Min",                      ctx.fmtProperty(node.stat.min)),
             listOf("Max",                      ctx.fmtProperty(node.stat.max)),
-            listOf("Missing",                  ctx.fmtProperty(node.stat.numberMissing))
+            listOf("Missing",                  ctx.fmtCount(node.stat.numberMissing))
         )
         myOutput.appendLine(buildHtmlTable(listOf("Property", "Value"), myRows))
         myOutput.appendLine()
@@ -219,7 +219,7 @@ $myStyleBlock
         val myRows = node.stats.map { ws ->
             listOf(
                 ws.name,
-                ctx.fmt(ws.count),
+                ctx.fmtCount(ws.count),
                 ctx.fmt(ws.weightedAverage),
                 ctx.fmt(ws.unWeightedAverage),
                 ctx.fmt(ws.weightedSum),
@@ -227,7 +227,7 @@ $myStyleBlock
                 ctx.fmt(ws.weightedSumOfSquares),
                 ctx.fmt(ws.min),
                 ctx.fmt(ws.max),
-                ctx.fmt(ws.numberMissing)
+                ctx.fmtCount(ws.numberMissing)
             )
         }
         myOutput.appendLine(buildHtmlTable(myHeaders, myRows))

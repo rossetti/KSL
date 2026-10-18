@@ -43,6 +43,13 @@ interface MVRVariableIfc : RNStreamControlIfc, MVSampleIfc, MVRandomInstanceIfc 
     val streamNumber: Int
 
     /**
+     * A new instance with the same parameters whose stream is an antithetic copy of this variable's stream, in its
+     * current state. Everything the instance samples, including the components of a variable built from
+     * component variables, draws from that copy, so its samples pair with this variable's. Its stream controls
+     * (reset, substreams) act on that copy, independently of this variable; applying the same controls to both
+     * keeps them paired. The copy is not held by the stream provider, so the provider's operations on the streams
+     * it holds do not reach it.
+     *
      * @return a new instance with same parameter value, but that has antithetic variates
      */
     fun antitheticInstance(): MVRVariableIfc

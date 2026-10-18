@@ -57,10 +57,24 @@ abstract class RVariable(
     name: String? = null
 ) : RVariableIfc, IdentityIfc by Identity(name), DoubleEmitterIfc by DoubleEmitter() {
 
+    /** The stream this variable draws from; a variable built from component variables may point it at its own. */
+    private var myRNStream: RNStreamIfc = streamProvider.rnStream(streamNum)
+
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    protected open val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
+    protected open val rnStream: RNStreamIfc
+        get() = myRNStream
+
+    /**
+     *  Makes this variable draw from [stream] from now on. A variable built from component variables uses it so
+     *  that its components draw from its one stream, in turn, and its stream controls (reset, substreams, the
+     *  antithetic flag) govern everything it samples. A component variable passes the stream on to its own
+     *  components.
+     */
+    internal open fun drawFrom(stream: RNStreamIfc) {
+        myRNStream = stream
+    }
 
     /*
      * The number this variable was built with. A provider serves an antithetic stream as a
@@ -137,4 +151,24 @@ abstract class RVariable(
         return x
     }
 
+}
+
+/**
+ *  True when this variable can draw from a stream it is given. A variable built from component variables that it
+ *  is given, such as [MVIndependentMarginals] or [MVIndependentRV], requires this of each component, so that the
+ *  components draw from its one stream. Every variable that extends [RVariable] can; another implementation of
+ *  [RVariableIfc] cannot, and such a composite refuses it.
+ */
+fun RVariableIfc.canShareStream(): Boolean = this is RVariable
+
+/**
+ *  Builds a copy of [rv] on [streamNumber] of [provider] that draws from [stream]. The copy is how a variable built
+ *  from component variables gives each component its own one stream.
+ */
+internal fun componentOn(rv: RVariableIfc, streamNumber: Int, provider: RNStreamProviderIfc, stream: RNStreamIfc): RVariable {
+    require(rv.canShareStream()) {
+        "A component variable must be able to draw from the stream of the variable built from it " +
+                "(see canShareStream()); one that is not an RVariable cannot"
+    }
+    return (rv.instance(streamNumber, provider) as RVariable).also { it.drawFrom(stream) }
 }

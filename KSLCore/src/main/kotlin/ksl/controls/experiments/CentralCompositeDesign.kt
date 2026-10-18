@@ -103,7 +103,9 @@ open class CentralCompositeDesign @JvmOverloads constructor(
     ) : this(TwoLevelFactorialDesign(factors), numFactorialReps, numAxialReps,
         numCenterReps, axialSpacing, name)
 
-    protected val myDesign: ExperimentalDesign = ExperimentalDesign(twoLevelDesignItr.factors)
+    // holds this design's points, which report this design as theirs
+    protected val myDesign: ExperimentalDesign =
+        ExperimentalDesign(twoLevelDesignItr.factors).also { it.pointOwner = this }
 
     final override val factors: Map<String, Factor>
         get() = myDesign.factors

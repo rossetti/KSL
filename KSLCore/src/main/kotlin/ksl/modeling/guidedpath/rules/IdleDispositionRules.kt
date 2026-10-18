@@ -94,6 +94,12 @@ class ReturnToHomeBaseRule : IdleDispositionRuleIfc {
  * one staging area. Note that transporters will then contend for the way there, so a staging area
  * on the main path is worse than no policy at all.
  *
+ * Only one transporter fits at the staging location; the others queue on the approach to it. That
+ * queue is what this rule forms, so a transporter waiting in it is not counted or reported as an
+ * obstruction. It is still waiting to move, though, so its time there counts as blocked, not idle,
+ * in `fracTimeBlocked`. To keep idle transporters off the running line altogether, give each a home
+ * base on a parking spur.
+ *
  * @param locationName the junction or station to wait at
  */
 class MoveToStagingAreaRule(val locationName: String) : IdleDispositionRuleIfc {

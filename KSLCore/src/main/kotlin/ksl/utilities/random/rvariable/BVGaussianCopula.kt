@@ -19,6 +19,7 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.Normal
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
@@ -38,8 +39,13 @@ class BVGaussianCopula @JvmOverloads constructor(
 
     private val bvn = BivariateNormalRV(
         corr = bvnCorrelation,
-        streamNum = streamNum, streamProvider = streamProvider
-    )
+        streamNum = streamNumber, streamProvider = streamProvider
+    ).also { it.drawFrom(rnStream) }
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        bvn.drawFrom(stream)
+    }
 
     override val dimension: Int
         get() = bvn.dimension

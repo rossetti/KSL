@@ -167,8 +167,9 @@ data class IdleTransporterObstruction(
                 "($awaitedZoneName), which is held by idle transporter ($idleTransporterName). " +
                 "Nothing is scheduled to move the idle transporter, so this wait lasts until " +
                 "something dispatches it, and lasts to the end of the replication if nothing " +
-                "does. This is not a circular wait. Give idle transporters a home base or a " +
-                "staging area so that they leave the path."
+                "does. This is not a circular wait. Give idle transporters a home base on a " +
+                "parking spur, off the running line, so that they leave the path; a staging area on " +
+                "a through link forms a queue on the path instead."
 }
 
 /**

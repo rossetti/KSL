@@ -39,6 +39,10 @@ package ksl.modeling.agent
  *   - That one is a `ModelElement` that holds suspended entities and
  *     resumes them. It's a process-view primitive.
  *   - This one is a statechart broadcast — observers, not coroutines.
+ *     It cannot be waited on with `waitFor`.
+ *
+ *  To fire one later, schedule it from the `AgentModel`:
+ *  `schedule({ signal.fire() }, t)`.
  *
  *  @param name optional display name for diagnostics
  */

@@ -58,8 +58,6 @@ internal enum class ResumeSource(val mayResumeDelay: Boolean = false) {
     BATCH_QUEUE,
     BLOCKING_QUEUE_RECEIVER,
     BLOCKING_QUEUE_SENDER,
-    INTERRUPT_DELAY(mayResumeDelay = true),
-    INTERRUPT_DELAY_WITH_PROCESS(mayResumeDelay = true),
     BLOCK_UNTIL_PROCESS_COMPLETED,
     WAIT_FOR_CALLED_PROCESS,
     SUSPENSION_OBJECT,
@@ -422,11 +420,37 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      * a process that a subclass of Entity can follow.  Entity instances may use resources, signals,
      * hold queues, etc. as shared mutable state.  Entities may follow a process sequence if defined.
      *
-     * @param aName an optional name for the entity
+     * A new entity is placed at the spatial model's default location, which for a guide-path network is
+     * the first intersection declared, unless it is given a location of its own when it is created or
+     * its process sets `currentLocation`.
      */
-    open inner class Entity(aName: String? = null) : QObject(aName),
-        SpatialElementIfc by SpatialElement(this@ProcessModel), VelocityIfc,
+    open inner class Entity private constructor(
+        aName: String?,
+        private val mySpatialElement: SpatialElement
+    ) : QObject(aName),
+        SpatialElementIfc by mySpatialElement, VelocityIfc,
         ZoneHolderIfc, ZoneHolderRecordIfc {
+
+        /**
+         * Creates an entity at the spatial model's default location.
+         *
+         * @param aName an optional name for the entity
+         */
+        constructor(aName: String? = null) : this(aName, SpatialElement(this@ProcessModel))
+
+        /**
+         * Creates an entity that starts at [initialLocation] rather than at the spatial model's default
+         * location, so where it starts does not depend on the order in which locations were declared.
+         *
+         * @param aName an optional name for the entity
+         * @param initialLocation where the entity starts; a location of this model's spatial model
+         */
+        constructor(aName: String?, initialLocation: LocationIfc) :
+                this(aName, SpatialElement(this@ProcessModel, initialLocation)) {
+            require(spatialModel.isValid(initialLocation)) {
+                "The location ${initialLocation.name} is not valid for spatial model ${spatialModel.name}"
+            }
+        }
 
         // ---- holding guide-path space ----------------------------------------------------------
 
@@ -708,6 +732,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          */
         private var myDelayEvent: KSLEvent<Nothing>? = null
 
+        /** The length of the delay as it was started, so that a restart after an interrupt means that length. */
+        private var myDelayDuration: Double = Double.NaN
+
+        /** True while the current delay is frozen by an interrupt, between the cancel and the reschedule. */
+        private var myDelayInterrupted: Boolean = false
+
         private val myResumeAction = ResumeAction()
 
         private var myCurrentProcess: ProcessCoroutine? = null // track the currently executing process
@@ -809,6 +839,30 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 resumePendingSource = null
                 resumePendingDetail = null
             }
+
+            private val myPromises: MutableMap<Resource, Int> = mutableMapOf()
+
+            /** The units promised to this request, by the resource that promised them. */
+            internal val promises: Map<Resource, Int>
+                get() = myPromises
+
+            /** Promises [amount] units of [member] to this request; they stop being available to anyone else. */
+            internal fun promise(member: Resource, amount: Int) {
+                require(amount in 1..member.numAvailableUnits) {
+                    "r = ${model.currentReplicationNumber} : $time > cannot promise $amount units of ${member.name} " +
+                            "to request_id = $id: ${member.numAvailableUnits} are available"
+                }
+                myPromises[member] = (myPromises[member] ?: 0) + amount
+                member.myPromisedUnits += amount
+            }
+
+            /** Withdraws this request's promises, making the units available again. */
+            internal fun clearPromises() {
+                for ((member, amount) in myPromises) {
+                    member.myPromisedUnits -= amount
+                }
+                myPromises.clear()
+            }
         }
 
         inner class ResourceRequest internal constructor (
@@ -827,6 +881,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         ) : Request(amountRequested){
             override val resource: ResourceIfc
                 get() = myResourcePool
+
+            /** The rules the seize named, so that members are promised as the seize would choose them. */
+            internal var selectionRule: ResourceSelectionRuleIfc? = null
+            internal var allocationRule: ResourceAllocationRuleIfc? = null
         }
 
         inner class MovableResourcePoolRequest internal constructor (
@@ -834,6 +892,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         ) : Request(amountRequested = 1){
             override val resource: ResourceIfc
                 get() = myMovableResourcePool
+
+            /** Where and by which rules the seize asked, so that a member is promised as it would be chosen. */
+            internal var requestLocation: LocationIfc? = null
+            internal var selectionRule: MovableResourceSelectionRuleIfc? = null
+            internal var allocationRule: MovableResourceAllocationRuleIfc? = null
         }
 
         /**
@@ -1345,6 +1408,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // if the resource can allocate the units then the request's entity can be resumed
                     // otherwise it continues to wait in the new queue for normal processing
                     val detail = "request_id=${request.id}, moved_to_resource=${resource.name}, amount=${request.amountRequested}"
+                    // promised now, so that nothing else takes the units before it resumes
+                    request.promise(resource, request.amountRequested)
                     request.markResumePending(ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
                     request.entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
                 }
@@ -1397,6 +1462,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // if the resource can allocate the units then the request's entity can be resumed
                     // otherwise it continues to wait in the new queue for normal processing
                     val detail = "request_id=${request.id}, moved_to_resource_pool=${pool.name}, amount=${request.amountRequested}"
+                    // promised now, as the rule given for the move would choose
+                    request.selectionRule = resourceSelectionRule
+                    pool.promiseMembers(request)
                     request.markResumePending(ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
                     request.entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
                 }
@@ -1449,6 +1517,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // if the resource can allocate the units then the request's entity can be resumed
                     // otherwise it continues to wait in the new queue for normal processing
                     val detail = "request_id=${request.id}, moved_to_movable_resource_pool=${pool.name}, amount=${request.amountRequested}"
+                    // promised now, as the rule given for the move would choose
+                    request.selectionRule = resourceSelectionRule
+                    pool.promiseMember(request)
                     request.markResumePending(ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
                     request.entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
                 }
@@ -2295,12 +2366,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: SEIZE: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource ${resource.name}")
+                // a queue a seize waits in is offered the resource's freed units, whichever way they are freed
+                resource.registerCapacityChangeQueue(queue)
                 val request = ResourceRequest(amountNeeded, resource)
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
                 emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, resource.name, queue.name, amountNeeded) }
                 try {
                     waitForResource(request, resource, queue)
+                    waitUntilPromiseHonoured(request) { request.myResource.canAllocate(amountNeeded) }
                     // entity has been told to resume or the request was selected for allocation
                     queue.remove(request) // take the request out of the queue after possible wait
                 } finally {
@@ -2313,7 +2387,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // A no-op on the normal path -- Queue.remove has already nulled request.queue --
                     // so no second waiting-time observation is recorded. Swept through request.queue
                     // rather than the queue parameter because the request may have been moved.
-                    (request.queue as? RequestQ)?.remove(request, false)
+                    (request.queue as? RequestQ)?.removeAbandoned(request)
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 if (request.myResource != resource) {
@@ -2337,6 +2411,31 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  entity of the request to suspend if the resource does not have a sufficient amount available to
              *  allocate to the request.
              */
+            /**
+             *  Waits on in the queue for as long as what the request was promised cannot be taken. Promises
+             *  are kept by the resources, so normally this returns at once; it covers a member that changed
+             *  in the instant between the wake and the resumption, such as one that went off shift, so that
+             *  the entity waits for the next unit rather than failing. A request with no promise, one that
+             *  never waited or one resumed some other way, waits on until [canAllocateNow] holds.
+             */
+            private suspend fun waitUntilPromiseHonoured(request: Request, canAllocateNow: () -> Boolean) {
+                while (true) {
+                    val promises = request.promises
+                    val honourable = if (promises.isEmpty()) {
+                        canAllocateNow()
+                    } else {
+                        promises.keys.all { !it.isInactive && it.capacity - it.numBusy - it.myPromisedUnits >= 0 }
+                    }
+                    if (honourable) return
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: request_id = ${request.id} cannot take what it was promised; it waits again" }
+                    request.clearPromises()
+                    request.clearResumePending()
+                    entity.state.waitForResource()
+                    suspend()
+                    entity.state.activate()
+                }
+            }
+
             private suspend fun waitForResource(
                 request: Request,
                 resource: Resource,
@@ -2381,7 +2480,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${resourcePool.name}")
+                // a queue a seize waits in is offered the members' freed units, whichever way they are freed
+                resourcePool.registerQueueOnMembers(queue)
                 val request = ResourcePoolRequest(amountNeeded, resourcePool)
+                var promised: Map<Resource, Int> = emptyMap()
+                request.selectionRule = resourceSelectionRule
+                request.allocationRule = resourceAllocationRule
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
                 emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, resourcePool.name, queue.name, amountNeeded) }
@@ -2396,11 +2500,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         entity.state.activate()
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     }
+                    waitUntilPromiseHonoured(request) {
+                        request.myResourcePool.canAllocate(resourceSelectionRule, request.amountRequested)
+                    }
+                    // the members promised when it was woken; leaving the queue withdraws the promise,
+                    // which is what makes those units available to this allocation
+                    promised = request.promises.toMap()
                     queue.remove(request) // take the request out of the queue after possible wait
                 } finally {
                     // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
                     // A no-op on the normal path, so it records no second waiting-time observation.
-                    (request.queue as? RequestQ)?.remove(request, false)
+                    (request.queue as? RequestQ)?.removeAbandoned(request)
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 if (request.myResourcePool != resourcePool) {
@@ -2413,11 +2523,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // allocated by the time that the resumption occurs
                 require(thePool.canAllocate(resourceSelectionRule, amountNeeded))
                 { "replication = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${thePool.name} \n $thePool" }
-                // This causes both the selection rule and the allocation rule to be invoked
-                val allocation = thePool.allocate(
-                    entity, amountNeeded, queue,
-                    resourceSelectionRule, resourceAllocationRule, suspensionName
-                )
+                // A waiter takes the members it was promised, so that it cannot collide with another
+                // waiter promised a different member at the same instant. Otherwise, as for an entity that
+                // did not wait, the selection and allocation rules choose.
+                val allocation = if (promised.values.sum() == amountNeeded &&
+                    promised.all { (member, amount) -> member.canAllocate(amount) }
+                ) {
+                    thePool.allocateFrom(entity, promised, queue, suspensionName)
+                } else {
+                    thePool.allocate(
+                        entity, amountNeeded, queue,
+                        resourceSelectionRule, resourceAllocationRule, suspensionName
+                    )
+                }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${thePool.name} : allocation_id = ${allocation.id}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: RESOURCE POOL: ${thePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 currentSuspendName = null
@@ -2438,7 +2556,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${movableResourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${movableResourcePool.name}")
+                // a queue a seize waits in is offered the members' freed units, whichever way they are freed
+                movableResourcePool.registerQueueOnMembers(queue)
                 val request = MovableResourcePoolRequest(myMovableResourcePool = movableResourcePool)
+                var promisedMember: Resource? = null
+                request.requestLocation = requestLocation
+                request.selectionRule = resourceSelectionRule
+                request.allocationRule = resourceAllocationRule
                 request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
                 queue.enqueue(request) // put the request in the queue
                 emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, movableResourcePool.name, queue.name, 1) }
@@ -2452,12 +2576,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         entity.state.activate()
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     }
-                    // entity has been told to resume
+                    waitUntilPromiseHonoured(request) { request.myMovableResourcePool.canAllocate(resourceSelectionRule) }
+                    // entity has been told to resume; leaving the queue withdraws its promise
+                    promisedMember = request.promises.keys.firstOrNull()
                     queue.remove(request) // take the request out of the queue after possible wait
                 } finally {
                     // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
                     // A no-op on the normal path, so it records no second waiting-time observation.
-                    (request.queue as? RequestQ)?.remove(request, false)
+                    (request.queue as? RequestQ)?.removeAbandoned(request)
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 if (request.myMovableResourcePool != movableResourcePool) {
@@ -2467,15 +2593,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val thePool = request.myMovableResourcePool
                 // a probably redundant check to ensure the resource pool can actually allocate the units
                 require(thePool.canAllocate(resourceSelectionRule)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for 1 unit of ${thePool.name}" }
-                // This causes both the selection rule and the allocation rule to be invoked
-                val allocation = thePool.allocate(
-                    entity,
-                    requestLocation,
-                    queue,
-                    resourceSelectionRule,
-                    resourceAllocationRule,
-                    suspensionName
-                )
+                // A waiter takes the member it was promised; otherwise the rules choose.
+                val member = promisedMember
+                val allocation = if (member is MovableResource && member.canAllocate(1)) {
+                    thePool.allocateMember(entity, member, queue, suspensionName)
+                } else {
+                    thePool.allocate(
+                        entity,
+                        requestLocation,
+                        queue,
+                        resourceSelectionRule,
+                        resourceAllocationRule,
+                        suspensionName
+                    )
+                }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated 1 unit of ${thePool.name} : allocation_id = ${allocation.id}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: MOVABLE RESOURCE POOL: ${thePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 currentSuspendName = null
@@ -2510,7 +2641,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     queue.remove(request) // take the request out of the queue after possible wait
                 } finally {
                     // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
-                    (request.queue as? RequestQ)?.remove(request, false)
+                    (request.queue as? RequestQ)?.removeAbandoned(request)
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 val thePool = request.myGuidedTransporterPool
@@ -2533,6 +2664,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // capture the event for possible cancellation
                 entity.state.schedule()
                 val eName = "Delay Event: duration = $delayDuration suspension name = $suspensionName"
+                myDelayDuration = delayDuration
+                myDelayInterrupted = false
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority, name = eName)
                 myDelayEvent!!.entity = entity
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: SCHEDULED end of delay: event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time} : DELAY for ($delayDuration) STARTED" }
@@ -2542,6 +2675,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id}: suspension name = $currentSuspendName : event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time}" }
                 if (!inMoveDelay && !inYieldDelay) emitAnimation { AnimationEvent.DelayEnded(time, entity.id, suspensionName) }
                 require(time == myDelayEvent!!.time) { "r = ${model.currentReplicationNumber} : $time > END : DELAY: suspension name = $currentSuspendName : entity_id = ${entity.id} : the actual event time ($time) was not the same as the scheduled delay event time (${myDelayEvent!!.time})" }
+                // the delay is over: a finished delay must not be mistaken for a current one
+                myDelayEvent = null
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }
@@ -2700,18 +2835,24 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // note that the released amount may allow multiple requests to proceed
                 // this may be a problem depending on how numAvailableUnits is defined
                 if (!executive.isEnded) {
-                    // A pool-level allocation has to be released on behalf of its pool. The requests
-                    // waiting in this queue name what was wanted, and a seize against a pool names
-                    // the pool, not the member that happened to be allocated -- so passing the member
-                    // here matches nothing and no waiter is ever woken.
+                    // The freed units are offered to every request that may want them: those naming
+                    // the resource and those naming a pool it belongs to, in whichever queue they wait.
                     val pool = allocation.originatingPool
-                    allocation.myQueue.processWaitingRequestsForResource(
-                        pool ?: allocation.myResource,
-                        releasePriority,
-                        if (pool != null) ResumeSource.REQUEST_Q_RESOURCE_POOL_RELEASE
-                        else ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
-                        "released_by_entity_id=${entity.id}, allocation_id=${allocation.id}"
-                    )
+                    val detail = "released_by_entity_id=${entity.id}, allocation_id=${allocation.id}"
+                    if (pool == null || pool is ResourcePool || pool is MovableResourcePool) {
+                        allocation.myResource.offerFreedUnits(
+                            releasePriority,
+                            if (pool != null) ResumeSource.REQUEST_Q_RESOURCE_POOL_RELEASE
+                            else ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
+                            detail,
+                            alsoQueue = allocation.myQueue
+                        )
+                    } else {
+                        // a guided transporter pool keeps its own accounting and wakes its own queue
+                        allocation.myQueue.processWaitingRequestsForResource(
+                            pool, releasePriority, ResumeSource.REQUEST_Q_RESOURCE_POOL_RELEASE, detail
+                        )
+                    }
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : RELEASE: entity_id = ${entity.id} : allocation_id = ${allocation.id}" }
 
@@ -2743,15 +2884,89 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun release(pooledAllocation: ResourcePoolAllocation, releasePriority: Int) {
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} RELEASE ${pooledAllocation.amount} units of ${pooledAllocation.resourcePool.name} in process, ($this)" }
                 // ask the resource pool to deallocate the resources
+                val members = pooledAllocation.allocations.map { it.myResource }
                 pooledAllocation.resourcePool.deallocate(pooledAllocation)
-                // then check the queue for additional work
-                // get the queue from the allocation being released
-                pooledAllocation.queue.processWaitingRequestsForResource(
-                    pooledAllocation.resourcePool,
-                    releasePriority,
-                    ResumeSource.REQUEST_Q_RESOURCE_POOL_RELEASE,
-                    "released_by_entity_id=${entity.id}, pooled_allocation_id=${pooledAllocation.id}"
-                )
+                // then offer each freed member to whoever is waiting for it, by any route
+                if (!executive.isEnded) {
+                    for (member in members.distinct()) {
+                        member.offerFreedUnits(
+                            releasePriority,
+                            ResumeSource.REQUEST_Q_RESOURCE_POOL_RELEASE,
+                            "released_by_entity_id=${entity.id}, pooled_allocation_id=${pooledAllocation.id}",
+                            alsoQueue = pooledAllocation.queue
+                        )
+                    }
+                }
+            }
+
+            override fun isInDelay(name: String): Boolean =
+                entity.currentProcess === this && entity.isScheduled &&
+                        entity.currentSuspendType == SuspendType.DELAY && !inMoveDelay && !inYieldDelay &&
+                        entity.currentSuspendName == name && entity.myDelayEvent != null
+
+            /** What the entity is doing, in words, for the error when an interrupt finds it elsewhere. */
+            private fun delayStateDescription(): String = when {
+                entity.currentProcess !== this -> "it is not executing this process"
+                entity.currentSuspendType == SuspendType.DELAY && inMoveDelay -> "it is moving"
+                entity.currentSuspendType == SuspendType.DELAY && inYieldDelay -> "it is yielding"
+                entity.currentSuspendType == SuspendType.DELAY -> "it is in delay '${entity.currentSuspendName}'"
+                entity.currentSuspendType == SuspendType.NONE -> "it is not suspended"
+                else -> "it is suspended (${entity.currentSuspendType}) as '${entity.currentSuspendName}'"
+            }
+
+            /**
+             *  The process to interrupt, once it is known to be in the named delay, or null when that delay is
+             *  already frozen by another interrupt, which is ignored with a warning.
+             */
+            private fun interruptTarget(process: KSLProcess, delayName: String): ProcessCoroutine? {
+                require(this != process) { "A process cannot interrupt itself!" }
+                val target = process as ProcessCoroutine
+                check(target.isInDelay(delayName)) {
+                    "r = ${model.currentReplicationNumber} : $time > cannot interrupt delay '$delayName' of " +
+                            "entity_id = ${target.entity.id}: ${target.delayStateDescription()}. " +
+                            "Check with isInDelay(\"$delayName\") before interrupting."
+                }
+                if (target.entity.myDelayInterrupted) {
+                    logger.warn {
+                        "r = ${model.currentReplicationNumber} : $time > delay '$delayName' of entity_id = " +
+                                "${target.entity.id} is already interrupted; this interrupt is ignored"
+                    }
+                    return null
+                }
+                return target
+            }
+
+            /** Freezes the target's delay and returns the priority to reschedule it at. */
+            private fun freezeDelay(target: ProcessCoroutine): Int {
+                val delayEvent = target.entity.myDelayEvent!!
+                // a delay ending after the run's end was never placed on the calendar, so there is nothing to cancel
+                if (delayEvent.isScheduled) {
+                    delayEvent.cancel = true
+                }
+                target.entity.myDelayInterrupted = true
+                return delayEvent.priority
+            }
+
+            /**
+             *  Schedules the rest of a frozen delay as a delay of its own, so that it ends the way any delay
+             *  ends. Nothing happens when the target no longer needs it: it was terminated, or it left the delay.
+             */
+            private fun rescheduleInterruptedDelay(target: ProcessCoroutine, duration: Double, priority: Int) {
+                val e = target.entity
+                if (!e.myDelayInterrupted || e.currentProcess !== target || e.currentSuspendType != SuspendType.DELAY) {
+                    return
+                }
+                e.myDelayInterrupted = false
+                if (executive.isEnded) {
+                    return
+                }
+                val eName = "Delay Event: duration = $duration suspension name = ${e.currentSuspendName} (after an interrupt)"
+                val delayEvent = target.delayAction.schedule(duration, priority = priority, name = eName)
+                delayEvent.entity = e
+                e.myDelayEvent = delayEvent
+                emitAnimation {
+                    AnimationEvent.DelayStarted(time, e.id, duration, delayEvent.time, e.currentSuspendName)
+                }
             }
 
             override suspend fun interruptDelay(
@@ -2761,25 +2976,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptPriority: Int,
                 postInterruptDelayTime: Double
             ) {
-                require(this != process) { "A process cannot interrupt itself!" }
                 require(interruptTime >= 0.0) { "The interrupt time must be >= 0.0" }
                 require(postInterruptDelayTime >= 0.0) { "The post interrupt delay time must be >= 0.0" }
-                if (!process.entity.isScheduled) {
-                    return
+                val target = interruptTarget(process, delayName) ?: return
+                val priority = freezeDelay(target)
+                try {
+                    delay(interruptTime, interruptPriority)
+                } finally {
+                    // also when this process is terminated mid-interrupt: the target is not left frozen
+                    rescheduleInterruptedDelay(target, postInterruptDelayTime, priority)
                 }
-                if (delayName != process.entity.currentSuspendName) {
-                    return
-                }
-                val delayEvent = process.entity.myDelayEvent ?: return
-                // the process is experiencing the named delay
-                delayEvent.cancel = true
-                delay(interruptTime, interruptPriority)
-                process.entity.scheduleResumeProcess(
-                    postInterruptDelayTime,
-                    delayEvent.priority,
-                    ResumeSource.INTERRUPT_DELAY,
-                    "interrupted_delay=$delayName, original_delay_event_id=${delayEvent.id}"
-                )
             }
 
             override suspend fun interruptDelayAndRestart(
@@ -2788,8 +2994,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptTime: Double,
                 interruptPriority: Int
             ) {
-                val delayEvent = process.entity.myDelayEvent ?: return
-                interruptDelay(process, delayName, interruptTime, interruptPriority, delayEvent.interEventTime)
+                val target = interruptTarget(process, delayName) ?: return
+                interruptDelay(target, delayName, interruptTime, interruptPriority, target.entity.myDelayDuration)
             }
 
             override suspend fun interruptDelayAndContinue(
@@ -2798,8 +3004,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptTime: Double,
                 interruptPriority: Int
             ) {
-                val delayEvent = process.entity.myDelayEvent ?: return
-                interruptDelay(process, delayName, interruptTime, interruptPriority, delayEvent.timeRemaining)
+                val target = interruptTarget(process, delayName) ?: return
+                val remaining = maxOf(0.0, target.entity.myDelayEvent!!.time - time)
+                interruptDelay(target, delayName, interruptTime, interruptPriority, remaining)
             }
 
             override suspend fun interruptDelayWithProcess(
@@ -2809,26 +3016,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptPriority: Int,
                 postInterruptDelayTime: Double
             ) {
-                require(this != process) { "A process cannot interrupt itself!" }
                 require(this != interruptingProcess) { "This process cannot be used as the interrupting process" }
                 require(interruptingProcess != process) { "The interrupting process cannot be the same as the process being interrupted" }
                 require(postInterruptDelayTime >= 0.0) { "The post interrupt delay time must be >= 0.0" }
-                if (!process.entity.isScheduled) {
-                    return
+                val target = interruptTarget(process, delayName) ?: return
+                val priority = freezeDelay(target)
+                try {
+                    waitFor(interruptingProcess, priority = interruptPriority)
+                } finally {
+                    rescheduleInterruptedDelay(target, postInterruptDelayTime, priority)
                 }
-                if (delayName != process.entity.currentSuspendName) {
-                    return
-                }
-                val delayEvent = process.entity.myDelayEvent ?: return
-                // the process is experiencing the named delay
-                delayEvent.cancel = true
-                waitFor(interruptingProcess, priority = interruptPriority)
-                process.entity.scheduleResumeProcess(
-                    postInterruptDelayTime,
-                    delayEvent.priority,
-                    ResumeSource.INTERRUPT_DELAY_WITH_PROCESS,
-                    "interrupted_delay=$delayName, original_delay_event_id=${delayEvent.id}, interrupting_process=${interruptingProcess.name}"
-                )
             }
 
             override suspend fun interruptDelayWithProcessAndRestart(
@@ -2837,13 +3034,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptingProcess: KSLProcess,
                 interruptPriority: Int
             ) {
-                val delayEvent = process.entity.myDelayEvent ?: return
+                val target = interruptTarget(process, delayName) ?: return
                 interruptDelayWithProcess(
-                    process,
-                    delayName,
-                    interruptingProcess,
-                    interruptPriority,
-                    delayEvent.interEventTime
+                    target, delayName, interruptingProcess, interruptPriority, target.entity.myDelayDuration
                 )
             }
 
@@ -2853,14 +3046,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptingProcess: KSLProcess,
                 interruptPriority: Int
             ) {
-                val delayEvent = process.entity.myDelayEvent ?: return
-                interruptDelayWithProcess(
-                    process,
-                    delayName,
-                    interruptingProcess,
-                    interruptPriority,
-                    delayEvent.timeRemaining
-                )
+                val target = interruptTarget(process, delayName) ?: return
+                val remaining = maxOf(0.0, target.entity.myDelayEvent!!.time - time)
+                interruptDelayWithProcess(target, delayName, interruptingProcess, interruptPriority, remaining)
             }
 
             //TODO conveyor process commands
@@ -2980,15 +3168,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.EXIT
                 val conveyor = conveyorRequest.conveyor
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }
+                // an entity that never rode has no item to move off the conveyor; its cells are released at once
+                val leavingFromEntry = conveyorRequest.isBlockingEntry
                 // schedules the need to exit the conveyor
                 conveyor.scheduleExitAction(conveyorRequest as Conveyor.ConveyorRequest, exitPriority)
                 val exitLocation = conveyorRequest.currentLocation
-                isMoving = true
-                // hold here while entity exits the conveyor
-                inConveyorHold = true
-                hold(conveyor.myExitingHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.myExitingHoldQ.name}")
-                inConveyorHold = false
-                isMoving = false
+                if (!leavingFromEntry) {
+                    isMoving = true
+                    // hold here while entity exits the conveyor
+                    inConveyorHold = true
+                    hold(conveyor.myExitingHoldQ, suspensionName = "$suspensionName:EXIT:${conveyor.myExitingHoldQ.name}")
+                    inConveyorHold = false
+                    isMoving = false
+                }
                 entity.conveyorRequest = null
                 emitAnimation { AnimationEvent.ConveyorExited(time, entity.id, conveyor.name, exitLocation) }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END: EXIT CONVEYOR : entity_id = ${entity.id} : conveyor = ${conveyor.name} : suspension name = $currentSuspendName" }
@@ -3239,6 +3431,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         }
                     }
                 }
+                // a terminated delay is over, and an interrupt that froze it must not reschedule it
+                myDelayEvent = null
+                myDelayInterrupted = false
                 // Release the entity itself, not only its entanglements. Successful completion clears
                 // the binding in afterSuccessfulProcessCompletion; termination must do the same, and
                 // must also leave the suspended state that the exception unwound from -- otherwise the

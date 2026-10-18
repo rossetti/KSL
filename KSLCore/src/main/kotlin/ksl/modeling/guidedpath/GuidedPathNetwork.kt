@@ -115,6 +115,11 @@ class GuidedPathNetwork private constructor(
      * The location the spatial model uses when none is given. Set to the first declared
      * intersection when the network is built, and settable afterwards to any intersection of this
      * network.
+     *
+     * A new entity is placed here unless it is created with a location of its own or its process
+     * sets `currentLocation`, so with the default, where an entity starts depends on which
+     * intersection was declared first. A transport that does not name its pickup collects the
+     * entity from wherever it is.
      */
     override var defaultLocation: LocationIfc
         get() = myDefaultLocation
@@ -248,6 +253,39 @@ class GuidedPathNetwork private constructor(
         travellingForward: Boolean,
         toIntersection: Intersection
     ): List<Zone> = myPlanner.shortestPathZones(fromZone, travellingForward, toIntersection)
+
+    /**
+     * How far a transporter holding [fromZone] and facing the given way has to travel along the
+     * guide path to reach [toIntersection], or positive infinity when it cannot get there.
+     *
+     * Measured from the zone itself, not from the junction its link leads to, so two transporters on
+     * the same link are told apart by how much of the link each still has to cover, and a transporter
+     * travelling backward on a two-way link is measured the way it is going.
+     *
+     * @param fromZone the zone the transporter holds now
+     * @param travellingForward the direction it faces on a link zone, ignored at an intersection
+     * @param toIntersection where it would go
+     */
+    internal fun pathLength(fromZone: Zone, travellingForward: Boolean, toIntersection: Intersection): Double =
+        pathTo(fromZone, travellingForward, toIntersection).first
+
+    /**
+     * The length of the path, as for [pathLength], with the number of zones on it, which is
+     * `Int.MAX_VALUE` when the destination cannot be reached.
+     *
+     * The count tells apart transporters that are the same distance away. A transporter stopped at the
+     * end of a link, behind one standing on the junction ahead, is no further away in distance when the
+     * junction's zone has no length, but it has that zone still to enter, and cannot enter it first.
+     */
+    internal fun pathTo(fromZone: Zone, travellingForward: Boolean, toIntersection: Intersection): Pair<Double, Int> {
+        if (fromZone === toIntersection.zone) return 0.0 to 0
+        return try {
+            val zones = shortestPathZones(fromZone, travellingForward, toIntersection)
+            zones.sumOf { it.length } to zones.size
+        } catch (e: GuidedPathRoutingException) {
+            Double.POSITIVE_INFINITY to Int.MAX_VALUE
+        }
+    }
 
     /**
      * Plans a route from one intersection to another.

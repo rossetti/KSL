@@ -104,7 +104,7 @@ class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : Abs
         val myCI = node.stat.confidenceInterval(node.confidenceLevel)
         val myHW = node.stat.halfWidth(node.confidenceLevel)
         val myRows = listOf(
-            listOf("Count",              ctx.fmtProperty(node.stat.count)),
+            listOf("Count",              ctx.fmtCount(node.stat.count)),
             listOf("Average",            ctx.fmtProperty(node.stat.average)),
             listOf("Std Dev",            ctx.fmtProperty(node.stat.standardDeviation)),
             listOf("Std Error",          ctx.fmtProperty(node.stat.standardError)),
@@ -122,7 +122,7 @@ class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : Abs
             listOf("Lag-1 Covariance",   ctx.fmtProperty(node.stat.lag1Covariance)),
             listOf("Lag-1 Correlation",  ctx.fmtProperty(node.stat.lag1Correlation)),
             listOf("Von Neumann Stat",   ctx.fmtProperty(node.stat.vonNeumannLag1TestStatistic)),
-            listOf("Missing",            ctx.fmtProperty(node.stat.numberMissing))
+            listOf("Missing",            ctx.fmtCount(node.stat.numberMissing))
         )
         myOutput.append(formatTextTable(listOf("Property", "Value"), myRows))
         myOutput.appendLine()
@@ -133,12 +133,12 @@ class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : Abs
         if (node.caption != null) {
             myOutput.appendLine(node.caption)
         }
-        val myRows = compactStatRows(node.stats, node.confidenceLevel, ctx::fmt)
+        val myRows = compactStatRows(node.stats, node.confidenceLevel, ctx::fmt, ctx::fmtCount)
         myOutput.append(formatTextTable(COMPACT_STAT_HEADERS, myRows))
         myOutput.appendLine()
         if (node.detail) {
             myOutput.appendLine("Diagnostic Statistics")
-            val myDiagRows = diagnosticStatRows(node.stats, ctx::fmt)
+            val myDiagRows = diagnosticStatRows(node.stats, ctx::fmt, ctx::fmtCount)
             myOutput.append(formatTextTable(DIAGNOSTIC_STAT_HEADERS, myDiagRows))
             myOutput.appendLine()
         }
@@ -148,7 +148,7 @@ class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : Abs
         val myCaption = node.caption ?: node.stat.name
         myOutput.appendLine(myCaption)
         val myRows = listOf(
-            listOf("Count",                   ctx.fmtProperty(node.stat.count)),
+            listOf("Count",                   ctx.fmtCount(node.stat.count)),
             listOf("Weighted Average",         ctx.fmtProperty(node.stat.weightedAverage)),
             listOf("Unweighted Average",       ctx.fmtProperty(node.stat.unWeightedAverage)),
             listOf("Weighted Sum",             ctx.fmtProperty(node.stat.weightedSum)),
@@ -156,7 +156,7 @@ class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : Abs
             listOf("Weighted Sum of Squares",  ctx.fmtProperty(node.stat.weightedSumOfSquares)),
             listOf("Min",                      ctx.fmtProperty(node.stat.min)),
             listOf("Max",                      ctx.fmtProperty(node.stat.max)),
-            listOf("Missing",                  ctx.fmtProperty(node.stat.numberMissing))
+            listOf("Missing",                  ctx.fmtCount(node.stat.numberMissing))
         )
         myOutput.append(formatTextTable(listOf("Property", "Value"), myRows))
         myOutput.appendLine()
@@ -175,7 +175,7 @@ class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : Abs
         val myRows = node.stats.map { ws ->
             listOf(
                 ws.name,
-                ctx.fmt(ws.count),
+                ctx.fmtCount(ws.count),
                 ctx.fmt(ws.weightedAverage),
                 ctx.fmt(ws.unWeightedAverage),
                 ctx.fmt(ws.weightedSum),
@@ -183,7 +183,7 @@ class TextReportRenderer(private val ctx: RenderContext = RenderContext()) : Abs
                 ctx.fmt(ws.weightedSumOfSquares),
                 ctx.fmt(ws.min),
                 ctx.fmt(ws.max),
-                ctx.fmt(ws.numberMissing)
+                ctx.fmtCount(ws.numberMissing)
             )
         }
         myOutput.append(formatTextTable(myHeaders, myRows))

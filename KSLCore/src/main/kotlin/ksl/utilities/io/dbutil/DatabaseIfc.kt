@@ -19,9 +19,6 @@
 package ksl.utilities.io.dbutil
 
 import io.github.oshai.kotlinlogging.KLogger
-import kotlinx.datetime.Instant
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalTime
 import ksl.utilities.io.*
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.csv.CSVFormat
@@ -449,8 +446,10 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @return a result holding all the records from the table
      */
     fun selectAll(tableName: String, schemaName: String? = defaultSchemaName): CachedRowSet? {
-        if (!containsTable(tableName) && !containsView(tableName)) {
-            logger.trace { "Table or View: $tableName does not exist in database $label" }
+        // look in the schema that was asked for; when none was given, in the default schema, as before
+        val schema = schemaName ?: defaultSchemaName
+        if (!containsTable(tableName, schema) && !containsView(tableName, schema)) {
+            logger.trace { "Table or View: $tableName does not exist in schema $schema of database $label" }
             return null
         }
         return if (schemaName != null) {
@@ -523,8 +522,10 @@ interface DatabaseIfc : DatabaseIOIfc {
      * @param tableName qualified or unqualified name of an existing table in the database
      */
     fun selectAllIntoOpenResultSet(tableName: String, schemaName: String? = defaultSchemaName): ResultSet? {
-        if (!containsTable(tableName) && !containsView(tableName)) {
-            logger.trace { "Table or View: $tableName does not exist in database $label" }
+        // look in the schema that was asked for; when none was given, in the default schema, as before
+        val schema = schemaName ?: defaultSchemaName
+        if (!containsTable(tableName, schema) && !containsView(tableName, schema)) {
+            logger.trace { "Table or View: $tableName does not exist in schema $schema of database $label" }
             return null
         }
         val sql: String = if (schemaName == null) {
@@ -919,7 +920,7 @@ interface DatabaseIfc : DatabaseIOIfc {
      */
     fun <T : TabularData> selectTableDataIntoDbData(factory: () -> T): List<T> {
         val template = factory()
-        val rowSet: CachedRowSet? = selectAll(template.tableName)
+        val rowSet: CachedRowSet? = selectAll(template.tableName, template.schemaName ?: defaultSchemaName)
         val list = mutableListOf<T>()
         if (rowSet != null) {
             val iterator = ResultSetRowIterator(rowSet)
@@ -2060,52 +2061,54 @@ interface DatabaseIfc : DatabaseIOIfc {
         }
 
         /**
-         * Provides a mapping of SQL types to the DataFrame types to assist with type inference
+         * Makes a data frame column whose declared type matches the values it holds.
+         *
+         * Numbers are converted to the declared type of their SQL type: DOUBLE, FLOAT and REAL to
+         * Double (a REAL comes back as a Float), INTEGER to Int, BIGINT to Long, and SMALLINT and
+         * TINYINT to Short (drivers return an Integer). DECIMAL and NUMERIC are kept as the exact
+         * BigDecimal values they hold, or converted to Double when the driver returns other numbers
+         * for them. Dates and times are declared as the java.sql types JDBC
+         * returns, and binary data as a byte array. Every column is nullable, since an SQL NULL
+         * comes through as null.
+         *
+         * A driver that returns something other than the usual type for a column, as SQLite can,
+         * gets a column declared `Any?` rather than one whose declared type its values contradict.
+         * A column of any other SQL type keeps its values, also declared `Any?`.
          */
         private fun makeDataFrameColumn(columnMetaData: ColumnMetaData, data: List<Any?>): ValueColumn<Any?> {
+            val label = columnMetaData.label
             return when (columnMetaData.type) {
-                Types.BIT, Types.BOOLEAN -> {
-                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Boolean>())
-                }
-
-                Types.DECIMAL, Types.DOUBLE, Types.FLOAT, Types.NUMERIC, Types.REAL -> {
-                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Double>())
-                }
-
-                Types.TIMESTAMP -> {
-                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Instant>())
-                }
-
-                Types.INTEGER -> {
-                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Int>())
-                }
-
-                Types.DATE -> {
-                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<LocalDate>())
-                }
-
-                Types.TIME -> {
-                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<LocalTime>())
-                }
-
-                Types.BIGINT -> {
-                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Long>())
-                }
-
-                Types.SMALLINT, Types.TINYINT -> {
-                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<Short>())
-                }
-
-                Types.BINARY, Types.CHAR, Types.NCHAR, Types.NVARCHAR,
-                Types.VARCHAR, Types.LONGVARCHAR, Types.LONGNVARCHAR -> {
-                    DataColumn.createValueColumn(columnMetaData.label, data, typeOf<String>())
-                }
-
-                else -> {
-                    DataColumn.createValueColumn(columnMetaData.label, mutableListOf<Any>())
-                }
+                Types.BIT, Types.BOOLEAN -> typedColumn<Boolean>(label, data)
+                Types.DECIMAL, Types.NUMERIC ->
+                    if (data.all { it == null || it is java.math.BigDecimal }) {
+                        typedColumn<java.math.BigDecimal>(label, data)
+                    } else {
+                        // a driver that returns other numbers for these (SQLite returns doubles)
+                        typedColumn<Double>(label, data.map { (it as? Number)?.toDouble() ?: it })
+                    }
+                Types.DOUBLE, Types.FLOAT, Types.REAL ->
+                    typedColumn<Double>(label, data.map { (it as? Number)?.toDouble() ?: it })
+                Types.INTEGER -> typedColumn<Int>(label, data.map { (it as? Number)?.toInt() ?: it })
+                Types.BIGINT -> typedColumn<Long>(label, data.map { (it as? Number)?.toLong() ?: it })
+                Types.SMALLINT, Types.TINYINT ->
+                    typedColumn<Short>(label, data.map { (it as? Number)?.toShort() ?: it })
+                Types.TIMESTAMP -> typedColumn<java.sql.Timestamp>(label, data)
+                Types.DATE -> typedColumn<java.sql.Date>(label, data)
+                Types.TIME -> typedColumn<java.sql.Time>(label, data)
+                Types.BINARY, Types.VARBINARY, Types.LONGVARBINARY -> typedColumn<ByteArray>(label, data)
+                Types.CHAR, Types.NCHAR, Types.NVARCHAR,
+                Types.VARCHAR, Types.LONGVARCHAR, Types.LONGNVARCHAR -> typedColumn<String>(label, data)
+                else -> DataColumn.createValueColumn(label, data, typeOf<Any?>())
             }
         }
+
+        /** A nullable column of type `T` when every value is a `T` or null, otherwise a column of `Any?`. */
+        private inline fun <reified T : Any> typedColumn(label: String, data: List<Any?>): ValueColumn<Any?> =
+            if (data.all { it == null || it is T }) {
+                DataColumn.createValueColumn(label, data, typeOf<T?>())
+            } else {
+                DataColumn.createValueColumn(label, data, typeOf<Any?>())
+            }
 
         /**
          *  Fills a list with the indicated column of the CachedRowSet

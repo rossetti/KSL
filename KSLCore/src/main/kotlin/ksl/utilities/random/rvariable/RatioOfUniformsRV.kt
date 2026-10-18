@@ -19,6 +19,7 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.PDFIfc
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 
@@ -43,8 +44,15 @@ class RatioOfUniformsRV @JvmOverloads constructor(
     name: String? = null
 ) : RVariable(streamNum, streamProvider, name) {
 
-    private val uCDF: UniformRV = UniformRV(0.0, umax, streamNum, streamProvider, name)
-    private val vCDF: UniformRV = UniformRV(vmin, vmax, streamNum, streamProvider,name)
+    // u and v draw from this variable's one stream, in turn
+    private val uCDF: UniformRV = UniformRV(0.0, umax, streamNumber, streamProvider, name).also { it.drawFrom(rnStream) }
+    private val vCDF: UniformRV = UniformRV(vmin, vmax, streamNumber, streamProvider, name).also { it.drawFrom(rnStream) }
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        uCDF.drawFrom(stream)
+        vCDF.drawFrom(stream)
+    }
     private val pdf: PDFIfc = f
 
     override fun generate(): Double {

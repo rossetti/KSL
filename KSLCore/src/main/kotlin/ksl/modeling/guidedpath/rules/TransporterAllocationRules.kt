@@ -62,6 +62,11 @@ fun interface GuidedTransporterAllocationRuleIfc {
 /**
  * Sends whichever idle transporter has the shortest journey to the pickup.
  *
+ * The journey is measured from the zone each transporter holds, in the direction it faces. A
+ * transporter part way along a link therefore counts the rest of that link: of two transporters
+ * queued on a link, the one in front is nearer. At the same distance, the transporter with fewer
+ * zones still to enter is preferred, which is the one in front when the junction ahead has no length.
+ *
  * The default, and the obvious policy: it minimises the empty running that a fleet does. Note that
  * distance here is distance *along the guide path*, not separation in space. On a one-way loop a
  * transporter standing a few feet past the pickup point may have to go all the way round, so
@@ -80,13 +85,14 @@ class ClosestByNetworkDistanceRule : GuidedTransporterAllocationRuleIfc {
     ): GuidedTransporter {
         var best = candidates.first()
         var bestDistance = Double.POSITIVE_INFINITY
+        var bestZones = Int.MAX_VALUE
         for (candidate in candidates) {
             val from = candidate.frontZone ?: continue
-            val at = network.intersectionOf(from)
-            val d = if (network.isReachable(at, pickup)) network.distance(at, pickup)
-            else Double.POSITIVE_INFINITY
-            if (d < bestDistance) {
+            val (d, zones) = network.pathTo(from, candidate.travellingForward, pickup)
+            // at the same distance, the one with fewer zones to enter is in front
+            if (d < bestDistance || (d == bestDistance && zones < bestZones)) {
                 bestDistance = d
+                bestZones = zones
                 best = candidate
             }
         }
@@ -97,7 +103,8 @@ class ClosestByNetworkDistanceRule : GuidedTransporterAllocationRuleIfc {
 }
 
 /**
- * Sends whichever idle transporter has the longest journey to the pickup.
+ * Sends whichever idle transporter has the longest journey to the pickup, measured as for
+ * [ClosestByNetworkDistanceRule].
  *
  * Rarely what a system should do, but useful as a contrast in a study: it shows how much of a
  * fleet's performance is due to dispatching rather than to the layout or the fleet size.
@@ -111,13 +118,14 @@ class FurthestByNetworkDistanceRule : GuidedTransporterAllocationRuleIfc {
     ): GuidedTransporter {
         var best = candidates.first()
         var bestDistance = Double.NEGATIVE_INFINITY
+        var bestZones = -1
         for (candidate in candidates) {
             val from = candidate.frontZone ?: continue
-            val at = network.intersectionOf(from)
-            if (!network.isReachable(at, pickup)) continue
-            val d = network.distance(at, pickup)
-            if (d > bestDistance) {
+            val (d, zones) = network.pathTo(from, candidate.travellingForward, pickup)
+            if (d.isInfinite()) continue
+            if (d > bestDistance || (d == bestDistance && zones > bestZones)) {
                 bestDistance = d
+                bestZones = zones
                 best = candidate
             }
         }

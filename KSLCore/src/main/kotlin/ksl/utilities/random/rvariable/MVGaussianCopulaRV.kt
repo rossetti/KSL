@@ -19,6 +19,7 @@
 package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.InverseCDFIfc
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
@@ -43,7 +44,12 @@ class MVGaussianCopulaRV @JvmOverloads constructor(
         require(marginals.size == correlation.size) {" The number of supplied marginals must be equal to ${correlation.size}"}
     }
 
-    private val myCopula = MVGaussianCopula(correlation, streamNum, streamProvider)
+    private val myCopula = MVGaussianCopula(correlation, streamNumber, streamProvider).also { it.drawFrom(rnStream) }
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        myCopula.drawFrom(stream)
+    }
 
     override val dimension: Int
         get() = myCopula.dimension

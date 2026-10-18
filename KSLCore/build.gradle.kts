@@ -149,12 +149,14 @@ val fastTest by tasks.registering(Test::class) {
 
 kotlin {
     jvmToolchain(21)
-    // KSLCore's own classes carry Kotlin 2.2 metadata. That alone does not make the artifact usable from
-    // Kotlin 2.2: the published kotlin-stdlib dependency follows the compiler (2.4.20 for R1.7.1), so
-    // consumers need Kotlin 2.3+. Pinning `kotlin { coreLibrariesVersion = ... }` would be the lever.
+    // Users of KSLCore need Kotlin 2.4 or later, and these two settings say so. They are set explicitly,
+    // rather than left to follow the compiler, so that upgrading the compiler cannot raise that minimum
+    // without anyone deciding to. The published kotlin-stdlib dependency follows the compiler regardless,
+    // so a lower setting here would not make KSLCore usable from an older Kotlin (R1.7.1 claimed 2.2 and
+    // in fact needed 2.3).
     compilerOptions {
-        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
-        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_2)
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_4)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_4)
     }
     //TODO revisit
 //    explicitApiWarning()

@@ -5,6 +5,7 @@ import ksl.utilities.KSLArrays
 import ksl.utilities.addConstant
 import ksl.utilities.io.write
 import ksl.utilities.math.KSLMath
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 import org.hipparchus.linear.CholeskyDecomposition
 import org.hipparchus.linear.MatrixUtils
@@ -39,7 +40,12 @@ class MVNormalRV  @JvmOverloads constructor(
         cfL = choleskyDecomposition(covariances)
         this.myCovariances = KSLArrays.copy2DArray(covariances)
         this.myMeans = means.copyOf(means.size)
-        normalRV = NormalRV(0.0, 1.0, streamNum, streamProvider)
+        normalRV = NormalRV(0.0, 1.0, streamNumber, streamProvider).also { it.drawFrom(rnStream) }
+    }
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        normalRV.drawFrom(stream)
     }
 
     val means: DoubleArray

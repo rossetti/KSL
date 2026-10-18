@@ -88,6 +88,26 @@ interface KSLProcess {
      */
     val processElapseTime: Double
         get() = processCompletionTime - processStartTime
+
+    /**
+     *  True when this process is currently in a delay with the given suspension name, so that the delay
+     *  can be interrupted. False when the process is in a delay with another name, is waiting for something
+     *  other than a delay, is moving, has not started, or has ended.
+     *
+     *  Interrupting a process that is not in the named delay is an error, so a process that may interrupt
+     *  another at a time when the target is not delaying checks first:
+     *  <pre>
+     *  if (machine.script.isInDelay("work")) {
+     *      interruptDelayAndContinue(machine.script, "work", repairTime)
+     *  } else {
+     *      delay(repairTime)   // the machine was idle: down for the repair anyway
+     *  }
+     *  </pre>
+     *
+     *  @param name the suspension name of the delay
+     *  @return true if the process is in that delay
+     */
+    fun isInDelay(name: String): Boolean
 }
 
 enum class SuspendType {
@@ -677,8 +697,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling seize.
@@ -704,8 +725,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
      *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
@@ -725,8 +747,9 @@ interface KSLProcessBuilder {
      *  Requests a number of units of the indicated movable resource.
      *
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling seize.
@@ -749,8 +772,9 @@ interface KSLProcessBuilder {
      *  Requests a number of units of the indicated movable resource.
      *
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param suspensionName the name of the suspension point. can be used to identify which seize the entity is experiencing if there
      *   are more than one seize suspension points within the process. The user is responsible for uniqueness.
      *  @return the Allocation representing the request for the Resource. After returning, the allocation indicates that the units
@@ -771,8 +795,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource pool from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling seize.
@@ -803,8 +828,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource pool from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param resourceSelectionRule The rule to use to select resources to allocate from. By default, the pool's default rule is used.
      *  @param resourceAllocationRule The rule to use to determine the resources to allocate from given the selected resources.
      *  By default, the pool's default rule is used.
@@ -835,8 +861,9 @@ interface KSLProcessBuilder {
      *
      *  @param movableResourcePool the resource pool from which the units are being requested.
      *  @param requestLocation The location of the request. The default is the entity's currentLocation
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param queue the queue that will hold the entity if the amount needed cannot immediately be supplied by the resource. If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling seize.
@@ -868,8 +895,9 @@ interface KSLProcessBuilder {
      *
      *  @param movableResourcePoolWithQ the resource pool from which the units are being requested.
      *  @param requestLocation The location of the request. The default is the entity's currentLocation
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param resourceSelectionRule The rule to use to select resources to allocate from. By default, the pool's default rule is used.
      *  @param resourceAllocationRule The rule to use to determine the resources to allocate from given the selected resources.
      *  By default, the pool's default rule is used.
@@ -898,8 +926,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -930,8 +959,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -958,8 +988,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -986,8 +1017,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -1018,8 +1050,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -1050,8 +1083,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -1078,8 +1112,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -1104,8 +1139,9 @@ interface KSLProcessBuilder {
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
-     *  @param seizePriority the priority of the request. This is meant to inform any allocation mechanism for
-     *  requests that may be competing for the resource.
+     *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
+     *  the same simulated instant. It does not set the request's position in the queue: that comes from the
+     *  entity's `priority`, and only when the queue's discipline is RANKED.
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.
      *  @param delayPriority, since the delay is scheduled, a priority can be used to determine the order of events for
@@ -1674,9 +1710,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues a delay for the specified
      * post interruption delay time.
@@ -1698,9 +1735,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues a delay for the specified
      * post interruption delay time.
@@ -1724,9 +1762,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues a delay using its original
      * delay time.  That is, it restarts its original delay.
@@ -1745,9 +1784,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues a delay using its original
      * delay time.  That is, it restarts its original delay.
@@ -1768,9 +1808,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues with the post
      * interruption time being equal to the time remaining on the original delay at the time
@@ -1790,9 +1831,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues with the post
      * interruption time being equal to the time remaining on the original delay at the time
@@ -1814,9 +1856,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted while the interrupting process executes to completion.
      * After the interruption process has completed, the process experiencing the original delay
      * continues a delay for the specified post interruption delay time.  Note that this functionality
@@ -1840,9 +1883,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted while the interrupting process executes to completion.
      * After the interruption process has completed, the process experiencing the original delay
      * continues a delay for the specified post interruption delay time.  Note that this functionality
@@ -1874,9 +1918,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted while the interrupting process executes to completion.
      * After the interruption process has completed, the process experiencing the original delay
      * continues a delay for the full original delay time.  Note that this functionality
@@ -1897,9 +1942,10 @@ interface KSLProcessBuilder {
 
     /**
      * This method allows a process to interrupt another process while that process is
-     * experiencing a delay.  If the supplied process is not currently experiencing the named
-     * delay, then nothing happens.  That is, the interrupt is ignored and the method just returns
-     * at the current time without suspending.  If the supplied process is experiencing the named
+     * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
+     * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
+     * of a delay that is already interrupted is ignored with a warning. The calling process is the one
+     * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted while the interrupting process executes to completion.
      * After the interruption process has completed, the process experiencing the original delay
      * continues a delay for time remaining on its original delay.  Note that this functionality
@@ -1923,7 +1969,8 @@ interface KSLProcessBuilder {
      * If the number of cells are not immediately available the process is suspended until
      * the number of cells can be allocated (in full).  The request for the cells will
      * wait for the allocation in the queue associated with the start of the segment associated
-     * with the entry location of the conveyor. After this suspending function
+     * with the entry location of the conveyor. The request first in line may take control of the entry cell while
+     * the item ahead is still leaving it, so that items enter nose to tail. After this suspending function
      * returns, the entity holds the cells in the returned cell allocation, but the entity is
      * not on the conveyor. The entity can then decide to ride on the conveyor using the cell allocation or
      * release the cell allocation by exiting the conveyor without riding. The behavior of the
@@ -2329,7 +2376,8 @@ interface KSLProcessBuilder {
      * @param unLoadingDelay how long it takes to unload it
      * @param loadingPriority orders the loading delay against other events at the same instant
      * @param unLoadingPriority orders the unloading delay likewise
-     * @param suspensionName names this suspension point when a process has several
+     * @param suspensionName names this suspension point when a process has several. The loading, ride and
+     *   unloading steps are named from it, or from the transporter's name when it is null
      * @return what the journey cost, including any time spent unable to claim the space ahead
      */
     suspend fun transportBy(
@@ -2347,6 +2395,9 @@ interface KSLProcessBuilder {
                     "(${request.entity.name})."
         }
         val transporter = request.transporter
+        // the steps below are named from this, so that a call that gives no name still produces
+        // names a layout can bind to, rather than "null:loading"
+        val stepName = suspensionName ?: transporter.name
         // The space layer, for the journey; the pool's transport system, for the total. They are the
         // same object in a passive model -- a transport system *is* a space -- but only the second
         // has the figure this paradigm reports.
@@ -2355,7 +2406,7 @@ interface KSLProcessBuilder {
             // Reported to the animation only: the transporter's own state, and the statistics built
             // on it, are unchanged by loading, so no existing figure moves.
             system.emitTransporterState(transporter, ksl.modeling.guidedpath.TransporterState.LOADING)
-            delay(loadingDelay, loadingPriority, "$suspensionName:loading")
+            delay(loadingDelay, loadingPriority, "$stepName:loading")
         }
         val startedLoaded = system.time
         // Aboard before the journey begins, which is what makes the loaded state a fact about the
@@ -2368,7 +2419,7 @@ interface KSLProcessBuilder {
         // hold returns nothing and the journey appears to have covered no ground at all.
         val route = transporter.currentRoute
         if (riding != null) {
-            hold(riding, suspensionName = "$suspensionName:transport:${transporter.name}")
+            hold(riding, suspensionName = "$stepName:transport:${transporter.name}")
         }
         request.rideTime = system.time - startedLoaded
         request.zonesTraversed = route?.zonesTraversed ?: 0
@@ -2378,7 +2429,7 @@ interface KSLProcessBuilder {
         entity.currentLocation = transporter.currentLocation
         if (unLoadingDelay != ConstantRV.ZERO) {
             system.emitTransporterState(transporter, ksl.modeling.guidedpath.TransporterState.UNLOADING)
-            delay(unLoadingDelay, unLoadingPriority, "$suspensionName:unloading")
+            delay(unLoadingDelay, unLoadingPriority, "$stepName:unloading")
         }
         transporter.alight(entity)
         // Back to what the transporter is actually doing, now the animation-only phase is over.
@@ -2433,10 +2484,16 @@ interface KSLProcessBuilder {
      * process has to do something between being loaded and being unloaded, use the three verbs it
      * is built from instead.
      *
+     * Name the arguments. The destination comes before the pickup, so a positional call such as
+     * `guidedTransport(pool, "Workstation", "Entry")` reads backwards: it is a trip from Entry to
+     * Workstation.
+     *
      * @param pool the transporters to ask
      * @param destination the junction or station to be carried to
      * @param pickupLocation where the transporter should collect the entity, by default wherever
-     *   the entity already is
+     *   the entity already is. An entity that never set its location is where it was created: at the
+     *   location given to its constructor, or else at the spatial model's default location, which for
+     *   a guide-path network is the first intersection declared
      * @param loadingDelay how long it takes to load the entity
      * @param unLoadingDelay how long it takes to unload it
      * @param requestPriority orders this request against others made at the same instant

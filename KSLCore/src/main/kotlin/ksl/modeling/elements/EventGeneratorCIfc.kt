@@ -18,7 +18,11 @@ interface EventGeneratorTimeUntilFirstEventRVCIfc {
      * Controls the random variable representing the time until the first event that is
      * used at the beginning of each replication to generate the time until the
      * first event. This change becomes effective at the beginning of the next
-     * replication to execute
+     * replication to execute.
+     *
+     * Setting it gives the first event a process of its own: from then on, changing the time
+     * between events no longer changes the first event. To change both together, use
+     * `setInitialEventTimeProcesses`.
      */
     var timeUntilFirstEvent: RVariableIfc
 }
@@ -62,9 +66,12 @@ interface EventGeneratorInitialTimeBtwEventsCIfc {
 
 interface EventGeneratorInitialEventTimeProcessesRVCIfc {
     /**
-     *  Often the time of the first event and the time between events is
-     *  the same distribution. This property causes both [eventTimeProcess]
-     *  and [eventTimeProcess] to be set to the same random variable.
+     *  Often the time of the first event and the time between events have the same distribution.
+     *  This sets both the time until the first event and the time between events to the same
+     *  random variable, and keeps the first event following the time between events afterwards,
+     *  as for a generator built from one random variable.
+     *
+     *  @param eventTimeProcess the random variable for both the first event and the time between events
      */
     fun setInitialEventTimeProcesses(eventTimeProcess: RVariableIfc)
 }
@@ -74,10 +81,13 @@ interface EventGeneratorInitialTimeBtwEventsRVCIfc  {
      * Sets the time between events and the maximum number of events to be used
      * to initialize each replication. The time between events cannot evaluate
      * to a constant value of 0.0. The maximum number of events is kept at its
-     * current value, which by default is Long.Max_Value. Note that
-     * setting the initial time between events does not affect the random
-     * variable governing the time of the first event.
+     * current value, which by default is Long.Max_Value.
      *
+     * Whether it also changes the time until the first event depends on how the generator was
+     * built. A generator built from one random variable for both keeps the first event following
+     * the time between events, so setting this changes both, until the time until the first event
+     * is given a process of its own. A generator built from two random variables changes only the
+     * time between events. To set both explicitly, use `setInitialEventTimeProcesses`.
      */
     var initialTimeBtwEvents: RVariableIfc
 

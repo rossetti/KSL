@@ -76,6 +76,17 @@ data class RenderContext(
     }
 
     /**
+     * Formats a count, such as the number of observations or of missing values, as a whole number
+     * when it is one, so that a count of 40 reads `40` rather than `40.0000`. A value with a
+     * fractional part falls back to [fmt], and so does `NaN` or an infinite value.
+     */
+    fun fmtCount(value: Double): String = when {
+        value.isNaN() || value.isInfinite() -> fmt(value)
+        value == Math.rint(value) && kotlin.math.abs(value) < Long.MAX_VALUE.toDouble() -> value.toLong().toString()
+        else -> fmt(value)
+    }
+
+    /**
      * Formats a [Double] value to a string using [numericPrecision] **significant figures**
      * (`%g` format). Adapts between fixed and scientific notation based on the magnitude of
      * the value, ensuring that properties spanning many orders of magnitude (e.g. Lag-1

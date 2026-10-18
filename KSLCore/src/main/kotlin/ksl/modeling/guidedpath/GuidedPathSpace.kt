@@ -354,12 +354,15 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * condition measured as a duration and is the reading to put beside this one; the
      * replication-end audit is the third, naming every transporter still waiting when the horizon
      * fell. A count with a small duration beside it is congestion, and the remedy is a home base
-     * or a staging area. A count with most of the fleet behind it, or a run that ends with
-     * transporters still blocked, is a fleet that stopped, and that is the reading not to believe
-     * until it is explained.
+     * on a parking spur, off the running line. A count with most of the fleet behind it, or a run
+     * that ends with transporters still blocked, is a fleet that stopped, and that is the reading
+     * not to believe until it is explained.
      *
-     * Counted rather than only logged so that the condition appears in the standard report, where
-     * an analyst will see it.
+     * A transporter going home or to a staging area that waits behind the idle transporter already
+     * standing there is not counted: that is the queue a shared staging area forms.
+     *
+     * Counted rather than logged, so that the condition appears in the standard report, where an
+     * analyst will see it. Each instance is logged only at debug level.
      */
     val numObstructionsDetected: CounterCIfc
         get() = myNumObstructions
@@ -390,7 +393,38 @@ open class GuidedPathSpace @JvmOverloads constructor(
             logger.error { obstruction.toString() }
             throw GuidedPathObstructionException(obstruction)
         }
-        logger.warn { obstruction.toString() }
+        // Counted, and reported by the replication-end audit when it lasts; a log line for each
+        // instance added nothing to those and could run to hundreds of thousands of lines.
+        logger.debug { obstruction.toString() }
+    }
+
+    /**
+     * True when [waiting] is going home or to a staging area and waits behind [holder], the idle
+     * transporter already standing at that destination. That is the queue a shared staging area
+     * forms, which is what it is for, and is not counted or reported as an obstruction.
+     */
+    internal fun isStagingQueueWait(waiting: GuidedTransporter, holder: GuidedTransporter): Boolean {
+        if (waiting.journeyPurpose != MovePurpose.HOME) return false
+        val destination = waiting.currentRoute?.destination ?: return false
+        return holder.isPermanentlyStationary && holder.frontZone === destination.zone
+    }
+
+    /**
+     * True when [transporter] is waiting in a staging queue: going home or to a staging area, behind
+     * either the idle transporter at that destination or another transporter queueing for it.
+     */
+    private fun isInStagingQueue(
+        transporter: GuidedTransporter,
+        seen: MutableSet<GuidedTransporter> = mutableSetOf()
+    ): Boolean {
+        if (!seen.add(transporter)) return false
+        if (transporter.journeyPurpose != MovePurpose.HOME) return false
+        val destination = transporter.currentRoute?.destination ?: return false
+        val holder = transporter.awaitedZone?.holder as? GuidedTransporter ?: return false
+        if (isStagingQueueWait(transporter, holder)) return true
+        return holder.transporterState == TransporterState.BLOCKED &&
+                holder.currentRoute?.destination === destination &&
+                isInStagingQueue(holder, seen)
     }
 
     private val myNumMoving = TWResponse(this, name = "${this.name}:NumTransportersMoving")
@@ -1032,7 +1066,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
                         zone == null -> Unit
                         holder is GuidedTransporter -> {
                             byVehicle++
-                            if (holder.isPermanentlyStationary) byIdleVehicle++
+                            if (holder.isPermanentlyStationary && !isStagingQueueWait(t, holder)) byIdleVehicle++
                         }
                         holder != null -> byOccupier++
                         zone.numPresent > 0 -> byPopulation++
@@ -2099,7 +2133,8 @@ open class GuidedPathSpace @JvmOverloads constructor(
         }
         reportUnfilledRequests()
         reportWorkInFlight()
-        val stuck = blockedTransporters
+        // a transporter waiting in a staging queue at the end of a run is where the staging rule put it
+        val stuck = blockedTransporters.filterNot { isInStagingQueue(it) }
         if (stuck.isEmpty()) return
         logger.warn {
             buildString {

@@ -52,12 +52,18 @@ interface ResourceCIfc : ResourceIfc, DefaultReportingOptionIfc {
     /**
      * Statistical response representing the utilization of the resource.
      * This is the time average number of busy units divided by the time average
-     * capacity.
+     * capacity: the utilization of the capacity actually on shift.
+     *
+     * Compare `timeAvgInstantaneousUtil`, which averages busy over capacity at each moment across
+     * all time and counts time with no capacity as zero. With a constant capacity the two agree;
+     * with a capacity schedule they do not.
      */
     val scheduledUtil: ResponseCIfc
 
     /**
-     *  The number of times the resource was seized
+     *  The number of allocations made from the resource: one per allocation whatever its amount,
+     *  including direct `allocate()` calls. It counts starts of service, not completions or
+     *  throughput.
      */
     val seizeCounter: CounterCIfc
 
@@ -87,7 +93,8 @@ interface ResourceCIfc : ResourceIfc, DefaultReportingOptionIfc {
     val instantaneousUtil: Double
 
     /**
-     * time average instantaneous utilization
+     * time average instantaneous utilization. Time with no capacity counts as zero, so under a
+     * capacity schedule this is lower than `scheduledUtil`, which divides by the capacity on shift.
      */
     val timeAvgInstantaneousUtil: TWResponseCIfc
 

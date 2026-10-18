@@ -128,10 +128,13 @@ fun ReportBuilder.bootstrapEstimate(
 
         // BCa and bootstrap-t are only on Bootstrap
         if (be is Bootstrap) {
-            val myBCa  = be.bcaBootstrapCI(confidenceLevel)
             val myBtCI = be.bootstrapTCI(confidenceLevel)
-            myCIRows += listOf("BCa (Bias-Corrected & Accelerated)",
-                fmtDouble(myBCa.lowerLimit), fmtDouble(myBCa.upperLimit))
+            myCIRows += if (be.canComputeBcaBootstrapCI()) {
+                val myBCa = be.bcaBootstrapCI(confidenceLevel)
+                listOf("BCa (Bias-Corrected & Accelerated)", fmtDouble(myBCa.lowerLimit), fmtDouble(myBCa.upperLimit))
+            } else {
+                listOf("BCa (Bias-Corrected & Accelerated)", "not defined", "not defined")
+            }
             if (myBtCI.lowerLimit.isFinite() && myBtCI.upperLimit.isFinite()) {
                 myCIRows += listOf("Bootstrap-t (Percentile-t)",
                     fmtDouble(myBtCI.lowerLimit), fmtDouble(myBtCI.upperLimit))
@@ -242,9 +245,11 @@ fun ReportBuilder.bootstrapEstimates(
                 fmtDouble(myBasicCI.lowerLimit), fmtDouble(myBasicCI.upperLimit)
             )
             if (myHasBca) {
-                val (myBcaLow, myBcaHigh) = if (be is Bootstrap) {
+                val (myBcaLow, myBcaHigh) = if (be is Bootstrap && be.canComputeBcaBootstrapCI()) {
                     val myBca = be.bcaBootstrapCI(confidenceLevel)
                     Pair(fmtDouble(myBca.lowerLimit), fmtDouble(myBca.upperLimit))
+                } else if (be is Bootstrap) {
+                    Pair("not defined", "not defined")
                 } else {
                     Pair("\u2014", "\u2014")
                 }
