@@ -40,7 +40,8 @@ Everything else is compared byte for byte — every statistic, every half-width,
 
 ## The baseline is local
 
-`baseline.out.norm` is 6,532 lines captured on one machine against one build. It is committed so
+`baseline.out.norm` is 1,119 lines captured on one machine against one build (R1.8; it shrank from about
+6,700 when guided-path obstructions stopped being logged as warnings). It is committed so
 that drift *within this repository* is visible, not as a cross-machine claim: JIT timing is
 masked, but a different JDK or a different platform can still legitimately move a figure.
 
