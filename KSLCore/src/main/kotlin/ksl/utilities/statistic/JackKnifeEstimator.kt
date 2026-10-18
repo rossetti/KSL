@@ -52,7 +52,7 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc = 
      */
     var defaultCILevel: Double = 0.95
         set(level) {
-            require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
+            require(level > 0.0 && level < 1.0) { "Confidence Level must be (0,1), was $level" }
             field = level
         }
 
@@ -156,7 +156,7 @@ class JackKnifeEstimator(originalData: DoubleArray, estimator: BSEstimatorIfc = 
      * @return the interval
      */
     fun jackKnifeConfidenceInterval(level: Double = defaultCILevel): Interval {
-        require((level <= 0.0) || (level < 1.0)) { "Confidence Level must be (0,1)" }
+        require(level > 0.0 && level < 1.0) { "Confidence Level must be (0,1), was $level" }
         val dof = sampleSize - 1.0
         val alpha = 1.0 - level
         val p = 1.0 - alpha / 2.0
