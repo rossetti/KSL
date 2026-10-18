@@ -113,10 +113,23 @@ class BootstrapBcaTest {
     fun untiedMean() {
         val bs = bootstrap(untied, BSEstimatorIfc.Average())
         val ci = bs.bcaBootstrapCI(0.95)
+        // before R1.8: 0.00501327755457324, 0.1228838557891167, 7.462813165465454, 13.444577612120362
         assertEquals(
-            listOf(0.00501327755457324, 0.1228838557891167, 7.462813165465454, 13.444577612120362),
+            listOf(0.00501327755457324, 0.03254992428908746, 7.157336016122315, 12.353203468702207),
             listOf(bs.biasCorrectionFactor(), bs.accelerationFactor(), ci.lowerLimit, ci.upperLimit)
         )
+    }
+
+    /**
+     *  For the mean of 1, 2, 3, 4, 10: the jackknife replicates are 4.75, 4.5, 4.25, 4.0 and 2.5, their mean 4.0, the
+     *  deviations -0.75, -0.5, -0.25, 0 and 1.5, with sum of squares 25/8 and sum of cubes 2.8125, so the acceleration is
+     *  2.8125 / (6 (25/8)^(3/2)) = 0.06 sqrt(2). Before R1.8 the 3/2 power was applied term by term, giving 0.119.
+     */
+    @Test
+    @DisplayName("The acceleration is the sum of cubed jackknife deviations over 6 times the 3/2 power of the sum of squares")
+    fun accelerationByHand() {
+        val a = Bootstrap.accelerationFactor(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 10.0), BSEstimatorIfc.Average())
+        assertEquals(0.06 * kotlin.math.sqrt(2.0), a, 1e-12)
     }
 
     private fun ReportNode.Document.renderToText(): String {

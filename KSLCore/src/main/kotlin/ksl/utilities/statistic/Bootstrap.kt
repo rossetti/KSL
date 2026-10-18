@@ -712,8 +712,10 @@ open class Bootstrap(
          *  The acceleration factor measures the rate of change of the standard error
          *  of the estimator with respect to the target parameter on a normalized scale.
          *  This function computes the acceleration factor based on the bootstrap estimates
-         *  and the original estimated quantity using jackknifing. When the jackknife estimates do not vary, as for
-         *  the median of data with many ties, there is no skewness to correct and the factor is 0.
+         *  and the original estimated quantity using jackknifing: the sum of the cubed deviations of the jackknife
+         *  replicates from their mean, divided by 6 times the 3/2 power of the sum of their squared deviations
+         *  (Efron and Tibshirani, An Introduction to the Bootstrap, eq. 14.15). When the jackknife estimates do not
+         *  vary, as for the median of data with many ties, there is no skewness to correct and the factor is 0.
          *  @param originalData the original data used in the bootstrapping process
          *  @param estimator the estimator used in the bootstrapping process
          */
@@ -721,15 +723,16 @@ open class Bootstrap(
             val jackKnifeEstimator = JackKnifeEstimator(originalData, estimator)
             val je = jackKnifeEstimator.jackKnifeEstimate
             val jr = jackKnifeEstimator.jackKnifeReplicates
-            var nom = 0.0
-            var dnom = 0.0
+            // a = sum of d^3 / (6 (sum of d^2)^(3/2)), d the deviations of the jackknife replicates from their mean
+            var sumCubes = 0.0
+            var sumSquares = 0.0
             for (x in jr) {
-                val s2 = (je - x) * (je - x)
-                nom = nom + s2 * (je - x)
-                dnom = dnom + s2.pow(1.5)
+                val d = je - x
+                sumSquares = sumSquares + d * d
+                sumCubes = sumCubes + d * d * d
             }
-            if (dnom == 0.0) return 0.0
-            return nom / (6.0 * dnom)
+            if (sumSquares == 0.0) return 0.0
+            return sumCubes / (6.0 * sumSquares.pow(1.5))
         }
 
 
