@@ -27,8 +27,7 @@ import ksl.utilities.statistic.StatisticXY
 
 
 fun main() {
- //      independencePFMH()
-
+    independencePFMH()
     randomWalkPFMH()
 }
 
@@ -127,9 +126,10 @@ object StatCollector : ObserverIfc<MetropolisHastingsMV> {
 
 /**
  * A random-walk proposal function for Metropolis-Hastings sampling ([MetropolisHastingsMV]): proposes a
- * new 2D point as the current point plus bounded uniform noise (rejection-sampled to stay in range). Being
- * symmetric, its proposal ratio is 1. Chapter-9 MCMC example. Compare the independence proposal
- * [ExampleIndependencePF].
+ * new 2D point as the current point plus bounded uniform noise (rejection-sampled to stay in range). The
+ * rejection makes the proposal uniform on the part of [x - c, x + c] that lies within the range, so near a
+ * boundary the proposal is not symmetric and its proposal ratio is L(x)/L(y), where L is the length of that
+ * part. Chapter-9 MCMC example. Compare the independence proposal [ExampleIndependencePF].
  */
 object ExampleRandomWalkPF : ProposalFunctionMVIfc {
     private val y1Interval = Interval(0.5, 1.5)
@@ -143,8 +143,15 @@ object ExampleRandomWalkPF : ProposalFunctionMVIfc {
         get() = 2
 
     override fun proposalRatio(currentX: DoubleArray, proposedY: DoubleArray): Double {
-        //g(y|x) = g(x|y) proposal ratio = g(x|y)/g(y|x) = 1.0
-        return (1.0)
+        // g(y|x) = 1/L(x), where L(x) is the length of [x - c, x + c] within the range
+        // proposal ratio = g(x|y)/g(y|x) = L(x)/L(y)
+        val lx = windowLength(y1Interval, y1c, currentX[0]) * windowLength(y2Interval, y2c, currentX[1])
+        val ly = windowLength(y1Interval, y1c, proposedY[0]) * windowLength(y2Interval, y2c, proposedY[1])
+        return (lx / ly)
+    }
+
+    private fun windowLength(interval: Interval, c: Double, x: Double): Double {
+        return minOf(interval.upperLimit, x + c) - maxOf(interval.lowerLimit, x - c)
     }
 
     private fun genYGivenX(interval: Interval, rv: UniformRV, x: Double): Double {
