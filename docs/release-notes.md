@@ -437,7 +437,7 @@ README's build section) and are not part of the KSLCore artifact.
 
 ## R1.8
 
-*In preparation.* Corrective. Needs Kotlin 2.4 or later.
+*18 October 2026.* Corrective. Needs Kotlin 2.4 or later.
 
 Many fixes below change results without raising an error. Re-run rather than compare across the release, in
 particular models with resource pools, conveyors, guided paths, or antithetic sampling.
