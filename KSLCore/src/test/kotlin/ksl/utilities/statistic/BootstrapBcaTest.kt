@@ -120,6 +120,30 @@ class BootstrapBcaTest {
         )
     }
 
+    /** Printing a bootstrap whose BCa interval is not defined says so; before R1.8 it threw. */
+    @Test
+    @DisplayName("Printing a bootstrap whose BCa interval is not defined says so instead of failing")
+    fun printingAnUndefinedBca() {
+        val bs = bootstrap(untied, BSEstimatorIfc { data -> data.distinct().size.toDouble() })
+        assertTrue(bs.toString().contains("BCa c.i. = not defined for these data"))
+    }
+
+    /**
+     *  The printed bootstrap-t interval is the bootstrap-t interval, shown only when it was computed. Before R1.8 the
+     *  BCa interval was printed a second time under the bootstrap-t label.
+     */
+    @Test
+    @DisplayName("Printing a bootstrap shows its bootstrap-t interval, not the BCa interval again")
+    fun printingTheBootstrapT() {
+        val withT = Bootstrap(untied, BSEstimatorIfc.Average(), streamNumber = 1, streamProvider = RNStreamProvider())
+        withT.generateSamples(500, numBootstrapTSamples = 50)
+        val text = withT.toString()
+        assertTrue(text.contains("bootstrap-t c.i. = ${withT.bootstrapTCI()}"), text)
+        assertTrue(withT.bootstrapTCI() != withT.bcaBootstrapCI())
+        val withoutT = bootstrap(untied, BSEstimatorIfc.Average())
+        assertTrue(!withoutT.toString().contains("bootstrap-t"), "no bootstrap-t samples, no bootstrap-t line")
+    }
+
     /**
      *  For the mean of 1, 2, 3, 4, 10: the jackknife replicates are 4.75, 4.5, 4.25, 4.0 and 2.5, their mean 4.0, the
      *  deviations -0.75, -0.5, -0.25, 0 and 1.5, with sum of squares 25/8 and sum of cubes 2.8125, so the acceleration is

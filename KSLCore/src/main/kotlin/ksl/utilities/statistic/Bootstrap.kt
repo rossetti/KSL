@@ -646,8 +646,12 @@ open class Bootstrap(
 
     override fun toString(): String {
         val sb = StringBuilder(asString())
-        sb.appendLine("BCa c.i. = ${bcaBootstrapCI()}")
-        val btci = bcaBootstrapCI()
+        if (canComputeBcaBootstrapCI()) {
+            sb.appendLine("BCa c.i. = ${bcaBootstrapCI()}")
+        } else {
+            sb.appendLine("BCa c.i. = not defined for these data")
+        }
+        val btci = bootstrapTCI()
         if (btci.lowerLimit.isFinite() && btci.upperLimit.isFinite()){
             sb.appendLine("bootstrap-t c.i. = $btci")
         }
