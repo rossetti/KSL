@@ -27,7 +27,6 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -35,6 +34,10 @@ import kotlin.test.assertTrue
  *  mean time between arrivals (1.0 to 1.5) and the mean service time (0.5 to 0.6), with rotatable axial spacing.
  *  The design has four factorial points of two replications, four axial points of one and a center point of three;
  *  every point keeps the queue stable.
+ *
+ *  Before R1.8 a central composite design's points reported an internal design rather than the central composite
+ *  design, so both experiment classes refused every point ("The design point was not associated with this
+ *  experiment").
  */
 class CentralCompositeDesignExperimentTest {
 
@@ -61,27 +64,42 @@ class CentralCompositeDesignExperimentTest {
     }
 
     @Test
-    @DisplayName("The design points of a central composite design and the design they report")
+    @DisplayName("Every design point of a central composite design reports that design as its design")
     fun pointsReportTheirDesign() {
         val ccd = design()
         assertEquals(9, ccd.designPoints().size)
-        assertTrue(ccd.designPoints().none { it.design === ccd }, "as found, the points report the internal design")
+        assertTrue(ccd.designPoints().all { it.design === ccd })
+    }
+
+    /** Each run has its point's replications and settings: four factorial points of 2, four axial of 1, a center of 3. */
+    private fun assertEveryPointSimulated(runs: List<SimulationRun>, ccd: CentralCompositeDesign) {
+        assertEquals(9, runs.size, "one run per design point")
+        val expected = ccd.designPoints().map { dp ->
+            listOf(dp.settings.getValue(tba), dp.settings.getValue(st), dp.numReplications.toDouble())
+        }.sortedWith(compareBy({ it[0] }, { it[1] }))
+        val actual = runs.map { run ->
+            listOf(run.inputs.getValue(settings.getValue(tba)), run.inputs.getValue(settings.getValue(st)),
+                run.numberOfReplications.toDouble())
+        }.sortedWith(compareBy({ it[0] }, { it[1] }))
+        assertEquals(expected, actual)
+        assertEquals(listOf(1, 1, 1, 1, 2, 2, 2, 2, 3), runs.map { it.numberOfReplications }.sorted())
     }
 
     @Test
-    @DisplayName("Simulating a central composite design with DesignedExperiment")
+    @DisplayName("DesignedExperiment simulates every point of a central composite design")
     fun sequentialExperiment() {
-        val de = DesignedExperiment("CCDSequential", buildModel(), settings, design(), kslDb = null)
-        val error = assertFailsWith<IllegalArgumentException> { de.simulateAll() }
-        assertTrue(error.message!!.contains("not associated"), error.message)
+        val ccd = design()
+        val de = DesignedExperiment("CCDSequential", buildModel(), settings, ccd, kslDb = null)
+        de.simulateAll()
+        assertEveryPointSimulated(de.simulationRuns, ccd)
     }
 
     @Test
-    @DisplayName("Simulating a central composite design with ParallelDesignedExperiment")
+    @DisplayName("ParallelDesignedExperiment simulates every point of a central composite design")
     fun parallelExperiment() = runBlocking {
-        val pde = ParallelDesignedExperiment("CCDParallel", builder, settings, design(), kslDb = null)
-        val result = runCatching { pde.simulateAll() }
-        val error = result.exceptionOrNull()
-        assertTrue(error is IllegalArgumentException && error.message!!.contains("not associated"), "as found: $error")
+        val ccd = design()
+        val pde = ParallelDesignedExperiment("CCDParallel", builder, settings, ccd, kslDb = null)
+        pde.simulateAll()
+        assertEveryPointSimulated(pde.simulationRuns, ccd)
     }
 }

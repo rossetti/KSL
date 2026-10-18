@@ -17,6 +17,13 @@ class ExperimentalDesign @JvmOverloads constructor(
         require(factors.isNotEmpty()) { "At least one factor must be defined" }
     }
 
+    /**
+     *  The design that the points made here report as theirs. It is this design, unless a design built on this one
+     *  (such as a central composite design) holds its points here, when it is that design: a design point names the
+     *  design its user built, which is the design an experiment simulating it was given.
+     */
+    internal var pointOwner: ExperimentalDesignIfc = this
+
     override val factors: Map<String, Factor> = factors.associateBy { it.name }
 
     override val factorNames: List<String> = factors.map { it.name }
@@ -71,7 +78,7 @@ class ExperimentalDesign @JvmOverloads constructor(
     ): DesignPoint {
         require(factors.values.containsAll(settings.keys)) { "The supplied factors do not match the design's factors" }
         val num = myDesignPoints.size + 1
-        val dp = DesignPoint(this, num, settings, numReps, enforceRange)
+        val dp = DesignPoint(pointOwner, num, settings, numReps, enforceRange)
         myDesignPoints.add(dp)
         return dp
     }
