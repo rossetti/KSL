@@ -290,4 +290,20 @@ internal class RNStreamProviderTest {
         }
         Assertions.assertTrue(b)
     }
+
+    /**
+     *  A copy of a stream, and its antithetic copy, keep the stream's reset and substream options. Before R1.8 a
+     *  copy took the defaults whatever the stream had.
+     */
+    @Test
+    fun copiesKeepTheStreamOptions() {
+        val stream = RNStreamProvider().rnStream(1)
+        stream.resetStartStreamOption = false
+        stream.advanceToNextSubStreamOption = false
+        for (copy in listOf(stream.crnInstance("copy"), stream.antitheticInstance("antithetic copy"))) {
+            assertEquals(false, copy.resetStartStreamOption)
+            assertEquals(false, copy.advanceToNextSubStreamOption)
+        }
+        assertEquals(true, stream.antitheticInstance("antithetic copy").antithetic)
+    }
 }

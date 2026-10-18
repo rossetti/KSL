@@ -57,10 +57,24 @@ abstract class RVariable(
     name: String? = null
 ) : RVariableIfc, IdentityIfc by Identity(name), DoubleEmitterIfc by DoubleEmitter() {
 
+    /** The stream this variable draws from; a variable built from component variables may point it at its own. */
+    private var myRNStream: RNStreamIfc = streamProvider.rnStream(streamNum)
+
     /**
      * rnStream provides a reference to the underlying stream of random numbers
      */
-    protected open val rnStream: RNStreamIfc = streamProvider.rnStream(streamNum)
+    protected open val rnStream: RNStreamIfc
+        get() = myRNStream
+
+    /**
+     *  Makes this variable draw from [stream] from now on. A variable built from component variables uses it so
+     *  that its components draw from its one stream, in turn, and its stream controls (reset, substreams, the
+     *  antithetic flag) govern everything it samples. A component variable passes the stream on to its own
+     *  components.
+     */
+    internal open fun drawFrom(stream: RNStreamIfc) {
+        myRNStream = stream
+    }
 
     /*
      * The number this variable was built with. A provider serves an antithetic stream as a

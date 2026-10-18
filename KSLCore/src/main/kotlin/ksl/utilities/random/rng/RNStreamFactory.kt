@@ -375,6 +375,8 @@ class RNStreamFactory {
         override fun crnInstance(name: String?): RNStreamIfc {
             val s: RNStream = RNStream(name)
             s.antithetic = antithetic
+            s.resetStartStreamOption = resetStartStreamOption
+            s.advanceToNextSubStreamOption = advanceToNextSubStreamOption
             s.previousU = previousU
             s.Cg0 = Cg0
             s.Cg1 = Cg1
