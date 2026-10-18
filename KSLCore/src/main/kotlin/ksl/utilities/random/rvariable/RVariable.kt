@@ -160,3 +160,15 @@ abstract class RVariable(
  *  [RVariableIfc] cannot, and such a composite refuses it.
  */
 fun RVariableIfc.canShareStream(): Boolean = this is RVariable
+
+/**
+ *  Builds a copy of [rv] on [streamNumber] of [provider] that draws from [stream]. The copy is how a variable built
+ *  from component variables gives each component its own one stream.
+ */
+internal fun componentOn(rv: RVariableIfc, streamNumber: Int, provider: RNStreamProviderIfc, stream: RNStreamIfc): RVariable {
+    require(rv.canShareStream()) {
+        "A component variable must be able to draw from the stream of the variable built from it " +
+                "(see canShareStream()); one that is not an RVariable cannot"
+    }
+    return (rv.instance(streamNumber, provider) as RVariable).also { it.drawFrom(stream) }
+}

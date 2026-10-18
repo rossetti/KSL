@@ -18,10 +18,12 @@
 
 package ksl.utilities.random.rvariable
 
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
- *  This represents a bi-variate functional.
+ *  This represents a bi-variate functional. The two random variables are copies that draw from this variable's one
+ *  stream, in turn, so its antithetic instance uses 1 - u for each number either of them draws.
  *
  * @param theFirst the first random variable in the function mapping
  * @param theSecond the second random variable in the function mapping
@@ -69,16 +71,23 @@ class RVFunction private constructor (
     private val second : RVariableIfc
 
     init {
+        // the two variables draw from this variable's one stream, in turn
         first = if (theFirst is ConstantRV){
             theFirst
         } else {
-            theFirst.instance(streamNum, streamProvider)
+            componentOn(theFirst, streamNumber, streamProvider, rnStream)
         }
         second = if (theSecond is ConstantRV){
             theSecond
         } else {
-            theSecond.instance(streamNum, streamProvider)
+            componentOn(theSecond, streamNumber, streamProvider, rnStream)
         }
+    }
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        (first as? RVariable)?.drawFrom(stream)
+        (second as? RVariable)?.drawFrom(stream)
     }
 
     private val transform = theTransform

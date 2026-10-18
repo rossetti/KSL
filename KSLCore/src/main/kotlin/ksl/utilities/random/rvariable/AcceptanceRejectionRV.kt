@@ -20,6 +20,7 @@ package ksl.utilities.random.rvariable
 
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.PDFIfc
+import ksl.utilities.random.rng.RNStreamIfc
 import ksl.utilities.random.rng.RNStreamProviderIfc
 
 /**
@@ -55,7 +56,14 @@ class AcceptanceRejectionRV @JvmOverloads constructor(
         require(proposalDistribution.domain().contains(pdf.domain())) {"The supplied PDF domain is not contained in the domain of the proposal distribution"}
      }
 
-    private val rVariable: RVariableIfc = proposalDistribution.randomVariable(this.streamNumber, streamProvider)
+    // the proposal draws from this variable's one stream, in turn with the acceptance test
+    private val rVariable: RVariable =
+        componentOn(proposalDistribution.randomVariable(this.streamNumber, streamProvider), streamNumber, streamProvider, rnStream)
+
+    override fun drawFrom(stream: RNStreamIfc) {
+        super.drawFrom(stream)
+        rVariable.drawFrom(stream)
+    }
     private val domain = pdf.domain()
 
     override fun generate(): Double {

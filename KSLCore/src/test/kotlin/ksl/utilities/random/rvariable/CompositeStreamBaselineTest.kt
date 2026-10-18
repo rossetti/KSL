@@ -222,12 +222,12 @@ class CompositeStreamBaselineTest {
             "AcceptanceRejectionRV" to checksum(univariateDefault(acceptanceRejection)),
         )
         assertEquals(mapOf(
-            "RVFunction" to 2248043381L,
-            "RVUFunction" to 2607406461L,
-            "ShiftedRV" to 532045970L,
-            "MixtureRV" to 1387454269L,
-            "RatioOfUniformsRV" to 1182090799L,
-            "AcceptanceRejectionRV" to 1731027418L,
+            "RVFunction" to 273194392L, // before R1.8: 2248043381
+            "RVUFunction" to 4202001018L, // before R1.8: 2607406461
+            "ShiftedRV" to 2496997750L, // before R1.8: 532045970
+            "MixtureRV" to 3674382197L, // before R1.8: 1387454269
+            "RatioOfUniformsRV" to 1677520252L, // before R1.8: 1182090799
+            "AcceptanceRejectionRV" to 91843402L, // before R1.8: 1731027418
         ), actual)
     }
 
@@ -246,7 +246,7 @@ class CompositeStreamBaselineTest {
             "RVFunction" to 2742046619L,
             "RVUFunction" to 2650341878L,
             "ShiftedRV" to 3929785863L,
-            "MixtureRV" to 3550063089L,
+            "MixtureRV" to 1331349504L, // before R1.8: 3550063089
             "RatioOfUniformsRV" to 1868219307L,
             "AcceptanceRejectionRV" to 1652708483L,
         ), actual)
@@ -268,8 +268,8 @@ class CompositeStreamBaselineTest {
     }
 
     /**
-     *  E[X^2] for X the sum of two unit exponentials, exactly 6, with antithetic sampling, 2000 pairs. Biased as
-     *  pinned: the antithetic instance samples 2 x Exp, whose E[X^2] is 8.
+     *  E[X^2] for X the sum of two unit exponentials, exactly 6, with antithetic sampling, 2000 pairs. Before R1.8
+     *  the antithetic instance sampled 2 x Exp, whose E[X^2] is 8.
      */
     @Test
     @DisplayName("One-dimensional integration with antithetic sampling")
@@ -277,6 +277,7 @@ class CompositeStreamBaselineTest {
         val mc = MC1DIntegration({ x -> x * x }, sum(0, RNStreamProvider()))
         mc.desiredHWErrorBound = 1.0e-9
         mc.maxSampleSize = 2000
-        assertEquals(7.0078676152112624, mc.runSimulation())
+        // before R1.8: 7.0078676152112624
+        assertEquals(5.994413356301487, mc.runSimulation())
     }
 }

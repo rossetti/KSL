@@ -138,4 +138,97 @@ class CompositeStreamTest {
         assertFailsWith<IllegalArgumentException> { MVIndependentMarginals(listOf(foreign, UniformRV(0.0, 1.0))) }
         assertFailsWith<IllegalArgumentException> { MVIndependentRV(2, foreign) }
     }
+
+    // ---- univariate composites -------------------------------------------------------------------------------
+
+    private object Epanechnikov : ksl.utilities.distributions.PDFIfc {
+        override fun pdf(x: Double): Double = if (x < -1.0 || x > 1.0) 0.0 else 0.75 * (1.0 - x * x)
+        override fun domain(): Interval = Interval(-1.0, 1.0)
+    }
+
+    private object NormalShape : ksl.utilities.distributions.PDFIfc {
+        override fun pdf(x: Double): Double = kotlin.math.exp(-x * x / 2.0)
+        override fun domain(): Interval = Interval(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY)
+    }
+
+    /** Every univariate composite, by name, built on a stream number of a provider. */
+    private val univariate: Map<String, (Int, RNStreamProviderIfc) -> RVariableIfc> = mapOf(
+        "RVFunction" to { s, p -> UniformRV(0.0, 1.0, s, p) + UniformRV(0.0, 1.0, s, p) },
+        "RVUFunction" to { s, p -> RVUFunction(UniformRV(0.0, 1.0, s, p)) { 3.0 * it } },
+        "ShiftedRV" to { s, p -> ShiftedRV(2.0, UniformRV(0.0, 1.0), s, p) },
+        "MixtureRV" to { s, p -> MixtureRV(listOf(ExponentialRV(1.0), UniformRV(0.0, 1.0)), doubleArrayOf(0.4, 1.0), s, p) },
+        "RatioOfUniformsRV" to { s, p ->
+            val b = kotlin.math.sqrt(2.0 / kotlin.math.exp(1.0))
+            RatioOfUniformsRV(1.0, -b, b, NormalShape, s, p)
+        },
+        "AcceptanceRejectionRV" to { s, p -> AcceptanceRejectionRV(Uniform(-1.0, 1.0), 1.5, Epanechnikov, s, p) },
+    )
+
+    private fun univariatePairs(build: (Int, RNStreamProviderIfc) -> RVariableIfc, n: Int): List<Pair<Double, Double>> =
+        listOf(0, 5).flatMap { s ->
+            val rv = build(s, RNStreamProvider())
+            val anti = rv.antitheticInstance()
+            List(n) { rv.value to anti.value }
+        }
+
+    @Test
+    @DisplayName("The antithetic instance of a function of uniforms uses 1 - u for every uniform it draws")
+    fun antitheticFunctionsPairExactly() {
+        for ((x, y) in univariatePairs(univariate.getValue("RVFunction"), 100)) assertEquals(2.0, x + y, 1e-12)
+        for ((x, y) in univariatePairs(univariate.getValue("RVUFunction"), 100)) assertEquals(3.0, x + y, 1e-12)
+        for ((x, y) in univariatePairs(univariate.getValue("ShiftedRV"), 100)) assertEquals(5.0, x + y, 1e-12)
+    }
+
+    private fun meanAndVariance(rv: RVariableIfc, n: Int = 100_000): Pair<Double, Double> {
+        val x = DoubleArray(n) { rv.value }
+        val mean = x.average()
+        return mean to x.sumOf { (it - mean) * (it - mean) } / (n - 1)
+    }
+
+    /**
+     *  An antithetic instance samples the right distribution. Before R1.8 the components of one repeated a uniform:
+     *  Exp + Exp became 2 Exp (variance 4, not 2), and the ratio-of-uniforms and acceptance-rejection variables drew
+     *  their two numbers equal.
+     */
+    @Test
+    @DisplayName("An antithetic instance samples the same distribution as the variable")
+    fun antitheticInstancesHaveTheRightDistribution() {
+        val sum = (ExponentialRV(1.0, 3, RNStreamProvider()) + ExponentialRV(1.0, 3, RNStreamProvider())).antitheticInstance()
+        val (sumMean, sumVariance) = meanAndVariance(sum)
+        assertEquals(2.0, sumMean, 0.03)
+        assertEquals(2.0, sumVariance, 0.08)
+        val (zMean, zVariance) = meanAndVariance(univariate.getValue("RatioOfUniformsRV")(3, RNStreamProvider()).antitheticInstance())
+        assertEquals(0.0, zMean, 0.02)
+        assertEquals(1.0, zVariance, 0.03)
+        val (eMean, eVariance) = meanAndVariance(univariate.getValue("AcceptanceRejectionRV")(3, RNStreamProvider()).antitheticInstance())
+        assertEquals(0.0, eMean, 0.01)
+        assertEquals(0.2, eVariance, 0.01)
+    }
+
+    @Test
+    @DisplayName("resetStartStream() rewinds a univariate composite and its antithetic instance, on any stream number")
+    fun univariateResetRewindsWhatIsSampled() {
+        for ((name, build) in univariate) for (s in listOf(0, 5)) {
+            val rv = build(s, RNStreamProvider())
+            val anti = rv.antitheticInstance()
+            val first = List(3) { rv.value }
+            val firstAnti = List(3) { anti.value }
+            rv.resetStartStream()
+            anti.resetStartStream()
+            assertEquals(first, List(3) { rv.value }, "$name on stream $s")
+            assertEquals(firstAnti, List(3) { anti.value }, "$name antithetic on stream $s")
+        }
+    }
+
+    @Test
+    @DisplayName("A mixture samples its own copies of the variables it is given, not the caller's")
+    fun aMixtureHasItsOwnComponents() {
+        val provider = RNStreamProvider()
+        val callers = UniformRV(0.0, 1.0, 7, provider)
+        val mixture = MixtureRV(listOf(callers, ExponentialRV(1.0, 8, provider)), doubleArrayOf(0.5, 1.0), 9, provider)
+        val expected = UniformRV(0.0, 1.0, 7, RNStreamProvider()).let { r -> List(4) { r.value } }
+        repeat(10) { mixture.value }
+        assertContentEquals(expected, List(4) { callers.value })
+    }
 }
+
