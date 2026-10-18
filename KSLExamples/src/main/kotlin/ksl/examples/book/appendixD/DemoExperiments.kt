@@ -165,7 +165,7 @@ fun demoSimulationOfDesignedExperiment(){
         fB to "MM1_Test:ServiceTime.mean",
         fC to "MM1_Test:TBA.mean"
     )
-    val m = Model("DesignedExperimentDemo")
+    val m = Model("MM1_Test")
     m.numberOfReplications = 15
     m.lengthOfReplication = 10000.0
     m.lengthOfReplicationWarmUp = 5000.0
