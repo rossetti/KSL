@@ -11,6 +11,7 @@ import ksl.modeling.decision.capture.MemorySink
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ExponentialRV
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -59,7 +60,15 @@ import kotlin.test.assertTrue
  *  the difference would then mix the cost of searching with the cost of whatever the decisions did
  *  to the model. Scoring without acting isolates the search, which is the quantity §16.4 says
  *  matters for design feedback.
+ *
+ *  ### Not run in CI
+ *
+ *  A shared CI runner is exactly the busy machine described above: on it the timing noise can swamp
+ *  the per-epoch slope and fail the positive-slope check, which has already failed release builds
+ *  that were otherwise green. The class is therefore skipped when `CI=true` (set by GitHub Actions)
+ *  and runs in every local build.
  */
+@DisabledIfEnvironmentVariable(named = "CI", matches = "true")
 class OverheadBenchmarkTest {
 
     // ------------------------------------------------------------------ arms
