@@ -76,7 +76,7 @@ dependencies {
     implementation("org.apache.derby:derbyclient:10.17.1.0")
     implementation("org.apache.derby:derbytools:10.17.1.0")
 
-    implementation("org.postgresql:postgresql:42.7.13")
+    implementation("org.postgresql:postgresql:42.7.14")
 
     implementation("org.xerial:sqlite-jdbc:3.53.4.0")
 

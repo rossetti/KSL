@@ -450,6 +450,7 @@ release.
 - A ride shorter than the item is refused when it is asked for, rather than throwing when the item arrives; check with
   `Conveyor.canRide()`.
 - `MetropolisHastingsMV` prints its own name as its header.
+- The PostgreSQL JDBC driver is 42.7.14, which fixes two security vulnerabilities.
 
 ### Added
 
