@@ -2008,6 +2008,10 @@ interface KSLProcessBuilder {
      * the LocationIfc, then the current location property of the entity will be updated to this value at the
      * completion of the ride.
      *
+     * A ride that begins at the entry location must end no nearer than the item is long: the destination must be
+     * at least as many cells from the entry cell as the item needs, so that the item is fully on the conveyor when
+     * it arrives. A shorter ride is an error; [Conveyor.canRide] checks a ride beforehand.
+     *
      * @param conveyorRequest the permission to ride on the conveyor in the form of a valid cell allocation
      * @param destination the location to which to ride
      * @param ridePriority the priority associated with ride request
@@ -2033,6 +2037,10 @@ interface KSLProcessBuilder {
      * while the entity occupies the final cells before exiting or riding again. If the destination implements
      * the LocationIfc, then the current location property of the entity will be updated to this value at the
      * completion of the ride.
+     *
+     * A ride that begins at the entry location must end no nearer than the item is long: the destination must be
+     * at least as many cells from the entry cell as the item needs, so that the item is fully on the conveyor when
+     * it arrives. A shorter ride is an error; [Conveyor.canRide] checks a ride beforehand.
      *
      * @param destination the location to which to ride
      * @param ridePriority the priority associated with ride request

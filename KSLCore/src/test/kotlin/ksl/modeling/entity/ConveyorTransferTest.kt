@@ -540,15 +540,58 @@ class ConveyorTransferTest {
     }
 
     /**
-     *  Today this throws when the first item reaches Near: it reaches its destination while still getting on,
-     *  exits, and the next cell move tries to put it on the conveyor again. The same happens without a transfer,
-     *  to any item whose ride is shorter than its length.
+     *  A ride shorter than the item is refused when it is asked for. Before R1.8.1 it was accepted, and the
+     *  conveyor threw when the item reached its destination while still getting on: its entity exited, and the
+     *  next cell move tried to put it on the conveyor again.
      */
     @Test
-    @DisplayName("Pinned: a longer item whose destination is closer than its length throws")
+    @DisplayName("A longer item cannot ride to a destination closer than its length")
     fun nearDestination() {
-        val e = assertFailsWith<IllegalStateException> { run("near") { NearDestination(it) } }
-        assertEquals(true, e.message!!.contains("Request status must be OFF to enter the conveyor"), e.message)
+        val e = assertFailsWith<IllegalArgumentException> { run("near") { NearDestination(it) } }
+        assertEquals(true, e.message!!.contains("is closer to the entry location (X)"), e.message)
+    }
+
+    /** One 3-cell item gets on at X, of X to Near (2 cells) to Far (20), and rides to Near: no transfer. */
+    private class ShortRide(parent: ModelElement) : Rig(parent) {
+        val belt = Conveyor.builder(this, "Belt").conveyorType(Conveyor.Type.ACCUMULATING).velocity(12.0)
+            .cellSize(1).maxCellsAllowed(3).firstSegment("X", "Near", 2).nextSegment("Far", 20).build()
+
+        override fun initialize() {
+            super.initialize()
+            startItems(1)
+        }
+
+        override suspend fun KSLProcessBuilder.flow(item: Entity) {
+            val cr = requestConveyor(belt, "X", 3)
+            rideConveyor(cr, "Near")
+            exitConveyor(cr)
+        }
+    }
+
+    @Test
+    @DisplayName("A ride shorter than the item is refused without a transfer too")
+    fun shortRideRefused() {
+        val e = assertFailsWith<IllegalArgumentException> { run("short") { ShortRide(it) } }
+        assertEquals(true, e.message!!.contains("than the 3 cells the item needs on (Belt)"), e.message)
+    }
+
+    /** What canRide() says, on a straight conveyor and around a circular one. */
+    @Test
+    @DisplayName("canRide checks reachability and room for the item")
+    fun canRide() {
+        val m = Model("canRide", autoCSVReports = false)
+        val straight = Conveyor.builder(m, "Straight").conveyorType(Conveyor.Type.ACCUMULATING).velocity(12.0)
+            .cellSize(1).maxCellsAllowed(3).firstSegment("X", "Near", 2).nextSegment("Far", 20).build()
+        assertEquals(true, straight.canRide("X", "Near", 2))
+        assertEquals(false, straight.canRide("X", "Near", 3))
+        assertEquals(true, straight.canRide("X", "Far", 3))
+        assertEquals(true, straight.canRide("Near", "Far", 3))
+        assertEquals(false, straight.canRide("Near", "X", 1), "not reachable")
+        val circular = Conveyor.builder(m, "Circular").conveyorType(Conveyor.Type.ACCUMULATING).velocity(12.0)
+            .cellSize(1).maxCellsAllowed(3).firstSegment("A", "B", 2).nextSegment("A", 5).build()
+        assertEquals(false, circular.canRide("A", "B", 3))
+        assertEquals(true, circular.canRide("B", "A", 3))
+        assertEquals(true, circular.canRide("B", "B", 3), "around the loop: 7 cells")
     }
 
     /**

@@ -451,6 +451,27 @@ class Conveyor @JvmOverloads constructor(
     }
 
     /**
+     *  Determines if an item that needs [numCellsNeeded] cells can get on at the [start] location and ride to the
+     *  [end] location: [end] must be reachable from [start], and the cells from the entry cell at [start] to the
+     *  exit cell at [end] must number at least [numCellsNeeded], so that the item is fully on the conveyor by the
+     *  time it reaches [end]. A ride that begins at an entry location must satisfy this.
+     */
+    fun canRide(start: String, end: String, numCellsNeeded: Int): Boolean {
+        if (!isReachable(start, end)) {
+            return false
+        }
+        val entryCell = myEntryCells[start] ?: return false
+        val exitCell = myExitCells[end] ?: return false
+        val numCells = if (exitCell.index >= entryCell.index) {
+            exitCell.index - entryCell.index + 1
+        } else {
+            // around a circular conveyor
+            conveyorCells.size - entryCell.index + exitCell.index + 1
+        }
+        return numCells >= numCellsNeeded
+    }
+
+    /**
      * A list of all conveyor requests that are currently associated with (occupying)
      * cells on the conveyor in the order from the furthest along (closest to the exit location of the last segment)
      * to the nearest request (closest to the entry location of the first segment).

@@ -3131,6 +3131,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val origin = conveyorRequest.currentLocation
                 require(conveyor.isReachable(origin, destination))
                 { "The destination (${destination}) is not reachable from entry location (${origin})" }
+                if (conveyorRequest.isBlockingEntry) {
+                    require(conveyor.canRide(origin, destination, conveyorRequest.numCellsNeeded)) {
+                        "The destination (${destination}) is closer to the entry location (${origin}) than the " +
+                                "${conveyorRequest.numCellsNeeded} cells the item needs on (${conveyor.name}). " +
+                                "Use Conveyor.canRide() to check a ride before asking for it."
+                    }
+                }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: RIDE CONVEYOR : entity_id = ${entity.id} : conveyor (${conveyor.name}) : from $origin to $destination : suspension name = $currentSuspendName" }
                 // schedules the need to ride the conveyor
                 conveyor.scheduleConveyAction(conveyorRequest as Conveyor.ConveyorRequest, destination, ridePriority)
