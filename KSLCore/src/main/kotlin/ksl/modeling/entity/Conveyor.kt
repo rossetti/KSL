@@ -255,6 +255,10 @@ class Conveyor @JvmOverloads constructor(
     // holds the requests that have requested to ride after blocking an entry cell
     private val positionedToEnter = mutableMapOf<Cell, ConveyorRequest>()
 
+    // items transferring onto this conveyor that wait, still on the conveyor they are leaving, for an entry cell
+    // of this conveyor to be free: the entry cell and the request on the conveyor being left
+    private val myWaitingToLand = mutableMapOf<Cell, ConveyorRequest>()
+
     /** indicates if entering items have priority at entry cell over items riding on the conveyor
      *  The default is no priority (false)
      */
@@ -902,6 +906,7 @@ class Conveyor @JvmOverloads constructor(
             cell.isBlocked = false
         }
         positionedToEnter.clear()
+        myWaitingToLand.clear()
         pausedTimeRemaining = Double.NaN
         isStopped = false
         emitConveyorDefined()
@@ -1307,6 +1312,8 @@ class Conveyor @JvmOverloads constructor(
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : ***** started end of cell traversal action ***** : CONVEYOR (${this@Conveyor.name})" }
         // determine cells to move forward and move them forward
         moveCellsOnConveyor()
+        // items transferring onto this conveyor may now be able to leave the conveyor they are on
+        releaseItemsWaitingToLand()
         // move items that have asked to ride and occupy an entry cell
         processItemsPositionedToEnter()
         // entry cells may have become unblocked after processing items positioned to enter or moving items
@@ -1660,6 +1667,25 @@ class Conveyor @JvmOverloads constructor(
     }
 
     /**
+     *  The item of [request] has transferred from another conveyor: its move off that conveyor brought it to this
+     *  conveyor's entry cell, so it occupies the cell now, even part way through a cell move, rather than at the
+     *  next move. It moves on with this conveyor's moves, and requests waiting at the entry are checked at once,
+     *  so the next item may take the entry cell behind it.
+     */
+    private fun landTransferredItem(request: ConveyorRequest) {
+        request.myArrivesByTransfer = false
+        positionedToEnter[request.entryCell] = request
+        request.entryCell.isBlocked = false
+        // removes the request from those positioned to enter once the item is fully on
+        request.enterConveyor()
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : landed by transfer on entry cell (${request.entryCell.cellNumber}) : status = ${request.status}" }
+        if (!isCellTraversalInProgress()) {
+            rescheduleConveyorMovement()
+        }
+        processRequestsWaitingToAccessConveyor()
+    }
+
+    /**
      *  This method is called from ProcessModel within the exitConveyor() method.
      *  The request must be blocking the exit in order to start the exiting process.
      *  Exiting requires that the item move completely through the exit cell. An item
@@ -1670,6 +1696,12 @@ class Conveyor @JvmOverloads constructor(
      */
     internal fun startExitingProcess(request: ConveyorRequest) {
         require(request.isBlockingExit) { "The request must be blocking the exit to start the exiting process" }
+        // an item transferring to another conveyor leaves this one only when it can land on the other
+        val target = request.myTransferTo
+        if (target != null && target.entryCell.isOccupied) {
+            holdUntilLanding(request, target)
+            return
+        }
         // the request is blocking the exit, it must be in the BlockingExit state
         request.status = ItemStatus.EXITING
         val destination = request.destination!!
@@ -1687,6 +1719,76 @@ class Conveyor @JvmOverloads constructor(
         }
         // the exit was blocked when the last cell move decided which waiting requests could take an entry cell
         processRequestsWaitingToAccessConveyor()
+    }
+
+    /**
+     *  The item of [request] is transferring to [target]'s conveyor, whose entry cell is still covered by the item
+     *  ahead, which leaves it on that conveyor's next move. An item cannot be between conveyors, so this one stays
+     *  in its exit cell, which stays blocked, and the items behind it wait. It leaves at the later of the end of
+     *  the push-off it would otherwise have made, recorded here, and the moment the entry cell is free, when the
+     *  other conveyor releases it (`releaseToLand`).
+     */
+    private fun holdUntilLanding(request: ConveyorRequest, target: ConveyorRequest) {
+        request.myPushOffTime = time + timeToEndOfNextMove()
+        target.conveyor.myWaitingToLand[target.entryCell] = request
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : waits to land on (${target.conveyor.name}) at (${target.entryLocation}), push-off due at ${request.myPushOffTime}" }
+    }
+
+    /**
+     *  The time until the cell move that would push an exiting item off this conveyor ends: the move in progress,
+     *  a paused move's remaining time, or a full cell move.
+     */
+    private fun timeToEndOfNextMove(): Double {
+        return if (isCellTraversalInProgress()) {
+            endCellTraversalEvent!!.time - time
+        } else if (!pausedTimeRemaining.isNaN()) {
+            pausedTimeRemaining
+        } else {
+            cellTravelTime
+        }
+    }
+
+    /**
+     *  Called at the end of this conveyor's cell move: an item waiting on another conveyor to transfer onto this
+     *  one is released once the entry cell it is waiting for is free.
+     */
+    private fun releaseItemsWaitingToLand() {
+        if (myWaitingToLand.isEmpty()) {
+            return
+        }
+        for ((cell, request) in myWaitingToLand.toList()) {
+            if (cell.isNotOccupied) {
+                myWaitingToLand.remove(cell)
+                request.conveyor.releaseToLand(request)
+            }
+        }
+    }
+
+    /**
+     *  The entry cell that the item of [request] is transferring to is free. If the push-off it would have made
+     *  is over, the item crosses now, and the items behind it move up at this conveyor's next move. Otherwise
+     *  it exits as usual, its push-off ending when it was due.
+     */
+    private fun releaseToLand(request: ConveyorRequest) {
+        val pushOffTime = request.myPushOffTime
+        request.myPushOffTime = Double.NaN
+        if (time >= pushOffTime && !isStopped) {
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : released to land, push-off over: crosses now" }
+            request.status = ItemStatus.EXITING
+            removeBlockage(myExitCells[request.destination!!]!!)
+            // its first move off this conveyor, made now; a longer item finishes leaving with this conveyor's moves
+            request.moveForwardOneCell()
+            if (!isCellTraversalInProgress()) {
+                rescheduleConveyorMovement()
+            }
+            processRequestsWaitingToAccessConveyor()
+        } else {
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : released to land, push-off due at $pushOffTime" }
+            if (!isCellTraversalInProgress() && !isStopped) {
+                pausedTimeRemaining = maxOf(0.0, pushOffTime - time)
+            }
+            startExitingProcess(request)
+        }
     }
 
     /**
@@ -1726,6 +1828,24 @@ class Conveyor @JvmOverloads constructor(
 
         override var entity: ProcessModel.Entity = requestingEntity
             internal set //TODO to allow transfer of request to another entity
+
+        /**
+         *  For an item leaving this conveyor by a transfer, its request on the conveyor it transfers to; its move
+         *  off this conveyor is its move onto that one.
+         */
+        internal var myTransferTo: ConveyorRequest? = null
+
+        /**
+         *  True for a request made by a transfer, until its item lands: the item is already at the entry cell when
+         *  it rides, so it takes the cell at once rather than at the next cell move.
+         */
+        internal var myArrivesByTransfer: Boolean = false
+
+        /**
+         *  When the push-off of an item held in its exit cell, waiting to land on the conveyor it transfers to,
+         *  would have ended; NaN when the item is not held.
+         */
+        internal var myPushOffTime: Double = Double.NaN
 
         override val conveyor = this@Conveyor
 
@@ -2025,7 +2145,7 @@ class Conveyor @JvmOverloads constructor(
             // then we only need to test is it is unavailable
             if (!conveyor.isCircular){
                if (entryCell.isFirst){
-                   return entryCell.isUnavailable && !isVacatedByNextMove(entryCell)
+                   return entryCell.isUnavailable && !mayEnterBehind()
                }
             }
             // unless entering items have priority here, a riding item about to move into the entry cell goes first
@@ -2042,7 +2162,20 @@ class Conveyor @JvmOverloads constructor(
             }
             // nor if only the entry cell is unavailable, because the item covering it leaves it on the next move
             val behindEntryCell = requestedCells.dropLast(1)
-            return !(behindEntryCell.allAvailable() && isVacatedByNextMove(entryCell))
+            return !(behindEntryCell.allAvailable() && mayEnterBehind())
+        }
+
+        /**
+         *  True when this request may take its entry cell while the item covering it leaves it on the next move.
+         *  Not for a transfer onto a non-accumulating conveyor: the transfer holds the entry cell blocked while its
+         *  item leaves the other conveyor, which stops this conveyor, so the item covering the cell would never
+         *  leave it.
+         */
+        private fun mayEnterBehind(): Boolean {
+            if (conveyorType == Type.NON_ACCUMULATING && entity is ProcessModel.CTransferEntity) {
+                return false
+            }
+            return isVacatedByNextMove(entryCell)
         }
 
         /**
@@ -2117,6 +2250,10 @@ class Conveyor @JvmOverloads constructor(
         override fun ride(request: ConveyorRequest) {
             // place the request as riding
             request.state = requestRidingState
+            if (request.myArrivesByTransfer && request.entryCell.isNotOccupied) {
+                landTransferredItem(request)
+                return
+            }
             // remember that the request needs to move into the entry cell
             positionedToEnter[request.entryCell] = request
             request.entryCell.isBlocked = false //TODO why here? because movement event needs cell unblocked to move cell
@@ -2249,6 +2386,11 @@ class Conveyor @JvmOverloads constructor(
         ridePriority: Int
     ) {
         conveyorRequest.destination = destination
+        if (conveyorRequest.myArrivesByTransfer && conveyorRequest.isBlockingEntry) {
+            // an item transferred from another conveyor is already at the entry cell and lands now
+            schedule(::startRideAction, 0.0, message = conveyorRequest, priority = ridePriority)
+            return
+        }
         // need to check if a cell traversal is in progress if so, don't make the request until after it ends
         if (isCellTraversalInProgress()) {
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > : entity_id = ${conveyorRequest.entity.id} : cell traversal in progress : arrival of ride request" }

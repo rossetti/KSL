@@ -3219,6 +3219,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 waitFor(te.transferProcess, suspensionName = suspensionName)
                 // the transfer process should be completed, get the request from the transfer entity
                 val tr = te.transferRequest
+                // the item's move off its current conveyor is its move onto the next one: it leaves only when it
+                // can land there, and it lands as it rides, without another move to enter
+                (conveyorRequest as Conveyor.ConveyorRequest).myTransferTo = tr
+                tr.myArrivesByTransfer = true
                 // tell the entity to exit its current conveyor
                 exitConveyor(exitPriority)
                 // update the request so that it uses the original entity, not the transfer entity

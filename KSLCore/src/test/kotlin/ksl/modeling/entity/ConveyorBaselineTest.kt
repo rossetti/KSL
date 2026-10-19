@@ -531,9 +531,14 @@ class ConveyorBaselineTest {
         assertEquals(1.5 + 10.0 / 12.0, s.arrivedAt, 1e-9, "then rides the ten cells to Out")
     }
 
+    /**
+     *  Since R1.8.1 an item's move off the first conveyor is its move onto the second: it lands on the second
+     *  conveyor's first cell as it rides, rather than entering it at that conveyor's next cell move.
+     */
+    // before R1.8.1: Pin(6, 230, 144759797)
     @Test
-    @DisplayName("Unchanged: transfer between conveyors")
-    fun transfer() = assertPin(Pin(6, 230, 144759797L), run("u8") { Transfer(it) })
+    @DisplayName("Transfer between conveyors")
+    fun transfer() = assertPin(Pin(6, 232, 4106755587L), run("u8") { Transfer(it) })
 
     // before R1.8: Pin(4, 117, 4156148379)
     @Test

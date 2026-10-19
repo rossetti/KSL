@@ -160,20 +160,21 @@ class ConveyorTransferTest {
     // ---- 1. throughput: the time between items leaving the feeder ---------------------------------------------
 
     /**
-     *  The feeder can bring an item every 1/12 minute. Today the next item may not start its push-off until the
-     *  item before it has made its first move on the receiving conveyor, so with a receiving conveyor at v cells a
-     *  minute (v at least 12) the time between items lies between 1/12 and 1/12 + 1/v, depending on where the
-     *  receiving conveyor's moves fall. A slower receiving conveyor sets the pace.
+     *  The feeder can bring an item every 1/12 minute, and the slower of the two conveyors sets the pace: an
+     *  item's move off the feeder is its move onto the receiving conveyor, and the next item starts its push-off
+     *  as soon as it reaches the end of the feeder. Before R1.8.1 the next item could not start until the item
+     *  before it had made its first move on the receiving conveyor, so the time between items lay between 1/12
+     *  and 1/12 + 1/v (3/25 at 25, 1/10 at 50, 1/12 + 1/1000 at 1000) and was 1/6 at 12.
      */
     @Test
     @DisplayName("Throughput of a transfer, by the receiving conveyor's speed")
     fun throughputBySpeed() {
         val expected = mapOf(
             6.0 to (1.0 / 6.0),
-            12.0 to (1.0 / 6.0),
-            25.0 to (3.0 / 25.0),
-            50.0 to (5.0 / 50.0),
-            1000.0 to (1.0 / 12.0 + 1.0 / 1000.0),
+            12.0 to (1.0 / 12.0),
+            25.0 to (1.0 / 12.0),
+            50.0 to (1.0 / 12.0),
+            1000.0 to (1.0 / 12.0),
         )
         for ((v, gap) in expected) {
             val s = run("speed$v") { Junction(it, v) }
@@ -181,30 +182,37 @@ class ConveyorTransferTest {
         }
     }
 
+    // before R1.8.1: Pin(150, 2596, 1027664292)
     @Test
     @DisplayName("Pinned: transfer onto a receiving conveyor at 6 cells a minute")
-    fun speed6() = assertPin(Pin(150, 2596, 1027664292L), run("s6") { Junction(it, 6.0) })
+    fun speed6() = assertPin(Pin(150, 2594, 2017910502L), run("s6") { Junction(it, 6.0) })
 
+    // before R1.8.1: Pin(150, 2745, 946063530)
     @Test
     @DisplayName("Pinned: transfer onto a receiving conveyor at 12 cells a minute")
-    fun speed12() = assertPin(Pin(150, 2745, 946063530L), run("s12") { Junction(it, 12.0) })
+    fun speed12() = assertPin(Pin(150, 2595, 2282293702L), run("s12") { Junction(it, 12.0) })
 
+    // before R1.8.1: Pin(150, 2894, 389327581)
     @Test
     @DisplayName("Pinned: transfer onto a receiving conveyor at 25 cells a minute")
-    fun speed25() = assertPin(Pin(150, 2894, 389327581L), run("s25") { Junction(it, 25.0) })
+    fun speed25() = assertPin(Pin(150, 2756, 3483812771L), run("s25") { Junction(it, 25.0) })
 
+    // before R1.8.1: Pin(150, 3192, 3853472379)
     @Test
     @DisplayName("Pinned: transfer onto a receiving conveyor at 50 cells a minute")
-    fun speed50() = assertPin(Pin(150, 3192, 3853472379L), run("s50") { Junction(it, 50.0) })
+    fun speed50() = assertPin(Pin(150, 3066, 450010348L), run("s50") { Junction(it, 50.0) })
 
+    // before R1.8.1: Pin(150, 6321, 2341080135)
     @Test
     @DisplayName("Pinned: transfer onto a receiving conveyor at 1000 cells a minute")
-    fun speed1000() = assertPin(Pin(150, 6321, 2341080135L), run("s1000") { Junction(it, 1000.0) })
+    fun speed1000() = assertPin(Pin(150, 6171, 59799180L), run("s1000") { Junction(it, 1000.0) })
 
     /**
-     *  The first items, with the receiving conveyor at 25 cells a minute: item 1 leaves the feeder one feeder cell
-     *  time after reaching its end; item 2 reaches the end as item 1 leaves, waits 1/25 for the receiving entry
-     *  cell, then takes its own feeder cell time.
+     *  The first items, with the receiving conveyor (25 cells) at 25 cells a minute: item 1 leaves the feeder one
+     *  feeder cell time after reaching its end, landing on the receiving conveyor's first cell, and reaches its
+     *  last cell 24 moves later; item 2 reaches the end of the feeder as item 1 leaves it and takes its own feeder
+     *  cell time. Before R1.8.1 item 2 first waited 1/25 for the receiving entry cell, and item 1 took a 25th move,
+     *  into the first cell.
      */
     @Test
     @DisplayName("The first items' times through the junction")
@@ -215,7 +223,8 @@ class ConveyorTransferTest {
         assertEquals(20.0 / 12.0, end[0], 1e-9)
         assertEquals(20.0 / 12.0 + 1.0 / 12.0, off[0], 1e-9)
         assertEquals(off[0], end[1], 1e-9)
-        assertEquals(end[1] + 1.0 / 25.0 + 1.0 / 12.0, off[1], 1e-9)
+        assertEquals(end[1] + 1.0 / 12.0, off[1], 1e-9)
+        assertEquals(off[0] + 24.0 / 25.0, s.marks["arrive"]!![0], 1e-9)
     }
 
     // ---- 2. a merge: two feeders onto one receiving conveyor -------------------------------------------------
@@ -255,11 +264,12 @@ class ConveyorTransferTest {
         }
     }
 
+    // before R1.8.1: Pin(20, 400, 2315883804)
     @Test
     @DisplayName("Pinned: two feeders merging onto one conveyor")
     fun merge() {
         val s = run("merge") { Merge(it) }
-        assertPin(Pin(20, 400, 2315883804L), s)
+        assertPin(Pin(20, 378, 1514305284L), s)
     }
 
     // ---- 3. a transfer onto an entry partway along, with riders upstream ----------------------------------------
@@ -310,13 +320,15 @@ class ConveyorTransferTest {
         }
     }
 
+    // before R1.8.1: Pin(45, 517, 3496542498)
     @Test
     @DisplayName("Pinned: transfer onto a mid-conveyor entry, riders first")
-    fun midEntryRidersFirst() = assertPin(Pin(45, 517, 3496542498L), run("midRiders") { MidEntry(it, false) })
+    fun midEntryRidersFirst() = assertPin(Pin(45, 509, 1854755731L), run("midRiders") { MidEntry(it, false) })
 
+    // before R1.8.1: Pin(45, 517, 1679128360)
     @Test
     @DisplayName("Pinned: transfer onto a mid-conveyor entry, entering priority")
-    fun midEntryEnteringPriority() = assertPin(Pin(45, 517, 1679128360L), run("midEntering") { MidEntry(it, true) })
+    fun midEntryEnteringPriority() = assertPin(Pin(45, 509, 1107750747L), run("midEntering") { MidEntry(it, true) })
 
     // ---- 4. pausing at the junction, and leaving there ------------------------------------------------------
 
@@ -339,9 +351,10 @@ class ConveyorTransferTest {
         }
     }
 
+    // before R1.8.1: Pin(10, 262, 2173346804)
     @Test
     @DisplayName("Pinned: pausing at the junction before riding on")
-    fun pauseAtJunction() = assertPin(Pin(10, 262, 2173346804L), run("pause") { PauseAtJunction(it) })
+    fun pauseAtJunction() = assertPin(Pin(10, 257, 2862695677L), run("pause") { PauseAtJunction(it) })
 
     @Test
     @DisplayName("Pinned: leaving at the junction without riding on")
@@ -349,14 +362,16 @@ class ConveyorTransferTest {
 
     // ---- 5. non-accumulating conveyors ------------------------------------------------------------------------
 
+    // before R1.8.1: Pin(40, 804, 3607506081)
     @Test
     @DisplayName("Pinned: a non-accumulating feeder")
-    fun nonAccumulatingFeeder() = assertPin(Pin(40, 804, 3607506081L),
+    fun nonAccumulatingFeeder() = assertPin(Pin(40, 767, 2774184530L),
         run("naFeeder") { Junction(it, 25.0, n = 40, feederType = Conveyor.Type.NON_ACCUMULATING) })
 
+    // before R1.8.1: Pin(40, 726, 2208616566)
     @Test
     @DisplayName("Pinned: a non-accumulating receiving conveyor")
-    fun nonAccumulatingReceiver() = assertPin(Pin(40, 726, 2208616566L),
+    fun nonAccumulatingReceiver() = assertPin(Pin(40, 725, 1368107516L),
         run("naMain") { Junction(it, 25.0, n = 40, mainType = Conveyor.Type.NON_ACCUMULATING) })
 
     // ---- 6. the receiving conveyor stopped, and blocked -------------------------------------------------------
@@ -373,32 +388,35 @@ class ConveyorTransferTest {
         private fun start(e: KSLEvent<Nothing>) = main.startConveyor()
     }
 
+    // before R1.8.1: Pin(40, 806, 2567925893)
     @Test
     @DisplayName("Pinned: the receiving conveyor stopped while items transfer")
-    fun stoppedReceiver() = assertPin(Pin(40, 806, 2567925893L), run("stopped") { StoppedMain(it) })
+    fun stoppedReceiver() = assertPin(Pin(40, 769, 1786126070L), run("stopped") { StoppedMain(it) })
 
     /**
      *  Each item holds the receiving conveyor's end for 0.5 before leaving, so the receiving conveyor (5 cells)
      *  fills, and items wait to transfer.
      */
+    // before R1.8.1: Pin(30, 598, 1082753356)
     @Test
     @DisplayName("Pinned: the receiving conveyor backed up to the junction")
-    fun blockedReceiver() = assertPin(Pin(30, 598, 1082753356L),
+    fun blockedReceiver() = assertPin(Pin(30, 568, 2114863087L),
         run("blocked") { Junction(it, 25.0, n = 30, mainCells = 5, holdAtShip = 0.5) })
 
     // ---- 7. items longer than one cell ------------------------------------------------------------------------
 
     /**
-     *  A k-cell item is pushed off the feeder in k moves, and the next item's push-off waits until it is fully on
-     *  the receiving conveyor (25 cells a minute here), which takes k more moves: today the time between items is
-     *  3k/25, against k/12 without the transfer.
+     *  A k-cell item is pushed off the feeder in k moves and lands its front cell on the receiving conveyor (25
+     *  cells a minute here); the next item's push-off waits until it is fully on, which takes k - 1 more moves, so
+     *  the time between items is 5/25 and 8/25 for 2- and 3-cell items, against k/12 without the transfer. Before
+     *  R1.8.1 it was 3k/25.
      */
     @Test
     @DisplayName("Throughput of a transfer, by item length")
     fun throughputByLength() {
         for (k in 2..3) {
             val s = run("len$k") { Junction(it, 25.0, cells = k, feederCells = 30, mainCells = 30) }
-            assertEquals(3.0 * k / 25.0, s.gap("off", 40, 120), 1e-9, "$k-cell items")
+            assertEquals(if (k == 2) 5.0 / 25.0 else 8.0 / 25.0, s.gap("off", 40, 120), 1e-9, "$k-cell items")
         }
     }
 
@@ -406,9 +424,9 @@ class ConveyorTransferTest {
     @DisplayName("Pinned: 2-cell items, receiving conveyor at 25, 12 and 6 cells a minute")
     fun twoCellItems() {
         val expected = mapOf(
-            25.0 to Pin(150, 3507, 1169645705L),
-            12.0 to Pin(150, 3209, 381523370L),
-            6.0 to Pin(150, 2995, 2575713369L)
+            25.0 to Pin(150, 3357, 2118893911L),  // before R1.8.1: Pin(150, 3507, 1169645705)
+            12.0 to Pin(150, 2983, 3063294993L),  // before R1.8.1: Pin(150, 3209, 381523370)
+            6.0 to Pin(150, 2909, 4067619369L)  // before R1.8.1: Pin(150, 2995, 2575713369)
         )
         for ((v, pin) in expected) {
             assertPin(pin, run("two$v") { Junction(it, v, cells = 2, feederCells = 30, mainCells = 30) })
@@ -419,9 +437,9 @@ class ConveyorTransferTest {
     @DisplayName("Pinned: 3-cell items, receiving conveyor at 25, 12 and 6 cells a minute")
     fun threeCellItems() {
         val expected = mapOf(
-            25.0 to Pin(150, 4105, 3892319475L),
-            12.0 to Pin(150, 3658, 3561961515L),
-            6.0 to Pin(138, 3242, 4173859015L)  // 12 items are still on the conveyors when the run ends
+            25.0 to Pin(150, 3955, 1120109543L),  // before R1.8.1: Pin(150, 4105, 3892319475)
+            12.0 to Pin(150, 3358, 851539531L),  // before R1.8.1: Pin(150, 3658, 3561961515)
+            6.0 to Pin(150, 3271, 3400469536L)  // before R1.8.1: Pin(138, 3242, 4173859015), 12 items still on the conveyors
         )
         for ((v, pin) in expected) {
             assertPin(pin, run("three$v") { Junction(it, v, cells = 3, feederCells = 30, mainCells = 30) })
@@ -480,8 +498,8 @@ class ConveyorTransferTest {
         val expected = mapOf(
             Pair(6.0, false) to Pair(6.005833333333, 10.529835804075),
             Pair(10.0, false) to Pair(9.951250000000, 18.917842422580),
-            Pair(6.0, true) to Pair(5.987083333333, 16.655912322844),
-            Pair(10.0, true) to Pair(8.297916666667, 422.699495061677),
+            Pair(6.0, true) to Pair(5.9875, 16.405596933529),  // before R1.8.1: 5.987083333333, 16.655912322844
+            Pair(10.0, true) to Pair(9.928333333333, 28.675287246678),  // before R1.8.1: 8.297916666667, 422.699495061677
         )
         for ((case, values) in expected) {
             val (rate, transfer) = case
@@ -564,9 +582,10 @@ class ConveyorTransferTest {
         }
     }
 
+    // before R1.8.1: Pin(10, 351, 1931607171)
     @Test
     @DisplayName("Pinned: a longer item landing with an exit ahead held by the item before it")
-    fun heldExitAhead() = assertPin(Pin(10, 351, 1931607171L), run("heldExit") { HeldExitAhead(it) })
+    fun heldExitAhead() = assertPin(Pin(10, 349, 122273372L), run("heldExit") { HeldExitAhead(it) })
 
     /**
      *  3-cell items transfer at X onto X to E2 (2 cells) to Far (20), 12 cells a minute, and ride to Far. Another
@@ -615,13 +634,15 @@ class ConveyorTransferTest {
         }
     }
 
+    // before R1.8.1: Pin(7, 195, 2652891964)
     @Test
     @DisplayName("Pinned: a longer item landing near a second entry held by a request")
-    fun secondEntryHeld() = assertPin(Pin(7, 195, 2652891964L), run("e2held") { SecondEntryNearby(it, false) })
+    fun secondEntryHeld() = assertPin(Pin(7, 184, 3330393067L), run("e2held") { SecondEntryNearby(it, false) })
 
+    // before R1.8.1: Pin(7, 192, 722600338)
     @Test
     @DisplayName("Pinned: a longer item landing near a second entry with an item getting on")
-    fun secondEntryRider() = assertPin(Pin(7, 192, 722600338L), run("e2rides") { SecondEntryNearby(it, true) })
+    fun secondEntryRider() = assertPin(Pin(7, 180, 1424534177L), run("e2rides") { SecondEntryNearby(it, true) })
 
     /**
      *  3-cell items transfer onto a circular conveyor X to Y (5 cells) to X (5), 12 cells a minute, and ride to
@@ -651,7 +672,8 @@ class ConveyorTransferTest {
         }
     }
 
+    // before R1.8.1: Pin(10, 267, 448579105)
     @Test
     @DisplayName("Pinned: longer items transferring onto a circular conveyor")
-    fun circularReceiver() = assertPin(Pin(10, 267, 448579105L), run("circular") { CircularReceiver(it) })
+    fun circularReceiver() = assertPin(Pin(10, 248, 723393156L), run("circular") { CircularReceiver(it) })
 }
