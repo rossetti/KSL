@@ -437,7 +437,7 @@ README's build section) and are not part of the KSLCore artifact.
 
 ## R1.8.1
 
-*In preparation.* Corrective. Needs Kotlin 2.4 or later.
+*19 October 2026.* Corrective. Needs Kotlin 2.4 or later.
 
 Models that transfer items between conveyors give different results: re-run them rather than compare across the
 release.
