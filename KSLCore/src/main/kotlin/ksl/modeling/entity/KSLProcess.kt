@@ -2221,14 +2221,24 @@ interface KSLProcessBuilder {
     }
 
     /**
-     *  Causes the entity to transfer from one conveyor to another. The entity will suspend while
-     *  accessing the required cells at the next conveyor. Once the desired cells are obtained
-     *  the entity will exit its current conveyor and be positioned to ride on the next conveyor.
-     *  After executing this function, the entity will be blocking the entry cell of the next conveyor
-     *  and must then execute a rideConveyor() function to move on the new conveyor. The transfer
-     *  will include the time needed for the entity to move through the exit cells of the current
-     *  conveyor, any waiting to access the next conveyor, and be positioned to ride on the
-     *  next conveyor.
+     *  Causes the entity to transfer from one conveyor to another.
+     *
+     *  The entity suspends while it gains access to the entry cell of the next conveyor. Access follows that
+     *  conveyor's rules: requests at an entry are served in turn, and riding items go first unless entering priority
+     *  is set there. On an accumulating conveyor access may be granted while the item covering the entry cell
+     *  leaves it on that conveyor's next move; on a non-accumulating conveyor the entry cell must be empty.
+     *
+     *  The item then leaves its current conveyor, and its move off that conveyor is its move onto the next. It is
+     *  pushed off as an exiting item is, but it leaves only when it can land: if the entry cell is still covered
+     *  when its push-off would end, it waits on its current conveyor, holding the exit cell, until the cell is free.
+     *
+     *  After this function returns, the entity blocks the entry cell of the next conveyor and must then execute a
+     *  rideConveyor() function to move on the new conveyor (or exitConveyor() to leave without riding). When it
+     *  rides, the item lands at once on the entry cell and, if it needs more than one cell, on the free cells ahead
+     *  of it, up to its length: it spends no further moves getting on. A transfer therefore costs the push-off from
+     *  the current conveyor and any waiting for the entry cell, and a line of conveyors passes items at the rate of
+     *  its slowest conveyor. A transfer onto a non-accumulating conveyor stops that conveyor while the item is
+     *  pushed across, as any blockage of a non-accumulating conveyor does.
      *
      *  Pre-conditions for this function:
      *  - the entity must currently be on a different conveyor than the one to which it is transferring
@@ -2238,6 +2248,7 @@ interface KSLProcessBuilder {
      * @param conveyorRequest the entity's current conveyor request. This is required to exit the current conveyor.
      *  @param nextConveyor the conveyor to transfer to
      *  @param entryLocation the entry location on the conveyor to access
+     *  @param exitPriority the priority associated with exiting the current conveyor
      *  @param requestPriority the priority associated with the conveyor access request
      *  @param requestResumePriority the priority for resuming after accessing the conveyor
      *  @param suspensionName the name of the suspension point the entity is experiencing if there
@@ -2256,14 +2267,24 @@ interface KSLProcessBuilder {
     ) : ConveyorRequestIfc
 
     /**
-     *  Causes the entity to transfer from its current conveyor to another. The entity will suspend while
-     *  accessing the required cells at the next conveyor. Once the desired cells are obtained
-     *  the entity will exit its current conveyor and be positioned to ride on the next conveyor.
-     *  After executing this function, the entity will be blocking the entry cell of the next conveyor
-     *  and must then execute a rideConveyor() function to move on the new conveyor. The transfer
-     *  will include the time needed for the entity to move through the exit cells of the current
-     *  conveyor, any waiting to access the next conveyor, and be positioned to ride on the
-     *  next conveyor.
+     *  Causes the entity to transfer from its current conveyor to another.
+     *
+     *  The entity suspends while it gains access to the entry cell of the next conveyor. Access follows that
+     *  conveyor's rules: requests at an entry are served in turn, and riding items go first unless entering priority
+     *  is set there. On an accumulating conveyor access may be granted while the item covering the entry cell
+     *  leaves it on that conveyor's next move; on a non-accumulating conveyor the entry cell must be empty.
+     *
+     *  The item then leaves its current conveyor, and its move off that conveyor is its move onto the next. It is
+     *  pushed off as an exiting item is, but it leaves only when it can land: if the entry cell is still covered
+     *  when its push-off would end, it waits on its current conveyor, holding the exit cell, until the cell is free.
+     *
+     *  After this function returns, the entity blocks the entry cell of the next conveyor and must then execute a
+     *  rideConveyor() function to move on the new conveyor (or exitConveyor() to leave without riding). When it
+     *  rides, the item lands at once on the entry cell and, if it needs more than one cell, on the free cells ahead
+     *  of it, up to its length: it spends no further moves getting on. A transfer therefore costs the push-off from
+     *  the current conveyor and any waiting for the entry cell, and a line of conveyors passes items at the rate of
+     *  its slowest conveyor. A transfer onto a non-accumulating conveyor stops that conveyor while the item is
+     *  pushed across, as any blockage of a non-accumulating conveyor does.
      *
      *  Pre-conditions for this function:
      *  - the entity must currently be on a different conveyor than the one to which it is transferring
@@ -2272,6 +2293,7 @@ interface KSLProcessBuilder {
      *
      *  @param nextConveyor the conveyor to transfer to
      *  @param entryLocation the entry location on the conveyor to access
+     *  @param exitPriority the priority associated with exiting the current conveyor
      *  @param requestPriority the priority associated with the conveyor access request
      *  @param requestResumePriority the priority for resuming after accessing the conveyor
      *  @param suspensionName the name of the suspension point the entity is experiencing if there
