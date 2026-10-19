@@ -1,4 +1,7 @@
 
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.KotlinJvm
+import com.vanniktech.maven.publish.SourcesJar
 import org.jetbrains.dokka.gradle.engine.parameters.VisibilityModifier
 
 /*
@@ -163,6 +166,10 @@ kotlin {
 }
 
 mavenPublishing {
+    // Central requires a javadoc jar but checks only that it exists and is signed. The Dokka-generated one
+    // was 57 MB of a 70 MB release and counts against the organisation's monthly publishing limit; the API
+    // docs are on KSLDocs (publishKSLDocs) and IDEs read KDoc from the sources jar, so an empty one is used.
+    configure(KotlinJvm(javadocJar = JavadocJar.Empty(), sourcesJar = SourcesJar.Sources()))
     publishToMavenCentral()
 
     signAllPublications()
