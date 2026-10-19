@@ -1688,10 +1688,13 @@ class Conveyor @JvmOverloads constructor(
     }
 
     /**
-     *  The item of [request] has transferred from another conveyor: its move off that conveyor brought it to this
-     *  conveyor's entry cell, so it occupies the cell now, even part way through a cell move, rather than at the
-     *  next move. It moves on with this conveyor's moves, and requests waiting at the entry are checked at once,
-     *  so the next item may take the entry cell behind it.
+     *  The item of [request] has transferred from another conveyor: its moves off that conveyor brought it onto
+     *  this one, so it lands now, even part way through a cell move, rather than entering at the next move. It
+     *  occupies the entry cell and, if it is longer than one cell, the cells ahead of it, since its front was
+     *  already on this conveyor while its tail left the other: as many cells as are free in a row, up to its
+     *  length (see [canLandOn]). Any cells it does not cover yet, it covers one per move, as an entering item does.
+     *  It moves on with this conveyor's moves, and requests waiting at the entry are checked at once, so the next
+     *  item may take the entry cell behind it.
      */
     private fun landTransferredItem(request: ConveyorRequest) {
         request.myArrivesByTransfer = false
@@ -1699,11 +1702,25 @@ class Conveyor @JvmOverloads constructor(
         request.entryCell.isBlocked = false
         // removes the request from those positioned to enter once the item is fully on
         request.enterConveyor()
+        while (request.status == ItemStatus.ENTERING && canLandOn(request.frontCell!!.nextCell)) {
+            // the item's front goes one cell further on, as a cell move would take it; arriving at its
+            // destination this way is arriving
+            request.moveForwardOneCell()
+        }
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : landed by transfer on entry cell (${request.entryCell.cellNumber}) : status = ${request.status}" }
         if (!isCellTraversalInProgress()) {
             rescheduleConveyorMovement()
         }
         processRequestsWaitingToAccessConveyor()
+    }
+
+    /**
+     *  True if a landing item's front may go on into [cell]: the cell exists (the conveyor has not ended), is
+     *  neither occupied nor blocked, and no item is positioned to enter it. These are the cells a cell move would
+     *  let the item's front move into.
+     */
+    private fun canLandOn(cell: Cell?): Boolean {
+        return cell != null && cell.isAvailable && positionedToEnter[cell] == null
     }
 
     /**
