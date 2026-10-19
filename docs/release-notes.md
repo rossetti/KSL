@@ -435,6 +435,26 @@ These notes cover the published library — the simulation engine. As of R1.4 th
 (not published to Maven); it and the Swing applications are separate modules (see the
 README's build section) and are not part of the KSLCore artifact.
 
+## R1.8.1
+
+*In preparation.* Corrective. Needs Kotlin 2.4 or later.
+
+Models that transfer items between conveyors give different results: re-run them rather than compare across the
+release.
+
+### Fixed
+
+- A transfer between conveyors no longer limits the line. Moving off one conveyor puts the item on the next, so a
+  merge passes items at the slower conveyor's rate, for items of any length; it was markedly slower. An item now
+  leaves its conveyor only when it can land on the next, and transfer trips are shorter by the item's length.
+- A ride shorter than the item is refused when it is asked for, rather than throwing when the item arrives; check with
+  `Conveyor.canRide()`.
+- `MetropolisHastingsMV` prints its own name as its header.
+
+### Added
+
+`Conveyor.canRide()`.
+
 ## R1.8
 
 *18 October 2026.* Corrective. Needs Kotlin 2.4 or later.

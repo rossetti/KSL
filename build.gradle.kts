@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "io.github.rossetti"
-version = "R1.8"
+version = "R1.8.1"
 
 repositories {
     mavenCentral()
@@ -922,7 +922,7 @@ tasks.register<Zip>("packageAnimations") {
 // -PreleaseVersion, else the kslSuiteVersion property.
 // The shipped code index hands students thousands of source links pinned to line ranges. Built from a
 // moving branch, every one of them drifts as the branch moves, so a release must name the KSLCore release
-// it indexes (a release branch such as R1_8). -PallowUnpinnedCodeIndex is for a dry run only.
+// it indexes (a release branch such as R1_8_1). -PallowUnpinnedCodeIndex is for a dry run only.
 tasks.register("checkCodeIndexPinned") {
     group = "verification"
     description = "Fail if the bundled code index cites develop or main rather than a KSLCore release."
@@ -934,7 +934,7 @@ tasks.register("checkCodeIndexPinned") {
         if (indexedRef in setOf(null, "develop", "main") && project.findProperty("allowUnpinnedCodeIndex") == null) {
             throw GradleException(
                 "the code index cites '$indexedRef', a branch that moves, so its source links would drift. " +
-                    "Rebuild with -PkslVersion=<KSLCore release branch>, e.g. -PkslVersion=R1_8 " +
+                    "Rebuild with -PkslVersion=<KSLCore release branch>, e.g. -PkslVersion=R1_8_1 " +
                     "(or pass -PallowUnpinnedCodeIndex for a dry run)."
             )
         }
