@@ -330,7 +330,7 @@ open class MetropolisHastingsMV @JvmOverloads constructor(
     }
 
     open fun asString(): String {
-        val sb = StringBuilder("MetropolisHastings1D")
+        val sb = StringBuilder("MetropolisHastingsMV")
         sb.appendLine()
         sb.append("Initialized Flag = ").append(isInitialized)
         sb.appendLine()
