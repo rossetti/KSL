@@ -68,7 +68,7 @@ fun bsExample2() {
     println()
     // now to the bootstrapping
     val bs = Bootstrap(mainSample, estimator = BSEstimatorIfc.Average(), streamNumber = 3)
-    bs.generateSamples(400, numBootstrapTSamples = 399)
+    bs.generateSamples(400)
     println(bs)
 }
 
