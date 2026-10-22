@@ -27,7 +27,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.*
 
 /**
- *  Example 6.9
+ *  Example 6.12
  *  This example illustrates process view modeling for a simple production system that
  *  produces T-Shirts. A blocking queue is an important part of the implementation
  *  for this model.

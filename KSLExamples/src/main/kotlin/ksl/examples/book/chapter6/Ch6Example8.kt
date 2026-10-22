@@ -29,7 +29,7 @@ import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.*
 
 /**
- *  Example 6.7
+ *  Example 6.11
  *  This model illustrates process view modeling via the STEM Career Fair Mixer system
  *  described in Chapter 6.
  */

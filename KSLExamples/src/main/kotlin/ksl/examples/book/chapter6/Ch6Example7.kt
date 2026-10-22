@@ -13,7 +13,7 @@ fun main(){
 }
 
 /**
- * Example 6.7 — the "soccer mom" process-interaction scenario coordinated with explicit `Suspension`
+ * Example 6.10 — the "soccer mom" process-interaction scenario coordinated with explicit `Suspension`
  * objects. A mother and daughter run separate processes that rendezvous around drop-off, play, errands,
  * and pickup: each side suspends for a named suspension and the other resumes it. One of a family of
  * chapter-6 variants modeling the same scenario with different synchronization primitives (see also
