@@ -229,7 +229,11 @@ open class AgentResource @JvmOverloads constructor(
      *  wait in the request queue until [goOnShift]; in-flight
      *  allocations finish normally under the current
      *  [ksl.modeling.entity.Resource.capacityChangeRule] (IGNORE by
-     *  default).
+     *  default). Under IGNORE, a unit that is busy when this is called
+     *  finishes its current allocation, and when it is released it goes to
+     *  the off-shift change, not to the next waiting request. So a server
+     *  that goes off shift mid-service finishes the customer in front of it
+     *  and then stops.
      */
     fun goOffShift() = myShift.goOffShift()
 

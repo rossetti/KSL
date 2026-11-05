@@ -400,12 +400,14 @@ open class Resource @JvmOverloads constructor(
     override val previousState: StateAccessorIfc
         get() = myPreviousState
 
-    /** Checks if the resource is idle, has no units allocated
+    /** True when no units are allocated and the capacity is greater than zero. A resource with zero
+     * capacity and nothing allocated is inactive, not idle (see isInactive).
      */
     override val isIdle: Boolean
         get() = myState === myIdleState
 
-    /** Checks to see if the resource is busy, has some units allocated
+    /** True when some units are allocated, whatever the capacity. A resource whose capacity has
+     * just gone to zero stays busy until its allocated units are released.
      */
     override val isBusy: Boolean
         get() = myState === myBusyState
@@ -415,7 +417,8 @@ open class Resource @JvmOverloads constructor(
 //    override val isFailed: Boolean
 //        get() = myState === myFailedState
 
-    /** Checks to see if the resource is inactive
+    /** True when no units are allocated and the capacity is zero, as when a resource is off shift
+     * and its last unit has been released.
      */
     override val isInactive: Boolean
         get() = myState === myInactiveState
@@ -613,7 +616,7 @@ open class Resource @JvmOverloads constructor(
         // deallocation completed need to check for pending capacity change
         if (isPendingCapacityChange) {
             if (capacityChangeRule == CapacityChangeRule.IGNORE) {
-                handeIgnoreRuleDeallocation(allocation)
+                handleIgnoreRuleDeallocation(allocation)
             } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
                 // for WAIT rule handle releases only until full change gets allocated and scheduled
                 if (myCurrentChangeNotice!!.changeEvent == null) {
@@ -831,7 +834,7 @@ open class Resource @JvmOverloads constructor(
         }
     }
 
-    protected fun handeIgnoreRuleDeallocation(allocation: Allocation) {
+    protected fun handleIgnoreRuleDeallocation(allocation: Allocation) {
         // a capacity change is pending and needs units that were deallocated
         val amountNeeded = myCurrentChangeNotice!!.amountNeeded
         // number busy went down and number available went up by amount released

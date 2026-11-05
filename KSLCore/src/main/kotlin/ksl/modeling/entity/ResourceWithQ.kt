@@ -24,8 +24,22 @@ import ksl.modeling.variable.TWResponseCIfc
 import ksl.simulation.KSLEvent
 import ksl.simulation.ModelElement
 
+/**
+ * What a decrease in a resource's capacity does to units that are busy when it is requested.
+ */
 enum class CapacityChangeRule {
-    WAIT, IGNORE
+    /**
+     * The change is delayed until the busy units are released, and then lasts its full duration, so
+     * later changes shift in time.
+     */
+    WAIT,
+
+    /**
+     * The decrease takes effect at once. Busy units finish their current allocation, and as they are
+     * released they are given to the change rather than to waiting requests. A later increase applies
+     * immediately.
+     */
+    IGNORE
 }
 
 interface ResourceWithQCIfc : ResourceCIfc {
