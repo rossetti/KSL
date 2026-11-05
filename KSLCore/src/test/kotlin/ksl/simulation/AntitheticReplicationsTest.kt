@@ -26,7 +26,9 @@ import ksl.utilities.random.rvariable.ExponentialRV
 import ksl.utilities.random.rvariable.UniformRV
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -163,5 +165,49 @@ class AntitheticReplicationsTest {
         model.simulate()
         val values = collector.replicationData("TimeInSystem")
         assertEquals(values.size, values.toSet().size, "replications repeated a result")
+    }
+
+    @Test
+    @DisplayName("numberOfReplications with false turns antithetic replications off")
+    fun falseTurnsAntitheticOff() {
+        val (model, _) = oneDrawRun()
+        assertTrue(model.antitheticOption)
+        model.numberOfReplications(5, false)
+        assertFalse(model.antitheticOption)
+        assertEquals(5, model.numberOfReplications)
+    }
+
+    @Test
+    @DisplayName("the property setter keeps the antithetic option and applies its even-number rule")
+    fun setterKeepsTheOption() {
+        val (model, _) = oneDrawRun()
+        model.numberOfReplications = 6
+        assertTrue(model.antitheticOption)
+        assertEquals(6, model.numberOfReplications)
+        assertFailsWith<IllegalArgumentException> { model.numberOfReplications = 3 }
+        assertEquals(6, model.numberOfReplications)
+    }
+
+    @Test
+    @DisplayName("run parameters can change both the option and the number together")
+    fun runParametersChangeBoth() {
+        val (model, _) = oneDrawRun()
+        model.changeRunParameters(model.extractRunParameters().copy(antitheticOption = false, numberOfReplications = 3))
+        assertFalse(model.antitheticOption)
+        assertEquals(3, model.numberOfReplications)
+        model.changeRunParameters(model.extractRunParameters().copy(antitheticOption = true, numberOfReplications = 4))
+        assertTrue(model.antitheticOption)
+        assertEquals(4, model.numberOfReplications)
+    }
+
+    @Test
+    @DisplayName("with the reset option on, a second antithetic run repeats the first")
+    fun resetOptionRepeatsTheRun() {
+        val (model, data) = oneDrawRun()
+        model.resetStartStreamOption = true
+        model.simulate()
+        val first = data()
+        model.simulate()
+        assertContentEquals(first, data())
     }
 }

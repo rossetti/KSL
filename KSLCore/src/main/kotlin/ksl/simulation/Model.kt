@@ -1312,17 +1312,17 @@ class Model @JvmOverloads constructor(
         }
 
         // Apply changes that can create or replace random sources before stream positioning.
-        if (antitheticOption) {
-            // the antithetic option controls stream resets and sub-stream advances by replication pair
-            setAllResetStartStreamOptions(false)
-        } else {
-            // tell the model to use the reset specification from the experiment
-            setAllResetStartStreamOptions(resetStartStreamOption)
-        }
+        // tell the model to use the reset specification from the experiment
+        setAllResetStartStreamOptions(resetStartStreamOption)
 
         if (resetStartStreamOption) {
             logger.debug { "Resetting random number streams to the beginning of their starting stream." }
             resetStartStream()
+        }
+
+        if (antitheticOption) {
+            // once running, the antithetic option controls stream resets and sub-stream advances by replication pair
+            setAllResetStartStreamOptions(false)
         }
 
         if (numberOfStreamAdvancesPriorToRunning > 0) {

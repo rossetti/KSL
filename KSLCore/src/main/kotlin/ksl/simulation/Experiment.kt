@@ -100,13 +100,13 @@ open class Experiment @JvmOverloads constructor(
     override var runErrorMsg: String = ""
 
     /**
-     * The number of replications to run for this experiment
-     *
+     * The number of replications to run for this experiment. Setting it keeps the current antithetic option,
+     * so the number must be even if that option is on.
      */
     override var numberOfReplications: Int
         get() = myDesiredReplications
         set(value) {
-            numberOfReplications(value, false)
+            numberOfReplications(value, antitheticOption)
         }
 
     override var startingRepId: Int = startingRepId
@@ -281,14 +281,14 @@ open class Experiment @JvmOverloads constructor(
      *
      * @param numReps must be &gt; 0, and even (divisible by 2) if antithetic
      * option is true
-     * @param antitheticOption controls whether antithetic replications occur
+     * @param antitheticOption controls whether antithetic replications occur; false turns them off
      */
     override fun numberOfReplications(numReps: Int, antitheticOption: Boolean) {
         require(numReps > 0) { "Number of replications <= 0" }
         if (antitheticOption) {
             require(numReps % 2 == 0) { "Number of replications must be even if antithetic option is on." }
-            this.antitheticOption = true
         }
+        this.antitheticOption = antitheticOption
         myDesiredReplications = numReps
     }
 
@@ -311,13 +311,13 @@ open class Experiment @JvmOverloads constructor(
     final override fun changeRunParameters(runParameters: ExperimentRunParametersIfc) {
         experimentName = runParameters.experimentName
         startingRepId = runParameters.startingRepId
-        numberOfReplications = runParameters.numberOfReplications
+        // set together, because the option decides whether the number must be even
+        numberOfReplications(runParameters.numberOfReplications, runParameters.antitheticOption)
         lengthOfReplication = runParameters.lengthOfReplication
         lengthOfReplicationWarmUp = runParameters.lengthOfReplicationWarmUp
         replicationInitializationOption = runParameters.replicationInitializationOption
         resetStartStreamOption = runParameters.resetStartStreamOption
         advanceNextSubStreamOption = runParameters.advanceNextSubStreamOption
-        antitheticOption = runParameters.antitheticOption
         numChunks = runParameters.numChunks
         numberOfStreamAdvancesPriorToRunning = runParameters.numberOfStreamAdvancesPriorToRunning
         if (runParameters.maximumAllowedExecutionTimePerReplication > Duration.ZERO) {
