@@ -1142,8 +1142,9 @@ time-weighted, so 0.1166 is the mean number of carts waiting behind a
 parked one at any moment, a tenth of one cart out of two. Forty waits, and
 so little of the fleet held up by them, is a queue. The same count with
 most of the fleet sitting behind it is a stall — and so is a run that ends
-with transporters still waiting, which the guide path warns about
-separately by naming them.
+with transporters stopped for good, which the guide path warns about
+separately by naming them. A wait at the end of a run behind a moving
+vehicle is only queueing, and is logged at INFO.
 
 The subsystem tells you two conditions apart, and the distinction matters
 because the fixes are opposite:

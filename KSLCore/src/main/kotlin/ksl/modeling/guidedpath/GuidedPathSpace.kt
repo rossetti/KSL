@@ -2116,6 +2116,10 @@ open class GuidedPathSpace @JvmOverloads constructor(
      * anywhere, and the output looks like a system that merely had no work to do. This is the point
      * at which that becomes visible, and it names what each transporter holds and what it is
      * waiting for, which is what a modeler needs in order to see the cycle or the obstruction.
+     *
+     * The report is a snapshot of one instant, and on a busy guide path some vehicle is usually
+     * waiting for the zone ahead. So a warning is kept for a wait that looks like a stall, and any
+     * other is logged at INFO, as unfinished work is. See [classifyWait].
      */
     override fun replicationEnded() {
         if (auditAtReplicationEnd) {
@@ -2134,45 +2138,97 @@ open class GuidedPathSpace @JvmOverloads constructor(
         reportUnfilledRequests()
         reportWorkInFlight()
         // a transporter waiting in a staging queue at the end of a run is where the staging rule put it
-        val stuck = blockedTransporters.filterNot { isInStagingQueue(it) }
-        if (stuck.isEmpty()) return
-        logger.warn {
-            buildString {
+        val waiting = blockedTransporters.filterNot { isInStagingQueue(it) }.map { it to classifyWait(it) }
+        val (stalled, queueing) = waiting.partition { (_, kind) -> kind.looksStalled }
+        if (stalled.isNotEmpty()) {
+            logger.warn {
                 // Named by whatever the element actually is, so an active model's diagnostic does
                 // not tell its reader to look for a transport system that is not in the model.
-                append("${this@GuidedPathSpace::class.simpleName} ($name): ${stuck.size} ")
-                append("transporter(s) were still ")
-                append("waiting when replication ${model.currentReplicationNumber} ended. ")
-                append("The guide path may have stopped moving rather than run out of work.")
-                for (t in stuck) {
-                    append(System.lineSeparator())
-                    append("  (${t.name}) holds [${t.heldZones.joinToString { z -> z.name }}] ")
-                    append("and waits for ")
-                    val link = t.awaitedLink
-                    if (link != null) {
-                        append("link (${link.name})")
-                    } else {
-                        val zone = t.awaitedZone
-                        append("zone (${zone?.name})")
-                        // Why the zone is unavailable, not merely which zone it is. A vehicle behind
-                        // another vehicle and a vehicle waiting for a crossing to clear are
-                        // different situations with different remedies, and the reader cannot tell
-                        // them apart from the zone's name.
-                        val holder = zone?.holder
-                        val occupants = zone?.numPresent ?: 0
-                        // The same order the blocked-cause decomposition buckets by, so the two
-                        // readings of one instant cannot disagree: what is standing in the zone
-                        // refuses the claim first, then a population, and a reservation last --
-                        // that one being the case where the zone is free and still says no.
-                        when {
-                            holder != null -> append(", which is held by (${holder.name})")
-                            occupants > 0 -> append(", which has $occupants occupant(s) in it")
-                            zone?.closingFor != null ->
-                                append(", which is free but reserved for (${zone.closingFor!!.name})")
-                        }
-                    }
+                "${this@GuidedPathSpace::class.simpleName} ($name): ${stalled.size} transporter(s) were " +
+                        "still waiting when replication ${model.currentReplicationNumber} ended. " +
+                        "The guide path may have stopped moving rather than run out of work." +
+                        describeWaits(stalled)
+            }
+        }
+        if (queueing.isNotEmpty()) {
+            logger.info {
+                "${this@GuidedPathSpace::class.simpleName} ($name): ${queueing.size} transporter(s) were " +
+                        "still queueing when replication ${model.currentReplicationNumber} ended, " +
+                        "which is what a busy guide path does." + describeWaits(queueing)
+            }
+        }
+    }
+
+    /** What a wait at the end of a replication amounts to. */
+    private enum class WaitKind(val looksStalled: Boolean, val description: String) {
+        CYCLE(true, "a circular wait"),
+        BEHIND_PARKED_VEHICLE(true, "behind a parked vehicle"),
+        LONG(true, "a long wait"),
+        BEHIND_MOVING_VEHICLE(false, "behind a moving vehicle"),
+        SHORT(false, "a short wait")
+    }
+
+    /**
+     * Follows a wait to where it ends: who holds what this transporter wants, what that holder is
+     * waiting for, and so on.
+     *
+     * A moving holder frees its zone by itself, so a wait behind one is queueing however long it has
+     * lasted, and a slow vehicle can make that a large part of a short run. A parked holder or a
+     * cycle will not resolve itself. Anything else, such as a holder stopped while busy or a reserved
+     * zone, can't be told apart from its state alone, so it is judged by how long it has lasted
+     * against the replication so far.
+     */
+    private fun classifyWait(transporter: GuidedTransporter): WaitKind {
+        if (myDetector.findCycle(transporter) != null) return WaitKind.CYCLE
+        val seen: MutableSet<GuidedTransporter> = java.util.Collections.newSetFromMap(java.util.IdentityHashMap())
+        seen.add(transporter)
+        var holder = heldUpBy(transporter)
+        while (holder != null) {
+            if (!seen.add(holder)) return WaitKind.CYCLE
+            if (holder.isPermanentlyStationary) return WaitKind.BEHIND_PARKED_VEHICLE
+            if (holder.transporterState != TransporterState.BLOCKED) {
+                if (holder.isMoving) return WaitKind.BEHIND_MOVING_VEHICLE
+                break
+            }
+            holder = heldUpBy(holder)
+        }
+        return if (transporter.currentWaitTime >= LONG_WAIT_FRACTION * time) WaitKind.LONG else WaitKind.SHORT
+    }
+
+    /** The transporter in the way of this one, when what is in the way is a transporter. */
+    private fun heldUpBy(transporter: GuidedTransporter): GuidedTransporter? =
+        transporter.awaitedLink?.spurReservation ?: (transporter.awaitedZone?.holder as? GuidedTransporter)
+
+    /** One line for each waiting transporter: what it holds, what it waits for, and for how long. */
+    private fun describeWaits(waits: List<Pair<GuidedTransporter, WaitKind>>): String = buildString {
+        for ((t, kind) in waits) {
+            append(System.lineSeparator())
+            append("  (${t.name}) holds [${t.heldZones.joinToString { z -> z.name }}] ")
+            append("and waits for ")
+            val link = t.awaitedLink
+            if (link != null) {
+                append("link (${link.name})")
+            } else {
+                val zone = t.awaitedZone
+                append("zone (${zone?.name})")
+                // Why the zone is unavailable, not merely which zone it is. A vehicle behind
+                // another vehicle and a vehicle waiting for a crossing to clear are
+                // different situations with different remedies, and the reader cannot tell
+                // them apart from the zone's name.
+                val holder = zone?.holder
+                val occupants = zone?.numPresent ?: 0
+                // The same order the blocked-cause decomposition buckets by, so the two
+                // readings of one instant cannot disagree: what is standing in the zone
+                // refuses the claim first, then a population, and a reservation last --
+                // that one being the case where the zone is free and still says no.
+                when {
+                    holder != null -> append(", which is held by (${holder.name})")
+                    occupants > 0 -> append(", which has $occupants occupant(s) in it")
+                    zone?.closingFor != null ->
+                        append(", which is free but reserved for (${zone.closingFor!!.name})")
                 }
             }
+            append(" -- ${kind.description}, after ${t.currentWaitTime}")
         }
     }
 
@@ -2269,6 +2325,12 @@ open class GuidedPathSpace @JvmOverloads constructor(
     }
 
     companion object {
+        /**
+         * The part of the replication so far that a wait must last to be reported as long, where its
+         * cause doesn't settle whether it is a stall. A judgement, not a derived value.
+         */
+        private const val LONG_WAIT_FRACTION = 0.10
+
         val logger: KLogger = KotlinLogging.logger {}
 
         /**

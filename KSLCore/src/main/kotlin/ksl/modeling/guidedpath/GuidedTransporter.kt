@@ -680,6 +680,10 @@ class GuidedTransporter @JvmOverloads constructor(
         get() = if (blockedSince.isNaN()) myCumulativeBlockedTime
         else myCumulativeBlockedTime + (time - blockedSince)
 
+    /** How long the block now in progress has lasted, which is zero when there isn't one. */
+    internal val currentWaitTime: Double
+        get() = if (blockedSince.isNaN()) 0.0 else time - blockedSince
+
     // ---- odometers ------------------------------------------------------------------------------
     //
     // Two running totals, read on demand rather than stepped by events, in exactly the pattern
