@@ -390,6 +390,7 @@ interface KSLProcessBuilder {
      *  @param signal a general indicator for controlling the process
      *  @param waitPriority a priority indicator to inform ordering when there is more than one process waiting for
      *  the same signal
+     *  The default is the entity's own priority. A priority supplied here is written to the entity and stays.
      *  @param waitStats Indicates whether waiting time statistics should be
      * collected on waiting items, true means collect statistics
      *  @param suspensionName the name of the waitFor. can be used to identify which waitFor the entity is experiencing if there
@@ -397,7 +398,7 @@ interface KSLProcessBuilder {
      */
     suspend fun waitFor(
         signal: Signal,
-        waitPriority: Int = WAIT_FOR_PRIORITY,
+        waitPriority: Int = entity.priority,
         waitStats: Boolean = true,
         suspensionName: String? = null
     )
@@ -447,11 +448,12 @@ interface KSLProcessBuilder {
      *  entity cannot remove itself.  Some other construct must do the removal and resumption.
      *
      *  @param queue a queue to hold the waiting entities
-     *  @param priority a priority for the queue discipline if needed
+     *  @param priority the priority for the queue discipline. The default is the entity's own priority. A priority
+     *   supplied here is written to the entity and stays after the suspension.
      *  @param suspensionName the name of the hold. can be used to identify which hold the entity is experiencing if there
      *   are more than one hold suspension points within the process. The user is responsible for uniqueness.
      */
-    suspend fun hold(queue: HoldQueue, priority: Int = QUEUE_PRIORITY, suspensionName: String? = null)
+    suspend fun hold(queue: HoldQueue, priority: Int = entity.priority, suspensionName: String? = null)
 
     /**
      *  Causes the entity to place itself in the hold queue if the entity to sync with is not within
@@ -460,7 +462,8 @@ interface KSLProcessBuilder {
      *  between entities to allow them to sync in time.
      *
      *  @param queue a queue to hold the waiting entities
-     *  @param priority a priority for the queue discipline if needed
+     *  @param priority the priority for the queue discipline. The default is the entity's own priority. A priority
+     *   supplied here is written to the entity and stays after the suspension.
      * @param resumePriority the priority for the resumption of the suspended process
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue
      *  @param suspensionName the name of the hold. can be used to identify which hold the entity is experiencing if there
@@ -469,7 +472,7 @@ interface KSLProcessBuilder {
     suspend fun syncWith(
         entityToSyncWith: Entity,
         queue: HoldQueue,
-        priority: Int = QUEUE_PRIORITY,
+        priority: Int = entity.priority,
         resumePriority: Int = RESUME_PRIORITY,
         waitStats: Boolean = true,
         suspensionName: String? = null
@@ -575,6 +578,7 @@ interface KSLProcessBuilder {
      * @param item the item being placed into the blocking queue
      * @param blockingQ the blocking queue channel that holds the items
      * @param blockingPriority the priority for the entity that must wait to send if the blocking queue is full
+     *   The default is the entity's own priority. A priority supplied here is written to the entity if it must wait, and stays.
      * @param suspensionName the name of the possible suspension point. This can be used by the entity to
      * determine which send blocking it might be experiencing when blocked.  It is up to the client to
      * ensure the name is meaningful and possibly unique.
@@ -582,7 +586,7 @@ interface KSLProcessBuilder {
     suspend fun <T : ModelElement.QObject> send(
         item: T,
         blockingQ: BlockingQueue<T>,
-        blockingPriority: Int = QUEUE_PRIORITY,
+        blockingPriority: Int = entity.priority,
         suspensionName: String? = null
     )
 
@@ -593,6 +597,7 @@ interface KSLProcessBuilder {
      * @param collection the items being placed into the blocking queue
      * @param blockingQ the blocking queue channel that holds the items
      * @param blockingPriority the priority for the entity that must wait to send if the blocking queue is full
+     *   The default is the entity's own priority. A priority supplied here is written to the entity if it must wait, and stays.
      * @param suspensionName the name of the possible suspension point. This can be used by the entity to
      * determine which send blocking it might be experiencing when blocked.  It is up to the client to
      * ensure the name is meaningful and possibly unique.
@@ -600,7 +605,7 @@ interface KSLProcessBuilder {
     suspend fun <T : ModelElement.QObject> sendItems(
         collection: Collection<T>,
         blockingQ: BlockingQueue<T>,
-        blockingPriority: Int = QUEUE_PRIORITY,
+        blockingPriority: Int = entity.priority,
         suspensionName: String? = null
     ) {
         for (item in collection) {
@@ -616,13 +621,14 @@ interface KSLProcessBuilder {
      *
      * @param item the item being placed into the blocking queue
      * @param blockingPriority the priority for the entity that must wait to send if the blocking queue is full
+     *   The default is the entity's own priority. A priority supplied here is written to the entity if it must wait, and stays.
      * @param suspensionName the name of the possible suspension point. This can be used by the entity to
      * determine which send blocking it might be experiencing when blocked.  It is up to the client to
      * ensure the name is meaningful and possibly unique.
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.send(
         item: T,
-        blockingPriority: Int = QUEUE_PRIORITY,
+        blockingPriority: Int = entity.priority,
         suspensionName: String? = null
     ) {
         send(item, this, blockingPriority, suspensionName)
@@ -2575,7 +2581,8 @@ interface KSLProcessBuilder {
      * @param space the guide path whose space is wanted
      * @param zone the zone to take, which must be on that guide path
      * @param queue where to wait while the zone drains
-     * @param requestPriority orders this entity against others queued at the same instant
+     * @param requestPriority orders this entity against others queued at the same instant. The default is the
+     *   entity's own priority. A priority supplied here is written to the entity if it must wait, and stays.
      * @param suspensionName names this suspension point when a process has several
      * @return the hold, which names the zone and when the hold began
      */
@@ -2583,7 +2590,7 @@ interface KSLProcessBuilder {
         space: GuidedPathSpace,
         zone: Zone,
         queue: HoldQueue,
-        requestPriority: Int = QUEUE_PRIORITY,
+        requestPriority: Int = entity.priority,
         suspensionName: String? = null,
         onOverlap: ZoneOverlap = ZoneOverlap.RAISE
     ): ZoneAllocation =
@@ -2616,7 +2623,8 @@ interface KSLProcessBuilder {
      * @param space the guide path whose space is wanted
      * @param zones the zones to take, all on that guide path, distinct, at least one
      * @param queue where to wait while they drain
-     * @param requestPriority orders this entity against others queued at the same instant
+     * @param requestPriority orders this entity against others queued at the same instant. The default is the
+     *   entity's own priority. A priority supplied here is written to the entity if it must wait, and stays.
      * @param suspensionName names this suspension point when a process has several
      * @return the hold, which names the zones and when the hold began
      */
@@ -2624,7 +2632,7 @@ interface KSLProcessBuilder {
         space: GuidedPathSpace,
         zones: List<Zone>,
         queue: HoldQueue,
-        requestPriority: Int = QUEUE_PRIORITY,
+        requestPriority: Int = entity.priority,
         suspensionName: String? = null,
         onOverlap: ZoneOverlap = ZoneOverlap.RAISE
     ): ZoneAllocation {
@@ -2670,7 +2678,8 @@ interface KSLProcessBuilder {
      * @param space the guide path whose space is wanted
      * @param zones the zones to take, all on that guide path, distinct, at least one
      * @param queue where to wait while they drain
-     * @param requestPriority orders this entity against others queued at the same instant
+     * @param requestPriority orders this entity against others queued at the same instant. The default is the
+     *   entity's own priority. A priority supplied here is written to the entity if it must wait, and stays.
      * @param suspensionName names this suspension point when a process has several
      * @return the hold, or null when some zone of the set is already promised to another holder
      */
@@ -2678,7 +2687,7 @@ interface KSLProcessBuilder {
         space: GuidedPathSpace,
         zones: List<Zone>,
         queue: HoldQueue,
-        requestPriority: Int = QUEUE_PRIORITY,
+        requestPriority: Int = entity.priority,
         suspensionName: String? = null
     ): ZoneAllocation? {
         val request = space.tryRequestZones(entity, zones, ZoneSeizeAction(entity, queue))
@@ -2700,7 +2709,8 @@ interface KSLProcessBuilder {
      * @param space the guide path whose space is wanted
      * @param zone the zone to take, which must be on that guide path
      * @param queue where to wait while it drains
-     * @param requestPriority orders this entity against others queued at the same instant
+     * @param requestPriority orders this entity against others queued at the same instant. The default is the
+     *   entity's own priority. A priority supplied here is written to the entity if it must wait, and stays.
      * @param suspensionName names this suspension point when a process has several
      * @return the hold, or null when the zone is already promised to another holder
      */
@@ -2708,7 +2718,7 @@ interface KSLProcessBuilder {
         space: GuidedPathSpace,
         zone: Zone,
         queue: HoldQueue,
-        requestPriority: Int = QUEUE_PRIORITY,
+        requestPriority: Int = entity.priority,
         suspensionName: String? = null
     ): ZoneAllocation? = trySeizeZones(space, listOf(zone), queue, requestPriority, suspensionName)
 
@@ -2754,14 +2764,15 @@ interface KSLProcessBuilder {
      * @param crossing the crossing to use
      * @param crossingTime how long this walker takes to get across, strictly positive
      * @param queue where to wait for a turn
-     * @param requestPriority orders this walker against others queued at the same instant
+     * @param requestPriority orders this walker against others queued at the same instant. The default is the
+     *   entity's own priority. A priority supplied here is written to the entity if it must wait, and stays.
      * @param suspensionName names this suspension point when a process has several
      */
     suspend fun crossOnFoot(
         crossing: ZoneCrossing,
         crossingTime: Double,
         queue: HoldQueue,
-        requestPriority: Int = QUEUE_PRIORITY,
+        requestPriority: Int = entity.priority,
         suspensionName: String? = null
     ) {
         require(crossingTime > 0.0) {
