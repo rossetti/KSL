@@ -22,6 +22,7 @@ import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.Resource
 import ksl.modeling.fleet.VehicleBodyIfc
 import ksl.modeling.guidedpath.GuidedTransporter
+import ksl.modeling.spatial.LocationIfc
 import ksl.modeling.spatial.VehicleMovementIfc
 import ksl.modeling.variable.CounterCIfc
 import ksl.modeling.variable.ResponseCIfc
@@ -62,6 +63,7 @@ internal class GuidedPathBody(
     override val loadsPerLoadedMove: ksl.modeling.variable.ResponseCIfc?
         get() = transporter.loadsPerLoadedMove
     override val zonesEntered: Int get() = transporter.zonesEntered
+    override fun zonesToEnter(destination: LocationIfc): Int? = transporter.zonesToEnter(destination)
 
     override val currentVelocity: Double get() = transporter.currentVelocity
 

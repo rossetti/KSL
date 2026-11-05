@@ -92,7 +92,8 @@ class DispatchContext internal constructor(
      * enforces rather than a convention: a bidding rule that consumed simulated time could not be
      * written, so a zero deadline cannot silently start collecting nothing.
      *
-     * Ties are broken by **vehicle name**, not by position in the fleet. Elsewhere in this
+     * Ties are broken by the zones still to enter, as in [lowestBidByName], and then by **vehicle
+     * name**, not by position in the fleet. Elsewhere in this
      * subsystem declaration order is the tiebreaker, and here it would be wrong: an auction treats
      * its bidders as symmetric except for what they offer, so two vehicles quoting the same number
      * should get the same answer however the fleet happened to be declared. Name is stable under
@@ -144,6 +145,14 @@ class DispatchContext internal constructor(
         if (!vehicle.movement.isReachable(there)) return Double.POSITIVE_INFINITY
         return vehicle.movement.pathDistanceTo(there)
     }
+
+    /**
+     * How many zones a vehicle still has to enter to reach a location. Of two vehicles at the same
+     * distance, the one with fewer is in front: it can move first.
+     *
+     * @return null on a substrate with no zones, such as a free path, or when the location can't be reached
+     */
+    fun zonesToEnter(vehicle: FleetVehicle, location: String): Int? = vehicle.zonesToEnter(location)
 }
 
 /**
@@ -190,7 +199,7 @@ class PullFromBoardPolicy : AssignmentPolicyIfc {
 class NearestVehiclePolicy : AssignmentPolicyIfc {
 
     override suspend fun KSLProcessBuilder.assign(context: DispatchContext): List<AssignmentProposal> =
-        greedyByDistance(context) { d -> d }
+        greedyByDistance(context, { d -> d }, { zones -> zones })
 
     override fun toString(): String = "NearestVehiclePolicy"
 }
@@ -205,7 +214,7 @@ class NearestVehiclePolicy : AssignmentPolicyIfc {
 class FurthestVehiclePolicy : AssignmentPolicyIfc {
 
     override suspend fun KSLProcessBuilder.assign(context: DispatchContext): List<AssignmentProposal> =
-        greedyByDistance(context) { d -> -d }
+        greedyByDistance(context, { d -> -d }, { zones -> -zones })
 
     override fun toString(): String = "FurthestVehiclePolicy"
 }
@@ -317,12 +326,19 @@ class BatchedAssignmentPolicy(
  *
  * Shared by the nearest and furthest rules because they differ only in the sign of that score, and
  * because the part worth getting right once is the part neither is about: skipping unreachable
- * vehicles, taking tasks in the order the selection rule chose, and breaking ties on declaration
- * order so that a run is reproducible.
+ * vehicles and taking tasks in the order the selection rule chose.
+ *
+ * Vehicles at the same distance are separated by [tieScore], from the zones each still has to enter,
+ * as the passive allocation rules do. A vehicle stopped behind another at a shared staging point
+ * measures the same distance as the one in front, and can't start until that one moves. If that
+ * doesn't separate them, or the substrate has no zones, the tie goes to the first in
+ * `context.available`, which is the vehicle that has been free longest, since the dispatcher appends
+ * a vehicle to that list when it becomes free.
  */
 private inline fun greedyByDistance(
     context: DispatchContext,
-    score: (Double) -> Double
+    score: (Double) -> Double,
+    tieScore: (Int) -> Int
 ): List<AssignmentProposal> {
     val free = context.available.toMutableList()
     val proposals = mutableListOf<AssignmentProposal>()
@@ -334,7 +350,14 @@ private inline fun greedyByDistance(
             val d = context.distanceTo(v, task.pickupLocation)
             if (d.isInfinite()) continue          // cannot get there at all
             val sc = score(d)
-            if (sc < bestScore) { bestScore = sc; best = v }
+            if (sc < bestScore) {
+                bestScore = sc
+                best = v
+            } else if (sc == bestScore) {
+                val current = context.zonesToEnter(best!!, task.pickupLocation)
+                val candidate = context.zonesToEnter(v, task.pickupLocation)
+                if (current != null && candidate != null && tieScore(candidate) < tieScore(current)) best = v
+            }
         }
         val chosen = best ?: continue             // nobody available can reach this pickup
         free.remove(chosen)
@@ -447,16 +470,20 @@ class ContractNetAssignmentPolicy(
 }
 
 /**
- * The default award rule: lowest bid, ties broken by vehicle name.
+ * The default award rule: lowest bid, ties broken by the zones still to enter and then by vehicle name.
  *
- * The tiebreak is the part that matters. Exact ties are not a curiosity in this subsystem -- a
+ * Of two vehicles quoting the same distance, the one with fewer zones to enter is in front of the
+ * other, and the one behind can't start until it moves. A bid with no count loses that comparison to
+ * one that has it, and where no bid has one, as on a free path, the name decides.
+ *
+ * The name is the part that matters. Exact ties are not a curiosity in this subsystem -- a
  * symmetric layout with identical vehicles produces them constantly -- and a rule that left them to
  * the order proposals happened to arrive in would make the winner depend on the order the fleet was
  * declared, which is not something a negotiation should be able to see. Name is intrinsic to the
  * vehicle, stable under any reordering, and total.
  */
 fun lowestBidByName(bids: List<Bid>): Bid? =
-    bids.minWithOrNull(compareBy({ it.value }, { it.vehicle.name }))
+    bids.minWithOrNull(compareBy({ it.value }, { it.zonesToEnter ?: Int.MAX_VALUE }, { it.vehicle.name }))
 
 /**
  * Scores every feasible pairing and takes the best.

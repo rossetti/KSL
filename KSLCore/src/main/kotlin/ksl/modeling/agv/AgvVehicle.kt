@@ -28,6 +28,7 @@ import ksl.modeling.entity.ProcessModel
 import ksl.modeling.guidedpath.GuidedTransporter
 import ksl.modeling.guidedpath.MovementWait
 import ksl.modeling.guidedpath.TransporterPlacement
+import ksl.modeling.guidedpath.Zone
 import ksl.modeling.guidedpath.VelocitySampling
 import ksl.modeling.guidedpath.rules.EndOfZoneControl
 import ksl.modeling.guidedpath.rules.ZoneControlRuleIfc
@@ -102,6 +103,18 @@ open class AgvVehicle @JvmOverloads constructor(
      */
     val physicalLength: Double?
         get() = transporter.physicalLength
+
+    /** The zone at the vehicle's leading edge, or null before it has been placed. */
+    val frontZone: Zone?
+        get() = transporter.frontZone
+
+    /** The direction it faces on a link zone. Ignored at an intersection. */
+    val travellingForward: Boolean
+        get() = transporter.travellingForward
+
+    /** Every zone it denies to others: the ones it covers, plus the one it is entering. */
+    val heldZones: List<Zone>
+        get() = transporter.heldZones
 
     /**
      * How often the velocity is drawn when it is random: once per movement, or once per zone.

@@ -930,6 +930,21 @@ class GuidedTransporter @JvmOverloads constructor(
         system.network.isReachable(positionNow, destination)
 
     /**
+     * How many zones it still has to enter to reach the destination, in the direction it faces. Of
+     * two transporters at the same distance, the one with fewer is in front: one stopped at the end
+     * of a link, behind one standing on the junction ahead, is no further away when the junction's
+     * zone has no length, but it has that zone still to enter and cannot enter it first.
+     *
+     * @return null before it has been placed, or when the destination is not an intersection it can reach
+     */
+    internal fun zonesToEnter(destination: LocationIfc): Int? {
+        val from = frontZone ?: return null
+        if (destination !is GuidedPathNetwork.Intersection) return null
+        val (distance, zones) = system.network.pathTo(from, travellingForward, destination)
+        return if (distance.isInfinite()) null else zones
+    }
+
+    /**
      * Commands a journey with this transporter's own agent or driver as the waiter.
      *
      * The wait is always the *driving* one. A load being carried waits in whatever queue its own

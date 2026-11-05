@@ -313,6 +313,17 @@ abstract class FleetVehicle @JvmOverloads constructor(
         get() = body.zonesEntered
 
     /**
+     * How many zones it still has to enter to reach the location. This tells apart vehicles at the
+     * same distance: the one with fewer is in front of the other.
+     *
+     * @return null on a substrate with no zones, such as a free path, or when the location can't be reached
+     */
+    fun zonesToEnter(location: String): Int? {
+        val there = system.space.location(location) ?: return null
+        return body.zonesToEnter(there)
+    }
+
+    /**
      * True while somebody is moving it rather than it moving itself.
      *
      * A vehicle under tow is exempt from its own faults, so a listener or a policy that wants to

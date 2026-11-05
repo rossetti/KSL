@@ -363,9 +363,15 @@ agv.dispatcher.taskSelectionRule = ByPriorityTaskSelection()
 Nine ship, and six of them answer immediately. `NearestVehiclePolicy` is
 the default and is what most people mean by "send the closest cart" — measured **along the guide path**, never
 straight-line, because on a one-way loop a vehicle a few feet past the
-pickup has to go all the way round. `FurthestVehiclePolicy` is
+pickup has to go all the way round. At equal distance, the vehicle with
+fewer zones to enter goes first, as in the passive rule: a cart in the last
+zone before a junction measures the same as one standing on the junction,
+but can't start until that one moves. `FleetVehicle.zonesToEnter` gives
+that count, and is null on a free path. If it doesn't separate them, the
+tie goes to the vehicle free longest. `FurthestVehiclePolicy` is
 deliberately poor and exists so that "nearest is better" can be a finding
-rather than an assertion. `LeastUsedVehiclePolicy` balances wear instead
+rather than an assertion. It prefers more zones at a tie, as the passive
+furthest rule does. `LeastUsedVehiclePolicy` balances wear instead
 of travel, and the two genuinely conflict. `PullFromBoardPolicy` is the
 degenerate case — vehicles taking the next job off a shared queue —
 expressed as a policy rather than as an architecture, which is what makes
@@ -467,9 +473,10 @@ class LeastLoadedBid : BidPolicyIfc {
 }
 ```
 
-Ties are broken by **vehicle name**, not by declaration order. Everywhere
-else in this subsystem declaration order is the tiebreaker; in an auction
-it would be wrong, because bidders are symmetric except for what they
+Ties go first to the bid with fewer zones to enter, which the shipped bid
+policies fill in and yours can with `FleetVehicle.zonesToEnter`, and then
+to the **vehicle name**, not to declaration order. Declaration order would be
+wrong in an auction, because bidders are symmetric except for what they
 offer.
 
 ### …take a task back from a vehicle?

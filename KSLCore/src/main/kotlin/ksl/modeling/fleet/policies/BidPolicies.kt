@@ -23,8 +23,17 @@ data class CallForProposals(val task: Dispatcher.Task, val issuedAt: Double)
  * The [note] is for the modeller, not for the mechanism -- nothing reads it. It exists so that a
  * study comparing bidding rules can record *why* a vehicle offered what it did, which is otherwise
  * lost the moment the auction closes.
+ *
+ * The [zonesToEnter] settles a tie between equal values under [lowestBidByName]: of two vehicles
+ * quoting the same distance, the one with fewer is in front of the other. A bid policy fills it from
+ * [FleetVehicle.zonesToEnter].
  */
-data class Bid(val vehicle: FleetVehicle, val value: Double, val note: String? = null)
+data class Bid(
+    val vehicle: FleetVehicle,
+    val value: Double,
+    val note: String? = null,
+    val zonesToEnter: Int? = null
+)
 
 /**
  * What a vehicle offers when a dispatcher calls for proposals.
@@ -60,7 +69,10 @@ class NetworkDistanceBid : BidPolicyIfc {
     override fun bid(vehicle: FleetVehicle, cfp: CallForProposals, space: FleetSpaceIfc): Bid? {
         val there = space.location(cfp.task.pickupLocation) ?: return null
         if (!vehicle.movement.isReachable(there)) return null
-        return Bid(vehicle, vehicle.movement.pathDistanceTo(there), "distance to pickup")
+        return Bid(
+            vehicle, vehicle.movement.pathDistanceTo(there), "distance to pickup",
+            vehicle.zonesToEnter(cfp.task.pickupLocation)
+        )
     }
 
     override fun toString(): String = "NetworkDistanceBid"
@@ -86,7 +98,10 @@ class CompletionTimeBid : BidPolicyIfc {
         val velocity = vehicle.nominalVelocity
         if (velocity <= 0.0) return null
         val distance = vehicle.movement.pathDistanceTo(pickup) + space.distance(pickup, destination)
-        return Bid(vehicle, distance / velocity, "empty + loaded legs at $velocity")
+        return Bid(
+            vehicle, distance / velocity, "empty + loaded legs at $velocity",
+            vehicle.zonesToEnter(cfp.task.pickupLocation)
+        )
     }
 
     override fun toString(): String = "CompletionTimeBid"

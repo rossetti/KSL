@@ -19,6 +19,7 @@ package ksl.modeling.fleet
 
 import ksl.modeling.entity.HoldQueue
 import ksl.modeling.entity.ProcessModel
+import ksl.modeling.spatial.LocationIfc
 import ksl.modeling.spatial.VehicleMovementIfc
 import ksl.modeling.variable.CounterCIfc
 import ksl.modeling.variable.TWResponseCIfc
@@ -113,6 +114,12 @@ internal interface VehicleBodyIfc : VehicleMovementIfc {
      */
     val zonesEntered: Int
         get() = 0
+
+    /**
+     * How many zones it still has to enter to reach the destination, or null on a substrate with no
+     * discretisation of space, where there is nothing to count.
+     */
+    fun zonesToEnter(destination: LocationIfc): Int? = null
 
     // ---- being commanded -----------------------------------------------------------------------
 
