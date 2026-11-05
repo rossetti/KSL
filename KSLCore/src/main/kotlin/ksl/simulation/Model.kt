@@ -1217,9 +1217,19 @@ class Model @JvmOverloads constructor(
                     // turn off antithetic sampling
                     antitheticOption(false)
                     // advance to next sub-stream
-                    advanceToNextSubStream()
+                    advanceToNextPairSubStream()
                 }
         }
+    }
+
+    /**
+     * Moves the streams of an antithetic run to their next sub-stream. The advance options stay off during
+     * such a run so that the end-of-replication advance does nothing, so they are on for this advance only.
+     */
+    private fun advanceToNextPairSubStream() {
+        setAllAdvanceToNextSubStreamOptions(true)
+        advanceToNextSubStream()
+        setAllAdvanceToNextSubStreamOptions(false)
     }
 
     /**
@@ -1368,6 +1378,12 @@ class Model @JvmOverloads constructor(
         logger.debug { "Performing after experiment actions for model elements" }
         ModelElement.logger.debug { "Performing after experiment actions for model elements" }
         afterExperimentActions()
+        // the last replication of an antithetic run leaves the streams antithetic and part way through a sub-stream.
+        // A later run must not inherit that, and it starts on the next sub-stream, as it does after any other run.
+        if (antitheticOption) {
+            antitheticOption(false)
+            advanceToNextPairSubStream()
+        }
     }
 
     private inner class ReplicationProcess(name: String?) : IterativeProcess<ReplicationProcess>(name) {
