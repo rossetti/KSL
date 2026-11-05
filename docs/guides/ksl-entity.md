@@ -469,6 +469,16 @@ buffer.removeAllFromChannel(buffer.availableForRemoval { it.isExpired })
 the second says who is waiting for it. To remove an item a request wants, remove
 the request first with `removeAndTerminateChannelRequest`.
 
+With a finite capacity, a process that sends to a full queue blocks until something
+removes an item, and senders go in the order of `senderQ`. So a process that
+takes from a queue and puts back into it can stop for good if nothing else removes
+items, and so can two processes each sending to a queue the other empties. KSL can't tell when
+a sender blocks whether anything will ever remove an item, so the run carries on
+to its end, and then warns about any sender blocked for a tenth of the replication or
+more. To avoid it, use more capacity or put work into a different queue from
+the one it came from. `canSendWithoutWaiting` tells a process whether a send would
+go ahead now.
+
 ### ...wait with `HoldQueue` and `Signal`
 
 Two coordination patterns side by side. `hold` parks an entity until

@@ -2279,13 +2279,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // always enqueue to capture wait statistics of those that do not wait
                 blockingQ.enqueueSender(entity, blockingPriority)
                 try {
-                    // A loop because another entity can take the free slot at the same instant,
-                    // before this one runs. It then goes on waiting, at its place in line.
-                    while (blockingQ.isFull) {
+                    // A sender told to resume has a slot it can rely on, so there is nothing to check again.
+                    if (!blockingQ.canSendWithoutWaiting) {
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocked sending to ${blockingQ.name} in process, ($this)" }
                         entity.state.blockedSending()
                         suspend()
-                        blockingQ.senderResumed(entity)
                         entity.state.activate()
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked sending to ${blockingQ.name} in process, ($this)" }
                     }

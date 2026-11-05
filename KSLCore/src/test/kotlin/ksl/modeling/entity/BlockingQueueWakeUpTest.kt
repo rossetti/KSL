@@ -1,10 +1,15 @@
 package ksl.modeling.entity
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import ksl.modeling.queue.Queue
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -249,10 +254,11 @@ class BlockingQueueWakeUpTest {
         assertEquals(listOf("first@1.0", "took one@10.0", "third@10.0"), run { TerminatedInLine(it) })
     }
 
-    private class TakesTheSlot(parent: ModelElement) : Base(parent) {
+    private class PutsBack(parent: ModelElement, private val helper: Boolean, private val pause: Double = 0.0) : Base(parent) {
         val q = BlockingQueue<Item>(this, capacity = 1, name = "Q")
+        var canSendAfterTaking: Boolean? = null
 
-        inner class Sender(private val who: String, private val at: Double) : Entity() {
+        inner class Sender(private val who: String, private val at: Double) : Entity(who) {
             val p: KSLProcess = process {
                 delay(at)
                 send(Item(), q)
@@ -260,13 +266,20 @@ class BlockingQueueWakeUpTest {
             }
         }
 
-        inner class Swapper : Entity() {
+        inner class TakesAndPutsBack : Entity("X") {
             val p: KSLProcess = process {
                 delay(5.0)
                 waitForItems(q, 1)
+                canSendAfterTaking = q.canSendWithoutWaiting
+                if (pause > 0.0) delay(pause)
                 send(Item(), q)
-                note("swapped")
-                delay(5.0)
+                note("X")
+            }
+        }
+
+        inner class Helper : Entity() {
+            val p: KSLProcess = process {
+                delay(10.0)
                 waitForItems(q, 1)
                 note("took")
             }
@@ -275,14 +288,187 @@ class BlockingQueueWakeUpTest {
         override fun initialize() {
             activate(Sender("S1", 1.0).p)
             activate(Sender("S2", 2.0).p)
-            activate(Swapper().p)
+            activate(TakesAndPutsBack().p)
+            if (helper) activate(Helper().p)
         }
     }
 
     @Test
-    @DisplayName("a blocked sender told to resume goes on waiting if another entity takes the slot first")
-    fun senderKeepsWaitingWhenTheSlotIsTaken() {
-        assertEquals(listOf("S1@1.0", "swapped@5.0", "took@10.0", "S2@10.0"), run { TakesTheSlot(it) })
+    @DisplayName("a newcomer waits behind a blocked sender that has been promised the free slot")
+    fun newcomerWaitsItsTurn() {
+        var model: PutsBack? = null
+        val log = run { m -> PutsBack(m, helper = true).also { model = it } }
+        assertEquals(listOf("S1@1.0", "S2@5.0", "took@10.0", "X@10.0"), log)
+        // the channel had room, but it was promised
+        assertEquals(false, model!!.canSendAfterTaking)
+    }
+
+    /** Reports logged by the blocking queue while the block runs. */
+    private fun reports(block: () -> Unit): Pair<List<String>, List<String>> {
+        val logger = LoggerFactory.getLogger(BlockingQueue::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>()
+        appender.start()
+        logger.addAppender(appender)
+        val level = logger.level
+        logger.level = Level.INFO
+        try {
+            block()
+        } finally {
+            logger.level = level
+            logger.detachAppender(appender)
+            appender.stop()
+        }
+        return appender.list.filter { it.level == Level.WARN }.map { it.formattedMessage } to
+                appender.list.filter { it.level == Level.INFO }.map { it.formattedMessage }
+    }
+
+    @Test
+    @DisplayName("a process that alone empties a queue it puts back into stops, and the run warns about it")
+    fun soleRemoverPuttingBackIsReported() {
+        for (pause in listOf(0.0, 1.0)) {
+            val (warnings, infos) = reports { run { PutsBack(it, helper = false, pause = pause) } }
+            assertEquals(emptyList(), infos)
+            val message = warnings.single()
+            assertTrue(message.contains("BlockingQueue (Q): 1 entit(ies) were still blocked sending"), message)
+            assertTrue(message.contains("Nothing may be going to remove items"), message)
+            assertTrue(message.contains("(X) has waited"), message)
+            assertTrue(message.contains("The channel holds 1 of 1, and the last item left it at 5.0."), message)
+        }
+    }
+
+    private class BlocksLate(parent: ModelElement, private val at: Double) : Base(parent) {
+        val q = BlockingQueue<Item>(this, capacity = 1, name = "Q")
+
+        inner class Sender(who: String, private val time: Double) : Entity(who) {
+            val p: KSLProcess = process {
+                delay(this@Sender.time)
+                send(Item(), q)
+            }
+        }
+
+        override fun initialize() {
+            activate(Sender("First", 1.0).p)
+            activate(Sender("Second", at).p)
+        }
+    }
+
+    @Test
+    @DisplayName("a blocked sender's report depends on how long it has waited")
+    fun reportDependsOnTheWait() {
+        // at the end of 50 minutes, 3 minutes is under a tenth of the run, and 8 minutes is over
+        val (shortWarnings, shortInfos) = reports { run { BlocksLate(it, 47.0) } }
+        assertEquals(emptyList(), shortWarnings)
+        assertTrue(shortInfos.single().contains("(Second) has waited 3.0, since 47.0."), shortInfos.single())
+        assertTrue(shortInfos.single().contains("and no item has left it."), shortInfos.single())
+
+        val (longWarnings, longInfos) = reports { run { BlocksLate(it, 42.0) } }
+        assertEquals(emptyList(), longInfos)
+        assertTrue(longWarnings.single().contains("(Second) has waited 8.0, since 42.0."), longWarnings.single())
+    }
+
+    @Test
+    @DisplayName("nothing is reported when no sender is blocked")
+    fun nothingToReport() {
+        val (warnings, infos) = reports { run { TwoReceivers(it, first = false, list = false) } }
+        assertEquals(emptyList(), warnings)
+        assertEquals(emptyList(), infos)
+    }
+
+    private class CanSend(parent: ModelElement) : Base(parent) {
+        val q = BlockingQueue<Item>(this, capacity = 1, name = "Q")
+
+        inner class Checker : Entity() {
+            val p: KSLProcess = process {
+                delay(1.0)
+                note("empty ${q.canSendWithoutWaiting}")
+                send(Item(), q)
+                note("full ${q.canSendWithoutWaiting}")
+            }
+        }
+
+        override fun initialize() {
+            activate(Checker().p)
+        }
+    }
+
+    @Test
+    @DisplayName("canSendWithoutWaiting is true with a free slot and false when full")
+    fun canSendReflectsTheChannel() {
+        assertEquals(listOf("empty true@1.0", "full false@1.0"), run { CanSend(it) })
+    }
+
+    private class PromisedThenTerminated(parent: ModelElement) : Base(parent) {
+        val q = BlockingQueue<Item>(this, capacity = 1, name = "Q")
+        lateinit var promised: Entity
+
+        inner class Sender(private val who: String, private val at: Double) : Entity(who) {
+            val p: KSLProcess = process {
+                delay(at)
+                send(Item(), q)
+                note(who)
+            }
+        }
+
+        inner class Receiver : Entity() {
+            val p: KSLProcess = process {
+                delay(10.0)
+                waitForItems(q, 1)
+                // this removal has just told the sender at the head of the line to resume
+                promised.terminateProcess()
+                note("terminated")
+            }
+        }
+
+        override fun initialize() {
+            activate(Sender("S1", 1.0).p)
+            val second = Sender("S2", 2.0)
+            promised = second
+            activate(second.p)
+            activate(Sender("S3", 3.0).p)
+            activate(Receiver().p)
+        }
+    }
+
+    @Test
+    @DisplayName("a sender terminated after being promised a slot doesn't hold up those behind it")
+    fun terminatedPromisedSenderReleasesThePromise() {
+        assertEquals(listOf("S1@1.0", "terminated@10.0", "S3@10.0"), run { PromisedThenTerminated(it) })
+    }
+
+    private class BadSelector(parent: ModelElement) : Base(parent) {
+        val q = BlockingQueue<Item>(this, capacity = 1, name = "Q")
+        val outsider: Entity = object : Entity("Outsider") {}
+
+        inner class Sender(private val at: Double) : Entity() {
+            val p: KSLProcess = process {
+                delay(at)
+                send(Item(), q)
+            }
+        }
+
+        inner class Receiver : Entity() {
+            val p: KSLProcess = process {
+                delay(5.0)
+                waitForItems(q, 1)
+            }
+        }
+
+        init {
+            q.senderSelector = EntitySelectorIfc { outsider }
+        }
+
+        override fun initialize() {
+            activate(Sender(1.0).p)
+            activate(Sender(2.0).p)
+            activate(Receiver().p)
+        }
+    }
+
+    @Test
+    @DisplayName("a sender selector that chooses an entity not in line is an error")
+    fun badSelectorThrows() {
+        val failure = assertFailsWith<IllegalStateException> { run { BadSelector(it) } }
+        assertTrue(failure.message!!.contains("chose Outsider, which is not waiting to send"), failure.message!!)
     }
 
     /** R2 is waiting behind R1, and a sender delivers two items at t=5 and a third at t=10. */

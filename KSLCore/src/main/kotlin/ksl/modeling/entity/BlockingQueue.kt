@@ -18,6 +18,8 @@
 
 package ksl.modeling.entity
 
+import io.github.oshai.kotlinlogging.KLogger
+import io.github.oshai.kotlinlogging.KotlinLogging
 import ksl.controls.ControlType
 import ksl.controls.KSLControl
 import ksl.modeling.queue.Queue
@@ -45,6 +47,11 @@ fun interface EntitySelectorIfc {
  *  mutable state of the queue.  Statistics on blocking and usage of the communication
  *  channel are automatically reported.
  *
+ *  Senders send in the order of the sender queue. A process that sends to a full queue blocks until
+ *  something removes an item, so with a finite capacity a process must not rely on itself, or on a
+ *  process waiting on it, to empty a queue it sends to. A replication that ends with
+ *  a sender blocked for long gets a warning.
+ *
  * @param parent the parent of the queue
  * @param capacity the capacity of the queue, by default Int.MAX_VALUE (infinite)
  * @param name the name of the queue
@@ -54,6 +61,17 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     capacity: Int = Int.MAX_VALUE,
     name: String? = null
 ) : ModelElement(parent, name) {
+
+    companion object {
+        private val logger: KLogger = KotlinLogging.logger {}
+
+        /**
+         * The part of the replication so far that a blocked sender's wait must last to be warned about.
+         * A judgement, not a derived value.
+         */
+        private const val LONG_WAIT_FRACTION = 0.10
+    }
+
     init {
         require(capacity >= 1) { "The size of the blocking queue must be >= 1" }
     }
@@ -81,12 +99,61 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
      */
     private var myRequestBeingResumed: ChannelRequest? = null
 
-    /** The same, for an entity blocked sending. */
+    /**
+     * The same, for an entity blocked sending. Until it has run, a free slot is promised to it, and
+     * only a send fills a slot, so holding back other senders is enough to keep the promise.
+     */
     private var mySenderBeingResumed: ProcessModel.Entity? = null
+
+    /** When an item last left the channel in this replication, or NaN if none has. */
+    private var myTimeLastRemoval: Double = Double.NaN
 
     override fun beforeReplication() {
         myRequestBeingResumed = null
         mySenderBeingResumed = null
+        myTimeLastRemoval = Double.NaN
+    }
+
+    /**
+     * Reports any entity still blocked sending when a replication ends.
+     *
+     * A blocked sender schedules nothing, and it can't be known when it blocks whether anything will
+     * ever remove an item, since any entity might. So a process that puts into a queue only it empties,
+     * or two processes each sending to a queue the other empties, simply stop, and the
+     * clock runs on to the end of the replication. A wait of at least a tenth of the replication so
+     * far gets a warning. A shorter one is what a busy queue looks like at any moment.
+     */
+    override fun replicationEnded() {
+        val (long, short) = mySenderQ.toList().partition {
+            time - it.timeEnteredQueue >= LONG_WAIT_FRACTION * time
+        }
+        if (long.isNotEmpty()) {
+            logger.warn {
+                "BlockingQueue ($name): ${long.size} entit(ies) were still blocked sending when replication " +
+                        "${model.currentReplicationNumber} ended. Nothing may be going to remove items " +
+                        "from this queue." + describeBlockedSenders(long)
+            }
+        }
+        if (short.isNotEmpty()) {
+            logger.info {
+                "BlockingQueue ($name): ${short.size} entit(ies) were still waiting to send when replication " +
+                        "${model.currentReplicationNumber} ended." + describeBlockedSenders(short)
+            }
+        }
+    }
+
+    private fun describeBlockedSenders(senders: List<ProcessModel.Entity>): String = buildString {
+        for (sender in senders) {
+            append(System.lineSeparator())
+            append("  (${sender.name}) has waited ${time - sender.timeEnteredQueue}, since ${sender.timeEnteredQueue}.")
+        }
+        append(System.lineSeparator())
+        append("  The channel holds ${myChannelQ.size} of $capacity")
+        if (myTimeLastRemoval.isNaN()) {
+            append(", and no item has left it.")
+        } else {
+            append(", and the last item left it at $myTimeLastRemoval.")
+        }
     }
 
     var requestQResumptionPriority: Int = ProcessModel.RESUME_PRIORITY
@@ -103,6 +170,14 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
      */
     val isChannelNotEmpty: Boolean
         get() = myChannelQ.isNotEmpty
+
+    /**
+     *  True if a send would go ahead now rather than wait. A send waits if the channel is full, or
+     *  if its free slot is promised to an entity already in line to send. The channel can therefore
+     *  have room while this is false, but only for the rest of the current simulated instant.
+     */
+    val canSendWithoutWaiting: Boolean
+        get() = isNotFull && mySenderBeingResumed == null
 
     /**
      *  The number of available slots in the channel based on the capacity
@@ -364,10 +439,6 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
      */
     internal fun dequeSender(sender: ProcessModel.Entity) {
         mySenderQ.remove(sender)
-    }
-
-    /** Called from ProcessModel when a blocked sender runs after being told to resume. */
-    internal fun senderResumed(sender: ProcessModel.Entity) {
         if (mySenderBeingResumed === sender) {
             mySenderBeingResumed = null
         }
@@ -706,6 +777,7 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
             val removed = myChannelQ.remove(item, waitStats)
             // item was removed, there may be waiting senders for placing items in the channel
             if (removed) {
+                myTimeLastRemoval = time
                 notifyWaitingSender()
             }
         }
@@ -718,6 +790,9 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
             val entity = senderSelector.selectEntity(mySenderQ)
             // if there is an entity selected, tell it to resume
             if (entity != null) {
+                check(mySenderQ.contains(entity)) {
+                    "$name : The sender selector chose ${entity.name}, which is not waiting to send to this queue."
+                }
                 mySenderBeingResumed = entity
                 entity.scheduleResumeProcess(
                     0.0,
