@@ -73,6 +73,22 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
             field = value
         }
 
+    /**
+     * The request whose entity has been told to resume and has not yet run. Until it has, the channel
+     * can't be promised to anyone else: the request is still in the queue, so selecting again would
+     * find it again, and it hasn't yet taken its items, so another request could be told about
+     * the same ones. Requests are therefore woken one at a time, all at the same simulated time.
+     */
+    private var myRequestBeingResumed: ChannelRequest? = null
+
+    /** The same, for an entity blocked sending. */
+    private var mySenderBeingResumed: ProcessModel.Entity? = null
+
+    override fun beforeReplication() {
+        myRequestBeingResumed = null
+        mySenderBeingResumed = null
+    }
+
     var requestQResumptionPriority: Int = ProcessModel.RESUME_PRIORITY
     var senderQResumptionPriority: Int = requestQResumptionPriority - 1 // sender has more priority
 
@@ -155,6 +171,7 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     ) {
         myRequestQ.remove(request, waitStats)
         request.receiver.terminateProcess()
+        afterRequestLeft(request)
     }
 
     /**
@@ -182,6 +199,7 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     ) {
         mySenderQ.remove(entity, waitStats)
         entity.terminateProcess()
+        afterSenderLeft(entity)
     }
 
     /**
@@ -268,7 +286,11 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     /**
      *  The user of the BlockingQueue can supply a function that will select the next entity
      *  that is waiting to receive items from the queue's channel after new items are
-     *  added to the channel.
+     *  added to the channel, and after a request has been filled.
+     *
+     *  By default, only the request at the head of the request queue can be selected, so a
+     *  later request waits behind it even when its own items are in the channel. Use
+     *  [FirstFillableRequest] to let a later request go ahead.
      */
     var receiverRequestSelector: RequestSelectorIfc<T> = RequestSelector()
 
@@ -292,7 +314,9 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     /**
      * The default is to select the next based on the queue discipline. This class
      * can be used to define a default method for selecting the next receiver's request
-     * to receive items from the channel. The default is to use the queue discipline.
+     * to receive items from the channel. The default is to use the queue discipline. The
+     * request at the head of the queue is selected if it can be filled. If it can't, no
+     * request is selected, whatever could be filled further back.
      */
     inner class RequestSelector<T : ModelElement.QObject> : RequestSelectorIfc<T> {
         override fun selectRequest(queue: Queue<BlockingQueue<T>.ChannelRequest>): BlockingQueue<T>.ChannelRequest? {
@@ -342,6 +366,31 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         mySenderQ.remove(sender)
     }
 
+    /** Called from ProcessModel when a blocked sender runs after being told to resume. */
+    internal fun senderResumed(sender: ProcessModel.Entity) {
+        if (mySenderBeingResumed === sender) {
+            mySenderBeingResumed = null
+        }
+    }
+
+    /**
+     * Called from ProcessModel when a sender's process ends while it is blocked. No waiting time
+     * statistics are collected, and this is a no-op when the sender has already been removed.
+     */
+    internal fun removeSender(sender: ProcessModel.Entity) {
+        mySenderQ.remove(sender, false)
+        afterSenderLeft(sender)
+    }
+
+    private fun afterSenderLeft(sender: ProcessModel.Entity) {
+        if (mySenderBeingResumed === sender) {
+            mySenderBeingResumed = null
+            if (isNotFull) {
+                notifyWaitingSender()
+            }
+        }
+    }
+
     /**
      *  Called from ProcessModel.waitForAnyItems().
      *  Function allows internal enqueueing of created requests for items
@@ -378,9 +427,13 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
      *  Called from Entity's ProcessCoroutine when waiting for requesting items also
      *  from BlockingQueue.sendToChannel() when items are sent to the channel.
      *
-     *  @return null implies that there is no next request that can be filled by items in the channel
+     *  @return null implies that there is no next request that can be filled by items in the channel,
+     *  or that a request already selected has yet to take its items
      */
     internal fun selectNextRequest() : ChannelRequest? {
+        if (myRequestBeingResumed != null) {
+            return null
+        }
         val nextRequest = receiverRequestSelector.selectRequest(myRequestQ) ?: return null
         return if (nextRequest.canBeFilled){
             nextRequest
@@ -402,6 +455,7 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         val requestedItems = list.take(request.amountRequested)
         removeAllFromChannel(requestedItems, channelQ.waitTimeStatOption)
         myRequestQ.remove(request)
+        afterRequestLeft(request)
         return requestedItems
     }
 
@@ -417,6 +471,7 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
         removeAllFromChannel(list, channelQ.waitTimeStatOption)
         myRequestQ.remove(request)
+        afterRequestLeft(request)
         return list
     }
 
@@ -432,7 +487,17 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
      * @param request the request to remove from the queue of requests waiting for items
      */
     internal fun removeRequest(request: ChannelRequest) {
-        myRequestQ.remove(request, false)
+        if (myRequestQ.remove(request, false)) {
+            afterRequestLeft(request)
+        }
+    }
+
+    /** The channel may hold items for a request that was waiting behind this one. */
+    private fun afterRequestLeft(request: ChannelRequest) {
+        if (myRequestBeingResumed === request) {
+            myRequestBeingResumed = null
+        }
+        notifyWaitingRequests()
     }
 
     /**
@@ -447,47 +512,28 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         myChannelQ.enqueue(qObject)
         // actions related to putting a new qObject in the channel
         notifyWaitingRequests()
+        // more than one item may have left the channel, so there may be room for the next sender
+        if (isNotFull) {
+            notifyWaitingSender()
+        }
     }
 
     private fun notifyWaitingRequests() {
-        // check if receivers are waiting, select next request waiting by a receiver
-        if (myRequestQ.isEmpty){
-            return // nothing waiting so nothing to process
-        }
-        // myRequestQ is not empty, check for no decision case
-        if (myRequestQ.size == 1){
-            val request = myRequestQ[0]
-            if (request.canBeFilled){
-                val entity = request.receiver
-                entity.scheduleResumeProcess(
-                    0.0,
-                    requestQResumptionPriority,
-                    ResumeSource.BLOCKING_QUEUE_RECEIVER,
-                    "blocking_queue=$name, request_id=${request.id}"
-                )
-            }
+        // a request already told to resume will look again when it has taken its items
+        if (myRequestBeingResumed != null || myRequestQ.isEmpty) {
             return
         }
-        // there are 2 or more requests waiting that **might** be filled
-        // select the next request to be filled
-        //TODO maybe this should notify any of the requests that can now be filled
-        //Step 1: select the requests waiting for items from the channel
-        // step 1 should be overridable function or attached rule, by default the function uses the attached rule
-        //Step 2: allocate items from the channel to the selected requests
-        // step 2 should be overridable function or attached rule, by default the function uses the attached rule
-        // note that the request is not being removed here, its entity is resumed and it
-        // is the entity that causes the request to be removed
-        val request = selectNextRequest()
-        if (request != null) {
-            if (request.canBeFilled) {
-                val entity = request.receiver
-                entity.scheduleResumeProcess(
-                    0.0,
-                    requestQResumptionPriority,
-                    ResumeSource.BLOCKING_QUEUE_RECEIVER,
-                    "blocking_queue=$name, request_id=${request.id}"
-                )
-            }
+        // with one request waiting there is no decision to make
+        val request = if (myRequestQ.size == 1) myRequestQ[0] else selectNextRequest()
+        if (request != null && request.canBeFilled) {
+            // the request is not removed here: it is the entity that causes the request to be removed
+            myRequestBeingResumed = request
+            request.receiver.scheduleResumeProcess(
+                0.0,
+                requestQResumptionPriority,
+                ResumeSource.BLOCKING_QUEUE_RECEIVER,
+                "blocking_queue=$name, request_id=${request.id}"
+            )
         }
     }
 
@@ -593,16 +639,20 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     }
 
     private fun notifyWaitingSender() {
-        if (mySenderQ.isNotEmpty) {
+        // a sender already told to resume will look again when it has sent
+        if (mySenderBeingResumed == null && mySenderQ.isNotEmpty) {
             // select an entity waiting to send elements into the channel
             val entity = senderSelector.selectEntity(mySenderQ)
             // if there is an entity selected, tell it to resume
-            entity?.scheduleResumeProcess(
-                0.0,
-                senderQResumptionPriority,
-                ResumeSource.BLOCKING_QUEUE_SENDER,
-                "blocking_queue=$name"
-            )
+            if (entity != null) {
+                mySenderBeingResumed = entity
+                entity.scheduleResumeProcess(
+                    0.0,
+                    senderQResumptionPriority,
+                    ResumeSource.BLOCKING_QUEUE_SENDER,
+                    "blocking_queue=$name"
+                )
+            }
         }
     }
 }

@@ -2278,14 +2278,23 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEND
                 // always enqueue to capture wait statistics of those that do not wait
                 blockingQ.enqueueSender(entity, blockingPriority)
-                if (blockingQ.isFull) {
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocked sending to ${blockingQ.name} in process, ($this)" }
-                    entity.state.blockedSending()
-                    suspend()
-                    entity.state.activate()
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked sending to ${blockingQ.name} in process, ($this)" }
+                try {
+                    // A loop because another entity can take the free slot at the same instant,
+                    // before this one runs. It then goes on waiting, at its place in line.
+                    while (blockingQ.isFull) {
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocked sending to ${blockingQ.name} in process, ($this)" }
+                        entity.state.blockedSending()
+                        suspend()
+                        blockingQ.senderResumed(entity)
+                        entity.state.activate()
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} unblocked sending to ${blockingQ.name} in process, ($this)" }
+                    }
+                    blockingQ.dequeSender(entity)
+                } finally {
+                    // Abnormal exit only: a sender terminated here must not be resumed, or hold up
+                    // those behind it. A no-op on the normal path, where it has already left.
+                    blockingQ.removeSender(entity)
                 }
-                blockingQ.dequeSender(entity)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} sending ${item.name} to ${blockingQ.name} in process, ($this)" }
                 blockingQ.sendToChannel(item)
                 currentSuspendName = null

@@ -25,7 +25,6 @@ import ksl.modeling.entity.ProcessModel.Companion.CONVEYOR_REQUEST_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.DELAY_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.INTERRUPT_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.MOVE_PRIORITY
-import ksl.modeling.entity.ProcessModel.Companion.QUEUE_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.RELEASE_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.RESUME_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.SEIZE_PRIORITY
@@ -493,7 +492,9 @@ interface KSLProcessBuilder {
      * @param blockingQ the blocking queue channel that has the items
      * @param amount the number of items needed from the blocking queue that match the criteria
      * @param predicate a functional predicate that tests items in the queue for the criteria
-     * @param blockingPriority the priority associated with the entity if it has to wait to receive
+     * @param blockingPriority the rank of the request if it has to wait to receive, used only when the
+     * blocking queue's request queue has a ranked discipline. The default is the entity's own priority.
+     * The entity's priority is not changed.
      * @param suspensionName the name of the suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
@@ -503,7 +504,7 @@ interface KSLProcessBuilder {
         blockingQ: BlockingQueue<T>,
         amount: Int = 1,
         predicate: (T) -> Boolean = alwaysTrue,
-        blockingPriority: Int = QUEUE_PRIORITY,
+        blockingPriority: Int = entity.priority,
         suspensionName: String? = null
     ): List<T>
 
@@ -515,7 +516,9 @@ interface KSLProcessBuilder {
      *
      * @param amount the number of items needed from the blocking queue that match the criteria
      * @param predicate a functional predicate that tests items in the queue for the criteria
-     * @param blockingPriority the priority associated with the entity if it has to wait to receive
+     * @param blockingPriority the rank of the request if it has to wait to receive, used only when the
+     * blocking queue's request queue has a ranked discipline. The default is the entity's own priority.
+     * The entity's priority is not changed.
      * @param suspensionName the name of the suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
@@ -524,7 +527,7 @@ interface KSLProcessBuilder {
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitFor(
         amount: Int = 1,
         predicate: (T) -> Boolean = alwaysTrue,
-        blockingPriority: Int = QUEUE_PRIORITY,
+        blockingPriority: Int = entity.priority,
         suspensionName: String? = null
     ): List<T> {
         return waitForItems(this, amount, predicate, blockingPriority, suspensionName)
@@ -537,7 +540,9 @@ interface KSLProcessBuilder {
      *
      * @param blockingQ the blocking queue channel that has the items
      * @param predicate a functional predicate that tests items in the queue for the criteria
-     * @param blockingPriority the priority associated with the entity if it has to wait to receive
+     * @param blockingPriority the rank of the request if it has to wait to receive, used only when the
+     * blocking queue's request queue has a ranked discipline. The default is the entity's own priority.
+     * The entity's priority is not changed.
      * @param suspensionName the name of the suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
@@ -546,7 +551,7 @@ interface KSLProcessBuilder {
     suspend fun <T : ModelElement.QObject> waitForAnyItems(
         blockingQ: BlockingQueue<T>,
         predicate: (T) -> Boolean,
-        blockingPriority: Int = QUEUE_PRIORITY,
+        blockingPriority: Int = entity.priority,
         suspensionName: String? = null
     ): List<T>
 
@@ -557,7 +562,9 @@ interface KSLProcessBuilder {
      * be returned.
      *
      * @param predicate a functional predicate that tests items in the queue for the criteria
-     * @param blockingPriority the priority associated with the entity if it has to wait to receive
+     * @param blockingPriority the rank of the request if it has to wait to receive, used only when the
+     * blocking queue's request queue has a ranked discipline. The default is the entity's own priority.
+     * The entity's priority is not changed.
      * @param suspensionName the name of the suspension point. can be used to identify which receive suspension point
      * the entity is experiencing if there are more than one receive suspension points within the process.
      * The user is responsible for uniqueness.
@@ -565,7 +572,7 @@ interface KSLProcessBuilder {
      */
     suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitForAny(
         predicate: (T) -> Boolean,
-        blockingPriority: Int = QUEUE_PRIORITY,
+        blockingPriority: Int = entity.priority,
         suspensionName: String? = null
     ): List<T> {
         return waitForAnyItems(this, predicate, blockingPriority, suspensionName)

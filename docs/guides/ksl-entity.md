@@ -449,6 +449,13 @@ strongly typed. It exposes three statistics queues — `senderQ`,
 `requestQ`, and `channelQ` — which separately track backpressure on
 the producer side and waiting on the consumer side.
 
+Requests are served from the head of `requestQ`, so a request waits behind
+an earlier one even when its own items are in the channel. To let it go ahead, set
+`buffer.receiverRequestSelector = buffer.FirstFillableRequest()`. To serve by
+priority, set `buffer.requestQ.initialDiscipline = Queue.Discipline.RANKED`:
+requests are ranked by the receiver's own priority, or by a `blockingPriority`
+passed to the wait.
+
 ### ...wait with `HoldQueue` and `Signal`
 
 Two coordination patterns side by side. `hold` parks an entity until
