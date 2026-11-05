@@ -456,6 +456,19 @@ priority, set `buffer.requestQ.initialDiscipline = Queue.Discipline.RANKED`:
 requests are ranked by the receiver's own priority, or by a `blockingPriority`
 passed to the wait.
 
+`receiveFromChannel`, `receiveNextFromChannel` and `removeAllFromChannel` take
+items directly, without waiting in line, which suits removing items that nobody
+is going to ask for. They can't take an item a waiting request wants: that throws, and
+the message names the request. To take only what's free, ask first:
+
+```kotlin
+buffer.removeAllFromChannel(buffer.availableForRemoval { it.isExpired })
+```
+
+`canRemoveFromChannel(item)` and `requestWanting(item)` check a single item, and
+the second says who is waiting for it. To remove an item a request wants, remove
+the request first with `removeAndTerminateChannelRequest`.
+
 ### ...wait with `HoldQueue` and `Signal`
 
 Two coordination patterns side by side. `hold` parks an entity until

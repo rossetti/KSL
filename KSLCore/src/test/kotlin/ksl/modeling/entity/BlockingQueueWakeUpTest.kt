@@ -6,6 +6,8 @@ import ksl.simulation.ModelElement
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 /**
  * Every request that can be filled gets its items at the time they are available, each entity is
@@ -281,6 +283,208 @@ class BlockingQueueWakeUpTest {
     @DisplayName("a blocked sender told to resume goes on waiting if another entity takes the slot first")
     fun senderKeepsWaitingWhenTheSlotIsTaken() {
         assertEquals(listOf("S1@1.0", "swapped@5.0", "took@10.0", "S2@10.0"), run { TakesTheSlot(it) })
+    }
+
+    /** R2 is waiting behind R1, and a sender delivers two items at t=5 and a third at t=10. */
+    private class DirectRemoval(parent: ModelElement, private val direct: (BlockingQueue<Item>) -> Unit) : Base(parent) {
+        val q = BlockingQueue<Item>(this, name = "Q")
+
+        inner class R1 : Entity() {
+            val p: KSLProcess = process {
+                waitForItems(q, 1)
+                note("R1")
+                direct(q)
+                note("R1 done, channel ${q.channelQ.size}")
+            }
+        }
+
+        inner class R2 : Entity() {
+            val p: KSLProcess = process {
+                waitForItems(q, 1)
+                note("R2")
+            }
+        }
+
+        inner class Sender : Entity() {
+            val p: KSLProcess = process {
+                delay(5.0)
+                send(Item(), q)
+                send(Item(), q)
+                delay(5.0)
+                send(Item(), q)
+            }
+        }
+
+        override fun initialize() {
+            activate(R1().p)
+            activate(R2().p)
+            activate(Sender().p)
+        }
+    }
+
+    @Test
+    @DisplayName("taking only what's available leaves a waiting request its item")
+    fun availableForRemovalLeavesWantedItems() {
+        val log = run { DirectRemoval(it) { q -> q.removeAllFromChannel(q.availableForRemoval()) } }
+        assertEquals(listOf("R1@5.0", "R1 done, channel 1@5.0", "R2@5.0"), log)
+    }
+
+    @Test
+    @DisplayName("removing an item a waiting request wants throws, naming the item, the request and the way out")
+    fun removingAWantedItemThrows() {
+        for (removal in listOf<(BlockingQueue<*>) -> Unit>(
+            { q -> q.receiveNextFromChannel() },
+            { q -> @Suppress("UNCHECKED_CAST") (q as BlockingQueue<ModelElement.QObject>).receiveFromChannel({ true }) }
+        )) {
+            val failure = assertFailsWith<IllegalStateException> { run { DirectRemoval(it, removal) } }
+            val message = failure.message!!
+            assertTrue(message.contains("cannot remove item"), message)
+            assertTrue(message.contains("at time 5.0"), message)
+            assertTrue(message.contains("request from entity"), message)
+            assertTrue(message.contains("waiting since 0.0"), message)
+            assertTrue(message.contains("availableForRemoval()"), message)
+        }
+    }
+
+    private class Tagged(parent: ModelElement) : Base(parent) {
+        val q = BlockingQueue<Item>(this, name = "Q")
+        var wantedBy: String? = null
+        var removed = emptyList<String>()
+
+        inner class Receiver : Entity("Receiver") {
+            val p: KSLProcess = process {
+                waitForItems(q, 1, { it.tag == "keep" })
+                note("got keep")
+            }
+        }
+
+        inner class Producer : Entity() {
+            val p: KSLProcess = process {
+                delay(1.0)
+                send(Item("old"), q)
+                send(Item("old"), q)
+                delay(1.0)
+                val first = q.filterChannel { true }.first()
+                assertTrue(q.canRemoveFromChannel(first))
+                assertEquals(null, q.requestWanting(first))
+                removed = q.availableForRemoval { it.tag == "old" }.map { it.tag }
+                q.removeAllFromChannel(q.availableForRemoval { it.tag == "old" })
+                note("purged, channel ${q.channelQ.size}")
+                send(Item("keep"), q)
+            }
+        }
+
+        override fun initialize() {
+            activate(Receiver().p)
+            activate(Producer().p)
+        }
+    }
+
+    @Test
+    @DisplayName("items no request wants can be purged while a request is waiting")
+    fun purgeItemsNobodyWants() {
+        var model: Tagged? = null
+        val log = run { m -> Tagged(m).also { model = it } }
+        assertEquals(listOf("old", "old"), model!!.removed)
+        assertEquals(listOf("purged, channel 0@2.0", "got keep@2.0"), log)
+    }
+
+    private class Inspect(parent: ModelElement) : Base(parent) {
+        val q = BlockingQueue<Item>(this, capacity = 5, name = "Q")
+        var waiter: String? = null
+        var canRemove: Boolean? = null
+
+        inner class Greedy : Entity("Greedy") {
+            val p: KSLProcess = process { waitForItems(q, 2) }
+        }
+
+        override fun initialize() {
+            val greedy = Greedy()
+            activate(greedy.p)
+            schedule<Nothing>({
+                activate(Feeder().p)
+            }, 1.0)
+        }
+
+        inner class Feeder : Entity() {
+            val p: KSLProcess = process {
+                val item = Item()
+                send(item, q)
+                waiter = q.requestWanting(item)?.receiver?.name
+                canRemove = q.canRemoveFromChannel(item)
+                note("in channel, ${q.channelQ.size}")
+                // an empty collection removes nothing, even from a channel that has an item
+                q.removeAllFromChannel(emptyList())
+                note("still in channel, ${q.channelQ.size}")
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("a request for more items than are present still wants the ones that are, and says so")
+    fun partlyFilledRequestWantsItsItems() {
+        var model: Inspect? = null
+        val log = run { m -> Inspect(m).also { model = it } }
+        assertEquals("Greedy", model!!.waiter)
+        assertEquals(false, model!!.canRemove)
+        assertEquals(listOf("in channel, 1@1.0", "still in channel, 1@1.0"), log)
+    }
+
+    private class Cancel(parent: ModelElement) : Base(parent) {
+        val q = BlockingQueue<Item>(this, name = "Q")
+
+        inner class Order : Entity("Order") {
+            val p: KSLProcess = process {
+                waitForItems(q, 2)
+                note("order filled")
+            }
+        }
+
+        inner class Canceller : Entity() {
+            val p: KSLProcess = process {
+                delay(1.0)
+                val item = Item()
+                send(item, q)
+                q.removeAndTerminateChannelRequest(q.requestWanting(item)!!)
+                q.removeAllFromChannel(listOf(item))
+                note("cancelled, channel ${q.channelQ.size}, waiting ${q.requestQ.size}")
+            }
+        }
+
+        override fun initialize() {
+            activate(Order().p)
+            activate(Canceller().p)
+        }
+    }
+
+    @Test
+    @DisplayName("an item a request wants can be removed once the request has been removed")
+    fun removingTheRequestFreesTheItem() {
+        assertEquals(listOf("cancelled, channel 0, waiting 0@1.0"), run { Cancel(it) })
+    }
+
+    private class Empty(parent: ModelElement) : Base(parent) {
+        val q = BlockingQueue<Item>(this, name = "Q")
+
+        inner class Sweeper : Entity() {
+            val p: KSLProcess = process {
+                delay(1.0)
+                q.removeAllFromChannel(q.availableForRemoval())
+                note("swept empty")
+                send(Item(), q)
+                note("direct ${q.receiveNextFromChannel() != null}")
+            }
+        }
+
+        override fun initialize() {
+            activate(Sweeper().p)
+        }
+    }
+
+    @Test
+    @DisplayName("sweeping an empty channel does nothing, and direct removal works with nobody waiting")
+    fun sweepingAndRemovingWithNobodyWaiting() {
+        assertEquals(listOf("swept empty@1.0", "direct true@1.0"), run { Empty(it) })
     }
 
     private class Ranked(

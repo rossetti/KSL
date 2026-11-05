@@ -453,7 +453,7 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         // filter processes the queue in its current order and maintains that order in the returned list
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
         val requestedItems = list.take(request.amountRequested)
-        removeAllFromChannel(requestedItems, channelQ.waitTimeStatOption)
+        takeFromChannel(requestedItems, channelQ.waitTimeStatOption)
         myRequestQ.remove(request)
         afterRequestLeft(request)
         return requestedItems
@@ -469,7 +469,7 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         require(request.canBeFilled) { "The request could not be filled" }
         // filter processes the queue in its current order and maintains that order in the returned list
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
-        removeAllFromChannel(list, channelQ.waitTimeStatOption)
+        takeFromChannel(list, channelQ.waitTimeStatOption)
         myRequestQ.remove(request)
         afterRequestLeft(request)
         return list
@@ -590,7 +590,66 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         return countByChannel(predicate::test)
     }
 
-    /** The channel must not be empty; otherwise an IllegalStateException will occur.
+    /**
+     * The first waiting request that wants the item, which is the reason the item can't be removed
+     * directly from the channel. A request wants an item that passes its predicate, whether or not
+     * the request has been told to resume.
+     *
+     * @param item the item to check
+     * @return the request, or null if no waiting request wants the item
+     */
+    fun requestWanting(item: T): ChannelRequest? {
+        for (request in myRequestQ) {
+            if (request.predicate(item)) {
+                return request
+            }
+        }
+        return null
+    }
+
+    /**
+     * @param item the item to check
+     * @return true if no waiting request wants the item, so that it can be removed directly from the channel
+     */
+    fun canRemoveFromChannel(item: T): Boolean = requestWanting(item) == null
+
+    /**
+     * Finds the items that can be removed directly from the channel. Passing these to
+     * removeAllFromChannel() can't fail because of a waiting request. Does not remove the items.
+     *
+     * @param condition the criteria for selecting the items. By default, every item.
+     * @return the items in the channel that meet the condition and that no waiting request wants
+     */
+    fun availableForRemoval(condition: (T) -> Boolean = { true }): List<T> {
+        return myChannelQ.filter(condition).filter { canRemoveFromChannel(it) }
+    }
+
+    /**
+     * Finds the items that can be removed directly from the channel. Does not remove the items.
+     *
+     * @param condition the criteria for selecting the items
+     * @return the items in the channel that meet the condition and that no waiting request wants
+     */
+    fun availableForRemoval(condition: Predicate<T>): List<T> {
+        return availableForRemoval(condition::test)
+    }
+
+    /** Direct removal skips the line, so it can't take an item that a waiting request wants. */
+    private fun checkNoRequestWants(item: T) {
+        val request = requestWanting(item) ?: return
+        throw IllegalStateException(
+            "$name : cannot remove item ${item.name} from the channel at time $time. It is wanted by a " +
+                    "request from entity ${request.receiver.name}, waiting since ${request.timeEnteredQueue}. " +
+                    "Use availableForRemoval() to take only items no request wants, or remove the request " +
+                    "first with removeAndTerminateChannelRequest()."
+        )
+    }
+
+    /**
+     * Removes the next item directly from the channel, skipping the line of waiting requests.
+     * The channel must not be empty, and no waiting request can want the next item; otherwise an
+     * IllegalStateException will occur. Use canRemoveFromChannel() to check.
+     *
      * @param waitStats indicates whether waiting time statistics should be collected
      * @return the next element in the channel
      */
@@ -601,8 +660,10 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         return qObject
     }
 
-    /** Finds the items in the channel according to the condition and removes them.
-     * The channel must not be empty.
+    /** Finds the items in the channel according to the condition and removes them directly, skipping
+     * the line of waiting requests. The channel must not be empty, and no waiting request can want
+     * any of the items found; otherwise an IllegalStateException will occur and nothing is removed.
+     * Use availableForRemoval() to take only the items that no request wants.
      *
      * @param condition the criteria for selecting the items
      * @param waitStats indicates whether waiting time statistics should be collected
@@ -615,20 +676,32 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         return list
     }
 
-    /** Attempts to remove all the supplied items from the channel. Throws an IllegalStateException
-     * if all the items are not present in the channel. Removing items from the channel triggers
-     * the entities waiting to send more items into the channel if the channel was full.
+    /** Attempts to remove all the supplied items directly from the channel, skipping the line of
+     * waiting requests. Throws an IllegalStateException, and removes nothing, if all the items are
+     * not present in the channel or if a waiting request wants any of them. An empty collection
+     * removes nothing. Use availableForRemoval() to find items that no request wants. Removing items
+     * from the channel triggers the entities waiting to send more items into the channel if the
+     * channel was full.
      *
      * @param c the collection of items to remove from the channel
      * @param waitStats indicates whether waiting time statistics should be collected
      */
     fun removeAllFromChannel(c: Collection<T>, waitStats: Boolean = true) {
+        if (c.isEmpty()) {
+            return
+        }
         if (myChannelQ.isEmpty) {
             throw IllegalStateException("$name : Attempted to receive from an empty channel queue")
         }
         if (!myChannelQ.contains(c)) {
             throw IllegalStateException("$name : The channel does not contain all the items in the collection")
         }
+        c.forEach { checkNoRequestWants(it) }
+        takeFromChannel(c, waitStats)
+    }
+
+    /** The removal itself, which filling a request also uses, since it takes items its own request wants. */
+    private fun takeFromChannel(c: Collection<T>, waitStats: Boolean) {
         for (item in c){
             val removed = myChannelQ.remove(item, waitStats)
             // item was removed, there may be waiting senders for placing items in the channel
