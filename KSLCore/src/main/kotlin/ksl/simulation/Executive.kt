@@ -278,6 +278,10 @@ class Executive @JvmOverloads constructor(
                 status = Status.AFTER_EVENT
                 notifyObservers(event)
                 performCPhase()
+            } else if (event.time == currentTime) {
+                // The scan after the previous event saw this event next, at the same time, and waited.
+                // No scan comes after a canceled event otherwise, so conditions would wait for the next live event.
+                performCPhase()
             }
         } catch (e: RuntimeException) {
             val sb = StringBuilder()

@@ -1625,8 +1625,8 @@ abstract class ModelElement internal constructor(
     /**
      * This method should be overridden by subclasses that need to register
      * conditional actions prior to a replication with the executive. It is called once before each
-     * replication, right after the method initialize() is called. The user
-     * can use the executive property to access the Executive
+     * replication, right after the method initialize() is called. Registering a conditional action
+     * is available only within KSLCore. Models use the condition triggers of a statechart instead.
      */
     protected open fun registerConditionalActions() {}
 
