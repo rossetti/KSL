@@ -130,7 +130,7 @@ three are things models rely on:
 
 `AgentMessage` is a sealed hierarchy: `Inform<P>`, `Request<P>`,
 `Propose<P>`, `Accept`, `Reject`, `Cancel`. Each carries a `from`
-(the sender entity) and an optional `conversationId`. Mailboxes are
+(the sending agent, of any kind) and an optional `conversationId`. Mailboxes are
 *POJOs* that filter the shared bus by recipient reference; this is
 what makes transient agents cheap (no `ModelElement` per agent).
 Inside a process body, send with `sendMessage(msg, recipient.mailbox)`
@@ -439,7 +439,18 @@ class TwoAgentChat(parent: ModelElement) : AgentModel(parent) {
 `AgentMessage` is sealed; the variants are `Inform<P>`, `Request<P>`,
 `Propose<P>`, `Accept`, `Reject`, `Cancel`. From a statechart action
 (non-coroutine), use `recipient.mailbox.deliver(msg)` instead — it
-doesn't suspend.
+doesn't suspend. A sender names itself, and a reply goes to the sender's
+mailbox, so a `PermanentAgent` or an `AgentResource` replies the same way
+as a transient agent:
+
+```kotlin
+onMessage<AgentMessage.Request<String>> { question ->
+    question.from.mailbox.deliver(AgentMessage.Inform(this@Desk, "answer"))
+}
+```
+
+`from` is an `AgentLike`, so a plain `Entity` can't be a sender: it has no
+mailbox to reply to. Cast `from` to reach anything beyond the mailbox and name.
 
 ### ...group agents in a `Context` + `Population`
 
@@ -641,9 +652,12 @@ forces are one-liners (`Force { agent, dynamics, dt -> … }`).
 
 The classic announce / bid / award pattern. Inside an initiator
 agent's `process` body, broadcast a `Request`, wait for `Propose`
-replies until the deadline, and pick the best. The bidders are
-transient `Agent`s whose own statecharts or process bodies reply with
-`AgentMessage.Propose`; this snippet shows the initiator side:
+replies until the deadline, and pick the best. A bidder can be any kind
+of agent: a transient `Agent` replies with `AgentMessage.Propose` from its
+process body or statechart, and a `PermanentAgent` or an `AgentResource` from
+its statechart. The initiator must be an `Agent`, because the protocol
+suspends and the other two kinds have no process. This snippet shows the
+initiator side:
 
 ```kotlin
 class TaskAuctionModel(parent: ModelElement) : AgentModel(parent) {

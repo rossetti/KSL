@@ -910,7 +910,7 @@ abstract class FleetSystem @JvmOverloads constructor(
                     val cfp = message.payload as? CallForProposals ?: return
                     // Handled: take it out of the mailbox so calls do not accumulate over a run.
                     mailbox.consume(message)
-                    val initiator = message.from as? Agent ?: return
+                    val initiator = message.from
                     val bid = vehicle.bidPolicy.bid(vehicle, cfp, space)
                     if (bid == null) {
                         // Declining is ordinary operation, not a failure. Saying nothing is how a

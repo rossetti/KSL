@@ -45,7 +45,7 @@ import kotlin.test.assertTrue
  */
 class RuntimeAgentLifecycleTest {
 
-    private class Bell(override val from: ksl.modeling.entity.ProcessModel.Entity) :
+    private class Bell(override val from: ksl.modeling.agent.AgentLike) :
         AgentMessage.Inform<String>(from, "wake up")
 
     private class Depot(parent: ModelElement) : AgentModel(parent, "Depot") {

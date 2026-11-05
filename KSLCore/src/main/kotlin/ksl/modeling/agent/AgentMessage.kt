@@ -18,8 +18,6 @@
 
 package ksl.modeling.agent
 
-import ksl.modeling.entity.ProcessModel
-
 /**
  *  Base type for messages exchanged between agents.
  *
@@ -41,16 +39,16 @@ import ksl.modeling.entity.ProcessModel
  *  ours inside any `process { }` body, which is exactly where messages are
  *  constructed.
  *
- *  The [from] reference is typed as [ProcessModel.Entity] rather than the
- *  more specific `Agent` so that messages remain usable across `AgentModel`
- *  instances. Handlers that need the concrete agent type may cast.
+ *  The [from] reference is typed as [AgentLike], so that any kind of agent can
+ *  send under its own name and be replied to, and so that messages remain usable
+ *  across `AgentModel` instances. Handlers that need the concrete agent type may cast.
  */
 sealed class AgentMessage {
 
     /**
-     *  The entity (typically an [AgentModel.Agent]) that sent this message.
+     *  The agent that sent this message, whatever kind of agent it is.
      */
-    abstract val from: ProcessModel.Entity
+    abstract val from: AgentLike
 
     /**
      *  Optional identifier that groups messages belonging to the same logical
@@ -64,7 +62,7 @@ sealed class AgentMessage {
      *  A request that the recipient perform some action, expressed via [payload].
      */
     open class Request<P>(
-        override val from: ProcessModel.Entity,
+        override val from: AgentLike,
         val payload: P,
         override val conversationId: String? = null,
     ) : AgentMessage()
@@ -74,7 +72,7 @@ sealed class AgentMessage {
      *  recipient without expecting any particular response.
      */
     open class Inform<P>(
-        override val from: ProcessModel.Entity,
+        override val from: AgentLike,
         val payload: P,
         override val conversationId: String? = null,
     ) : AgentMessage()
@@ -87,7 +85,7 @@ sealed class AgentMessage {
      *  exchange.
      */
     open class Propose<P>(
-        override val from: ProcessModel.Entity,
+        override val from: AgentLike,
         val proposal: P,
         override val conversationId: String,
     ) : AgentMessage()
@@ -97,7 +95,7 @@ sealed class AgentMessage {
      *  same conversation.
      */
     open class Accept(
-        override val from: ProcessModel.Entity,
+        override val from: AgentLike,
         override val conversationId: String,
     ) : AgentMessage()
 
@@ -106,7 +104,7 @@ sealed class AgentMessage {
      *  same conversation, optionally including a [reason].
      */
     open class Reject(
-        override val from: ProcessModel.Entity,
+        override val from: AgentLike,
         override val conversationId: String,
         val reason: String? = null,
     ) : AgentMessage()
@@ -116,7 +114,7 @@ sealed class AgentMessage {
      *  abandoning whatever request or task was previously in flight.
      */
     open class Cancel(
-        override val from: ProcessModel.Entity,
+        override val from: AgentLike,
         override val conversationId: String,
     ) : AgentMessage()
 }

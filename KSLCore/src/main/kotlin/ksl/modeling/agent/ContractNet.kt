@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong
  *  can read the bid details (e.g., quoted completion time, price).
  */
 data class ContractNetOutcome<B>(
-    val winner: AgentModel.Agent,
+    val winner: AgentLike,
     val winningProposal: AgentMessage.Propose<B>,
 )
 
@@ -58,10 +58,8 @@ fun nextConversationId(prefix: String = "cnp"): String =
  *  *reservation* held for the duration of the call, so they are
  *  isolated from any other consumer on the initiator's mailbox — a
  *  statechart `onMessage<Propose>` handler or a concurrent
- *  `receiveMessage` cannot steal bids. Only proposals whose sender is
- *  an [AgentModel.Agent] are considered (a non-Agent
- *  [ksl.modeling.entity.ProcessModel.Entity] has no mailbox to notify
- *  and cannot be the winner); any others are ignored.
+ *  `receiveMessage` cannot steal bids. A bidder may be any kind of agent:
+ *  one with no process answers from a statechart, using `mailbox.deliver`.
  *
  *  The winner is sent [AgentMessage.Accept]; every other agent that
  *  proposed is sent [AgentMessage.Reject]. Proposals that arrive after
@@ -86,7 +84,7 @@ fun nextConversationId(prefix: String = "cnp"): String =
  *      Keep the bid type consistent within a model.
  */
 suspend fun <Q, B> KSLProcessBuilder.contractNet(
-    bidders: List<AgentModel.Agent>,
+    bidders: List<AgentLike>,
     callForProposals: Q,
     deadline: Double,
     selectBest: (List<AgentMessage.Propose<B>>) -> AgentMessage.Propose<B>? = { it.firstOrNull() },
@@ -118,39 +116,32 @@ suspend fun <Q, B> KSLProcessBuilder.contractNet(
         //    reservation while we are suspended.
         if (deadline > 0.0) delay(deadline)
 
-        // 4. Collect the captured proposals. Only proposals whose sender
-        //    is an AgentModel.Agent are considered: a non-Agent
-        //    ProcessModel.Entity has no mailbox to Accept/Reject and
-        //    cannot be the typed winner. (AgentMessage.from is a
-        //    ProcessModel.Entity, so this guards the casts below.)
+        // 4. Collect the captured proposals.
         @Suppress("UNCHECKED_CAST")
         val proposals = reservation.collected()
             .asSequence()
             .filterIsInstance<AgentMessage.Propose<*>>()
-            .filter { it.from is AgentModel.Agent }
             .toList() as List<AgentMessage.Propose<B>>
 
         // 5. Select a winner.
         val winning = selectBest(proposals)
 
-        // 6. Notify everyone who proposed (sender guaranteed an Agent).
+        // 6. Notify everyone who proposed.
         if (winning != null) {
-            val winner = winning.from as AgentModel.Agent
+            val winner = winning.from
             sendMessage(AgentMessage.Accept(initiator, convId), winner.mailbox)
             for (p in proposals) {
                 if (p !== winning) {
-                    val loser = p.from as AgentModel.Agent
-                    sendMessage(AgentMessage.Reject(initiator, convId, "not selected"), loser.mailbox)
+                    sendMessage(AgentMessage.Reject(initiator, convId, "not selected"), p.from.mailbox)
                 }
             }
             ContractNetOutcome(winner, winning)
         } else {
             // No acceptable proposal — reject everyone who responded.
             for (p in proposals) {
-                val loser = p.from as AgentModel.Agent
                 sendMessage(
                     AgentMessage.Reject(initiator, convId, "no acceptable proposal"),
-                    loser.mailbox,
+                    p.from.mailbox,
                 )
             }
             null
