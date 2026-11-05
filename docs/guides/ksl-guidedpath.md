@@ -305,6 +305,13 @@ class AlphabeticalDispatchRule : GuidedTransporterAllocationRuleIfc {
 }
 ```
 
+The pool's allocation rule chooses at the moment of the request and sees
+only the pickup and the idle candidates. If something other than the requesting
+entity must choose the vehicle (a dispatcher, an auction, or a rule that weighs all
+the waiting work), use `AgvSystem` with an `AssignmentPolicyIfc` (see
+`ksl-fleet.md`). Splitting the fleet into one pool per vehicle works, but it
+splits the fleet's statistics with it.
+
 ### …decide where idle carts wait?
 
 This is the decision that most often decides whether a model works at all.
@@ -364,7 +371,7 @@ ships.
 Two ways, and they are not interchangeable. `lengthInZones` is the usual
 one: a vehicle two zones long covers two, and the network refuses a spur
 too short to hold it. `physicalLength` sizes the vehicle in the network's
-own length units instead, for a vehicle **shorter than a zone**:
+own length units instead, for a vehicle **no longer than a zone**:
 
 ```kotlin
 GuidedTransporter(
@@ -385,7 +392,11 @@ being visibly out. Generalising the credit to every junction was tried and
 is wrong — it overshoots badly, and the code records the measurement that
 rejected it.
 
-If your vehicles are a whole number of zones long, ignore this parameter.
+A vehicle exactly one zone long can be given as `lengthInZones = 1` or as
+`physicalLength` equal to the zone length. These are different models: only the
+second is credited its length when it backs out of a dead end. Choose the one
+that matches the system, or the reference you're comparing against. Otherwise, if
+your vehicles are a whole number of zones long, ignore this parameter.
 
 ### …model a system on more than one floor?
 

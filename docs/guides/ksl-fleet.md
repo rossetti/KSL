@@ -322,6 +322,35 @@ composes a `GuidedTransporter` that carries the physical statistics, and
 model element names are unique, so the body cannot share the vehicle's
 name. `StatisticParityTest` asserts that mapping.
 
+**The time fractions** are where a table keyed on row names shows "n/a" for
+every active vehicle, so here they are for a vehicle `AGV`:
+
+| Passive | Active | Same quantity? |
+|---|---|---|
+| `AGV:InstantaneousUtil` | `AGV:FracTimeOnTask` | Usually; see below |
+| `AGV:FracTimeMoving` | `AGV:Body:FracTimeMoving` | Yes |
+| `AGV:FracTimeTransporting` | `AGV:Body:FracTimeTransporting` | Yes |
+| `AGV:FracTimeMovingEmpty` | `AGV:Body:FracTimeMovingEmpty` | Yes |
+| `AGV:FracTimeBlocked` | `AGV:Body:FracTimeBlocked` | Yes |
+
+`AGV:Body:InstantaneousUtil` is not a separate measure. It reads the same as
+`AGV:FracTimeOnTask`, because a vehicle starts its task and seizes its body at
+the same instant, and that holds with a load capacity above one, with charging,
+and with breakdowns.
+
+**The utilization rows can differ, and the difference is real.** With an idle
+vehicle parked where it stands, passive and active agree exactly. With a vehicle
+going home when idle, work can arrive while it's on its way. A passive transporter
+is busy from the moment it's allocated, while an active vehicle is turned round in
+flight and is on task only when it starts its tour. One cart with random
+arrivals read 0.516 passive and 0.499 active, while its movement rows agreed to six
+places. So compare movement rows first if the two utilizations disagree.
+
+An active vehicle's `FracTimeOnTask` also includes time under repair during a tour,
+which its `FracTimeFailed` reports separately. Time on a charger isn't on task; it's in
+`FracTimeCharging`. Neither is on the passive row, since a passive transporter
+doesn't model them.
+
 **`TransportTime` has no active counterpart, and this is the one to be
 careful about.** The passive row runs from the entity's request to it
 being set down — the whole story, including the wait for a cart. The
