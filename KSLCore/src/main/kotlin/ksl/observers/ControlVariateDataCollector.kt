@@ -238,18 +238,13 @@ class ControlVariateDataCollector @JvmOverloads constructor(
      *  Returns a k by n matrix of data that represents the control data
      *  where n is the number of observations, and k is the number of controls.
      *  Each row of the returned matrix represents the observations for a different control.
-     *  The row are ordered by the names of the controls.
+     *  The rows are in the order of the supplied names. Every name must be a control; see controlNames().
      */
     private fun controlsData(controls: List<String>): Array<DoubleArray> {
-        val numRows: Int = myResponseCollector.numReplications
-        val numCols = numberOfControlVariates()
-        val data = Array(numCols) { DoubleArray(numRows) }
-        for ((j, name) in controls.withIndex()) {
-            if (myControls.containsKey(name)) {
-                data[j] = controlReplicationData(name)
-            }
+        for (name in controls) {
+            require(myControls.containsKey(name)) { "$name is not a control. The controls are ${controlNames()}" }
         }
-        return data
+        return Array(controls.size) { controlReplicationData(controls[it]) }
     }
 
     /**
