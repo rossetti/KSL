@@ -74,6 +74,8 @@ private var simCounter: Int = 0
  *  @param autoCSVReports if true the simulation output results will automatically be stored in comma separated
  *  value files. The default is false.
  *  @param eventCalendar the event calendar to use for holding events. By default, this is a [PriorityQueueEventCalendar].
+ *  Supply another if that one's handling of canceled events doesn't suit: it keeps them until their time comes, so a
+ *  model canceling very many events far in the future holds on to them. Use one instance per model.
  */
 class Model @JvmOverloads constructor(
     val simulationName: String = "Simulation${++simCounter}",

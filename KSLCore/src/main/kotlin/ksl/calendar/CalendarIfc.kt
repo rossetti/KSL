@@ -20,9 +20,21 @@ package ksl.calendar
 import ksl.simulation.KSLEvent
 
 /**
- * The interface defines behavior for holding, adding and retrieving JSLEvents.
+ * The interface defines behavior for holding, adding and retrieving events. The executive uses one
+ * calendar, supplied to the model, to find the next event to run.
  *
+ * Canceling is lazy, in every shipped calendar. Setting `KSLEvent.cancel` to true only marks the event,
+ * and the event stays in the calendar until its time comes, when the executive drops it. This avoids
+ * rebuilding the underlying structure, and it costs nothing unless a model cancels very many events
+ * far in the future, which then stay in memory. A model that does so can supply a calendar that purges
+ * them.
  *
+ * A calendar must:
+ *  - be used by one model only, since it holds that model's events;
+ *  - return events in their natural order, by time, then priority, then order of scheduling;
+ *  - keep returning canceled events, or remove them itself, since it isn't told about a cancellation
+ *    and has to read `KSLEvent.cancel`;
+ *  - remove everything in clear(), which the executive calls to reset the calendar.
  */
 interface CalendarIfc {
     /**
@@ -75,6 +87,9 @@ interface CalendarIfc {
      * Cancels the supplied JSLEvent in the calendar. Canceling does not remove
      * the event from the data structure. It simply indicates that the
      * scheduled event must not be executed.
+     *
+     * The executive doesn't call this function, and setting `KSLEvent.cancel` directly doesn't
+     * either, so overriding it won't tell a calendar about cancellations.
      *
      * @param event The JSLEvent to be canceled
      */
