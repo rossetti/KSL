@@ -331,7 +331,7 @@ class RequestQ @JvmOverloads constructor(
             }
         }
         // in the queue's own discipline order, which for a LIFO or random queue is not the list order
-        return filteredOrderedList { request ->
+        return firstMatching { request ->
             if (request.resumePending || (allowed != null && request !in allowed)) {
                 false
             } else {
@@ -348,7 +348,7 @@ class RequestQ @JvmOverloads constructor(
                     else -> false
                 }
             }
-        }.firstOrNull()
+        }
     }
 
     /**

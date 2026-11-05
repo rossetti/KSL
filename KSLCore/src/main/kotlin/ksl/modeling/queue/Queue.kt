@@ -378,6 +378,18 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
     }
 
     /**
+     * The first QObject that satisfies the condition, in the queue discipline. It is the first item of
+     * filteredOrderedList(), found without testing the rest of the queue except under a random discipline.
+     * The item is not removed from the queue.
+     *
+     * @param predicate the condition for the search
+     * @return the first match, or null if there is none
+     */
+    internal fun firstMatching(predicate: (T) -> Boolean): T? {
+        return myDiscipline.firstMatching(predicate)
+    }
+
+    /**
      * Finds all the QObjects in the Queue that satisfy the condition and
      * returns a list containing them.  The items are not removed
      * from the queue. The order of the items will not maintain the queue discipline.
@@ -808,6 +820,15 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
          */
         internal abstract fun filteredOrderedList(predicate: (T) -> Boolean) : List<T>
 
+        /**
+         * The first QObject that satisfies the condition, in the queue discipline: the first of
+         * filteredOrderedList(), found without testing the rest where the discipline allows that.
+         *
+         * @param predicate the condition for the search
+         * @return the first match, or null if there is none
+         */
+        internal open fun firstMatching(predicate: (T) -> Boolean): T? = filteredOrderedList(predicate).firstOrNull()
+
     }
 
     inner class FIFODiscipline : QueueDiscipline() {
@@ -840,6 +861,8 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
         override fun filteredOrderedList(predicate: (T) -> Boolean): List<T> {
             return myList.filter(predicate)
         }
+
+        override fun firstMatching(predicate: (T) -> Boolean): T? = myList.firstOrNull(predicate)
     }
 
     private inner class LIFODiscipline : QueueDiscipline() {
@@ -872,6 +895,8 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
         override fun filteredOrderedList(predicate: (T) -> Boolean): List<T> {
             return myList.filter(predicate).asReversed()
         }
+
+        override fun firstMatching(predicate: (T) -> Boolean): T? = myList.lastOrNull(predicate)
     }
 
     private inner class RankedDiscipline : QueueDiscipline() {
@@ -935,6 +960,8 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
         override fun filteredOrderedList(predicate: (T) -> Boolean): List<T> {
             return myList.filter(predicate)
         }
+
+        override fun firstMatching(predicate: (T) -> Boolean): T? = myList.firstOrNull(predicate)
     }
 
     private inner class RandomDiscipline : QueueDiscipline() {
@@ -972,11 +999,15 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
         }
 
         override fun orderedList(): List<T> {
-            return myList.toMutableList().permute(initialStreamNumber)
+            return myList.toMutableList().permuteUnlessEmpty()
         }
 
         override fun filteredOrderedList(predicate: (T) -> Boolean): List<T> {
-            return myList.filter(predicate).toMutableList().permute(initialStreamNumber)
+            return myList.filter(predicate).toMutableList().permuteUnlessEmpty()
         }
+
+        // nothing to order is not an error here: permuting an empty list is
+        private fun MutableList<T>.permuteUnlessEmpty(): List<T> =
+            if (isEmpty()) this else permute(initialStreamNumber)
     }
 }
