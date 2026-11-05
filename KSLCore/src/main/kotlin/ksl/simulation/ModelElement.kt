@@ -501,10 +501,10 @@ abstract class ModelElement internal constructor(
 
     /**
      *
-     * @return the simulated time as a double
+     * @return the simulated time as a double, in the model's base time unit
      */
     override fun time(): Double{
-        return executive.currentTime * model.baseTimeUnit.value
+        return executive.currentTime
     }
 
     /**
