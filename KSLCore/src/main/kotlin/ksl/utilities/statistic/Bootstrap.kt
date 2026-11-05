@@ -127,7 +127,6 @@ interface BootstrapEstimateIfc {
      */
     val bootstrapStdErrEstimate: Double
         get() = acrossBootstrapStatistics.standardDeviation
-//        get() = acrossBootstrapStatistics.standardError  fixed 9/19/2024 MDR
 
     /**
      * Gets the standard normal based bootstrap confidence interval. Not recommended.
@@ -364,8 +363,7 @@ open class Bootstrap(
         // if the estimator is the average this can be computed directly
         val se = if (estimator is BSEstimatorIfc.Average) {
             // compute directly from bootstrap sample
-            //bSample.statistics().standardError fixed 9/19/2024 MDR
-            bSample.statistics().standardDeviation
+            bSample.statistics().standardError
         } else {
             // compute se from additional bootstrapping process
             val bs = Bootstrap(bSample, estimator)
@@ -374,7 +372,10 @@ open class Bootstrap(
         }
         // compute the studentized T-Value
         val tValue = (estimate - originalDataEstimate) / se
-        myStudentizedTValues.save(tValue)
+        // a bootstrap sample with no spread has no t value, and is left out of the reference distribution
+        if (tValue.isFinite()) {
+            myStudentizedTValues.save(tValue)
+        }
     }
 
     /**
