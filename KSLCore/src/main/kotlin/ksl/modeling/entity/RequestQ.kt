@@ -197,11 +197,7 @@ class RequestQ @JvmOverloads constructor(
         if (amountAvailable <= 0) {
             return emptyList()
         }
-        return filteredOrderedList {
-            it.resource == resource &&
-                !it.resumePending &&
-                it.amountRequested <= amountAvailable
-        }
+        return filteredOrderedList { servesRequest(it, resource, amountAvailable) }
     }
 
     /**
@@ -249,8 +245,20 @@ class RequestQ @JvmOverloads constructor(
      *   @return the selected request or null
      */
     fun nextRequestForResource(resource: ResourceIfc): ProcessModel.Entity.Request? {
-        return filterRequestsByResource(resource).firstOrNull()
+        val amountAvailable = effectiveAvailableFor(resource)
+        if (amountAvailable <= 0) {
+            return null
+        }
+        return firstMatching { servesRequest(it, resource, amountAvailable) }
     }
+
+    private fun servesRequest(
+        request: ProcessModel.Entity.Request,
+        resource: ResourceIfc,
+        amountAvailable: Int
+    ): Boolean = request.resource == resource &&
+            !request.resumePending &&
+            request.amountRequested <= amountAvailable
 
     private fun pendingResumeAmountFor(resource: ResourceIfc): Int {
         var sum = 0
