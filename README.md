@@ -186,18 +186,18 @@ The published version is set in `KSLCore/build.gradle.kts` (the `version` proper
 ```
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.8.1"
+version = "R1.8.2"
 ```
 Just add:  
 ```
-api("io.github.rossetti:KSLCore:R1.8.1")
+api("io.github.rossetti:KSLCore:R1.8.2")
 ```
-To your build for the latest release. R1.8.1 needs Kotlin 2.4 or later in your project.
+To your build for the latest release. R1.8.2 needs Kotlin 2.4 or later in your project.
 
 ## Release Notes
 
 The full history lives in **[docs/release-notes.md](docs/release-notes.md)**, which covers two
-things released on separate cadences: the **library** (`KSLCore`, versioned R1.8.1, R1.8, R1.7.1, …) and
+things released on separate cadences: the **library** (`KSLCore`, versioned R1.8.2, R1.8.1, R1.8, …) and
 the installable **suite** of applications and servers (versioned 0.4.3, 0.4.2, 0.4.1, …). A suite release
 does not imply a library release, or the reverse.
 
@@ -209,11 +209,10 @@ bridge sent MCP clients a line that was not protocol, and the KSL Server did not
 from 0.3.x; 0.4.2 also returns the book's numbered tables with their data, and 0.4.3 makes the tray's
 Quit stop the KSL Server on Windows. Built on KSLCore R1.7.1.
 
-**Current library release — R1.8.1.** Corrective: a transfer between conveyors no longer limits the line,
-and a conveyor ride shorter than the item is refused rather than failing later. Models that transfer between
-conveyors give different results; re-run rather than compare them. R1.8 fixed resource pools, interrupted delays,
-shifts, conveyors, guided paths, composite random variables, the BCa bootstrap interval and central composite
-designs. Requires Kotlin 2.4 or later.
+**Current library release — R1.8.2.** Corrective: fixes to antithetic replications, RANKED queues, blocking
+queues, statechart conditions, nearest-vehicle ties on guide paths and charging vehicles. Models that use any of
+these give different results; re-run rather than compare them. `AgentMessage.from` and `contractNet`'s bidders are
+now `AgentLike`. Requires Kotlin 2.4 or later.
 
 **Updating an existing install.** Quit the KSL Server first — from 0.3.7 on, the updater checks and
 refuses rather than overwriting a running installation. `ksl update` works normally from 0.3.2 on;

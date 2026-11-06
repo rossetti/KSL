@@ -435,6 +435,60 @@ These notes cover the published library — the simulation engine. As of R1.4 th
 (not published to Maven); it and the Swing applications are separate modules (see the
 README's build section) and are not part of the KSLCore artifact.
 
+## R1.8.2
+
+*6 November 2026.* Corrective. Needs Kotlin 2.4 or later.
+
+**Re-run any model that uses antithetic replications, RANKED queues, a blocking queue with a finite capacity, an active guide-path fleet, a fleet with `ChargeWhenLowDisposition`, or statechart conditions.** Their results can change. Details below.
+
+### Results change
+
+- **Antithetic replications.** Each pair now uses its own sub-stream. Later pairs were repeating earlier values. A second run starts with a proper pair, and a run after an antithetic one isn't antithetic.
+- **Bootstrap-t intervals.** `Bootstrap.bootstrapTCI` for the average now divides by the standard error, as the book does, so its intervals are wider.
+- **RANKED queues.** `hold`, `syncWith`, `waitFor(signal)`, `send`, `sendItems`, `seizeZone`, `seizeZones`, `trySeizeZone`, `trySeizeZones` and `crossOnFoot` no longer replace the entity's priority with a default. A priority you pass is still written to the entity.
+- **Blocking queue receivers.** `waitForItems`, `waitFor`, `waitForAnyItems` and `waitForAny` now rank a request by the entity's own priority by default. Only a RANKED request queue is affected. If you pass a priority to some calls and not others, order can change, because the default was 10000 and an entity's priority starts at 1.
+- **Statechart conditions.** A condition that became true at the time of a canceled event now fires then, not at the next live event.
+- **Nearest vehicle.** `NearestVehiclePolicy` and Contract-Net's shipped bids now send the vehicle in front when two are the same distance away, as the passive rule does. `FurthestVehiclePolicy` prefers the one behind, as its passive counterpart does. Free-path fleets don't change.
+- **Charging.** A vehicle on a charger is no longer available. Work goes to another vehicle, or waits until the battery is full. On a guide path such work crashed the run, and on a free path the vehicle drove off during the charge.
+- **`NumVehiclesIdle`** no longer counts a vehicle on a charger, so it's lower in a model where vehicles charge. The new `NumVehiclesCharging` counts it. Every fleet report gains this row.
+- **Blocking queues.** A request left waiting after a fill is now served as soon as it can be, and items sent together reach every waiting receiver. They used to strand a receiver or crash the run.
+- **User-written `RequestQ` selection rules.** A rule that draws random numbers is now called fewer times, so its stream changes. The shipped rules don't draw.
+
+### Corrected
+
+- `ModelElement.time()` reports the clock in the base time unit. It was scaled to milliseconds under any other base unit, which also broke `delay`.
+- `numberOfReplications(n, false)` turns antithetic sampling off. Run parameters with antithetic on and an odd count now throw, and so does an odd count set on an antithetic model.
+- `ControlVariateDataCollector.collectedData()` works with a subset of the controls. An unknown name now throws.
+- A random `Queue.filteredOrderedList` or `orderedList` no longer throws when nothing matches.
+- A release, and a seize that finds free units, no longer test every waiting request in a FIFO, LIFO or ranked `RequestQ`.
+- An auction drops the bid of a vehicle that is no longer available at the deadline.
+
+### Changed API
+
+- **`AgentMessage.from`, `ContractNetOutcome.winner` and `contractNet`'s `bidders` are now `AgentLike`.** `PermanentAgent` and `AgentResource` can send under their own name, bid and win. A plain `Entity` can't be a sender. A subclass overriding `from` with `Entity` must change its type, and `from.id` or other `Entity` members need a cast. The initiator of `contractNet` must still be an `Agent`.
+- **Direct removal from a blocking queue's channel can't take an item a waiting request wants.** `receiveFromChannel`, `receiveNextFromChannel` and `removeAllFromChannel` now throw, naming the request. Use `availableForRemoval` to take only what's free.
+- **A send waits its turn.** A sender no longer takes a slot promised to a sender already in line, so an entity that removes and sends in one step can block.
+- `Resource.handeIgnoreRuleDeallocation` is now `handleIgnoreRuleDeallocation`.
+
+### New
+
+- `BlockingQueue`: `availableForRemoval`, `canRemoveFromChannel`, `requestWanting`, `canSendWithoutWaiting`.
+- `FleetVehicle.zonesToEnter`, `DispatchContext.zonesToEnter`, `Bid.zonesToEnter`.
+- `AgvVehicle.frontZone`, `travellingForward`, `heldZones`.
+- `FleetSystem.numVehiclesCharging`.
+
+### Diagnostics
+
+- A sender still blocked when a replication ends is now reported, with a warning if it has waited a tenth of the run or more. Such a run used to end with no message.
+- The guide path's warning about waiting transporters now fires for a circular wait, a wait behind a parked vehicle, and any other wait of a tenth of the run or more. A wait behind a moving vehicle is logged at INFO.
+
+### Documentation
+
+- The fleet guide maps passive to active response names, and says when utilization rows can differ.
+- `isIdle`, `isBusy`, `isInactive`, `CapacityChangeRule`, `goOffShift`, `CalendarIfc` and `Model`'s `eventCalendar` are documented.
+- `BatchedAssignmentPolicy`'s KDoc and the fleet guide say that a vehicle finishing during a window stands where it stopped until the window ends.
+- The transport tutorial's tables and the passages that describe them match the current examples.
+
 ## R1.8.1
 
 *19 October 2026.* Corrective. Needs Kotlin 2.4 or later.
