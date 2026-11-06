@@ -96,7 +96,10 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  *
  *  **Throughput.** Five of the six rules are indistinguishable in throughput -- a finding here,
  *  and an assertion back when this example printed six unpaired averages. Batching is the sixth,
- *  and is detectably worse: on a saturated fleet the window delays every decision.
+ *  and is detectably worse. A cart that has delivered stands at Shipping until the next window, and
+ *  Shipping is on the ring, so the cart behind it can't deliver until then. That holds the three
+ *  carts to about one load per window, however many are waiting. The warnings about a cart behind a
+ *  parked vehicle at W, at the end of most replications, are this.
  *
  *  The half-width on any one rule's delivered count is about seven loads; on the paired
  *  differences it is under six tenths of a load -- for four of the five rows. Batching's is 7.3,

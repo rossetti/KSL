@@ -2229,10 +2229,12 @@ want that column and not the first one.
 
 **Batching is the exception, instructively.** It is the one rule that loses throughput
 detectably: 39.8 ± 7.3 loads, and 829 ± 113 time units of waiting. A window pays for
-itself when a fleet has slack and the board has choices to weigh; this fleet is
-saturated, so the window delays every decision and the delay compounds. The rule is not
-broken — it is being asked to do the thing it is worst at, which is what a comparison is
-for.
+itself when a fleet has slack and the board has choices to weigh. Here, a cart that has
+delivered stands at `Shipping` until the next window, and `Shipping` is on the ring, so the
+cart behind it can't deliver until then. That holds the three carts to about one load per
+window, however many are waiting, and the warnings about a cart behind a parked vehicle at
+W are this. The rule is not broken: the cost comes from the window and the layout together,
+which is what a comparison is for.
 
 **And one check rather than a coincidence:** the instant auction matches nearest-vehicle
 **exactly in throughput** — a paired difference of zero with a half-width of zero — and

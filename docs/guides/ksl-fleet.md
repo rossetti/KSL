@@ -466,6 +466,11 @@ the dispatcher.
 The window runs from when the dispatcher wakes, so an idle fleet still
 pays it.
 
+**A vehicle that finishes during a window stands where it stopped until the
+window ends**, because it considers its disposition only after a pass has
+declined it. If it stopped on a through route, the vehicles behind it wait
+too. A stop on a spur doesn't have this effect.
+
 ### …let the vehicles bid?
 
 ```kotlin

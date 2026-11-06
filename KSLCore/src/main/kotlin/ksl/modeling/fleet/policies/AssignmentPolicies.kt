@@ -295,6 +295,10 @@ class RandomAssignmentPolicy(private val stream: RNStreamIfc) : AssignmentPolicy
  * The window runs from when the dispatcher wakes, so an idle fleet still pays it. A model that wants
  * batching only under load should compose this behind a rule that checks the board first.
  *
+ * A vehicle that finishes during a window stands where it stopped until the window ends, because it
+ * considers its disposition only after a pass has declined it. If it stopped on a through route, the
+ * vehicles behind it wait too. A stop on a spur doesn't have this effect.
+ *
  * @param window how long to accumulate, in simulated time
  * @param inner what to do with the batch once it has accumulated
  */
