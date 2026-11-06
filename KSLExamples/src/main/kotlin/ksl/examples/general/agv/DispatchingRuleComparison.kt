@@ -94,9 +94,10 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  *
  *  ## Reading the three tables
  *
- *  **Throughput.** Five of the six rules are indistinguishable in throughput -- a finding here,
- *  and an assertion back when this example printed six unpaired averages. Batching is the sixth,
- *  and is detectably worse. A cart that has delivered stands at Shipping until the next window, and
+ *  **Throughput.** Apart from batching, the rules barely differ in throughput -- a finding here,
+ *  and an assertion back when this example printed six unpaired averages. Furthest, least-used and
+ *  the instant auction are inside their intervals, and the deliberate auction is outside its
+ *  interval by half a load in about 324. Batching is detectably worse. A cart that has delivered stands at Shipping until the next window, and
  *  Shipping is on the ring, so the cart behind it can't deliver until then. That holds the three
  *  carts to about one load per window, however many are waiting. The warnings about a cart behind a
  *  parked vehicle at W, at the end of most replications, are this.
@@ -116,19 +117,16 @@ import ksl.utilities.statistic.MultipleComparisonAnalyzer
  *
  *  Read the imbalance column at the other end too, because it is the one result here that argues
  *  against the obvious choice: **nearest-vehicle is the least even rule in the study.** Its
- *  imbalance is about 70 completions between the busiest and idlest cart, against 47 for
+ *  imbalance is about 60 completions between the busiest and idlest cart, against 36 for
  *  furthest-vehicle and 1 for least-used. The rule included in order to be bad spreads the work
  *  more evenly than the default does, which follows from what nearest-vehicle optimises -- it
  *  never asks who has been working -- and is not a thing a throughput table would ever show.
  *
- *  **The instant auction matches nearest-vehicle exactly in throughput** -- a paired difference of
- *  zero with a half-width of zero -- and is indistinguishable from it in the other two, but not
- *  identical: time in system differs by -0.016 +/- 0.200 and imbalance by -0.467 +/- 1.712. That
- *  is the check, and it is a better one than exact agreement everywhere would have been. With
- *  distance bidding the vehicles quote what the rule would have computed, so the auction sometimes
- *  reaches a different assignment and it costs nothing measurable: the negotiation machinery is
- *  shown not to change the answer, rather than shown not to act. The deadline row then shows what
- *  it costs once negotiating is charged for.
+ *  **The instant auction matches nearest-vehicle exactly in all three tables** -- paired differences
+ *  of zero with half-widths of zero. With distance bidding the vehicles quote what the rule would
+ *  have computed, so the auction reaches the same assignments, and the negotiation machinery is
+ *  shown not to change the answer. The deadline row then shows what it costs once negotiating is
+ *  charged for.
  *
  *  Where a table says no, the honest statement is "no detectable difference at this sample size",
  *  not "the rules are the same".

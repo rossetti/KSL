@@ -604,10 +604,10 @@ replication by replication rather than average against average:
 ```
   response                                   difference   half-width  detectable?
   PartsDelivered                                 0.1000       0.5278           no
-  TimeInSystem                                  -1.2009       1.0846          yes
+  TimeInSystem                                  -1.2036       1.0676          yes
   AgvSystem:NumObstructionsDetected            -40.5000       5.3453          yes
   AgvSystem:NumBlockedByIdleVehicle             -0.1166       0.0104          yes
-  AgvSystem:NumTransportersBlocked              -0.1380       0.0126          yes
+  AgvSystem:NumTransportersBlocked              -0.1378       0.0127          yes
 ```
 
 Each row is *carts sent home* minus *carts left in place*. The full half-width summary
@@ -2142,9 +2142,9 @@ loads: nothing on that page could have told a real difference of five loads from
 
 The pairing is what makes the claim possible. All six rules see the same arrivals, so the
 difference can be taken replication by replication, where the arrival variability cancels —
-and the paired half-width comes out under one load instead of seven. With that, "five of the
-six are indistinguishable in throughput" is a measurement rather than an impression, and
-"batching costs about forty loads" is separable from noise.
+and the paired half-width comes out under one load instead of seven. With that, "furthest and
+least-used are indistinguishable from nearest in throughput" is a measurement rather than an
+impression, and "batching costs about forty loads" is separable from noise.
 
 Two habits worth copying:
 
@@ -2165,29 +2165,29 @@ the KSL output file.
 Paired differences in loads delivered, NearestVehicle minus each rule
 
   rule                     difference   half-width  detectable?
-  FurthestVehicle               0.000        0.554           no
-  LeastUsed                    -0.333        0.401           no
+  FurthestVehicle              -0.133        0.548           no
+  LeastUsed                    -0.333        0.540           no
   BatchedWindow30              39.800        7.302          yes
   ContractNetInstant            0.000        0.000           no
-  ContractNetDeadline5         -0.000        0.419           no
+  ContractNetDeadline5         -0.467        0.412          yes
 
 Paired differences in time in system, NearestVehicle minus each rule
 
   rule                     difference   half-width  detectable?
-  FurthestVehicle             -15.053        0.592          yes
-  LeastUsed                    -9.056        0.591          yes
-  BatchedWindow30            -829.449      113.097          yes
-  ContractNetInstant           -0.016        0.200           no
-  ContractNetDeadline5         -9.954        0.580          yes
+  FurthestVehicle             -15.311        0.481          yes
+  LeastUsed                    -9.180        0.528          yes
+  BatchedWindow30            -829.573      112.995          yes
+  ContractNetInstant            0.000        0.000           no
+  ContractNetDeadline5         -9.471        0.517          yes
 
 Paired differences in fleet imbalance, NearestVehicle minus each rule
 
   rule                     difference   half-width  detectable?
-  FurthestVehicle              23.333        3.653          yes
-  LeastUsed                    68.933        4.554          yes
-  BatchedWindow30              68.800        4.568          yes
-  ContractNetInstant           -0.467        1.712           no
-  ContractNetDeadline5         19.000        4.170          yes
+  FurthestVehicle              24.600        3.261          yes
+  LeastUsed                    59.467        4.430          yes
+  BatchedWindow30              59.333        4.488          yes
+  ContractNetInstant            0.000        0.000           no
+  ContractNetDeadline5         12.333        3.475          yes
 ```
 
 For scale: the half-width on any **one** rule's delivered count is about 7.35 loads, and
@@ -2201,8 +2201,9 @@ the same noise, and nothing when only one of them does.**
 
 ### What to learn
 
-**Five of the six are indistinguishable in throughput** — every paired difference
-inside its own interval. With a fleet this size the guide path is the constraint, not
+**Apart from batching, the rules barely differ in throughput.** Furthest, least-used and
+the instant auction are each inside their intervals, and the deliberate auction is outside
+its interval by half a load in about 324. With a fleet this size the guide path is the constraint, not
 the decision, so a study that measured throughput alone would conclude that dispatching
 does not matter here and would be wrong about everything except throughput.
 
@@ -2214,13 +2215,13 @@ The pairing removes the arrival variability, brings the half-width down to about
 load, and turns an impression into a measurement.
 
 What the rule changes is **who waits and how evenly the fleet is worn**, and both
-differences are far outside their intervals. Least-used costs 9.06 ± 0.59 in time in
-system and buys 68.93 ± 4.55 in imbalance. Whether that trade is worth making depends on
+differences are far outside their intervals. Least-used costs 9.18 ± 0.53 in time in
+system and buys 59.47 ± 4.43 in imbalance. Whether that trade is worth making depends on
 whether the cost being managed is time or wear — a modelling question, not a library one.
 
 Read the imbalance column at the other end too, because it holds the one result here
 that argues against the obvious choice: **nearest-vehicle is the least even rule in the
-study.** About 70 completions separate its busiest cart from its idlest, against 47 for
+study.** About 60 completions separate its busiest cart from its idlest, against 36 for
 furthest-vehicle and 1 for least-used. The rule included in order to *be* bad spreads
 the work more evenly than the default does. That follows from what nearest-vehicle
 optimises — it never asks who has been working — and it is not something a throughput
@@ -2237,17 +2238,14 @@ W are this. The rule is not broken: the cost comes from the window and the layou
 which is what a comparison is for.
 
 **And one check rather than a coincidence:** the instant auction matches nearest-vehicle
-**exactly in throughput** — a paired difference of zero with a half-width of zero — and
-is indistinguishable from it in the other two without being identical: −0.016 ± 0.200 in
-time in system, −0.467 ± 1.712 in imbalance. Read those two rows carefully, because they
-say more than exact agreement everywhere would have. With distance bidding the vehicles
-quote what the rule would have computed, so the auction sometimes reaches a *different*
-assignment — and it costs nothing measurable. The negotiation machinery is shown not to
-change the answer, rather than shown not to act. The deadline row then shows what it
-costs once negotiating is charged for: 9.95 ± 0.58 in time in system.
+**exactly in all three tables** — paired differences of zero with half-widths of zero. With
+distance bidding the vehicles quote what the rule would have computed, so the auction reaches
+the same assignments. The negotiation machinery is shown not to change the answer. The
+deadline row then shows what it costs once negotiating is charged for: 9.47 ± 0.52 in time
+in system.
 
 **`FurthestVehiclePolicy` is deliberately poor** and exists so that "nearest is better"
-can be a finding rather than an assertion — here, 15.05 ± 0.59 worse in time in system.
+can be a finding rather than an assertion — here, 15.31 ± 0.48 worse in time in system.
 
 ---
 
@@ -3700,7 +3698,7 @@ saying so.
 
 **What the console looks like while that happens** is worth knowing before you
 run it, because most of it is not a fault. Every replication ends with carts
-queueing, so the space layer's blocked-transporter warning fires throughout —
+queueing, which the space layer logs at INFO rather than as a warning —
 demand is above capacity on purpose, and a run that ended otherwise would mean
 the building was never loaded. Study 2 also draws the network's advisory that
 bidirectional links are the usual source of deadlock: correct advice, which
@@ -5369,20 +5367,20 @@ Twenty paired replications:
 
 ```
   response                                       difference   half-width  detectable?
-  PartsDelivered                                    -1.5000       2.0513           no
-  TimeInSystem                                      59.1857      18.0548          yes
-  AgvSystem:NumTransportersBlocked                   0.2115       0.0121          yes
-  AgvSystem:NumBlockedByVehicle                      0.0779       0.0053          yes
-  AgvSystem:NumBlockedByOccupier                     0.1336       0.0077          yes
+  PartsDelivered                                    -1.5500       2.0680           no
+  TimeInSystem                                      59.2168      18.0286          yes
+  AgvSystem:NumTransportersBlocked                   0.2106       0.0122          yes
+  AgvSystem:NumBlockedByVehicle                      0.0770       0.0055          yes
+  AgvSystem:NumBlockedByOccupier                     0.1336       0.0076          yes
   AgvSystem:NumBlockedByPopulation                   0.0000       0.0000           no
-  AgvSystem:NumZonesClosed                           0.7843       0.0419          yes
+  AgvSystem:NumZonesClosed                           0.7847       0.0419          yes
 
-  blocked time, by cause, summed                     0.2115
-  unaccounted for                                   -0.0000
+  blocked time, by cause, summed                     0.2106
+  unaccounted for                                    0.0000
 ```
 
-**The headline count does not separate the two runs** — 1.5 fewer parts
-against a half-width of 2.05 — and the example says so rather than
+**The headline count does not separate the two runs** — 1.55 fewer parts
+against a half-width of 2.07 — and the example says so rather than
 reaching for the significant column instead. Time in system does separate
 them, by 59 minutes.
 
@@ -5393,19 +5391,19 @@ that total splits into 0.08 caused by other **carts** and 0.13 caused by
 there is no mechanism for either; every minute of obstruction there is a
 cart waiting on a cart. None of the 0.13 was fitted to anything.
 
-`SpillsAbsorbed` averages 0.40 per replication: spills that landed on an
+`SpillsAbsorbed` averages 0.35 per replication: spills that landed on an
 aisle another spill was still having closed, where `trySeizeZones` answered
 null and this model chose to absorb them.
 
-Run it and you will also see a few end-of-replication warnings, in two
-shapes. Most are a cart still waiting on the exit spur when the horizon
-arrived — the guide path reporting that it stopped moving rather than ran
-out of work, which at a horizon is benign. The other shape is worth
+The carts still waiting when the horizon arrives have been waiting only
+briefly, so the guide path logs them at INFO rather than as warnings. Turn
+that logger up to INFO and you will see two shapes. Most are a cart waiting
+on the exit spur, which at a horizon is benign. The other shape is worth
 stopping on:
 
 ```
-(Cart1) holds [Link3.Zone4] and waits for zone (I4), which is held by (Cart2)
-(Cart2) holds [I4] and waits for zone (Link4.Zone1), which is held by (Spill)
+(Cart1) holds [Link3.Zone4] and waits for zone (I4), which is held by (Cart2) -- a short wait, after 0.10391748526126321
+(Cart2) holds [I4] and waits for zone (Link4.Zone1), which is held by (Spill) -- a short wait, after 1.3039174852610813
 ```
 
 That is this example's subject caught in the act — a chain of two carts
