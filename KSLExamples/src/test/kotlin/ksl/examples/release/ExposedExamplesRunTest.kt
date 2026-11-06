@@ -14,19 +14,17 @@ import java.time.Duration
  *
  * KSLExamples holds hundreds of runnable demos and **none of them is executed by the build**, so
  * a change elsewhere in KSL can leave an example compiling and broken. A general runner for all
- * of them is designed but not built (see the example-runner plan); it needs discovery, a tier
- * registry, and a change to KSLCore's browser chokepoint, none of which belongs in a patch
- * release. This is the same idea applied to a curated list: the demos that touch the parts of
- * the library this release altered.
+ * of them isn't built; it needs discovery, a tier registry, and a change to KSLCore's browser
+ * chokepoint, none of which belongs in a patch release. This is the same idea applied to a curated list: the demos that touch the parts of
+ * the library R1.6.1 altered, when this list was made.
  *
  * The list was derived rather than chosen -- every example that mentions a solver, a benchmark
  * experiment, `ksl.simopt`, or a capacity schedule, and declares a top-level `main`.
  *
  * What this does NOT establish: it is a "did it throw" check, not a numerical one. Several of
- * these examples will legitimately print different numbers than before, because the release
- * corrects how penalized solutions are compared and how a benchmark addresses its starting
- * points. It also runs every example in one JVM, so they share KSL's default stream provider;
- * that can change an example's numbers but not, in any case seen here, whether it completes.
+ * these examples printed different numbers after R1.6.1, which corrected how penalized
+ * solutions are compared and how a benchmark addresses its starting points. It also runs
+ * every example in one JVM, so they share KSL's default stream provider; that can change an example's numbers but not, in any case seen here, whether it completes.
  */
 class ExposedExamplesRunTest {
 
@@ -41,20 +39,18 @@ class ExposedExamplesRunTest {
          */
         val EXCLUDED: Map<String, String> = mapOf(
             "ksl.examples.general.misc.CheckStuffKt" to
-                "opens a browser (showInBrowser); the headless guard for that is Phase 0 of the " +
-                "example-runner plan and is not part of this release",
+                "opens a browser (showInBrowser), and nothing stops that in a headless run",
             "ksl.examples.general.simopt.study1.Study1MainKt" to
-                "the full Study-1 grid; the same run was executed for this release (5,700 cells, " +
-                "0 failures) and is stronger evidence than a smoke of it",
+                "the full Study-1 grid; not run by this gate. It was run by hand for R1.6.1 " +
+                "(5,700 cells, 0 failures)",
             "ksl.examples.general.simopt.study1.Study1SmokeKt" to
-                "superseded by the Study-1 main run above",
+                "a smaller version of the Study-1 main run above; not run by this gate",
             "ksl.examples.general.simopt.ISCSolverTestingKt" to
                 "ISC's correct-selection guarantee samples on the order of (noise/IZ)^2 " +
-                "replications; measured separately for this release at 0.3x to 13x the budget",
+                "replications; not run by this gate. Measured by hand for R1.6.1 at 0.3x to 13x the budget",
             "ksl.examples.general.simopt.BayesianOptimizationSolverTestingKt" to
                 "BO's surrogate fit is cubic in evaluated points and can run for many minutes; " +
-                "BO ran in the release's own eight-solver smoke instead"
-            ,
+                "not run by this gate. BO ran in R1.6.1's eight-solver smoke",
             "ksl.examples.book.chapter11.CESolverExampleKt" to
                 "owned by SlowExamplesRunTest; measured at 292 s, far past this gate's 180 s budget",
             "ksl.examples.book.chapter11.SARestartSolverExampleKt" to
