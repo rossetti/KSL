@@ -675,6 +675,12 @@ flat exactly as though it had no charging policy. The reserve is what makes
 a low vehicle decline the next load, and declining is what makes it idle
 enough for its disposition to be asked.
 
+**On the charger, a vehicle isn't available.** It can be turned round on its
+way there, but once charging starts it stays until the battery is full. Work
+that arrives goes to another vehicle, or waits. It still counts in
+`Agv:NumVehiclesIdle`, since it carries no task, so read that row with
+`Cart:FracTimeCharging`.
+
 ### …make vehicles break down?
 
 Give the vehicle a `FailureModel`. A failure is due once the chosen

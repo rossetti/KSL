@@ -63,7 +63,7 @@ interface FleetVehicleCIfc {
     /** Where it is, by name. */
     val currentLocationName: String
 
-    /** True when it could take work: in service, not failed, and not already committed. */
+    /** True when it could take work: in service, not failed, not on a charger, and not already committed. */
     val isAvailable: Boolean
 
     /** The task it is committed to, or null. */

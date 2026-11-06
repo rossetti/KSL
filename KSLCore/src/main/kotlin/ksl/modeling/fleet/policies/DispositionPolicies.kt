@@ -19,9 +19,9 @@ sealed class Disposition {
      * Go to a charger and stay there until the battery is full.
      *
      * Distinct from [MoveTo] the same place, because arriving is not the point: the vehicle waits
-     * there for as long as charging takes. It remains assignable throughout -- a vehicle charging
-     * is a vehicle the dispatcher may still want -- but the charging delay is not interruptible, so
-     * work arriving mid-charge is taken up when the battery is full rather than at once.
+     * there for as long as charging takes. It stays assignable on the way, and can be turned round.
+     * On the charger it isn't available: work goes to another vehicle, or waits until the battery is
+     * full and the vehicle declares itself available again.
      */
     data class GoCharge(val locationName: String) : Disposition()
 }

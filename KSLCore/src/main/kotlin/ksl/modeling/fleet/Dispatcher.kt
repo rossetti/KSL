@@ -812,7 +812,7 @@ open class Dispatcher @JvmOverloads constructor(
                 // ordinary case is a policy naming a vehicle it was never offered, which is a
                 // defect in the policy. The other is a policy that consumed simulated time -- an
                 // auction deadline, a batching window -- during which a vehicle it *was* offered
-                // stopped. That is nobody's mistake, and the message says so.
+                // stopped or reached a charger. That is nobody's mistake, and the message says so.
                 if (p.vehicle.isOutOfService) {
                     throw FleetDispatchException(
                         "Policy ($assignmentPolicy) proposed vehicle (${p.vehicle.name}) for task " +
@@ -821,6 +821,16 @@ open class Dispatcher @JvmOverloads constructor(
                                 "to decide -- an auction deadline, a batching window -- must re-read " +
                                 "the available set before it proposes, because the fleet can change " +
                                 "under it. FleetVehicle.isOutOfService is the test."
+                    )
+                }
+                if (p.vehicle.isCharging) {
+                    throw FleetDispatchException(
+                        "Policy ($assignmentPolicy) proposed vehicle (${p.vehicle.name}) for task " +
+                                "(${p.task.name}), but that vehicle reached a charger while the policy " +
+                                "was deciding and isn't available until it is full. A policy that takes " +
+                                "simulated time to decide -- an auction deadline, a batching window -- " +
+                                "must re-read the available set before it proposes, because the fleet " +
+                                "can change under it. FleetVehicle.isAvailable is the test."
                     )
                 }
                 throw FleetDispatchException(

@@ -321,6 +321,9 @@ abstract class FleetSystem @JvmOverloads constructor(
      * idle in the space layer's sense, and it carries no task, so it is idle in this one. Each row
      * uses the word of the layer that owns it -- transporter for the shared space, vehicle here --
      * because renaming either would make the shared layer speak one consumer's dialect.
+     *
+     * A vehicle on a charger carries no task, so it counts here although it can't take work.
+     * `FracTimeCharging` on the vehicle reports that time.
      */
     val numVehiclesIdle: TWResponseCIfc get() = myNumVehiclesIdle
 
@@ -1029,6 +1032,9 @@ abstract class FleetSystem @JvmOverloads constructor(
                                 // the charger has not reached one either; the top of the loop
                                 // settles whatever stopped it.
                                 if (assignment == null && !vehicle.hasPendingInterruption) {
+                                    // Not assignable on the charger, unlike on the way to it. The
+                                    // top of the loop declares it again when the battery is full.
+                                    dispatcher.withdraw(vehicle)
                                     val duration = vehicle.beginCharging()
                                     if (duration > 0.0) {
                                         delay(duration,                     // SUSPENDS

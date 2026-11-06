@@ -100,9 +100,12 @@ class DispatchContext internal constructor(
      * reordering, total, and explicable to a modeller looking at a result they did not expect.
      * A supplied [selectBest] takes on that responsibility for itself.
      *
+     * A vehicle can stop being available while the auction runs, by breaking down or reaching a
+     * charger. Its bid is dropped at the deadline, so [selectBest] sees only bids a vehicle can honour.
+     *
      * @param cfp what the vehicles are being asked to bid on
      * @param deadline how long to wait for proposals, in simulated time. Zero is instantaneous.
-     * @return the best bid by [selectBest], or null when every vehicle declined
+     * @return the best bid by [selectBest], or null when every vehicle declined or is no longer available
      */
     suspend fun KSLProcessBuilder.auction(
         cfp: CallForProposals,
@@ -119,11 +122,12 @@ class DispatchContext internal constructor(
         val outcome = contractNet<CallForProposals, Bid>(
             bidders, cfp, deadline,
             selectBest = { proposals ->
-                val best = selectBest(proposals.map { it.proposal })
+                val standing = proposals.filter { it.proposal.vehicle.isAvailable }
+                val best = if (standing.isEmpty()) null else selectBest(standing.map { it.proposal })
                 // Map the winning bid back to the proposal that carried it, by identity: two
                 // vehicles may legitimately bid the same value, and comparing by value would then
                 // award to whichever proposal happened to be first in the list.
-                proposals.firstOrNull { it.proposal === best }
+                standing.firstOrNull { it.proposal === best }
             }
         )
         if (outcome == null) {
