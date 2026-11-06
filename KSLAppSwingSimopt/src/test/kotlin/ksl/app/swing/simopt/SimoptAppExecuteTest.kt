@@ -199,6 +199,10 @@ class SimoptAppExecuteTest {
     fun `cancel resolves to non-running with null lastResult`() {
         controller().use { c ->
             seedRunnableProblem(c)
+            // Far more iterations than can finish before the cancel
+            // arrives. With the seed's two, a fast run could complete
+            // first and legitimately record a result.
+            c.setCommonMaxIterations(100_000)
             c.submit()
             // Request cooperative cancellation; the solver exits at
             // the next iteration boundary.

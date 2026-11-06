@@ -1,6 +1,8 @@
-# Safety-net CI: compile every module and run its tests on Java 21, so a broken
-# change is caught before (PR) or right after (push) it reaches `main`, instead of
-# only when someone next builds locally.
+# Safety-net CI: compile every module and run its tests on Java 21, so a pull request
+# is checked before it reaches `main`.
+#
+# It does not run on pushes to `main`. A release runs these tests locally first, and a
+# busy shared runner could fail a timing-sensitive test with nothing wrong in the code.
 #
 # Scope on purpose:
 #   * Runs `./gradlew build` — compile + all module tests. It does NOT package the
@@ -10,13 +12,11 @@
 #   * One headless Linux runner: the suite is OS-independent (JARs + text launchers),
 #     so one build verifies all platforms. Display-dependent plot/Swing tests are
 #     guarded to skip headless; add a macOS/Windows matrix or xvfb later if wanted.
-#   * `workflow_dispatch` lets you run it on a feature branch before merging.
+#   * `workflow_dispatch` lets you run it by hand on any branch.
 
 name: build
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
