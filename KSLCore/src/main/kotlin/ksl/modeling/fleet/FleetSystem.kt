@@ -313,7 +313,8 @@ abstract class FleetSystem @JvmOverloads constructor(
     )
 
     /**
-     * How many vehicles carry no task: **idle to the dispatcher**.
+     * How many vehicles the dispatcher could give work to: carrying no task, in service, and not on a
+     * charger. A vehicle parked, or moving for its own reasons, counts here.
      *
      * Not the same question as the space layer's `numTransportersIdle`, which counts vehicles
      * standing still, and the two rows appear together on an active model's report. A vehicle
@@ -321,9 +322,6 @@ abstract class FleetSystem @JvmOverloads constructor(
      * idle in the space layer's sense, and it carries no task, so it is idle in this one. Each row
      * uses the word of the layer that owns it -- transporter for the shared space, vehicle here --
      * because renaming either would make the shared layer speak one consumer's dialect.
-     *
-     * A vehicle on a charger carries no task, so it counts here although it can't take work.
-     * `FracTimeCharging` on the vehicle reports that time.
      */
     val numVehiclesIdle: TWResponseCIfc get() = myNumVehiclesIdle
 
@@ -343,11 +341,26 @@ abstract class FleetSystem @JvmOverloads constructor(
      * How many vehicles are stopped and being dealt with -- broken down, waiting for a technician,
      * being pushed out of the way, or out for the rest of the replication.
      *
-     * The three counts partition the fleet, which is the point of this one existing. Without it a
+     * The four counts partition the fleet, which is the point of this one existing. Without it a
      * vehicle that broke down between tours held no assignment and was therefore counted **idle**,
      * so a reader of [numVehiclesIdle] would see spare capacity that was not there.
      */
     val numVehiclesOutOfService: TWResponseCIfc get() = myNumVehiclesOutOfService
+
+    private val myNumVehiclesCharging = TWResponse(
+        this, "${this.name}:NumVehiclesCharging",
+        allowedDomain = ksl.utilities.Interval(0.0, Double.MAX_VALUE)
+    )
+
+    /**
+     * How many vehicles went to a charger by their own choice and are on it. They can't take work
+     * until the battery is full.
+     *
+     * A vehicle recharged after running flat counts in [numVehiclesOutOfService] instead, because it
+     * stopped involuntarily and stays out of service until its policy has put it right. In a fleet
+     * with no batteries this stays at zero.
+     */
+    val numVehiclesCharging: TWResponseCIfc get() = myNumVehiclesCharging
 
     /**
      * How long a load spent aboard, observed once at delivery.
@@ -574,13 +587,15 @@ abstract class FleetSystem @JvmOverloads constructor(
         }
     }
 
-    /** The three counts partition the fleet: on task, out of service, and neither. */
+    /** The four counts partition the fleet: out of service, on task, charging, and idle. */
     internal fun refreshFleetCounts() {
         val out = myVehicles.count { it.isOutOfService }
         val onTask = myVehicles.count { it.hasAssignment && !it.isOutOfService }
+        val charging = myVehicles.count { it.isCharging && !it.hasAssignment && !it.isOutOfService }
         myNumVehiclesOnTask.value = onTask.toDouble()
         myNumVehiclesOutOfService.value = out.toDouble()
-        myNumVehiclesIdle.value = (myVehicles.size - onTask - out).toDouble()
+        myNumVehiclesCharging.value = charging.toDouble()
+        myNumVehiclesIdle.value = (myVehicles.size - onTask - out - charging).toDouble()
     }
 
     // ---- lifecycle -----------------------------------------------------------------------------

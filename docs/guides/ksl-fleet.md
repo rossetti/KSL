@@ -374,7 +374,7 @@ never compares two different intervals.
 One last pair worth reading carefully: an active model reports both
 `Agv:Space:NumTransportersIdle` and `Agv:NumVehiclesIdle`, and they
 answer different questions. The first counts vehicles **standing
-still**; the second counts vehicles **carrying no task**. A vehicle
+still**; the second counts vehicles **the dispatcher could give work to**. A vehicle
 repositioning to its home base satisfies the second and not the first.
 Each row uses the word of the layer that owns it — transporter for the
 shared space, vehicle for this subsystem — because renaming either would
@@ -677,9 +677,8 @@ enough for its disposition to be asked.
 
 **On the charger, a vehicle isn't available.** It can be turned round on its
 way there, but once charging starts it stays until the battery is full. Work
-that arrives goes to another vehicle, or waits. It still counts in
-`Agv:NumVehiclesIdle`, since it carries no task, so read that row with
-`Cart:FracTimeCharging`.
+that arrives goes to another vehicle, or waits. `Agv:NumVehiclesCharging`
+counts it, and `Agv:NumVehiclesIdle` doesn't.
 
 ### …make vehicles break down?
 
@@ -916,11 +915,19 @@ longer a distance to compare against. A policy of your own should make the
 same allowance; `FleetVehicle.isOutOfService` is the test.
 
 **And a vehicle being dealt with is not spare capacity.**
-`Agv:NumVehiclesOutOfService` is the third of the three fleet counts, and
-the three partition the fleet at every instant. Without it a vehicle that
-broke down between tours held no assignment and was therefore counted
-*idle*, so a reader of `Agv:NumVehiclesIdle` saw capacity that was not
-there.
+`Agv:NumVehiclesOutOfService` is one of four fleet counts, and the four
+partition the fleet at every instant:
+
+| Count | A vehicle counted here |
+|---|---|
+| `NumVehiclesOutOfService` | Stopped involuntarily, by a breakdown or a flat battery, until its policy has put it right. Recharging after running flat counts here. |
+| `NumVehiclesOnTask` | Holds an assignment and is in service |
+| `NumVehiclesCharging` | Went to a charger by its own choice and is on it |
+| `NumVehiclesIdle` | Could be given work: parked, or moving for its own reasons |
+
+Without the first, a vehicle that broke down between tours held no assignment
+and was therefore counted *idle*, so a reader of `Agv:NumVehiclesIdle` saw
+capacity that was not there.
 
 ### …send a vehicle somewhere without carrying anything?
 

@@ -513,6 +513,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
         observeCharge()
         myFracTimeCharging?.value = 1.0
         isCharging = true
+        system.refreshFleetCounts()
         system.emitVehicleState(this)
         // Net of the hotel load, which keeps drawing while the vehicle is on the charger. The
         // battery refuses a charging rate that does not outpace it, so this is positive.
@@ -527,6 +528,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
         myNumChargingSessions?.increment()
         observeCharge()
         isCharging = false
+        system.refreshFleetCounts()
         system.emitVehicleState(this)
     }
 

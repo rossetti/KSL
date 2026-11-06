@@ -167,6 +167,33 @@ class WorkWhileChargingTest {
     }
 
     @Test
+    @DisplayName("a vehicle on a charger counts as charging, not idle")
+    fun theCountsSeparateChargingFromIdle() {
+        // 50 minutes on the charger and 8 on task, out of 200.
+        val s = run { Shop(it, askAt = 100.0) }
+        val charging = s.agv.numVehiclesCharging.withinReplicationStatistic.weightedAverage
+        val onTask = s.agv.numVehiclesOnTask.withinReplicationStatistic.weightedAverage
+        val idle = s.agv.numVehiclesIdle.withinReplicationStatistic.weightedAverage
+        val out = s.agv.numVehiclesOutOfService.withinReplicationStatistic.weightedAverage
+        assertEquals(50.0 / 200.0, charging, 1.0e-9)
+        assertEquals(8.0 / 200.0, onTask, 1.0e-9)
+        assertEquals(142.0 / 200.0, idle, 1.0e-9)
+        assertEquals(0.0, out, 0.0)
+    }
+
+    @Test
+    @DisplayName("the four counts add up to the fleet with work arriving during a charge")
+    fun theCountsPartitionTheFleet() {
+        val s = run { Shop(it, askAt = 10.0, secondCartAt = "A") }
+        val charging = s.agv.numVehiclesCharging.withinReplicationStatistic.weightedAverage
+        val onTask = s.agv.numVehiclesOnTask.withinReplicationStatistic.weightedAverage
+        val idle = s.agv.numVehiclesIdle.withinReplicationStatistic.weightedAverage
+        val out = s.agv.numVehiclesOutOfService.withinReplicationStatistic.weightedAverage
+        assertEquals(50.0 / 200.0, charging, 1.0e-9)
+        assertEquals(2.0, charging + onTask + idle + out, 1.0e-9)
+    }
+
+    @Test
     @DisplayName("a vehicle driving to a charger can still be turned round")
     fun aVehicleOnItsWayToTheChargerStaysAssignable() {
         val s = run { Shop(it, askAt = 1.0, firstCartAt = "B") }

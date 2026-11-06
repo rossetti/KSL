@@ -510,6 +510,10 @@ class RecoveryTest {
             total(recovered.cart.numChargingSessions!!) > 1.0,
             "the recovered vehicle charged only ${total(recovered.cart.numChargingSessions!!)} times"
         )
+        assertEquals(
+            0.0, mean(recovered.agv.numVehiclesCharging), 0.0,
+            "a vehicle recharged after running flat is out of service, not charging by choice"
+        )
         assertTrue(
             recovered.completions > 3 * abandoned.completions,
             "the recovered fleet delivered ${recovered.completions} loads against " +
@@ -686,9 +690,10 @@ class RecoveryTest {
             "a one-cart fleet spending sixty time units under repair after every second task was " +
                     "out of service for only $out of a vehicle on average"
         )
-        // The three counts partition the fleet at every instant, so their time-weighted averages
+        // The four counts partition the fleet at every instant, so their time-weighted averages
         // sum to the fleet size. That is what stops spare capacity being double-counted.
-        val total = mean(s.agv.numVehiclesOnTask) + mean(s.agv.numVehiclesIdle) + out
+        val total = mean(s.agv.numVehiclesOnTask) + mean(s.agv.numVehiclesIdle) + out +
+                mean(s.agv.numVehiclesCharging)
         assertEquals(
             1.0, total, 1.0e-9,
             "on task, idle and out of service averaged $total over a fleet of one"
