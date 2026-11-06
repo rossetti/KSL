@@ -36,34 +36,30 @@ AGV throughput benchmark - reference configuration, both paradigms
   OS                 : <os>
   processors         : <processors>
 
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 7 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [N] and waits for zone (NE.Zone1), which is held by (Cart3:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 15 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart3:Body) holds [S] and waits for zone (SW.Zone1), which is held by (Cart2:Body)
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 1 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart3:Body)
+  (Cart2:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart3:Body) -- behind a parked vehicle, after 0.0
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 2 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart3:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart1:Body)
+  (Cart3:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart1:Body) -- behind a parked vehicle, after 0.0
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 3 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart2:Body)
+  (Cart1:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart2:Body) -- behind a parked vehicle, after 0.0
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 4 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart3:Body)
+  (Cart2:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart3:Body) -- behind a parked vehicle, after 0.0
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 5 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart3:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart1:Body)
+  (Cart3:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart1:Body) -- behind a parked vehicle, after 0.0
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 6 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart3:Body)
+  (Cart2:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart3:Body) -- behind a parked vehicle, after 0.0
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 7 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart2:Body)
+  (Cart1:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart2:Body) -- behind a parked vehicle, after 0.0
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 9 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart3:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart1:Body)
+  (Cart3:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart1:Body) -- behind a parked vehicle, after 16.0
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 10 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart3:Body)
+  (Cart2:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart3:Body) -- behind a parked vehicle, after 0.0
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 12 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart3:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart1:Body)
+  (Cart3:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart1:Body) -- behind a parked vehicle, after 0.0
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 13 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart2:Body)
+  (Cart1:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart2:Body) -- behind a parked vehicle, after 0.0
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 15 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart2:Body)
+  (Cart1:Body) holds [SW.Zone10] and waits for zone (W), which is held by (Cart2:Body) -- behind a parked vehicle, after 0.0
 
 Full half-width summary reports for all six rules: <kslOutput>
 
@@ -81,7 +77,7 @@ Paired differences in time in system, NearestVehicle minus each rule
 (common random numbers, 15 replications, 95% intervals)
 
   rule                     difference   half-width  detectable?
-  FurthestVehicle             -15.348        0.527          yes
+  FurthestVehicle             -15.311        0.481          yes
   LeastUsed                    -9.180        0.528          yes
   BatchedWindow30            -829.573      112.995          yes
   ContractNetInstant            0.000        0.000           no
@@ -91,7 +87,7 @@ Paired differences in fleet imbalance, NearestVehicle minus each rule
 (common random numbers, 15 replications, 95% intervals)
 
   rule                     difference   half-width  detectable?
-  FurthestVehicle              23.667        3.550          yes
+  FurthestVehicle              24.600        3.261          yes
   LeastUsed                    59.467        4.430          yes
   BatchedWindow30              59.333        4.488          yes
   ContractNetInstant            0.000        0.000           no
@@ -132,26 +128,6 @@ A hospital on two floors - and no lift class anywhere in it
     most porters ever inside the shaft:             1
     porters seen using it:                   Porter1:Body, Porter2:Body, Porter3:Body
 
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 1 ended. The guide path may have stopped moving rather than run out of work.
-  (Porter2:Body) holds [GroundB.Zone6] and waits for zone (G3), which is held by (Porter1:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 2 ended. The guide path may have stopped moving rather than run out of work.
-  (Porter2:Body) holds [GroundB.Zone6] and waits for zone (G3), which is held by (Porter1:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 3 ended. The guide path may have stopped moving rather than run out of work.
-  (Porter2:Body) holds [GroundB.Zone6] and waits for zone (G3), which is held by (Porter1:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 1 transporter(s) were still waiting when replication 4 ended. The guide path may have stopped moving rather than run out of work.
-  (Porter2:Body) holds [GroundB.Zone6] and waits for zone (G3), which is held by (Porter1:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 2 transporter(s) were still waiting when replication 1 ended. The guide path may have stopped moving rather than run out of work.
-  (Porter4:Body) holds [GroundB.Zone6] and waits for zone (G3), which is held by (Porter3:Body)
-  (Porter6:Body) holds [GroundB.Zone3] and waits for zone (GroundB.Zone4), which is held by (Porter5:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 2 transporter(s) were still waiting when replication 2 ended. The guide path may have stopped moving rather than run out of work.
-  (Porter4:Body) holds [GroundB.Zone6] and waits for zone (G3), which is held by (Porter3:Body)
-  (Porter6:Body) holds [GroundB.Zone3] and waits for zone (GroundB.Zone4), which is held by (Porter5:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 2 transporter(s) were still waiting when replication 3 ended. The guide path may have stopped moving rather than run out of work.
-  (Porter4:Body) holds [GroundB.Zone6] and waits for zone (G3), which is held by (Porter3:Body)
-  (Porter6:Body) holds [GroundB.Zone3] and waits for zone (GroundB.Zone4), which is held by (Porter5:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Agv:Space): 2 transporter(s) were still waiting when replication 4 ended. The guide path may have stopped moving rather than run out of work.
-  (Porter4:Body) holds [GroundB.Zone6] and waits for zone (G3), which is held by (Porter3:Body)
-  (Porter6:Body) holds [GroundB.Zone3] and waits for zone (GroundB.Zone4), which is held by (Porter5:Body)
   Study 2: a slow lift - an 8 unit ride, 60 unit corridors, circuit 400
   a ride costs 8.0 time units, so the shaft passes at most 12.50 deliveries per 100
 
@@ -201,7 +177,7 @@ Re-tasking a cart in mid-journey - what the passive paradigm has no place for
 
 
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathTransportSystem (AgvSystem): 1 transporter(s) were still waiting when replication 8 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1) holds [Link3.Zone4] and waits for link (Spur)
+  (Cart1) holds [Link3.Zone4] and waits for link (Spur) -- behind a parked vehicle, after 45.679177864567464
 Half-Width Statistical Summary Report - Confidence Level (95.000)% 
 
 CartsSentHome 
@@ -362,144 +338,6 @@ A two-lane warehouse grid: 3 pick aisles and two cross-aisles,
 every span a pair of opposed one-way lanes. Pallets from the pick faces to one dock.
 10 replications of 5000 after a 1000 warm-up, arrivals every 3 -- above capacity on
 purpose, so that the building rather than the arrival stream is what limits the answer.
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 2 transporter(s) were still waiting when replication 2 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart3:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart4:Body)
-  (Cart4:Body) holds [T0-B0.Zone6] and waits for zone (B0), which is held by (Cart2:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 1 transporter(s) were still waiting when replication 5 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T1-T0.Zone2] and waits for zone (T0), which is held by (Cart4:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 1 transporter(s) were still waiting when replication 6 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone6] and waits for zone (B0), which is held by (Cart3:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 3 transporter(s) were still waiting when replication 1 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0] and waits for zone (T0-B0.Zone1), which is held by (Cart5:Body)
-  (Cart3:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart4:Body)
-  (Cart4:Body) holds [T0-B0.Zone6] and waits for zone (B0), which is held by (Cart2:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 1 transporter(s) were still waiting when replication 2 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart6:Body) holds [T0-B0.Zone6] and waits for zone (B0), which is held by (Cart1:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 1 transporter(s) were still waiting when replication 3 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 1 transporter(s) were still waiting when replication 4 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2:Body) holds [B0-T0.Zone6] and waits for zone (T0), which is held by (Cart1:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 1 transporter(s) were still waiting when replication 5 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 1 transporter(s) were still waiting when replication 6 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 2 transporter(s) were still waiting when replication 7 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-  (Cart6:Body) holds [T1] and waits for zone (T1-T0.Zone1), which is held by (Cart4:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 1 transporter(s) were still waiting when replication 8 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart3:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 2 transporter(s) were still waiting when replication 9 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart5:Body)
-  (Cart5:Body) holds [T0-B0.Zone6] and waits for zone (B0), which is held by (Cart3:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 2 transporter(s) were still waiting when replication 10 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart3:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart4:Body)
-  (Cart4:Body) holds [T0-B0.Zone6] and waits for zone (B0), which is held by (Cart6:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 4 transporter(s) were still waiting when replication 1 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart8:Body)
-  (Cart3:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart7:Body)
-  (Cart4:Body) holds [T0-B0.Zone1] and waits for zone (T0-B0.Zone2), which is held by (Cart1:Body)
-  (Cart7:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 4 transporter(s) were still waiting when replication 2 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart8:Body)
-  (Cart2:Body) holds [T0-T1.Zone2] and waits for zone (T1), which is held by (Cart7:Body)
-  (Cart7:Body) holds [T1] and waits for zone (T1-T0.Zone1), which is held by (Cart4:Body)
-  (Cart8:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 3 transporter(s) were still waiting when replication 3 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart4:Body)
-  (Cart6:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart8:Body)
-  (Cart8:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 3 transporter(s) were still waiting when replication 4 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2:Body) holds [T0-T1.Zone2] and waits for zone (T1), which is held by (Cart1:Body)
-  (Cart4:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart8:Body)
-  (Cart8:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 5 transporter(s) were still waiting when replication 5 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart7:Body)
-  (Cart3:Body) holds [T0-B0.Zone4] and waits for zone (T0-B0.Zone5), which is held by (Cart2:Body)
-  (Cart4:Body) holds [T1-T0.Zone2] and waits for zone (T0), which is held by (Cart6:Body)
-  (Cart5:Body) holds [T0-B0.Zone3] and waits for zone (T0-B0.Zone4), which is held by (Cart3:Body)
-  (Cart7:Body) holds [T0-B0.Zone6] and waits for zone (B0), which is held by (Cart1:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 3 transporter(s) were still waiting when replication 6 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart3:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-  (Cart5:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart3:Body)
-  (Cart8:Body) holds [T1] and waits for zone (T1-T0.Zone1), which is held by (Cart4:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 3 transporter(s) were still waiting when replication 7 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart8:Body)
-  (Cart4:Body) holds [T1] and waits for zone (T1-T0.Zone1), which is held by (Cart6:Body)
-  (Cart8:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 4 transporter(s) were still waiting when replication 8 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart3:Body) holds [T0-B0.Zone4] and waits for zone (T0-B0.Zone5), which is held by (Cart6:Body)
-  (Cart4:Body) holds [T0-B0.Zone6] and waits for zone (B0), which is held by (Cart5:Body)
-  (Cart6:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart4:Body)
-  (Cart8:Body) holds [T0-B0.Zone3] and waits for zone (T0-B0.Zone4), which is held by (Cart3:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 4 transporter(s) were still waiting when replication 9 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart3:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart2:Body)
-  (Cart6:Body) holds [T0-B0.Zone1] and waits for zone (T0-B0.Zone2), which is held by (Cart3:Body)
-  (Cart7:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-  (Cart8:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart7:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 3 transporter(s) were still waiting when replication 10 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-  (Cart2:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart7:Body)
-  (Cart4:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart1:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 7 transporter(s) were still waiting when replication 1 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone1] and waits for zone (T0-B0.Zone2), which is held by (Cart3:Body)
-  (Cart2:Body) holds [B0-T0.Zone6] and waits for zone (T0), which is held by (Cart6:Body)
-  (Cart3:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart5:Body)
-  (Cart4:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-  (Cart6:Body) holds [T0] and waits for zone (T0-B0.Zone1), which is held by (Cart1:Body)
-  (Cart7:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart4:Body)
-  (Cart9:Body) holds [B0-T0.Zone5] and waits for zone (B0-T0.Zone6), which is held by (Cart2:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 4 transporter(s) were still waiting when replication 2 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone3] and waits for zone (T0-B0.Zone4), which is held by (Cart9:Body)
-  (Cart3:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-  (Cart5:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart1:Body)
-  (Cart10:Body) holds [T0-B0.Zone1] and waits for zone (T0-B0.Zone2), which is held by (Cart5:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 4 transporter(s) were still waiting when replication 3 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-  (Cart3:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart9:Body)
-  (Cart7:Body) holds [T0-B0.Zone1] and waits for zone (T0-B0.Zone2), which is held by (Cart3:Body)
-  (Cart9:Body) holds [T0-B0.Zone3] and waits for zone (T0-B0.Zone4), which is held by (Cart8:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 7 transporter(s) were still waiting when replication 4 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart8:Body)
-  (Cart2:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart6:Body)
-  (Cart4:Body) holds [T0] and waits for zone (T0-B0.Zone1), which is held by (Cart9:Body)
-  (Cart5:Body) holds [T1-T0.Zone2] and waits for zone (T0), which is held by (Cart4:Body)
-  (Cart6:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-  (Cart9:Body) holds [T0-B0.Zone1] and waits for zone (T0-B0.Zone2), which is held by (Cart1:Body)
-  (Cart10:Body) holds [B0-T0.Zone6] and waits for zone (T0), which is held by (Cart4:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 4 transporter(s) were still waiting when replication 5 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart3:Body) holds [T0-B0.Zone3] and waits for zone (T0-B0.Zone4), which is held by (Cart6:Body)
-  (Cart5:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart3:Body)
-  (Cart8:Body) holds [T0-B0.Zone1] and waits for zone (T0-B0.Zone2), which is held by (Cart5:Body)
-  (Cart9:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 5 transporter(s) were still waiting when replication 6 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart8:Body)
-  (Cart6:Body) holds [T0-B0.Zone5] and waits for zone (T0-B0.Zone6), which is held by (Cart10:Body)
-  (Cart7:Body) holds [T0-B0.Zone1] and waits for zone (T0-B0.Zone2), which is held by (Cart2:Body)
-  (Cart9:Body) holds [T1-T0.Zone2] and waits for zone (T0), which is held by (Cart4:Body)
-  (Cart10:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 5 transporter(s) were still waiting when replication 7 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-T1.Zone2] and waits for zone (T1), which is held by (Cart7:Body)
-  (Cart2:Body) holds [T0-B0.Zone3] and waits for zone (T0-B0.Zone4), which is held by (Cart4:Body)
-  (Cart3:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart2:Body)
-  (Cart4:Body) holds [T0-B0.Zone4] and waits for zone (T0-B0.Zone5), which is held by (Cart10:Body)
-  (Cart5:Body) holds [B0-T0.Zone6] and waits for zone (T0), which is held by (Cart8:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 4 transporter(s) were still waiting when replication 8 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [T0-B0.Zone3] and waits for zone (T0-B0.Zone4), which is held by (Cart3:Body)
-  (Cart4:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-  (Cart6:Body) holds [B0-T0.Zone6] and waits for zone (T0), which is held by (Cart10:Body)
-  (Cart7:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart1:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 6 transporter(s) were still waiting when replication 9 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1:Body) holds [B0-T0.Zone6] and waits for zone (T0), which is held by (Cart3:Body)
-  (Cart2:Body) holds [B0-T0.Zone5] and waits for zone (B0-T0.Zone6), which is held by (Cart1:Body)
-  (Cart5:Body) holds [T0-B0.Zone6] and waits for link (B0-D)
-  (Cart8:Body) holds [T0-B0.Zone3] and waits for zone (T0-B0.Zone4), which is held by (Cart7:Body)
-  (Cart9:Body) holds [T0-B0.Zone2] and waits for zone (T0-B0.Zone3), which is held by (Cart8:Body)
-  (Cart10:Body) holds [T1-T0.Zone2] and waits for zone (T0), which is held by (Cart3:Body)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathSpace (Fleet:Space): 4 transporter(s) were still waiting when replication 10 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2:Body) holds [T0-B0.Zone4] and waits for zone (T0-B0.Zone5), which is held by (Cart4:Body)
-  (Cart3:Body) holds [T0] and waits for zone (T0-B0.Zone1), which is held by (Cart8:Body)
-  (Cart9:Body) holds [T1-T0.Zone2] and waits for zone (T0), which is held by (Cart3:Body)
-  (Cart10:Body) holds [T0-B0.Zone3] and waits for zone (T0-B0.Zone4), which is held by (Cart2:Body)
 ERROR k.m.guidedpath.GuidedPathSpace - Deadlock detected at time 729.7024109821692 among 6 transporters:
   Cart5:Body holds [T1] and awaits T1-T0.Zone1
   Cart3:Body holds [T1-T0.Zone1] and awaits T1-T0.Zone2
@@ -808,6 +646,7 @@ Agv:OutOfServiceQ:TimeInQ                                              	        
 Agv:NumVehiclesIdle                                                    	           20 	       0.2098 	       0.0169 
 Agv:NumVehiclesOnTask                                                  	           20 	       0.7902 	       0.0169 
 Agv:NumVehiclesOutOfService                                            	           20 	       0.0000 	       0.0000 
+Agv:NumVehiclesCharging                                                	           20 	       0.0000 	       0.0000 
 Agv:TimeAboard                                                         	           20 	      20.4000 	       0.0000 
 Agv:NumTasksNeverAssigned                                              	           20 	       1.1500 	       0.7166 
 Agv:NumEntitiesNeverResumed                                            	           20 	       1.9000 	       0.8303 
@@ -884,15 +723,6 @@ One shop, modelled two ways: Passive minus Active
   Delivered                    0.000000       0.000000             no
   TimeInSystem                 0.000000       0.000000             no
 
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathTransportSystem (AgvSystem): 1 transporter(s) were still waiting when replication 12 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1) holds [Link3.Zone4] and waits for link (Spur)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathTransportSystem (AgvSystem): 2 transporter(s) were still waiting when replication 13 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1) holds [Link3.Zone4] and waits for zone (I4), which is held by (Cart2)
-  (Cart2) holds [I4] and waits for zone (Link4.Zone1), which is held by (Spill)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathTransportSystem (AgvSystem): 1 transporter(s) were still waiting when replication 14 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart1) holds [Link3.Zone4] and waits for link (Spur)
-WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathTransportSystem (AgvSystem): 1 transporter(s) were still waiting when replication 18 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart2) holds [Link3.Zone4] and waits for link (Spur)
 Half-Width Statistical Summary Report - Confidence Level (95.000)% 
 
 SpillsAndMaintenance 
@@ -1111,7 +941,7 @@ A walker every 1.5 minutes, a cart dispatched every 4.0, and a zone is a minute.
 
   discipline            cart trips     walkers frac barred   mean wait    turns
 WARN  k.m.guidedpath.GuidedPathSpace - GuidedPathTransportSystem (Sys): 1 transporter(s) were still waiting when replication 1 ended. The guide path may have stopped moving rather than run out of work.
-  (Cart) holds [Aisle.Zone2] and waits for zone (Aisle.Zone3), which is held by (Walkway)
+  (Cart) holds [Aisle.Zone2] and waits for zone (Aisle.Zone3), which is held by (Walkway) -- a long wait, after 117.5
   PedestrianPriority             0          78       0.988        0.00        1
   VehiclePriority               15           0       0.000          --        0
   Alternating                   14          76       0.554        1.99        9
