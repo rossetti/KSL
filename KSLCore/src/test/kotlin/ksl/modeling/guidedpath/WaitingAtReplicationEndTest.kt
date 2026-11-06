@@ -159,6 +159,76 @@ class WaitingAtReplicationEndTest {
         assertTrue(short.queued().single().contains("a short wait, after 6.0"), short.queued().single())
     }
 
+    /** One crew hands the zone to the next every ten minutes, so the cart retries and loses each time. */
+    private class Relay(parent: ModelElement) : Bay(parent) {
+        val cart = GuidedTransporter(system, TransporterPlacement.At("A"), ConstantRV(12.0), 1, name = "Cart")
+
+        override fun initialize() {
+            val zone = network.zone("L1.Zone3")!!
+            var crew = Crew("Crew0")
+            at(0.0) { system.requestZones(crew, listOf(zone), log) }
+            at(10.0) { cart.sendTo("B") }
+            for (i in 2..9) {
+                at(i * 10.0) {
+                    system.releaseZones(crew)
+                    crew = Crew("Crew$i")
+                    system.requestZones(crew, listOf(zone), log)
+                }
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("a retry that fails doesn't restart the wait")
+    fun aFailedRetryKeepsTheWaitGoing() {
+        // blocked from 12, and the zone last changed hands at 90
+        val r = report(100.0) { Relay(it) }
+        assertEquals(emptyList(), r.queued())
+        assertTrue(r.warned().single().contains("a long wait, after 88.0"), r.warned().single())
+    }
+
+    /** The cart is sent again and again while a crew holds the zone in front of it. */
+    private class SentAgain(parent: ModelElement) : Bay(parent) {
+        val cart = GuidedTransporter(system, TransporterPlacement.At("A"), ConstantRV(12.0), 1, name = "Cart")
+
+        override fun initialize() {
+            at(0.0) { system.requestZones(Crew("Crew"), listOf(network.zone("L1.Zone3")!!), log) }
+            at(10.0) { cart.sendTo("B") }
+            for (i in 2..9) at(i * 10.0) { cart.sendTo("B") }
+        }
+    }
+
+    @Test
+    @DisplayName("being sent again while waiting doesn't restart the wait")
+    fun aRedirectKeepsTheWaitGoing() {
+        val r = report(100.0) { SentAgain(it) }
+        assertEquals(emptyList(), r.queued())
+        assertTrue(r.warned().single().contains("a long wait, after 88.0"), r.warned().single())
+    }
+
+    /** The cart gets past one crew, then stops at another. */
+    private class TwoCrews(parent: ModelElement) : Bay(parent) {
+        val cart = GuidedTransporter(system, TransporterPlacement.At("A"), ConstantRV(12.0), 1, name = "Cart")
+        val first = Crew("First")
+
+        override fun initialize() {
+            at(0.0) {
+                system.requestZones(first, listOf(network.zone("L1.Zone3")!!), log)
+                system.requestZones(Crew("Second"), listOf(network.zone("L1.Zone6")!!), log)
+            }
+            at(10.0) { cart.sendTo("B") }
+            at(50.0) { system.releaseZones(first) }
+        }
+    }
+
+    @Test
+    @DisplayName("entering a zone ends a wait, so the next one starts from zero")
+    fun enteringAZoneEndsTheWait() {
+        // Released at 50, then into zones 3, 4 and 5, and stopped at the crew in zone 6.
+        val r = report(100.0) { TwoCrews(it) }
+        assertTrue(r.warned().single().contains("a long wait, after 47.0"), r.warned().single())
+    }
+
     /** Two carts and a closure in a cycle, with the detector off so that the run reaches its end. */
     private class Cycle(parent: ModelElement) : ModelElement(parent, "Aisle") {
         val network: GuidedPathNetwork = GuidedPathNetwork.builder("Aisle")

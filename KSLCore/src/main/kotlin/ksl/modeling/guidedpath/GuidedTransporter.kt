@@ -408,8 +408,14 @@ class GuidedTransporter @JvmOverloads constructor(
                     myCumulativeBlockedTime += time - blockedSince
                 }
                 blockedSince = Double.NaN
+                // Going back to moving doesn't end the wait: that is a retry, and only entering a
+                // zone shows that it worked. Nor does standing down, if it is blocked again at the
+                // same instant: that is a redirect, and it is still waiting where it was.
+                if (value == TransporterState.IDLE) stoodDownAt = time
             } else if (field != TransporterState.BLOCKED && value == TransporterState.BLOCKED) {
                 blockedSince = time
+                if (waitingSince.isNaN() || stoodDownAt < time) waitingSince = time
+                stoodDownAt = Double.NaN
             }
             // The operating clock, kept the same way and for the same reason. It runs whenever the
             // transporter is anything other than idle -- moving, blocked, loading, unloading -- so
@@ -680,9 +686,21 @@ class GuidedTransporter @JvmOverloads constructor(
         get() = if (blockedSince.isNaN()) myCumulativeBlockedTime
         else myCumulativeBlockedTime + (time - blockedSince)
 
-    /** How long the block now in progress has lasted, which is zero when there isn't one. */
+    /**
+     * When the wait now in progress began. Unlike [blockedSince] it survives a retry that fails, so
+     * a transporter that keeps losing a zone to others is seen to have been waiting all along.
+     */
+    private var waitingSince: Double = Double.NaN
+
+    /** When a blocked transporter last stood down, or NaN if it hasn't since it was last blocked. */
+    private var stoodDownAt: Double = Double.NaN
+
+    /**
+     * How long this transporter has been waiting to get into its next zone, across any retries that
+     * failed. Zero when it isn't blocked.
+     */
     internal val currentWaitTime: Double
-        get() = if (blockedSince.isNaN()) 0.0 else time - blockedSince
+        get() = if (blockedSince.isNaN() || waitingSince.isNaN()) 0.0 else time - waitingSince
 
     // ---- odometers ------------------------------------------------------------------------------
     //
@@ -751,6 +769,7 @@ class GuidedTransporter @JvmOverloads constructor(
     /** Credits a completed traversal and closes it. Called first thing on entering the zone. */
     internal fun endTraversal() {
         myZonesEntered++
+        waitingSince = Double.NaN
         if (traversalStartedAt.isNaN()) return
         myCumulativeDistance += traversalDistance
         traversalDistance = 0.0
@@ -1082,6 +1101,8 @@ class GuidedTransporter @JvmOverloads constructor(
         // After the state, so that a transporter still blocked when the previous replication ended
         // leaves that state through the setter above before its running totals are cleared.
         blockedSince = Double.NaN
+        waitingSince = Double.NaN
+        stoodDownAt = Double.NaN
         myCumulativeBlockedTime = 0.0
         operatingSince = Double.NaN
         myCumulativeOperatingTime = 0.0
