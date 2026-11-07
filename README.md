@@ -198,16 +198,14 @@ To your build for the latest release. R1.8.2 needs Kotlin 2.4 or later in your p
 
 The full history lives in **[docs/release-notes.md](docs/release-notes.md)**, which covers two
 things released on separate cadences: the **library** (`KSLCore`, versioned R1.8.2, R1.8.1, R1.8, …) and
-the installable **suite** of applications and servers (versioned 0.4.3, 0.4.2, 0.4.1, …). A suite release
+the installable **suite** of applications and servers (versioned 0.4.4, 0.4.3, 0.4.2, …). A suite release
 does not imply a library release, or the reverse.
 
-**Current suite release — 0.4.3.** Vehicle models animate in the Animation app, web player and
-exported pages, with blocked and halted carts marked apart. Ships the ten-model Vehicle Examples
-bundle, lets the Simulation Optimization app declare indicator constraints, and fixes the KSL Server
-on machines with a `127.0.0.1 <name>` hosts entry. 0.4.1 and 0.4.2 fix two 0.4.0 problems: the stdio
-bridge sent MCP clients a line that was not protocol, and the KSL Server did not start after an update
-from 0.3.x; 0.4.2 also returns the book's numbered tables with their data, and 0.4.3 makes the tray's
-Quit stop the KSL Server on Windows. Built on KSLCore R1.7.1.
+**Current suite release — 0.4.4.** Built on KSLCore R1.8.2, so models run in the apps and servers gain
+its corrections and can give different results than in 0.4.3. Fixes discrete fits through the KSL
+Server, brings the (r, Q) inventory examples and the job shop agent example in line with the book, reads
+DECIMAL database columns in the Distribution app, and stops `ksl update` from reinstalling the version
+you already have.
 
 **Current library release — R1.8.2.** Corrective: fixes to antithetic replications, RANKED queues, blocking
 queues, statechart conditions, nearest-vehicle ties on guide paths and charging vehicles. Models that use any of

@@ -24,6 +24,38 @@ time, so it re-downloads the version you already have and reports success. Until
 updating means re-running the installer — and because the broken updater is the thing that
 would have to run, existing installs need that one re-run to reach the fix.
 
+## 0.4.4 — on KSLCore R1.8.2
+
+*7 November 2026.* Built on KSLCore **R1.8.2**, up from R1.7.1. The apps, servers and shipped examples gain the
+corrections in R1.8, R1.8.1 and R1.8.2, so models run in them can give different results than they did
+in 0.4.3: re-run rather than compare. The [library notes](#library-releases-kslcore) list what changed.
+
+**Every discrete fit through the KSL Server failed.** `fit_dataset` with `kind = DISCRETE`, and
+`fit_config` or `get_result` on a discrete fit, ended with "JsonNull is not a JsonObject". The fit
+itself completed; building the reply failed. Discrete fits now return their ranked candidates, the
+summary says they are ranked by the chi-squared p-value, and `get_fit_scoring` explains that MODA
+scoring is for continuous fits only.
+
+**The (r, Q) inventory examples did not match the book.** The chapter 7 and chapter 11 examples ran at
+unit costs, and the Book Examples bundle's RQInventorySystem ran at the model's own defaults, including
+a lead time of 10. They now use the book's demand, lead time and costs, and reproduce the book's
+values.
+
+**The job shop agent example stopped assigning work after 6 jobs.** A worker that finished a job
+answered calls whose bidding had closed, then waited for a decision that never came. Workers now skip
+those calls.
+
+**The Distribution app reads DECIMAL database columns as numbers.** Reading data from such a column failed.
+
+**`ksl update` reinstalled the version you already had.** It now says "already at" and stops before
+downloading. `ksl update --force` reinstalls, which also repairs a damaged install.
+
+**Textbook search covers the current book**, including its listings for R1.8.2.
+
+**Upgrading:** quit the KSL Server, then `ksl update`, or re-run the installer. The update to 0.4.4 is
+run by 0.4.3's `ksl`, so this update still downloads in full; the "already at" check works from the
+next update on.
+
 ## 0.4.3 — Quit stops the KSL Server on Windows
 
 *4 October 2026.* KSLCore is untouched by this release.
