@@ -21,8 +21,15 @@ package ksl.examples.general.bookbundle
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.Model
 import ksl.simulation.ModelBuilderIfc
+import ksl.utilities.random.rvariable.ConstantRV
+import ksl.utilities.random.rvariable.ExponentialRV
 
-/** Named, discoverable [ModelBuilderIfc] for the 'RQInventorySystem' book example. */
+/**
+ * Named, discoverable [ModelBuilderIfc] for the 'RQInventorySystem' book example: the (r, Q) model of
+ * the book's chapters 7 and 11, with its demand (3.6 per month), lead time (0.5 months) and costs
+ * (0.15 per order, 0.25 per unit per month held, 1.75 per unit per month back ordered). Without them
+ * the model runs at its own defaults, which are not the book's.
+ */
 class RQInventorySystemModelBuilder : ModelBuilderIfc {
     override fun build(
         modelConfiguration: Map<String, String>?,
@@ -31,7 +38,13 @@ class RQInventorySystemModelBuilder : ModelBuilderIfc {
         // Child element name ("RQInventory") must differ from the Model name;
         // the (R,Q) controls/responses live on its inner "RQInventory:Item".
         val model = Model("RQInventorySystem", autoCSVReports = false)
-        RQInventorySystem(model, reorderPt = 1, reorderQty = 2, name = "RQInventory")
+        val rqModel = RQInventorySystem(model, reorderPt = 1, reorderQty = 2, name = "RQInventory")
+        rqModel.initialOnHand = 0
+        rqModel.demandGenerator.setInitialEventTimeProcesses(ExponentialRV(1.0 / 3.6))
+        rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
+        rqModel.costPerOrder = 0.15
+        rqModel.unitHoldingCost = 0.25
+        rqModel.unitBackorderCost = 1.75
         model.lengthOfReplication = 20000.0
         model.lengthOfReplicationWarmUp = 10000.0
         model.numberOfReplications = 40

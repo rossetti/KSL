@@ -97,7 +97,10 @@ object BuildRQModel : ModelBuilderIfc {
         val model = Model("RQInventoryModel")
         val rqModel = RQInventorySystem(model, reorderPoint, reorderQty, "Inventory")
         rqModel.initialOnHand = 0
-        rqModel.demandGenerator.initialTimeBtwEvents = ExponentialRV(1.0 / 3.6)
+        rqModel.demandGenerator.setInitialEventTimeProcesses(ExponentialRV(1.0 / 3.6))
+        rqModel.costPerOrder = 0.15
+        rqModel.unitHoldingCost = 0.25
+        rqModel.unitBackorderCost = 1.75
         rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
         model.lengthOfReplication = 20000.0
         model.lengthOfReplicationWarmUp = 10000.0

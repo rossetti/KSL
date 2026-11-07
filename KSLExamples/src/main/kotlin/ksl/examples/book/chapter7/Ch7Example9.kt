@@ -17,8 +17,11 @@ fun test1() {
     val reorderQty = 2
     val rqModel = RQInventorySystem(m, reorderPoint, reorderQty, "RQ Inventory Model")
     rqModel.initialOnHand = 0
-    rqModel.demandGenerator.initialTimeBtwEvents = ExponentialRV(1.0 / 3.6, streamNum = 2)
+    rqModel.demandGenerator.setInitialEventTimeProcesses(ExponentialRV(1.0 / 3.6, streamNum = 2))
     rqModel.leadTime.initialRandomSource = ConstantRV(0.5)
+    rqModel.costPerOrder = 0.15
+    rqModel.unitHoldingCost = 0.25
+    rqModel.unitBackorderCost = 1.75
 
     m.lengthOfReplication = 110000.0
     m.lengthOfReplicationWarmUp = 10000.0
