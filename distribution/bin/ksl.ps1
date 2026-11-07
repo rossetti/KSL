@@ -6,6 +6,7 @@
 #   ksl install <id> [--from <zip>]   add one item (reuses the shared lib\)
 #   ksl uninstall <id>                remove one item
 #   ksl update [id] [--from <zip>]    refresh everything, or just one item
+#                     [--force]         reinstall even when already at the published version
 #   ksl refresh                       rebuild the Start-Menu shortcuts
 #
 # Two roots, deliberately separate (mirroring the macOS layout):
@@ -34,7 +35,9 @@ $manifest = Join-Path $support "manifest.json"
 # re-downloaded the version you already had, every time, and reported success.
 # Same URL install.ps1 uses; keep them together.
 $ownerRepo   = "rossetti/KSL"
-$manifestUrl = "https://raw.githubusercontent.com/$ownerRepo/main/manifest.json"
+# KSL_MANIFEST_URL, from the environment, stands in for the published manifest. It exists for tests;
+# users never set it.
+$manifestUrl = if ($env:KSL_MANIFEST_URL) { $env:KSL_MANIFEST_URL } else { "https://raw.githubusercontent.com/$ownerRepo/main/manifest.json" }
 
 function Say([string]$m) { Write-Host $m }
 function Die([string]$m) { Write-Host "ksl: $m"; exit 1 }
@@ -84,10 +87,11 @@ function EntryInfoFor([string]$id) {
 }
 
 # args: pull --from / -From out of the list, then dispatch on what's left
-$From = ""; $KeepConfig = $false; $Yes = $false; $pos = @()
+$From = ""; $KeepConfig = $false; $Yes = $false; $Force = $false; $pos = @()
 for ($i = 0; $i -lt $args.Count; $i++) {
     if ($args[$i] -eq "--from" -or $args[$i] -eq "-From") { $From = [string]$args[$i + 1]; $i++ }
     elseif ($args[$i] -eq "--keep-config") { $KeepConfig = $true }
+    elseif ($args[$i] -eq "--force") { $Force = $true }
     elseif ($args[$i] -eq "--yes" -or $args[$i] -eq "-y") { $Yes = $true }
     else { $pos += [string]$args[$i] }
 }
@@ -412,7 +416,26 @@ function RequireNoActiveProcesses([string]$target, [string]$what) {
     Die "quit the KSL Server (and any KSL apps), and restart Codex / Claude Desktop so their KSL bridges exit, then try again."
 }
 
+# A plain `ksl update` at the published version downloaded ~150 MB, reinstalled what was already
+# there, and said "updated". Say so and stop instead. --from and --force always proceed: a
+# same-version reinstall is also how a damaged install is repaired.
+function StopIfCurrent([string]$id) {
+    if ($From -or $Force) { return }
+    $mf = UpdateManifest
+    # Offline, the published version is unknown: carry on as before rather than claim it matches.
+    if ($mf -eq $manifest) { return }
+    $have = ""; $now = ""
+    try { $have = (Get-Content $manifest -Raw | ConvertFrom-Json).suite.version } catch {}
+    try { $now = (Get-Content $mf -Raw | ConvertFrom-Json).suite.version } catch {}
+    if (-not $have -or $have -ne $now) { return }
+    Say "already at $have, the published version; nothing to update."
+    $target = if ($id) { "$id " } else { "" }
+    Say "To reinstall it anyway (for example, to repair the install): ksl update $target--force"
+    exit 0
+}
+
 function CmdUpdate([string]$id) {
+    StopIfCurrent $id
     # Every check that can refuse the update runs BEFORE the download. SuiteZip fetches
     # ~150 MB, so guarding afterwards made a user who forgot to quit the server wait out a
     # full download to be told they should have quit it -- and an unknown id do the same for
@@ -489,6 +512,6 @@ switch ($cmd) {
     { $_ -in "uninstall", "remove" } { if (-not $arg1) { Die "usage: ksl uninstall <id> [--keep-config]" }; CmdUninstall $arg1 $KeepConfig }
     "unregister" { if (-not $arg1) { Die "usage: ksl unregister <id>" }; CmdUnregister $arg1 }
     "uninstall-suite" { CmdUninstallSuite $KeepConfig $Yes }
-    { $_ -in "help", "-h", "--help" } { Say "usage: ksl {list | install <id> | uninstall <id> [--keep-config] | unregister <id> | uninstall-suite --yes | update [id] | refresh} [--from <ksl-suite.zip>]" }
+    { $_ -in "help", "-h", "--help" } { Say "usage: ksl {list | install <id> | uninstall <id> [--keep-config] | unregister <id> | uninstall-suite --yes | update [id] [--force] | refresh} [--from <ksl-suite.zip>]" }
     default     { Die "unknown command: $cmd (try 'ksl list')" }
 }

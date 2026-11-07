@@ -124,7 +124,8 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
 3. **Verify the payload.**
 
    - **An update over an older install starts the server.** Installs the zip into a scratch folder,
-     plants an older release's jars, runs the real `ksl update --from` the zip, and requires
+     plants an older release's jars, runs the real `ksl update --from` the zip, checks that a plain
+     `ksl update` at the installed version stops with "already at", and requires
      `/health` to answer UP (macOS / Linux). 0.4.0 shipped without this and its server died on every
      updated install:
 
@@ -190,8 +191,10 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
    - **Windows:** the KSL Start Menu folder shows eight distinct shortcut icons, and the
      matching icon remains on the running window and taskbar.
    - **Linux:** each generated desktop entry has the matching menu icon and launches normally.
-   - On every available platform, run `ksl refresh`, a whole-suite `ksl update`, and one
-     individual app update; icons must remain correct after each entry point is rebuilt.
+   - On every available platform, run `ksl refresh`, a whole-suite `ksl update --force`, and one
+     individual app update with `--force`; icons must remain correct after each entry point is
+     rebuilt. From 0.4.4, a plain `ksl update` at the published version says "already at" and stops,
+     so without `--force` nothing is rebuilt.
    - **The KSL Server works end to end.** The suite ships `Servers/suite` (the **KSL Server**).
      Open **KSL Server** (Launchpad / Start Menu → KSL / applications menu) so its menu-bar /
      system-tray lamp turns green, choose **Open Console** — it opens at
@@ -219,7 +222,8 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
 - **Empty `sha256`** in the committed manifest is allowed — the installer just skips
   integrity verification. Stamping fills it so downloads are checked.
 - **`ksl update`** on an already-installed machine re-reads the manifest and pulls the
-  new zip; no reinstall needed.
+  new zip; no reinstall needed. From 0.4.4 it stops when the published version is already installed;
+  `ksl update --force` reinstalls it.
 - **Release publishing stays manual.** Steps 2–5 are not automated: the release bakes in the
   git-ignored `_book/` (see the prerequisite above), so a CI runner would silently ship an empty
   textbook unless it first renders `_book/` and guards on a non-zero chunk count. Until that's

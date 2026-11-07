@@ -40,6 +40,15 @@ cp "$OLD_JAR" "$SERVER/server-lib/$(basename "$OLD_JAR")"
 [ ! -e "$SUPPORT/lib/stale-from-an-earlier-release.jar" ] || fail "ksl update left a stale jar in lib/"
 [ ! -e "$SERVER/server-lib/$(basename "$OLD_JAR")" ] || fail "ksl update left a stale jar in server-lib/"
 
+# 1b. A plain `ksl update` when the published version is the one installed must say so and stop, not
+# download and reinstall it. The published manifest is stood in for by the installed one.
+out="$(KSL_MANIFEST_URL="file://$SUPPORT/manifest.json" "$KSL_HOME/bin/ksl" update 2>&1)" ||
+  fail "ksl update at the published version failed: $out"
+case "$out" in
+  *"already at "*) ;;
+  *) fail "ksl update at the published version did not stop: $out" ;;
+esac
+
 # 2. An update run by an OLDER bin/ksl prunes nothing in server-lib/, so the launcher must not load what
 # it finds there. Plant the old jar again and start the server: it has to come up.
 cp "$OLD_JAR" "$SERVER/server-lib/$(basename "$OLD_JAR")"

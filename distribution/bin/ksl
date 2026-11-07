@@ -6,6 +6,7 @@
 #   ksl install <id> [--from <zip>]   add one item (reuses the shared lib/)
 #   ksl uninstall <id>                remove one item
 #   ksl update [id] [--from <zip>]    refresh everything, or just one item
+#                     [--force]         reinstall even when already at the published version
 #   ksl refresh                       rebuild the double-clickable app entry points
 #
 # Two roots, deliberately separate:
@@ -34,7 +35,10 @@ TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 # re-downloaded the version you already had, every time, and reported success.
 # Same URL install.sh uses; keep them together.
 OWNER_REPO="rossetti/KSL"
-MANIFEST_URL="https://raw.githubusercontent.com/${OWNER_REPO}/main/manifest.json"
+# KSL_MANIFEST_URL, from the environment, stands in for the published manifest. It exists for the
+# update-over-old-install check, which points it at a local file; users never set it.
+KSL_MANIFEST_URL="${KSL_MANIFEST_URL:-}"
+MANIFEST_URL="${KSL_MANIFEST_URL:-https://raw.githubusercontent.com/${OWNER_REPO}/main/manifest.json}"
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'ksl: %s\n' "$*" >&2; exit 1; }
@@ -461,7 +465,28 @@ require_no_active_processes() {
   die "quit the KSL Server (and any KSL apps), and restart Codex / Claude Desktop so their KSL bridges exit, then try again."
 }
 
+# A plain `ksl update` at the published version downloaded ~150 MB, reinstalled what was already
+# there, and said "updated". Say so and stop instead. --from and --force always proceed: a
+# same-version reinstall is also how a damaged install is repaired.
+stop_if_current() {
+  { [ -n "$FROM" ] || [ -n "${FORCE:-}" ]; } && return 0
+  local mf have now
+  # Called directly, not in $(...), so the choice it caches holds for the rest of the update and
+  # the offline notice is printed once.
+  update_manifest >/dev/null
+  mf="$UPDATE_MANIFEST"
+  # Offline, the published version is unknown: carry on as before rather than claim it matches.
+  [ "$mf" = "$MANIFEST" ] && return 0
+  have="$(suite_version_of "$MANIFEST")"
+  now="$(suite_version_of "$mf")"
+  { [ -n "$have" ] && [ "$have" = "$now" ]; } || return 0
+  say "already at $have, the published version; nothing to update."
+  say "To reinstall it anyway (for example, to repair the install): ksl update ${1:+$1 }--force"
+  exit 0
+}
+
 cmd_update() {
+  stop_if_current "${1:-}"
   # Every check that can refuse the update runs BEFORE the download. suite_zip fetches
   # ~150 MB, so guarding afterwards made a user who forgot to quit the server wait out a
   # full download to be told they should have quit it -- and an unknown id do the same for
@@ -526,7 +551,7 @@ cmd_update() {
 
 # pull --from out of the args, then dispatch
 A=()
-while [ $# -gt 0 ]; do case "$1" in --from) FROM="${2:-}"; shift 2 ;; --keep-config) KEEP_CONFIG=1; shift ;; --yes|-y) YES=1; shift ;; *) A+=("$1"); shift ;; esac; done
+while [ $# -gt 0 ]; do case "$1" in --from) FROM="${2:-}"; shift 2 ;; --force) FORCE=1; shift ;; --keep-config) KEEP_CONFIG=1; shift ;; --yes|-y) YES=1; shift ;; *) A+=("$1"); shift ;; esac; done
 set -- ${A[@]+"${A[@]}"}
 cmd="${1:-list}"; [ $# -gt 0 ] && shift || true
 case "$cmd" in
@@ -537,6 +562,6 @@ case "$cmd" in
   uninstall-suite)  cmd_uninstall_suite ;;
   update)           cmd_update "${1:-}" ;;
   refresh)          cmd_refresh ;;
-  help|-h|--help)   say "usage: ksl {list | install <id> | uninstall <id> [--keep-config] | unregister <id> | uninstall-suite --yes | update [id] | refresh} [--from <ksl-suite.zip>]" ;;
+  help|-h|--help)   say "usage: ksl {list | install <id> | uninstall <id> [--keep-config] | unregister <id> | uninstall-suite --yes | update [id] [--force] | refresh} [--from <ksl-suite.zip>]" ;;
   *) die "unknown command: $cmd (try 'ksl list')" ;;
 esac
