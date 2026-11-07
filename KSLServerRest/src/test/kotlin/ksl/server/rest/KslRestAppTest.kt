@@ -173,6 +173,15 @@ class KslRestAppTest {
             }
             assertEquals(HttpStatusCode.OK, fit.status)
             assertTrue("datasetName" in fit.bodyAsText())
+
+            // A discrete fit too: nothing covered this path, and the MCP server failed on every one.
+            val counts = listOf(3,6,4,6,2,4,3,3,8,10,9,3,1,6,8,9,8,7,3,5,4,3,1,4,2,4,8,7,2,2,4,4,3,4,3,5,1,6,7,6,6,4,5,8,7,4,2,6,3,10,3,1,8,6,5,2,6,5,3,7,9,4,6,3,9,5,10,4,1,5,9,4,3,6,8,6,4,9,7,8,5,4,9,7,3,7,4,8,6,4,5,5,4,3,2,11,6,2,8,3).map { it.toDouble() }
+            val discrete = client.post("/fits") {
+                contentType(ContentType.Application.Json)
+                setBody(FitRequest(data = counts, name = "arrivals", kind = "DISCRETE"))
+            }
+            assertEquals(HttpStatusCode.OK, discrete.status, discrete.bodyAsText())
+            assertTrue("\"DISCRETE\"" in discrete.bodyAsText().replace(" ", ""), discrete.bodyAsText())
         } finally {
             service.close()
             registry.close()

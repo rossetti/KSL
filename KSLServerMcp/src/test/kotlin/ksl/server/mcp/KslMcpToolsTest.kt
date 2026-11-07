@@ -47,6 +47,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -528,6 +529,43 @@ class KslMcpToolsTest {
         } finally {
             java.nio.file.Files.deleteIfExists(rFile)
         }
+    }
+
+    @Test
+    fun `fit_dataset fits discrete data`() = runBlocking {
+        // 100 Poisson(5) counts. Every discrete fit used to fail while the reply was built: the fields
+        // a discrete fit leaves out (scoring, each candidate's MODA numbers) are stored as explicit
+        // JSON nulls, and the summary cast them to objects.
+        val counts = intArrayOf(3,6,4,6,2,4,3,3,8,10,9,3,1,6,8,9,8,7,3,5,4,3,1,4,2,4,8,7,2,2,4,4,3,4,3,5,1,6,7,6,6,4,5,8,7,4,2,6,3,10,3,1,8,6,5,2,6,5,3,7,9,4,6,3,9,5,10,4,1,5,9,4,3,6,8,6,4,9,7,8,5,4,9,7,3,7,4,8,6,4,5,5,4,3,2,11,6,2,8,3)
+        val result = tools.fitDataset(buildJsonObject {
+            putJsonArray("data") { counts.forEach { add(it.toDouble()) } }
+            put("name", "arrivals")
+            put("kind", "DISCRETE")
+        })
+        assertEquals(false, result.isError ?: false, "discrete fit failed: ${firstText(result)}")
+        val text = firstText(result)
+        assertTrue("best chi-squared p-value" in text, "the recommendation names its basis: $text")
+        assertTrue("top MODA score" !in text && "get_fit_scoring" !in text, "no MODA wording for a discrete fit: $text")
+
+        // structuredContent matches the fit outputSchema: a field that does not apply is absent, not null.
+        val sc = structured(result)
+        assertEquals("DISCRETE", sc["kind"]!!.jsonPrimitive.content)
+        assertNull(sc["scoring"], "a discrete fit has no MODA scoring, so the key is absent")
+        val fits = sc["fits"]!!.jsonArray
+        assertTrue(fits.isNotEmpty(), "expected candidate fits")
+        fits.forEach { f ->
+            assertTrue(f.jsonObject.values.none { it is JsonNull }, "a fit carries no null fields: $f")
+            assertNull(f.jsonObject["weightedValue"], "no MODA value on a discrete candidate")
+        }
+        assertNotNull(fits.first().jsonObject["chiSquaredPValue"], "the discrete ranking basis is present")
+
+        // The same projection is returned by id, and get_fit_scoring gives its intended message.
+        val resultId = sc["resultId"]!!.jsonPrimitive.content
+        val again = tools.getResult(buildJsonObject { put("resultId", resultId) })
+        assertEquals(false, again.isError ?: false, firstText(again))
+        val scoring = tools.getFitScoring(buildJsonObject { put("resultId", resultId) })
+        assertEquals(true, scoring.isError, firstText(scoring))
+        assertTrue("continuous fits only" in firstText(scoring), firstText(scoring))
     }
 
     @Test

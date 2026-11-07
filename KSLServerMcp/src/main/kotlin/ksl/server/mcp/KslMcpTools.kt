@@ -2411,27 +2411,44 @@ class KslMcpTools(
         buildJsonObject {
             put("resultId", cached.stored.resultId)
             put("cached", cached.fromCache)
-            // The full fit payload (datasetName, kind, fits[...], recommendedFamilyId, …).
-            cached.stored.payload.jsonObject.forEach { (k, v) -> put(k, v) }
+            // The full fit payload (datasetName, kind, fits[...], recommendedFamilyId, …). The payload is
+            // stored with explicit nulls, and a field that does not apply to this kind of fit (scoring, and
+            // weightedValue on each candidate, for a discrete fit) would otherwise arrive as null where the
+            // outputSchema declares an object or a number. Leaving it out is what the schema allows.
+            cached.stored.payload.jsonObject.forEach { (k, v) ->
+                when {
+                    v is JsonNull -> {}
+                    k == "fits" && v is JsonArray -> put(k, JsonArray(v.map { (it as? JsonObject)?.withoutNulls() ?: it }))
+                    else -> put(k, v)
+                }
+            }
         }
+
+    private fun JsonObject.withoutNulls(): JsonObject = JsonObject(filterValues { it !is JsonNull })
 
     /** A complete summary of a distribution fit: the recommendation plus the full ranked candidates. */
     /** A complete fit summary: the recommendation + the MODA-ranked candidates (scaled MODA score + GOF). */
     private fun fitSummary(cached: CachedResult): String {
         val p = cached.stored.payload.jsonObject
+        // A discrete fit has no MODA scoring: its candidates are ranked by the chi-squared p-value, and
+        // the fields that do not apply are stored as explicit nulls, so every read below tolerates one.
+        val discrete = p.str("kind") == "DISCRETE"
         return buildString {
             appendLine("Distribution fit ${cached.stored.resultId}${if (cached.fromCache) " (cached)" else ""} — dataset: ${p.str("datasetName")}")
-            p["recommendedFamilyId"]?.jsonPrimitive?.contentOrNull?.let { appendLine("Recommended: $it (top MODA score)") }
-            p["scoring"]?.jsonObject?.let {
+            p["recommendedFamilyId"]?.jsonPrimitive?.contentOrNull?.let {
+                appendLine("Recommended: $it (${if (discrete) "best chi-squared p-value" else "top MODA score"})")
+            }
+            (p["scoring"] as? JsonObject)?.let {
                 appendLine("Ranked by MODA (${it.str("rankingMethod")}) over weighted metrics — full scaled-scores matrix via get_fit_scoring.")
             }
+            if (discrete) appendLine("Ranked by the chi-squared goodness-of-fit p-value, highest first.")
             appendLine()
             appendLine("| Rank | Family | MODA score | Avg rank | Parameters | GOF stat | p-value |")
             appendLine("|---|---|---|---|---|---|---|")
             p["fits"]?.jsonArray?.forEach { f ->
                 val o = f.jsonObject
-                val gof = o["goodnessOfFit"]?.jsonObject
-                val params = o["parameters"]?.jsonObject?.entries
+                val gof = o["goodnessOfFit"] as? JsonObject
+                val params = (o["parameters"] as? JsonObject)?.entries
                     ?.joinToString(", ") { "${it.key}=${it.value.jsonPrimitive.contentOrNull}" } ?: ""
                 appendLine(
                     "| ${o.str("rank")} | ${o.str("familyId")} | ${o.str("weightedValue")} | ${o.str("averageRanking")} | " +
@@ -2439,8 +2456,11 @@ class KslMcpTools(
                 )
             }
             appendLine()
-            append("Next steps: render the full report (get_fit_report) · see the MODA scoring matrix " +
-                "(get_fit_scoring) · use the recommended distribution (its family + parameters) as a model input.")
+            append(
+                "Next steps: render the full report (get_fit_report) · " +
+                    (if (discrete) "" else "see the MODA scoring matrix (get_fit_scoring) · ") +
+                    "use the recommended distribution (its family + parameters) as a model input.",
+            )
         }.trimEnd()
     }
 
@@ -2452,7 +2472,7 @@ class KslMcpTools(
     fun getFitScoring(arguments: JsonObject?): CallToolResult {
         val id = arguments.string("resultId") ?: return error("missing required argument 'resultId'")
         val stored = resultStore.get(id) ?: return error("no retained result '$id'")
-        val scoring = stored.payload.jsonObject["scoring"]?.jsonObject
+        val scoring = stored.payload.jsonObject["scoring"] as? JsonObject
             ?: return error("result '$id' has no MODA scoring (continuous fits only)")
         return result(fitScoringSummary(scoring), scoring)
     }

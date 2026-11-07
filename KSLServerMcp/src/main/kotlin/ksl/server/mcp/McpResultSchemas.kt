@@ -734,7 +734,11 @@ internal object McpResultSchemas {
                         }
                         putJsonObject("averageRanking") {
                             put("type", "number")
-                            put("description", "Average rank across the MODA metrics.")
+                            put("description", "Average rank across the MODA metrics (continuous fits).")
+                        }
+                        putJsonObject("chiSquaredPValue") {
+                            put("type", "number")
+                            put("description", "Chi-squared goodness-of-fit p-value — the ranking basis (discrete fits).")
                         }
                         putJsonObject("parameters") { put("type", "object") }
                         putJsonObject("goodnessOfFit") { put("type", "object"); put("description", "Statistic(s) + p-value(s).") }
