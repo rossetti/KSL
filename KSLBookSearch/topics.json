@@ -922,7 +922,7 @@
     "producer consumer pattern",
     "queue capacity blocking"
   ],
-  "allowing-entities-to-wait-for-a-process": [
+  "allowing-entities-to-wait-for-processes": [
     "waitFor process function",
     "run blocking analogy",
     "spawning a subprocess",
@@ -2016,14 +2016,6 @@
     "order statistics plotting",
     "visual goodness of fit",
     "empirical vs theoretical quantiles"
-  ],
-  "sec-appidms2sb3": [
-    "arena input analyzer",
-    "fit distribution with arena",
-    "square error criterion",
-    "pharmacy service time fitting",
-    "input analyzer histogram",
-    "arena fit all option"
   ],
   "sec-appdistfittestU01": [
     "testing random number generators",
