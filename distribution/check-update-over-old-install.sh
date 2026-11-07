@@ -20,6 +20,10 @@ fail() { echo "checkUpdateOverOldInstall: FAILED: $*" >&2; exit 1; }
 
 rm -rf "$SCRATCH"
 mkdir -p "$SCRATCH"
+# The install below runs from the repository root, so a relative path would resolve against the wrong
+# directory. Make all three absolute while they still resolve against the caller's.
+absolute() { echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"; }
+ZIP="$(absolute "$ZIP")" SCRATCH="$(absolute "$SCRATCH")" OLD_JAR="$(absolute "$OLD_JAR")"
 export KSL_HOME="$SCRATCH/KSL" KSLWORK="$SCRATCH/KSLWork"
 SUPPORT="$KSL_HOME/.support"
 SERVER="$SUPPORT/Servers/suite"
