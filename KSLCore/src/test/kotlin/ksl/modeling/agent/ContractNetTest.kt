@@ -252,14 +252,16 @@ class ContractNetTest {
         model.simulate()
 
         // With arrival mean 8 and a 500-unit run, we expect roughly 60 jobs.
-        // The smoke test just confirms the model ran and at least one job
-        // was successfully assigned.
+        // Nearly all should be assigned: a worker that bid late on a closed
+        // round used to wait forever for a decision, and assignments stopped
+        // at 6 at every run length.
         // The dispatcher is now rebuilt per replication (a KSLProcess is one-shot),
         // so this reads the last replication's dispatcher.
         val dispatcher = checkNotNull(sys.dispatcher) { "initialize() creates the dispatcher" }
+        val offered = dispatcher.jobsAssigned + dispatcher.jobsUnassigned
         assertTrue(
-            dispatcher.jobsAssigned > 0,
-            "JobShopExample should assign at least one job; got ${dispatcher.jobsAssigned}"
+            dispatcher.jobsAssigned >= 0.9 * offered,
+            "JobShopExample assigned only ${dispatcher.jobsAssigned} of $offered jobs"
         )
     }
 }

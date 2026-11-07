@@ -23,6 +23,7 @@ import ksl.modeling.agent.VoxelProjection
 import ksl.modeling.agent.alignment
 import ksl.modeling.agent.cohesion
 import ksl.modeling.agent.contractNet
+import ksl.modeling.agent.receiveMessageOfType
 import ksl.modeling.agent.nonNegative
 import ksl.modeling.agent.positive
 import ksl.modeling.agent.probability
@@ -288,6 +289,23 @@ private object AgentGuideSnippets {
                     selectBest = { ps -> ps.minByOrNull { it.proposal.priceCents } },
                 )
                 outcome?.winner?.let { /* award the job */ }
+            }
+        }
+    }
+
+    // -- Contract-Net: a busy bidder skips a call whose round has closed --
+
+    class LateCallModel(parent: ModelElement) : AgentModel(parent) {
+        data class Job(val id: Int, val createdAt: Double)
+
+        val bidDeadline = 0.5
+
+        inner class Worker(aName: String) : Agent(aName) {
+            val behavior: KSLProcess = process(isDefaultProcess = true) {
+                while (true) {
+                    val cfp = receiveMessageOfType<AgentMessage.Request<Job>, AgentMessage>(mailbox)
+                    if (currentTime - cfp.payload.createdAt >= bidDeadline) continue
+                }
             }
         }
     }

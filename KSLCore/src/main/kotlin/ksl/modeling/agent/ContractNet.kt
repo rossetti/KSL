@@ -64,7 +64,11 @@ fun nextConversationId(prefix: String = "cnp"): String =
  *  The winner is sent [AgentMessage.Accept]; every other agent that
  *  proposed is sent [AgentMessage.Reject]. Proposals that arrive after
  *  the reservation is released (e.g. after the deadline) are not
- *  collected and flow to the initiator's mailbox normally.
+ *  collected and flow to the initiator's mailbox normally. Such a bidder
+ *  is sent neither an Accept nor a Reject, so one that waits for the
+ *  decision after proposing waits forever. A bidder that can be busy when
+ *  a call arrives (in a `delay`, say) should skip a call whose deadline
+ *  has passed rather than answer it.
  *
  *  Returns the [ContractNetOutcome] for the winner, or `null` if no
  *  bidder proposed, or if [selectBest] returned `null`.

@@ -684,6 +684,18 @@ The helper reserves the initiator's mailbox for the conversation
 before broadcasting, so a `onMessage<Propose>` handler elsewhere on
 the same mailbox can't consume bids out from under it.
 
+A proposal that arrives after the deadline is not collected, and its
+sender is sent neither an `Accept` nor a `Reject`. A bidder that
+proposes and then waits for the decision therefore waits forever if it
+answered late, which happens to a process-based bidder that was busy in
+a `delay` when the call arrived. Have such a bidder skip a call whose
+deadline has passed, as `JobShopExample` and `WarehouseAGVExample` do:
+
+```kotlin
+val cfp = receiveMessageOfType<AgentMessage.Request<Job>, AgentMessage>(mailbox)
+if (currentTime - cfp.payload.createdAt >= bidDeadline) continue
+```
+
 ### ...protect a multi-message conversation
 
 `withReservation` is the mechanism Contract-Net uses, available for

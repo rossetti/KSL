@@ -111,6 +111,12 @@ class JobShopExample(parent: ModelElement, name: String? = null) : AgentModel(pa
                 // Wait for a CFP.
                 val cfp = receiveMessageOfType<AgentMessage.Request<Job>, AgentMessage>(mailbox)
 
+                // A call that arrived while this worker was serving a job may belong to
+                // a round that has closed. Skip it without bidding: contractNet answers
+                // only the proposals it collected before the deadline, so a late bid
+                // would wait forever for an Accept or Reject.
+                if (currentTime - cfp.payload.createdAt >= bidDeadline) continue
+
                 // Bid: estimate total queue time + service time at our rate.
                 val estimated = (backlog + 1) * cfp.payload.workNeeded / serviceRate
                 sendMessage(
