@@ -62,6 +62,7 @@ internal enum class ResumeSource(val mayResumeDelay: Boolean = false) {
     WAIT_FOR_CALLED_PROCESS,
     SUSPENSION_OBJECT,
     BLOCKAGE_END,
+    TIMEOUT,
     UNKNOWN_INTERNAL
 }
 
@@ -4116,6 +4117,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  This makes the priority slightly higher than VERY_VERY_HIGH.
          */
         const val RELEASE_PRIORITY : Int = KSLEvent.VERY_HIGH_PRIORITY - 9
+
+        /**
+         *  The default priority of the timer that ends a wait with a time limit when nothing else has.
+         *  It is KSLEvent.LOW_PRIORITY - 1: after events at the default priority and after yields, and
+         *  before warm-up and the end of the replication. So an event at the deadline that would end the
+         *  wait does so, by default, before the timer runs out.
+         */
+        const val TIMEOUT_PRIORITY : Int = KSLEvent.LOW_PRIORITY - 1
 
         /**
          *  The default priority for interrupt delays. The default is KSLEvent.MEDIUM_PRIORITY

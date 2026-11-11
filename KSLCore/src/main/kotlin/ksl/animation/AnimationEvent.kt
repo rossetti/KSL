@@ -311,6 +311,18 @@ sealed class AnimationEvent {
         val signalName: String
     ) : AnimationEvent()
 
+    /**
+     * A wait with a time limit ended because the time ran out, before anything it was waiting for
+     * happened. The entity continues its process at this time.
+     */
+    @Serializable
+    @SerialName("WaitTimedOut")
+    data class WaitTimedOut(
+        override val simTime: Double,
+        val entityId: Long,
+        val suspensionName: String?
+    ) : AnimationEvent()
+
     // ──────────────────────────────────────────────────────────────────────
     //  Spatial movement (process view)
     // ──────────────────────────────────────────────────────────────────────
@@ -1097,6 +1109,7 @@ internal val AnimationEvent.entityIdOrNull: Long?
         is AnimationEvent.HoldReleased -> entityId
         is AnimationEvent.WaitingForSignal -> entityId
         is AnimationEvent.SignalReceived -> entityId
+        is AnimationEvent.WaitTimedOut -> entityId
         is AnimationEvent.MoveStarted -> entityId
         is AnimationEvent.MoveCompleted -> entityId
         is AnimationEvent.ConveyorAccessRequested -> entityId
