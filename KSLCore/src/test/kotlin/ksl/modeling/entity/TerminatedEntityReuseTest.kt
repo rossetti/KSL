@@ -61,6 +61,7 @@ private fun entityStateName(e: ProcessModel.Entity): String = when {
     e.isWaitingForProcess -> "WaitForProcess"
     e.isBlockedUntilCompletion -> "BlockedUntilCompletion"
     e.isWaitingForBatch -> "WaitingForBatch"
+    e.isWaitingForFirst -> "WaitingForFirst"
     else -> "Unknown"
 }
 
@@ -230,6 +231,21 @@ class TerminatedEntityReuseTest {
     @DisplayName("H-15 matrix 4: terminated waiting for a signal")
     fun terminatedWaitingForSignalIsReusable() {
         assertReleasedAndReusable(run("h15signal") { SignalRow(it) }, "WaitingForSignal")
+    }
+
+    // ── Timed wait on a suspension ──────────────────────────────────────────
+
+    private class TimedSuspensionRow(parent: ModelElement) : ReuseHarness(parent) {
+        override val body: suspend KSLProcessBuilder.() -> Unit = { suspendForOrTimeout(subject.suspension, 50.0) }
+    }
+
+    @Test
+    @DisplayName("terminated in a timed wait on a suspension; its timer does not reach the fresh process")
+    fun terminatedInTimedSuspensionIsReusable() {
+        val m = run("timedSuspension") { TimedSuspensionRow(it) }
+        // A timed wait on a suspension reports what suspendFor reports: active, suspended as SUSPEND.
+        assertReleasedAndReusable(m, "Active")
+        assertNull(m.subject.myWaitGroup)
     }
 
     // ── Row 5 · blocked sending ─────────────────────────────────────────────

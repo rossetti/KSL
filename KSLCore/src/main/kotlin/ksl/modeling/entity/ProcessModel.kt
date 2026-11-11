@@ -638,6 +638,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private val myBlockedSendingState = BlockedSending()
         private val myWaitForProcessState = WaitForProcess()
         private val myBlockedUntilCompletion = BlockedUntilCompletion()
+        private val myWaitingForFirstState = WaitingForFirst()
         private var state: EntityState = myCreatedState
 
         /**
@@ -691,6 +692,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             get() = state == myWaitingForBatchState
 
         /**
+         *  True while the entity waits for the first of several things with `waitForFirst`. A wait for
+         *  one thing reports the state of that thing's own wait instead.
+         */
+        val isWaitingForFirst: Boolean
+            get() = state == myWaitingForFirstState
+
+        /**
          * If the entity is in a HoldQueue return the queue
          */
         fun holdQueue(): HoldQueue? {
@@ -719,7 +727,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     return myCurrentProcess!!.isSuspended
                 }
                 return isScheduled || isWaitingForSignal || isInHoldQueue || isWaitingForResource
-                        || isBlockedSending || isBlockedReceiving || isWaitingForProcess
+                        || isBlockedSending || isBlockedReceiving || isWaitingForProcess || isWaitingForFirst
             }
 
         var currentSuspendName: String? = null
@@ -740,6 +748,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         private var myDelayInterrupted: Boolean = false
 
         private val myResumeAction = ResumeAction()
+
+        private val myTimeoutAction = TimeoutAction()
+
+        /**
+         *  The wait with a time limit, or for the first of several things, that the entity is in; null
+         *  otherwise. Set before the entity suspends and cleared on every exit from the wait.
+         */
+        internal var myWaitGroup: WaitGroup? = null
+
+        /**
+         *  True when the entity's process is suspended and may be resumed with resumeProcess(): it is
+         *  not in a wait with a time limit or for the first of several things, which must be ended
+         *  through one of the things it waits for.
+         */
+        val canResumeProcess: Boolean
+            get() = isSuspended && myWaitGroup == null
 
         private var myCurrentProcess: ProcessCoroutine? = null // track the currently executing process
         val currentProcess: KSLProcess?
@@ -1068,6 +1092,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  scheduled resumption events, if multiple events are scheduled at the same time
          */
         fun resumeProcess(timeUntilResumption: Double = 0.0, priority: Int = RESUME_PRIORITY) {
+            check(myWaitGroup == null) {
+                "Entity ${name} (id = $id) is in a wait with a time limit, or for the first of several things " +
+                    "(suspension name = ${myWaitGroup?.suspensionName}). Such a wait cannot be ended by resumeProcess(); " +
+                    "end it through one of the things it waits for, or let its time limit run out. " +
+                    "Check canResumeProcess before calling resumeProcess()."
+            }
             scheduleResumeProcess(
                 timeUntilResumption = timeUntilResumption,
                 priority = priority,
@@ -1194,6 +1224,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = $id : ResumeAction : before immediateResume() : intent = $intent" }
                 immediateResume()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = $id : ResumeAction : after immediateResume() : intent = $intent" }
+            }
+        }
+
+        /**
+         *  The timer of a wait with a time limit. It claims the wait only if the entity is still in the
+         *  wait the timer was set for, so a timer left from a wait that has ended does nothing.
+         */
+        private inner class TimeoutAction : EventAction<WaitGroup>() {
+            override fun action(event: KSLEvent<WaitGroup>) {
+                val group = event.message ?: return
+                if (myWaitGroup !== group) {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > TIMEOUT IGNORED : event_id = ${event.id} : entity_id = $id : the wait it was set for has ended" }
+                    return
+                }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : TIMEOUT : event_id = ${event.id} : entity_id = $id : suspension name = ${group.suspensionName}" }
+                group.claim(null, null, ResumeSource.TIMEOUT, RESUME_PRIORITY)
             }
         }
 
@@ -1603,6 +1649,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 errorMessage("block until the process is completed")
             }
 
+            open fun waitForFirst() {
+                errorMessage("wait for the first of several things for the entity")
+            }
+
             private fun errorMessage(message: String) {
                 val sb = StringBuilder()
                 sb.appendLine()
@@ -1678,6 +1728,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             override fun blockUntilCompletion() {
                 state = myBlockedUntilCompletion
+            }
+
+            override fun waitForFirst() {
+                state = myWaitingForFirstState
             }
         }
 
@@ -1780,6 +1834,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         private inner class BlockedUntilCompletion : EntityState("BlockedUntilCompletion") {
+            override fun activate() {
+                state = myActiveState
+            }
+
+            override fun processEnded() {
+                state = myProcessEndedState
+            }
+        }
+
+        private inner class WaitingForFirst : EntityState("WaitingForFirst") {
             override fun activate() {
                 state = myActiveState
             }
@@ -1999,6 +2063,144 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) resumed from suspension named: $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
+            }
+
+            private fun requireTimeout(timeout: Double) {
+                require(!timeout.isNaN() && timeout >= 0.0) {
+                    "The timeout of a wait must be zero or more (or infinite, for no time limit); it was $timeout."
+                }
+            }
+
+            override suspend fun suspendForOrTimeout(
+                suspension: Suspension,
+                timeout: Double,
+                timeoutPriority: Int
+            ): WaitResult<Unit> {
+                requireTimeout(timeout)
+                currentSuspendName = suspension.name
+                currentSuspendType = SuspendType.SUSPEND
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) for suspension named: $currentSuspendName, with timeout $timeout" }
+                suspension.suspending(this@Entity)
+                val group = WaitGroup(this@Entity, id, emptyList(), time, suspension.name)
+                group.suspension = suspension
+                suspension.myTimedGroup = group
+                if (timeout.isFinite()) {
+                    group.timerEvent = myTimeoutAction.schedule(timeout, group, timeoutPriority)
+                }
+                myWaitGroup = group
+                try {
+                    suspend()
+                    group.resumedNormally = true
+                } finally {
+                    if (!group.resumedNormally) {
+                        // Abnormal exit only: as suspendFor, the suspension is abandoned, not resumed.
+                        group.cancelTimer()
+                        suspension.abandon()
+                    }
+                    myWaitGroup = null
+                }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) resumed from suspension named: $currentSuspendName, timed out = ${group.timedOut}" }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                val waited = time - group.startTime
+                return if (group.timedOut) WaitResult.TimedOut(waited) else WaitResult.Satisfied(Unit, waited)
+            }
+
+            override suspend fun waitForFirst(
+                vararg triggers: WaitTrigger<*>,
+                timeout: Double,
+                timeoutPriority: Int,
+                suspensionName: String?
+            ): WaitForFirstResult {
+                return waitForFirst(triggers.asList(), timeout, timeoutPriority, suspensionName)
+            }
+
+            override suspend fun waitForFirst(
+                triggers: List<WaitTrigger<*>>,
+                timeout: Double,
+                timeoutPriority: Int,
+                suspensionName: String?
+            ): WaitForFirstResult {
+                // The checks come before the yield, so a wrong call fails where it is made.
+                require(triggers.isNotEmpty()) { "waitForFirst needs at least one trigger." }
+                for (i in triggers.indices) {
+                    for (j in 0 until i) {
+                        require(triggers[i] !== triggers[j]) {
+                            "The trigger ${triggers[i]} was passed to waitForFirst more than once (positions $j and $i)."
+                        }
+                    }
+                }
+                requireTimeout(timeout)
+                val yieldAt = triggers.mapNotNull { it.yieldPriority }.minOrNull()
+                if (yieldAt != null) {
+                    yield(yieldAt, "yield before waitForFirst: $suspensionName")
+                }
+                // Fast path: a trigger that can fire at once, in argument order, ends the wait without suspending.
+                for (trigger in triggers) {
+                    if (trigger.canFireNow(this@Entity)) {
+                        val value = trigger.fireNow(this)
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst ended at once by $trigger, ($this)" }
+                        return WaitForFirstResult(triggers.toList(), trigger, value, 0.0)
+                    }
+                }
+                val group = WaitGroup(this@Entity, id, triggers.toList(), time, suspensionName)
+                for (trigger in triggers) {
+                    group.registrations.add(trigger.register(group))
+                    if (group.claimed) break
+                }
+                var stateChanged = false
+                try {
+                    if (!group.claimed) {
+                        if (timeout.isFinite()) {
+                            group.timerEvent = myTimeoutAction.schedule(timeout, group, timeoutPriority)
+                        }
+                        myWaitGroup = group
+                        currentSuspendName = suspensionName
+                        if (triggers.size > 1) {
+                            currentSuspendType = SuspendType.WAIT_FOR_FIRST
+                            entity.state.waitForFirst()
+                            stateChanged = true
+                        } else {
+                            currentSuspendType = SuspendType.SUSPEND
+                        }
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst of ${triggers.size} trigger(s), timeout $timeout, ($this)" }
+                        try {
+                            suspend()
+                            group.resumedNormally = true
+                        } finally {
+                            if (!group.resumedNormally) {
+                                // Abnormal exit: release every registration still held, recording nothing.
+                                for (registration in group.registrations) {
+                                    registration.releaseOnTermination()
+                                }
+                                group.cancelTimer()
+                            }
+                        }
+                    } else {
+                        group.resumedNormally = true
+                    }
+                    if (stateChanged) {
+                        entity.state.activate()
+                    }
+                    var winner = group.winner
+                    var value = group.value
+                    val registration = group.winnerRegistration
+                    if (registration != null) {
+                        when (val after = registration.afterWinningResume(this)) {
+                            is AfterResume.Value -> value = after.value
+                            AfterResume.TimedOut -> {
+                                winner = null
+                                value = null
+                            }
+                        }
+                    }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst ended by ${winner ?: "timeout"}, ($this)" }
+                    currentSuspendName = null
+                    currentSuspendType = SuspendType.NONE
+                    return WaitForFirstResult(group.triggers, winner, value, time - group.startTime)
+                } finally {
+                    myWaitGroup = null
+                }
             }
 
             override fun startBlockage(blockage: Blockage) {
@@ -3614,7 +3816,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(suspendingEntity == myEntity) { "The suspension $this is not associated with the suspending entity: ${suspendingEntity.id}" }
                 isResumed = false
                 isAbandoned = false
+                myTimedGroup = null
+                myTimedOut = false
                 suspendedEntity = suspendingEntity
+            }
+
+            /** The wait of a suspendForOrTimeout using this suspension; null for an untimed suspendFor. */
+            internal var myTimedGroup: WaitGroup? = null
+
+            /** True when the last wait on this suspension ended because its time limit ran out. */
+            private var myTimedOut: Boolean = false
+
+            /**
+             *  Ends the link to the suspended entity because the wait's time limit ran out. The
+             *  suspension is neither resumed nor abandoned: a later resume() by its holder fails, and
+             *  isSuspended, which is now false, is the check the holder makes first.
+             */
+            internal fun endLinkOnTimeout() {
+                suspendedEntity = null
+                myTimedOut = true
             }
 
             /**
@@ -3663,12 +3883,24 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.warn { "r = ${model.currentReplicationNumber} : $time > RESUME DROPPED : the suspension with label $label and type $type was abandoned because entity ${myEntity.name} (id = ${myEntity.id}) ended its process at this suspension point. Nothing was waiting on it." }
                     return
                 }
-                require(suspendedEntity != null) { "The suspension with label $label and type $type associated with entity ${myEntity.name} is not associated with a suspended entity." }
-                suspendedEntity?.scheduleResumeProcess(
-                    priority = priority,
-                    source = ResumeSource.SUSPENSION_OBJECT,
-                    detail = "suspension_id=$id, label=$label, type=$type"
-                )
+                require(suspendedEntity != null) {
+                    if (myTimedOut) {
+                        "The suspension with label $label and type $type associated with entity ${myEntity.name} cannot be resumed: " +
+                            "the wait on it timed out, so nothing is suspended on it any more. Check isSuspended before resuming."
+                    } else {
+                        "The suspension with label $label and type $type associated with entity ${myEntity.name} is not associated with a suspended entity."
+                    }
+                }
+                val group = myTimedGroup
+                if (group != null) {
+                    group.claim(null, Unit, ResumeSource.SUSPENSION_OBJECT, priority)
+                } else {
+                    suspendedEntity?.scheduleResumeProcess(
+                        priority = priority,
+                        source = ResumeSource.SUSPENSION_OBJECT,
+                        detail = "suspension_id=$id, label=$label, type=$type"
+                    )
+                }
                 isResumed = true
                 suspendedEntity = null
             }

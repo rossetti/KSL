@@ -18,6 +18,9 @@
 
 package ksl.modeling.entity
 
+import ksl.animation.AnimationEvent
+import ksl.simulation.KSLEvent
+
 /**
  *  Describes something that can end a wait: a message arriving at a mailbox, a signal, items becoming
  *  available in a blocking queue. A trigger is obtained from the thing waited on (for example
@@ -253,11 +256,58 @@ internal class WaitGroup(
         private set
 
     /** The timer's event, when the wait has a finite time limit. */
-    var timerEvent: ksl.simulation.KSLEvent<WaitGroup>? = null
+    var timerEvent: KSLEvent<WaitGroup>? = null
 
     /** Set by the wait when its process resumes normally, so its clean-up knows the exit was not abnormal. */
     var resumedNormally: Boolean = false
 
     /** The suspension of a `suspendForOrTimeout`; null for `waitForFirst`. */
     var suspension: ProcessModel.Entity.Suspension? = null
+
+    /**
+     *  Claims the wait. The first claim wins and every later one does nothing, so a trigger, the
+     *  timer and a suspension's holder can all try at the same instant without coordinating.
+     *
+     *  On a successful claim, in one step: the winner and its value are recorded; every other
+     *  registration is released, so a second occurrence at this instant goes elsewhere rather than
+     *  into a wait that has already ended; the timer is cancelled if something else won, or the
+     *  timeout is announced if the timer won; and the entity is scheduled to resume, so the
+     *  stale-resume check applies to it like any other resume.
+     *
+     *  @param by the registration whose trigger fired; null for the timer and for a suspension's holder
+     *  @param value the value the trigger produced, when it produces it at the claim
+     *  @param source why the entity resumes
+     *  @param resumePriority the priority of the resume event
+     *  @return true if this call claimed the wait; false if it had already been claimed
+     */
+    fun claim(by: Registration?, value: Any?, source: ResumeSource, resumePriority: Int): Boolean {
+        if (claimed) return false
+        claimed = true
+        winner = by?.trigger
+        winnerRegistration = by
+        this.value = value
+        timedOut = source == ResumeSource.TIMEOUT
+        for (registration in registrations) {
+            if (registration !== by) registration.releaseAsLoser()
+        }
+        if (timedOut) {
+            suspension?.endLinkOnTimeout()
+            entity.emitAnimation { AnimationEvent.WaitTimedOut(entity.processModel.time, entity.id, suspensionName) }
+        } else {
+            cancelTimer()
+        }
+        val what = when {
+            by != null -> "trigger=${by.trigger}"
+            suspension != null -> "suspension=${suspension?.name}"
+            else -> "timer"
+        }
+        entity.scheduleResumeProcess(0.0, resumePriority, source, "wait claimed by $what")
+        return true
+    }
+
+    /** Cancels the timer if it is still on the calendar. */
+    fun cancelTimer() {
+        val event = timerEvent ?: return
+        if (event.isScheduled) event.cancel = true
+    }
 }

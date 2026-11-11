@@ -28,6 +28,7 @@ import ksl.modeling.entity.ProcessModel.Companion.MOVE_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.RELEASE_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.RESUME_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.SEIZE_PRIORITY
+import ksl.modeling.entity.ProcessModel.Companion.TIMEOUT_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.TRANSPORT_REQUEST_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.WAIT_FOR_PRIORITY
 import ksl.modeling.entity.ProcessModel.Companion.YIELD_PRIORITY
@@ -124,7 +125,8 @@ enum class SuspendType {
     DELAY,
     ACCESS,
     RIDE,
-    EXIT
+    EXIT,
+    WAIT_FOR_FIRST
 }
 
 /**
@@ -194,6 +196,65 @@ interface KSLProcessBuilder {
     fun resume(suspension: Entity.Suspension, priority: Int = RESUME_PRIORITY) {
         suspension.resume(priority)
     }
+
+    /**
+     *  Suspends the process on the suspension, as suspendFor does, but for at most the given time. The
+     *  wait ends when the suspension's holder resumes it or when the time runs out, whichever comes
+     *  first. When the time runs out, the suspension is no longer suspended: its isSuspended becomes
+     *  false and a later resume by its holder fails, so the holder checks isSuspended first.
+     *
+     *  @param suspension the suspension to wait on
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit.
+     *  A zero timeout still suspends, so events at the current time can end the wait first.
+     *  @param timeoutPriority the priority of the timer's event. The default lets an event at the
+     *  deadline end the wait before the timer does.
+     *  @return Satisfied if the holder resumed the suspension, TimedOut if the time ran out first
+     */
+    suspend fun suspendForOrTimeout(
+        suspension: Entity.Suspension,
+        timeout: Double,
+        timeoutPriority: Int = TIMEOUT_PRIORITY
+    ): WaitResult<Unit>
+
+    /**
+     *  Waits until the first of the triggers fires, or until the time limit runs out, and reports which.
+     *  A trigger is obtained from the thing waited on, for example a signal's trigger() or a blocking
+     *  queue's itemsTrigger(). If a trigger can fire at once, the wait ends without suspending; when
+     *  several can, the first in argument order wins. Otherwise the first to fire in time order wins,
+     *  and the others are withdrawn at that instant.
+     *
+     *  @param triggers the things to wait for; at least one, each at most once
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY (the
+     *  default) for no limit. A zero timeout still suspends, so events at the current time can end
+     *  the wait first.
+     *  @param timeoutPriority the priority of the timer's event. The default lets an event at the
+     *  deadline end the wait before the timer does.
+     *  @param suspensionName the name of the suspension point
+     *  @return which trigger ended the wait and its value, or that the time ran out
+     */
+    suspend fun waitForFirst(
+        vararg triggers: WaitTrigger<*>,
+        timeout: Double = Double.POSITIVE_INFINITY,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        suspensionName: String? = null
+    ): WaitForFirstResult
+
+    /**
+     *  Waits until the first of the triggers fires, or until the time limit runs out, and reports which.
+     *  As the form taking the triggers as separate arguments; the list's order is the argument order.
+     *
+     *  @param triggers the things to wait for; at least one, each at most once
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY (the default) for no limit
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param suspensionName the name of the suspension point
+     *  @return which trigger ended the wait and its value, or that the time ran out
+     */
+    suspend fun waitForFirst(
+        triggers: List<WaitTrigger<*>>,
+        timeout: Double = Double.POSITIVE_INFINITY,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        suspensionName: String? = null
+    ): WaitForFirstResult
 
     /**
      *  Causes the process to yield (suspend execution) at the current time, for zero time units, and return
