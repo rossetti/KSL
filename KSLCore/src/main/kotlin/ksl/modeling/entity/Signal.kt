@@ -95,7 +95,12 @@ class Signal @JvmOverloads constructor(
         if (!holdQueue.contains(entity)) {
             return
         }
-       // require(holdQueue.contains(entity)) { "The entity (${entity.name}) being signaled is not in the holdQueue : ${holdQueue.name}" }
+        // An entity already signalled stays in the hold queue until its resumed process leaves it,
+        // so a repeated signal at the same instant finds it here. Signalling is naturally repeated,
+        // so the repeat does nothing rather than schedule a second resume.
+        if (entity.hasPendingResume) {
+            return
+        }
         entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.SIGNAL, "signal=$name")
     }
 

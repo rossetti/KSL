@@ -35,7 +35,7 @@ class HoldQueue @JvmOverloads constructor(
 
     /** Removes the entity from the queue and tells it to resume its process
      *
-     * @param entity the entity to remove from the queue
+     * @param entity the entity to remove from the queue. It must be in the queue; check contains(entity) first.
      * @param resumePriority the priority for the resumption of the suspended process
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue
      */
@@ -44,6 +44,7 @@ class HoldQueue @JvmOverloads constructor(
         resumePriority: Int = ProcessModel.RESUME_PRIORITY,
         waitStats: Boolean = true
     ) {
+        require(contains(entity)) { "The entity ${entity.name} (id = ${entity.id}) is not in the hold queue $name, so it cannot be removed from it and resumed. Check contains(entity) first." }
         remove(entity, waitStats)
         entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.HOLD_QUEUE, "queue=$name")
     }
@@ -52,13 +53,14 @@ class HoldQueue @JvmOverloads constructor(
      *  without being scheduled through the event loop. This may be useful to coordinate
      *  processes that occur at the same time.
      *
-     * @param entity the entity to remove from the queue
+     * @param entity the entity to remove from the queue. It must be in the queue; check contains(entity) first.
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue
      */
     fun removeAndImmediateResume(
         entity: ProcessModel.Entity,
         waitStats: Boolean = true
     ) {
+        require(contains(entity)) { "The entity ${entity.name} (id = ${entity.id}) is not in the hold queue $name, so it cannot be removed from it and resumed. Check contains(entity) first." }
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > HoldQueue : removeAndImmediateResume() : removing entity_id = ${entity.id}"}
         remove(entity, waitStats)
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > HoldQueue : removeAndImmediateResume() : after remove, before immediateResume()"}

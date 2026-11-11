@@ -24,15 +24,15 @@ import ksl.simulation.ModelElement
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- *  Pins today's double resume. A resume is an event, so two resumes scheduled for one entity at
- *  one instant both fire. The first moves the process on; when it moves on to another wait in the
- *  same instant, the second, still aimed at the same live process, wakes it from that wait early.
- *
- *  These tests record the behaviour as it is. The double-resume guard changes them to the fixed
- *  behaviour, so the one intended difference shows in the history.
+ *  A resume is an event, so two resumes scheduled for one entity at one instant would both fire:
+ *  the first moves the process on, and when it moves on to another wait in the same instant, the
+ *  second wakes it from that wait early. These tests first recorded that defect; the double-resume
+ *  guard changed them to the fixed behaviour. A repeated signal now does nothing, and resuming an
+ *  entity through a queue it is not in is refused.
  */
 class DoubleResumeCharacterizationTest {
 
@@ -84,17 +84,17 @@ class DoubleResumeCharacterizationTest {
     }
 
     @Test
-    @DisplayName("signalAll twice at one instant wakes the entity from its next hold early")
+    @DisplayName("signalAll twice at one instant resumes the entity once; it stays in its next hold")
     fun signalAllTwice() {
         val log = run { SignalTwice(it) { signal.signalAll(); signal.signalAll() } }
-        assertEquals(listOf("signalled@5.0", "released@5.0"), log)
+        assertEquals(listOf("signalled@5.0", "released@50.0"), log)
     }
 
     @Test
-    @DisplayName("a list naming the entity twice wakes the entity from its next hold early")
+    @DisplayName("a list naming the entity twice resumes it once; it stays in its next hold")
     fun listNamingTwice() {
         val log = run { SignalTwice(it) { signal.signal(listOf(subject, subject)) } }
-        assertEquals(listOf("signalled@5.0", "released@5.0"), log)
+        assertEquals(listOf("signalled@5.0", "released@50.0"), log)
     }
 
     @Test
@@ -135,20 +135,16 @@ class DoubleResumeCharacterizationTest {
     }
 
     @Test
-    @DisplayName("removeAndResume of an entity not in the queue resumes it anyway, left in its own queue")
+    @DisplayName("removeAndResume of an entity not in the queue is refused, naming the queue")
     fun removeAndResumeNotInQueue() {
-        var model: WrongQueue? = null
-        val log = run { WrongQueue(it, immediate = false).also { w -> model = w } }
-        assertEquals(listOf("resumed@5.0"), log)
-        assertTrue(model!!.stillInB, "the entity was never removed from the queue it was holding in")
+        val e = assertFailsWith<IllegalArgumentException> { run { WrongQueue(it, immediate = false) } }
+        assertTrue(e.message!!.contains("not in the hold queue A"), e.message)
     }
 
     @Test
-    @DisplayName("removeAndImmediateResume of an entity not in the queue resumes it anyway, left in its own queue")
+    @DisplayName("removeAndImmediateResume of an entity not in the queue is refused, naming the queue")
     fun removeAndImmediateResumeNotInQueue() {
-        var model: WrongQueue? = null
-        val log = run { WrongQueue(it, immediate = true).also { w -> model = w } }
-        assertEquals(listOf("resumed@5.0"), log)
-        assertTrue(model!!.stillInB, "the entity was never removed from the queue it was holding in")
+        val e = assertFailsWith<IllegalArgumentException> { run { WrongQueue(it, immediate = true) } }
+        assertTrue(e.message!!.contains("not in the hold queue A"), e.message)
     }
 }

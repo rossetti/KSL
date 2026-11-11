@@ -760,10 +760,21 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          *  True when the entity's process is suspended and may be resumed with resumeProcess(): it is
          *  not in a wait with a time limit or for the first of several things, which must be ended
-         *  through one of the things it waits for.
+         *  through one of the things it waits for, and no resume is already scheduled for it.
          */
         val canResumeProcess: Boolean
-            get() = isSuspended && myWaitGroup == null
+            get() = isSuspended && myWaitGroup == null && myPendingResume == null
+
+        /**
+         *  The resume scheduled for the entity's current suspension and not yet carried out; null when
+         *  there is none. A suspension point receives at most one resume, whatever its source, so a
+         *  second is refused while this is set.
+         */
+        private var myPendingResume: ResumeIntent? = null
+
+        /** True while a resume has been scheduled for the entity's current suspension and has not yet happened. */
+        internal val hasPendingResume: Boolean
+            get() = myPendingResume != null
 
         private var myCurrentProcess: ProcessCoroutine? = null // track the currently executing process
         val currentProcess: KSLProcess?
@@ -1126,6 +1137,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     scheduledDelayEventId = myDelayEvent?.id,
                     scheduledDelayEventTime = myDelayEvent?.time
                 )
+                checkNoPendingResume("$source ($detail)")
+                myPendingResume = intent
                 val event = myResumeAction.schedule(timeUntilResumption, message = intent, priority = priority)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > SCHEDULED : event_id = ${event.id} : resumeProcess(): entity_id = $id: scheduled resume action for time ${time + timeUntilResumption}, time to resumption: $timeUntilResumption : intent = $intent" }
             }
@@ -1142,6 +1155,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  the fine-grained control for the sequence of calls necessary. Thus, this method can be used internally
          *  when needed in those (rare) cases.
          */
+        /**
+         *  Refuses a second resume of the current suspension. A resume is an event, so a second one
+         *  scheduled before the first has run would wake the entity from whatever it waits in next.
+         */
+        private fun checkNoPendingResume(newResume: String) {
+            val pending = myPendingResume ?: return
+            throw IllegalStateException(
+                "r = ${model.currentReplicationNumber} : $time > entity ${name} (id = $id) already has a pending resume " +
+                    "(source = ${pending.source}, ${pending.detail}, scheduled at time ${pending.scheduledAtTime}); " +
+                    "a second resume, from $newResume, would wake the entity from whatever it waits in next. " +
+                    "Check canResumeProcess before calling resumeProcess()."
+            )
+        }
+
         internal fun immediateResume() {
             // who calls this?
             // called from 1) HoldQueue.removeAndImmediateResume()
@@ -1155,6 +1182,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // Adding a liveness check here would silence genuine state-machine errors on the one
             // resume path that has no provenance. If a third caller is ever added, revisit this.
             if (myCurrentProcess != null) {
+                // an immediate resume must not overtake one that is already scheduled
+                checkNoPendingResume("an immediate resume")
 //                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
                 myCurrentProcess!!.resumeContinuation()
 //                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: after the IMMEDIATE resume call" }
@@ -1222,6 +1251,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     throw IllegalStateException(message)
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = $id : ResumeAction : before immediateResume() : intent = $intent" }
+                // this intent is being carried out, so it is no longer pending
+                myPendingResume = null
                 immediateResume()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = $id : ResumeAction : after immediateResume() : intent = $intent" }
             }
@@ -1994,6 +2025,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              */
             private fun activateProcess() {
                 myPendingProcess = null
+                myPendingResume = null
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} activating and running process, ($this)" }
                 entity.state.activate()// was scheduled, now entity is active for running
                 emitAnimation { AnimationEvent.ProcessActivated(time, entity.id, name) }
@@ -3652,6 +3684,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         }
                     }
                 }
+                // a resume scheduled for the dead process will be dropped as stale; it is no longer pending
+                myPendingResume = null
                 // a terminated delay is over, and an interrupt that froze it must not reschedule it
                 myDelayEvent = null
                 myDelayInterrupted = false

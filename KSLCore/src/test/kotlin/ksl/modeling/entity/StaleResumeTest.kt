@@ -168,9 +168,12 @@ class StaleResumeTest {
         val e = runCatching { m.simulate() }.exceptionOrNull()
         val ex = assertNotNull(e, "resuming a live process from an illegal state must still abort the run")
         val msg = assertNotNull(ex.message)
+        // The double-resume guard now refuses the second resume where it is made, before it can
+        // reach the state machine; either way it is the live process's checks, not the staleness
+        // check, that reject it.
         assertTrue(
-            msg.contains("illegal state") || msg.contains("DELAY"),
-            "the state machine, not the staleness check, should be what rejects it; was: $msg",
+            msg.contains("illegal state") || msg.contains("DELAY") || msg.contains("pending resume"),
+            "the live process's checks, not the staleness check, should be what rejects it; was: $msg",
         )
     }
 }

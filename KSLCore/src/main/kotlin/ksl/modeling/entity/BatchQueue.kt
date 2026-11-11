@@ -131,6 +131,7 @@ class BatchQueue<T : ProcessModel.BatchingEntity<T>> @JvmOverloads constructor(
         resumePriority: Int = ProcessModel.RESUME_PRIORITY,
         waitStats: Boolean = true
     ) {
+        require(contains(entity)) { "The entity ${entity.name} (id = ${entity.id}) is not in the batch queue $name, so it cannot be removed from it and resumed." }
         remove(entity, waitStats)
         entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.BATCH_QUEUE, "queue=$name")
     }
