@@ -354,6 +354,35 @@ class TerminatedEntityReuseTest {
         assertTrue(m.pool.myWaitingQ.isEmpty, "the request left the queue")
     }
 
+    // ── A wait for the first of a resource and a signal ─────────────────────
+
+    private class MixedSeizeRow(parent: ModelElement) : ReuseHarness(parent) {
+        val r = ResourceWithQ(this, "mixedR")
+        val signal = Signal(this, "mixedSeizeSignal")
+        override fun prepare() {
+            activate(Blocker().p)
+        }
+
+        inner class Blocker : Entity() {
+            val p: KSLProcess = process("block") { val a = seize(r); delay(100.0); release(a) }
+        }
+
+        override val body: suspend KSLProcessBuilder.() -> Unit = {
+            yield()
+            waitForFirst(r.seizeTrigger(), signal.trigger(), timeout = 50.0)
+        }
+    }
+
+    @Test
+    @DisplayName("terminated in a wait for the first of a resource and a signal; the request and the signal hold are withdrawn")
+    fun terminatedInMixedSeizeWaitIsReusable() {
+        val m = run("mixedSeizeWait") { MixedSeizeRow(it) }
+        assertReleasedAndReusable(m, "WaitingForFirst")
+        assertNull(m.subject.myWaitGroup)
+        assertTrue(m.r.myWaitingQ.isEmpty, "the request left the queue")
+        assertTrue(m.signal.waitingQ.isEmpty, "the entity left the signal's queue")
+    }
+
     // ── Timed receive of a message ──────────────────────────────────────────
 
     /** An agent layer beside the harness, so the subject has a mailbox to wait on. */
