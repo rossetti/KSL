@@ -564,6 +564,11 @@ open class Resource @JvmOverloads constructor(
         requestQNotificationRule = initialRequestQueueNotificationRule
         // every replication starts on shift; the next goOffShift makes a control for this replication
         myShift = null
+        // every replication starts its behavior afresh, if it has one and is to start with it
+        clearBehaviorState()
+        if (myBehaviorBlock != null && behaviorActiveAtStart) {
+            launchBehavior()
+        }
     }
 
     /**
@@ -608,6 +613,235 @@ open class Resource @JvmOverloads constructor(
      *  waiting requests are not reached by a capacity increase offers its units here.
      */
     protected open fun afterGoOnShift() {}
+
+    // ---- behavior --------------------------------------------------------------------------------
+
+    private var myBehaviorBlock: (suspend KSLProcessBuilder.() -> Unit)? = null
+    private var myBehaviorIsCyclic: Boolean = false
+    private var myBehaviorStoppedAction: (() -> Unit)? = null
+
+    /** The entity of the running behavior; null when none is running. */
+    private var myBehaviorEntity: ResourceBehavior? = null
+
+    /** The behavior's activation, while it has not yet started. */
+    private var myBehaviorStart: KSLEvent<KSLProcess>? = null
+
+    /** An `AFTER_CYCLE` stop is pending. */
+    private var myStopRequested: Boolean = false
+
+    /** True if a behavior, of either form, has been declared for this resource. */
+    val hasBehavior: Boolean
+        get() = myBehaviorBlock != null
+
+    /** True while the behavior is running in this replication, from its activation until it ends. */
+    val isBehaviorActive: Boolean
+        get() = myBehaviorEntity != null
+
+    /** True when a stop after the current cycle has been asked for and the cycle has not yet finished. */
+    val isBehaviorStopRequested: Boolean
+        get() = myStopRequested
+
+    /**
+     *  The process of the running behavior, so that another process can interrupt its delays (for
+     *  example with `interruptDelay`); null when no behavior is running.
+     */
+    var behaviorProcess: KSLProcess? = null
+        private set
+
+    /**
+     *  Whether each replication starts the behavior. With false, a replication starts without it and
+     *  [startBehavior] starts it when the model wants it, so an experiment can compare runs with and
+     *  without the behavior. Set while the model is not running.
+     */
+    @set:KSLControl(controlType = ControlType.BOOLEAN)
+    var behaviorActiveAtStart: Boolean = true
+        set(value) {
+            require(model.isNotRunning) { "The behavior of $name cannot be switched on or off at start while the model is running." }
+            field = value
+        }
+
+    /**
+     *  The number of consecutive cycles of a cyclic behavior that may end at the simulated time they
+     *  began before the behavior is taken to be looping without waiting, and throws. Large enough for a
+     *  legitimate burst, such as a cycle that takes each of many messages already waiting. Set while
+     *  the model is not running; at least 1.
+     */
+    var maxCyclesPerInstant: Int = 10_000
+        set(value) {
+            require(value > 0) { "The number of cycles per instant of $name must be > 0; it was $value." }
+            require(model.isNotRunning) { "The number of cycles per instant of $name cannot be changed while the model is running." }
+            field = value
+        }
+
+    /**
+     *  Called by [cyclicBehavior] and [behavior] before a behavior is stored. A subclass that cannot
+     *  have a behavior in some state (an agent resource with a statechart) throws here.
+     */
+    protected open fun checkBehaviorAllowed() {}
+
+    /**
+     *  Declares a behavior that the library repeats: [block] is one cycle, run again as soon as it
+     *  ends, from time 0 of every replication. This is the usual form of a resource's own behavior,
+     *  such as a break taken every so often:
+     *  <pre>
+     *  doctor.cyclicBehavior {
+     *      delay(120.0)
+     *      doctor.goOffShift()
+     *      delay(15.0)
+     *      doctor.goOnShift()
+     *  }
+     *  </pre>
+     *  Anything a process can do is allowed in the block, including seizing this resource, which then
+     *  waits in its queue like any customer. The behavior belongs to the resource as a whole, however
+     *  large its capacity: one process, not one per unit.
+     *
+     *  The block is one lambda run by a new entity in each replication, so its local variables start
+     *  fresh every time while anything it captures from outside carries over between replications;
+     *  state that must reset belongs inside the block.
+     *
+     *  A cycle that ends at the time it began, [maxCyclesPerInstant] times in a row, throws, naming
+     *  this resource: such a cycle never waits. Use [stopBehavior] and [startBehavior] to switch the
+     *  behavior off and on during a replication, [onBehaviorStopped] to put back what a stopped
+     *  behavior changed, and [behaviorActiveAtStart] to decide whether each replication starts it.
+     *  A resource has at most one behavior, of either form, declared while the model is not running.
+     *
+     *  @param block one cycle of the behavior
+     */
+    fun cyclicBehavior(block: suspend KSLProcessBuilder.() -> Unit) {
+        declareBehavior(block, cyclic = true)
+    }
+
+    /**
+     *  Declares a behavior whose [block] runs once from time 0 of every replication, for a set-up that
+     *  is not a cycle, such as a delayed start. Otherwise as [cyclicBehavior], which is the usual form;
+     *  a block that loops by itself cannot be stopped after its current cycle or guarded against a
+     *  cycle that never waits.
+     *
+     *  @param block the behavior
+     */
+    fun behavior(block: suspend KSLProcessBuilder.() -> Unit) {
+        declareBehavior(block, cyclic = false)
+    }
+
+    private fun declareBehavior(block: suspend KSLProcessBuilder.() -> Unit, cyclic: Boolean) {
+        check(model.isNotRunning) { "The behavior of $name must be declared before the model runs." }
+        check(myBehaviorBlock == null) { "$name already has a behavior; a resource has at most one, of either form." }
+        checkBehaviorAllowed()
+        myBehaviorBlock = block
+        myBehaviorIsCyclic = cyclic
+    }
+
+    /**
+     *  Declares what to do after the behavior is stopped by [stopBehavior], to put back what it changed,
+     *  for example bringing the resource back on shift when a break was cut short. It does not suspend.
+     *  It does not run when the behavior ends on its own or when a replication ends. A second call
+     *  replaces the first. Declared while the model is not running.
+     *
+     *  @param action what to do after a stop
+     */
+    fun onBehaviorStopped(action: () -> Unit) {
+        check(model.isNotRunning) { "The stop action of $name must be declared before the model runs." }
+        myBehaviorStoppedAction = action
+    }
+
+    /**
+     *  Starts the behavior again at the current time, after the calling event, as a fresh process with
+     *  fresh local state. It must have been declared, the model must be running, and it must not be
+     *  running already; [isBehaviorActive] is the check.
+     */
+    fun startBehavior() {
+        check(hasBehavior) { "$name has no behavior to start." }
+        check(model.isRunning) { "The behavior of $name can be started only while the model runs." }
+        check(!isBehaviorActive) { "The behavior of $name is already running; check isBehaviorActive first." }
+        launchBehavior()
+    }
+
+    /**
+     *  Stops the running behavior. With [BehaviorStop.AFTER_CYCLE] (the default) a cyclic behavior
+     *  finishes its current cycle and starts no other; a second such call before the cycle ends
+     *  throws, and [isBehaviorStopRequested] is the check. With [BehaviorStop.NOW], and for a behavior
+     *  declared with [behavior], it ends at once: its process is terminated, releasing anything it
+     *  holds and running its `finally` blocks, and a stop not yet begun cancels its start. A stop
+     *  `NOW` after a pending `AFTER_CYCLE` is allowed. Then the action given to [onBehaviorStopped]
+     *  runs.
+     *
+     *  A behavior cannot stop itself `NOW`, since it is the process running: it returns from its block,
+     *  or asks to stop after the current cycle.
+     *
+     *  @param at how the stop takes effect
+     */
+    fun stopBehavior(at: BehaviorStop = BehaviorStop.AFTER_CYCLE) {
+        check(isBehaviorActive) { "The behavior of $name is not running; check isBehaviorActive first." }
+        if (at == BehaviorStop.AFTER_CYCLE && myBehaviorIsCyclic) {
+            check(!myStopRequested) { "A stop of the behavior of $name after its current cycle is already pending; check isBehaviorStopRequested first." }
+            myStopRequested = true
+            return
+        }
+        val entity = myBehaviorEntity!!
+        val start = myBehaviorStart
+        if (start != null && start.isScheduled) {
+            // not yet begun: nothing of it runs
+            start.cancel = true
+            endBehavior(stopped = true)
+            return
+        }
+        check(!entity.run.isRunning) {
+            "The behavior of $name cannot stop itself at once; it returns from its block, or stops after its current cycle."
+        }
+        entity.terminateProcess()
+        endBehavior(stopped = true)
+    }
+
+    private fun launchBehavior() {
+        val entity = ResourceBehavior()
+        myBehaviorEntity = entity
+        myStopRequested = false
+        behaviorProcess = entity.run
+        myBehaviorStart = activate(entity.run)
+    }
+
+    private fun endBehavior(stopped: Boolean) {
+        myBehaviorEntity = null
+        behaviorProcess = null
+        myBehaviorStart = null
+        myStopRequested = false
+        if (stopped) myBehaviorStoppedAction?.invoke()
+    }
+
+    private fun clearBehaviorState() {
+        myBehaviorEntity = null
+        behaviorProcess = null
+        myBehaviorStart = null
+        myStopRequested = false
+    }
+
+    /** The entity that runs a resource's behavior; a new one for every start. */
+    private inner class ResourceBehavior : Entity() {
+        val run: KSLProcess = process("behavior", isDefaultProcess = true) {
+            myBehaviorStart = null
+            val block = myBehaviorBlock!!
+            if (!myBehaviorIsCyclic) {
+                block()
+            } else {
+                var sameInstant = 0
+                while (!myStopRequested) {
+                    val cycleStart = time
+                    block()
+                    if (time == cycleStart) {
+                        sameInstant++
+                        check(sameInstant <= maxCyclesPerInstant) {
+                            "The cyclic behavior of $name ended $sameInstant cycles in a row at time $cycleStart without " +
+                                    "the time advancing: its cycle never waits. Make each cycle wait (a delay, a seize, a " +
+                                    "wait), or raise maxCyclesPerInstant if such a burst is intended."
+                        }
+                    } else {
+                        sameInstant = 0
+                    }
+                }
+            }
+            endBehavior(stopped = myStopRequested)
+        }
+    }
 
     /**
      * A resource may fill a request in many ways.  This function indicates if the
@@ -836,9 +1070,12 @@ open class Resource @JvmOverloads constructor(
     }
 
     override fun afterReplication() {
+        // terminates the behavior's entity if it is still suspended, releasing anything it holds
         super.afterReplication()
         myWaitingChangeNotices.clear()
         myCurrentChangeNotice = null
+        // the stop action does not run at the end of a replication
+        clearBehaviorState()
     }
 
     /**
