@@ -150,6 +150,11 @@ class RequestQ @JvmOverloads constructor(
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
      *  that was suspended because the entity's request was placed in the queue is immediately terminated.
      *
+     *  Units the request had been promised, because a release woke it and its entity had not yet resumed, are
+     *  then offered to whoever else is waiting for them, as when a waiting process is terminated. So are the
+     *  free units of what it requested: when the queue has a request selection rule, removing the request the
+     *  rule had chosen can let it choose another, which is served at once rather than at the next release.
+     *
      * @param request the request to remove from the queue
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
      * The default is false.
@@ -160,8 +165,28 @@ class RequestQ @JvmOverloads constructor(
         waitStats: Boolean = false,
         afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null
     ) {
+        val offerOn = LinkedHashSet<Resource>(request.promises.keys)
+        offerOn.addAll(membersOf(request.resource))
         remove(request, waitStats)
         request.entity.terminateProcess(afterTermination)
+        offerOnward(offerOn, "removed_and_terminated_request_id=${request.id}")
+    }
+
+    /** The resources whose units a request for [resource] can take: the resource, or the members of its pool. */
+    private fun membersOf(resource: ResourceIfc): List<Resource> = when (resource) {
+        is ResourcePool -> resource.resources.filterIsInstance<Resource>()
+        is MovableResourcePool -> resource.resources.filterIsInstance<Resource>()
+        is Resource -> listOf(resource)
+        // a guided transporter pool keeps its own accounting and wakes its own queue
+        else -> emptyList()
+    }
+
+    /** Offers the available units of [members] to the requests waiting for them, unless the run has ended. */
+    private fun offerOnward(members: Collection<Resource>, detail: String) {
+        if (members.isEmpty() || executive.isEnded) return
+        for (member in members) {
+            member.offerFreedUnits(ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE, detail)
+        }
     }
 
     /**
@@ -366,13 +391,8 @@ class RequestQ @JvmOverloads constructor(
      */
     internal fun removeAbandoned(request: ProcessModel.Entity.Request) {
         val promised = request.promises.keys.toList()
-        if (!remove(request, false) || promised.isEmpty() || executive.isEnded) return
-        for (member in promised) {
-            member.offerFreedUnits(
-                ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
-                "promise_abandoned_by_request_id=${request.id}"
-            )
-        }
+        if (!remove(request, false)) return
+        offerOnward(promised, "promise_abandoned_by_request_id=${request.id}")
     }
 
     /**

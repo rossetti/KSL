@@ -148,7 +148,7 @@ class SeizeQueueCharacterizationTest {
     // ── removeAndTerminate on a woken request ───────────────────────────
 
     @Test
-    @DisplayName("removeAndTerminate on a request woken in the same instant leaves its unit idle beside the next waiter")
+    @DisplayName("removeAndTerminate on a request woken in the same instant offers its unit to the next waiter")
     fun removeAndTerminateWokenRequest() {
         var seen = ""
         val m = run {
@@ -158,16 +158,16 @@ class SeizeQueueCharacterizationTest {
             })
             customer("A", 1.0)
             customer("B", 2.0)
-            at(6.0) { seen = state }
+            at(5.5) { seen = state }
         }
-        assertEquals("available=1, waiting=1", seen, "the unit promised to A is offered to nobody")
-        assertEquals(listOf("X@0.0"), m.log, "B is never served: no later release happens")
+        assertEquals("available=0, waiting=0", seen, "the unit promised to A goes to B")
+        assertEquals(listOf("X@0.0", "B@5.0"), m.log)
     }
 
     // ── removeAndTerminate under a rule that limits selection ───────────
 
     @Test
-    @DisplayName("removeAndTerminate on the request a rule had chosen leaves free units idle until the next release")
+    @DisplayName("removeAndTerminate on the request a rule had chosen lets the rule choose again at once")
     fun removeAndTerminateUnderRule() {
         var seen = ""
         val m = run(capacity = 2) {
@@ -180,9 +180,9 @@ class SeizeQueueCharacterizationTest {
             customer("H", 1.0, amount = 2)
             customer("B", 2.0)
             at(6.0) { q.removeAndTerminate(requestOf("H")) }
-            at(7.0) { seen = state }
+            at(6.5) { seen = state }
         }
-        assertEquals("available=1, waiting=1", seen, "B is now the head and fits, but nothing offers it the free unit")
-        assertEquals(listOf("X1@0.0", "X2@0.0", "B@10.0"), m.log, "B waits for the next release")
+        assertEquals("available=0, waiting=0", seen, "B is now the head and fits, and is offered the free unit")
+        assertEquals(listOf("X1@0.0", "X2@0.0", "B@6.0"), m.log)
     }
 }
