@@ -41,8 +41,8 @@ import ksl.utilities.random.rvariable.RVariableIfc
  *  process view. Following the precedent of
  *  [ksl.modeling.entity.TaskProcessingSystem], an `AgentModel` ships two
  *  kinds of agent — transient and permanent — plus the supporting
- *  machinery (a shared message bus, inner-class [Statechart] and
- *  [AgentMailbox]) that lets both kinds work uniformly.
+ *  machinery (inner-class [Statechart] and [AgentMailbox]) that lets
+ *  both kinds work uniformly.
  *
  *  Transient and permanent split:
  *   - [Agent]: a transient `Entity`-based actor (an `inner class`).
@@ -60,11 +60,14 @@ import ksl.utilities.random.rvariable.RVariableIfc
  *  same [Statechart] and [AgentMailbox] machinery serves both.
  *
  *  Messaging:
- *   - A single `BlockingQueue` *message bus* is pre-allocated at
- *     `AgentModel` construction. All sends route through it; mailboxes
- *     are POJOs that filter by recipient reference. This is what makes
- *     transient agents possible — agent construction no longer creates
- *     a `ModelElement` child.
+ *   - Each agent has its own [AgentMailbox], a plain object rather than
+ *     a `ModelElement`, which is what makes transient agents possible:
+ *     agent construction creates no `ModelElement` child. A send calls
+ *     `deliver` on the recipient's mailbox, in the sender's call, at the
+ *     current time; there is no shared queue between sender and
+ *     recipient. The mailbox offers the message to a reservation, then to
+ *     a waiting receiver, and otherwise keeps it and shows it to the
+ *     statechart.
  *   - Per-mailbox queue statistics are not collected automatically.
  *     Permanent agents can register their own `Response`/`TWResponse`
  *     observers if they want individual stats (see the

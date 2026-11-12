@@ -32,8 +32,8 @@ package ksl.modeling.agent
 interface AgentLike {
 
     /**
-     *  Default mailbox for receiving [AgentMessage] traffic. Routes
-     *  through the enclosing [AgentModel]'s shared message bus.
+     *  Default mailbox for receiving [AgentMessage] traffic. A send to
+     *  this agent delivers into it directly, in the sender's call.
      */
     val mailbox: AgentModel.AgentMailbox<AgentMessage>
 

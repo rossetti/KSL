@@ -28,8 +28,8 @@ import ksl.modeling.entity.ResourceWithQ
  *  of that exposes the agent capabilities the user might want for a
  *  forklift, repair worker, or nurse:
  *
- *   - a [mailbox] for receiving [AgentMessage] traffic, routed via
- *     the enclosing [AgentModel]'s shared bus,
+ *   - a [mailbox] for receiving [AgentMessage] traffic, which a send
+ *     delivers into directly, in the sender's call,
  *   - an optional [AgentModel.Statechart] for reactive autonomous
  *     behavior,
  *   - convenience helpers for taking the resource off-shift
@@ -84,8 +84,8 @@ open class AgentResource @JvmOverloads constructor(
     val onShiftCapacity: Int = capacity
 
     /**
-     *  Default mailbox for receiving [AgentMessage] traffic. Routes
-     *  via the enclosing [AgentModel]'s shared bus.
+     *  Default mailbox for receiving [AgentMessage] traffic. A send to
+     *  this resource delivers into it directly, in the sender's call.
      */
     override val mailbox: AgentModel.AgentMailbox<AgentMessage> =
         agentModel.AgentMailbox(this)

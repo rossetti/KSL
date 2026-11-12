@@ -126,13 +126,17 @@ three are things models rely on:
   same event, the **innermost wins and the ancestor's action does not
   run at all**.
 
-### Communication is messages on a shared bus
+### Communication is messages delivered into mailboxes
 
 `AgentMessage` is a sealed hierarchy: `Inform<P>`, `Request<P>`,
 `Propose<P>`, `Accept`, `Reject`, `Cancel`. Each carries a `from`
-(the sending agent, of any kind) and an optional `conversationId`. Mailboxes are
-*POJOs* that filter the shared bus by recipient reference; this is
-what makes transient agents cheap (no `ModelElement` per agent).
+(the sending agent, of any kind) and an optional `conversationId`. Each
+agent has its own mailbox, a plain object rather than a `ModelElement`;
+this is what makes transient agents cheap. A send calls `deliver` on the
+recipient's mailbox, in the sender's call and at the current time: there
+is no shared queue in between. The mailbox offers the message to a
+reservation first, then to a waiting receiver, and otherwise keeps it
+and shows it to the statechart.
 Inside a process body, send with `sendMessage(msg, recipient.mailbox)`
 (suspending). Inside a statechart action, deliver directly with
 `recipient.mailbox.deliver(msg)` (non-suspending).
@@ -921,7 +925,7 @@ on the Dokka pages.
 
 - `AgentMessage` (sealed: `Inform<P>`, `Request<P>`, `Propose<P>`,
   `Accept`, `Reject`, `Cancel`).
-- `AgentMailbox` — POJO recipient filter on the shared bus.
+- `AgentMailbox` — an agent's own mailbox; a send delivers into it directly.
 - `contractNet<Q, B>(bidders, callForProposals, deadline, selectBest)`
   — the announce / bid / award helper.
 - `withReservation(mailbox, predicate) { … }` — hold a mailbox
