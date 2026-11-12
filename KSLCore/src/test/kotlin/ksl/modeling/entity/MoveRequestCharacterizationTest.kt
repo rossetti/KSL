@@ -28,8 +28,6 @@ import ksl.utilities.random.rvariable.ConstantRV
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 /**
  *  Pins what the three `moveRequestTo…` functions do today, and the double resume a move can cause.
@@ -199,8 +197,8 @@ class MoveRequestCharacterizationTest {
     /**
      *  A release wakes the waiting request; in the same instant its resource's capacity drops to
      *  zero, the resource goes inactive, and the entity's override moves the woken request to a
-     *  resource with a unit free. The move schedules a second resume for an entity that already has
-     *  one pending.
+     *  resource with a unit free. The resume already pending carries the request: the move promises
+     *  the new resource's unit and schedules no second resume.
      */
     private class WokenMoveModel(parent: ModelElement) : ProcessModel(parent, "wokenMove") {
         val r1 = ResourceWithQ(this, "R1")
@@ -222,6 +220,9 @@ class MoveRequestCharacterizationTest {
                 yield()
                 val a = seize(r1)
                 log.add("served by ${a.resource.name}@$time")
+                delay(10.0)
+                log.add("after its next wait@$time")
+                release(a)
             }
 
             override fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(
@@ -240,15 +241,16 @@ class MoveRequestCharacterizationTest {
     }
 
     @Test
-    @DisplayName("moving a woken request schedules a second resume, which the double-resume guard refuses")
+    @DisplayName("moving a woken request: the resume already pending carries it to the new resource, once")
     fun movingAWokenRequest() {
         val model = Model("WokenMove${System.nanoTime()}", autoCSVReports = false)
         val m = WokenMoveModel(model)
         model.numberOfReplications = 1
         model.lengthOfReplication = 50.0
-        val e = assertFailsWith<IllegalStateException> { model.simulate() }
-        val message = generateSequence<Throwable>(e) { it.cause }.mapNotNull { it.message }.joinToString(" | ")
-        assertTrue(message.contains("already has a pending resume"), message)
-        assertEquals(listOf("moving, resumePending=true@5.0"), m.log)
+        model.simulate()
+        assertEquals(
+            listOf("moving, resumePending=true@5.0", "holder done@5.0", "served by R2@5.0", "after its next wait@15.0"),
+            m.log
+        )
     }
 }

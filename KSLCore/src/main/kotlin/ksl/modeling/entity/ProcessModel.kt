@@ -1479,21 +1479,26 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             require(request.entity.isSuspended) { "The entity must be suspended" }
 //            require(request.resource != null) { "Cannot move the request to ${resource.name} because the request is not for a resource" }
             require(request.resource != resource) { "The supplied resource ${resource.name} must not be associated with the request." }
+            // A woken request has a resume on the calendar already; remove() clears the mark, so read it first.
+            val wasWoken = request.resumePending
             currentQueue.remove(request, waitStats)
             val newQ = resource.myWaitingQ
             newQ.enqueue(request, request.priority)
             // the request's original resource is replaced with the new resource
             request.myResource = resource
-            if (newQ.size == 1) {
-                // the moving request is the only request in the queue, we can check if it can be allocated
-                if (resource.canAllocate(request.amountRequested)) {
-                    // if the resource can allocate the units then the request's entity can be resumed
-                    // otherwise it continues to wait in the new queue for normal processing
-                    val detail = "request_id=${request.id}, moved_to_resource=${resource.name}, amount=${request.amountRequested}"
-                    // promised now, so that nothing else takes the units before it resumes
-                    request.promise(resource, request.amountRequested)
-                    newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
-                }
+            val detail = "request_id=${request.id}, moved_to_resource=${resource.name}, amount=${request.amountRequested}"
+            val canServe = newQ.size == 1 && resource.canAllocate(request.amountRequested)
+            if (wasWoken) {
+                // The resume already on the calendar carries the request: promise the new target's units if it
+                // can serve it now, and mark the request so nothing wakes it twice. When it resumes it takes the
+                // promise, or finds none and waits on in the new queue.
+                if (canServe) request.promise(resource, request.amountRequested)
+                request.markResumePending(ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
+            } else if (canServe) {
+                // the moving request is the only request in the queue and the resource can allocate: promised
+                // now, so that nothing else takes the units before it resumes
+                request.promise(resource, request.amountRequested)
+                newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
             }
         }
 
@@ -1532,22 +1537,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             require(request.entity.isSuspended) { "The entity must be suspended" }
 //            require(request.myResourcePool != null) { "Cannot move the request to ${pool.name} because the request is not for a resource pool" }
             require(request.myResourcePool != pool) { "The supplied resource pool ${pool.name} must not be associated with the request." }
+            // A woken request has a resume on the calendar already; remove() clears the mark, so read it first.
+            val wasWoken = request.resumePending
             currentQueue.remove(request, waitStats)
             val newQ = pool.myWaitingQ
             newQ.enqueue(request, request.priority)
             // the request's original resource pool is replaced with the new resource pool
             request.myResourcePool = pool
-            if (newQ.size == 1) {
-                // the moving request is the only request in the queue, we can check if it can be allocated
-                if (pool.canAllocate(resourceSelectionRule, request.amountRequested)) {
-                    // if the resource can allocate the units then the request's entity can be resumed
-                    // otherwise it continues to wait in the new queue for normal processing
-                    val detail = "request_id=${request.id}, moved_to_resource_pool=${pool.name}, amount=${request.amountRequested}"
-                    // promised now, as the rule given for the move would choose
-                    request.selectionRule = resourceSelectionRule
-                    pool.promiseMembers(request)
-                    newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
-                }
+            val detail = "request_id=${request.id}, moved_to_resource_pool=${pool.name}, amount=${request.amountRequested}"
+            val canServe = newQ.size == 1 && pool.canAllocate(resourceSelectionRule, request.amountRequested)
+            if (canServe) {
+                // promised now, as the rule given for the move would choose
+                request.selectionRule = resourceSelectionRule
+                pool.promiseMembers(request)
+            }
+            if (wasWoken) {
+                // the resume already on the calendar carries the request; nothing may wake it twice
+                request.markResumePending(ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
+            } else if (canServe) {
+                newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
             }
         }
 
@@ -1586,22 +1594,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             require(request.entity.isSuspended) { "The entity must be suspended" }
  //           require(request.myMovableResourcePool != null) { "Cannot move the request to ${pool.name} because the request is not for a movable resource pool" }
             require(request.myMovableResourcePool != pool) { "The supplied movable resource pool ${pool.name} must not be associated with the request." }
+            // A woken request has a resume on the calendar already; remove() clears the mark, so read it first.
+            val wasWoken = request.resumePending
             currentQueue.remove(request, waitStats)
             val newQ = pool.myWaitingQ
             newQ.enqueue(request, request.priority)
             // the request's original movable resource pool is replaced with the new movable resource pool
             request.myMovableResourcePool = pool
-            if (newQ.size == 1) {
-                // the moving request is the only request in the queue, we can check if it can be allocated
-                if (pool.canAllocate(resourceSelectionRule)) {
-                    // if the resource can allocate the units then the request's entity can be resumed
-                    // otherwise it continues to wait in the new queue for normal processing
-                    val detail = "request_id=${request.id}, moved_to_movable_resource_pool=${pool.name}, amount=${request.amountRequested}"
-                    // promised now, as the rule given for the move would choose
-                    request.selectionRule = resourceSelectionRule
-                    pool.promiseMember(request)
-                    newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
-                }
+            val detail = "request_id=${request.id}, moved_to_movable_resource_pool=${pool.name}, amount=${request.amountRequested}"
+            val canServe = newQ.size == 1 && pool.canAllocate(resourceSelectionRule)
+            if (canServe) {
+                // promised now, as the rule given for the move would choose
+                request.selectionRule = resourceSelectionRule
+                pool.promiseMember(request)
+            }
+            if (wasWoken) {
+                // the resume already on the calendar carries the request; nothing may wake it twice
+                request.markResumePending(ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
+            } else if (canServe) {
+                newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
             }
         }
 
