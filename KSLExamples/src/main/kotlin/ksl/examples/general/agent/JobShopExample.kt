@@ -22,7 +22,7 @@ import ksl.modeling.agent.AgentMessage
 import ksl.modeling.agent.AgentModel
 import ksl.modeling.agent.contractNet
 import ksl.modeling.agent.positive
-import ksl.modeling.agent.receiveMessage
+import ksl.modeling.agent.receiveMessageOrTimeout
 import ksl.modeling.agent.receiveMessageOfType
 import ksl.modeling.agent.sendMessage
 import ksl.modeling.entity.KSLProcess
@@ -112,9 +112,7 @@ class JobShopExample(parent: ModelElement, name: String? = null) : AgentModel(pa
                 val cfp = receiveMessageOfType<AgentMessage.Request<Job>, AgentMessage>(mailbox)
 
                 // A call that arrived while this worker was serving a job may belong to
-                // a round that has closed. Skip it without bidding: contractNet answers
-                // only the proposals it collected before the deadline, so a late bid
-                // would wait forever for an Accept or Reject.
+                // a round that has closed. Skip it, so no bid is sent that nobody reads.
                 if (currentTime - cfp.payload.createdAt >= bidDeadline) continue
 
                 // Bid: estimate total queue time + service time at our rate.
@@ -128,11 +126,15 @@ class JobShopExample(parent: ModelElement, name: String? = null) : AgentModel(pa
                     (cfp.from as AgentModel.Agent).mailbox,
                 )
 
-                // Wait for the dispatcher's decision on this conversation.
-                val decision = receiveMessage(mailbox) { msg ->
+                // Wait for the dispatcher's decision on this conversation. The round
+                // closes at most bidDeadline after this bid, and the decision is sent at
+                // the close, before a timer at the same instant; so a collected bid always
+                // gets its answer, and a bid that missed its round times out, which is
+                // treated as a rejection.
+                val decision = receiveMessageOrTimeout(mailbox, bidDeadline) { msg ->
                     msg.conversationId == cfp.conversationId &&
                         (msg is AgentMessage.Accept || msg is AgentMessage.Reject)
-                }
+                }.valueOrNull()
 
                 if (decision is AgentMessage.Accept) {
                     // Accepted — do the work.
@@ -144,7 +146,7 @@ class JobShopExample(parent: ModelElement, name: String? = null) : AgentModel(pa
                     numInSystem.decrement()
                     tisResponse.value = currentTime - cfp.payload.createdAt
                 }
-                // On Reject (or any other), loop and wait for the next CFP.
+                // On Reject or a timeout, loop and wait for the next CFP.
             }
         }
     }

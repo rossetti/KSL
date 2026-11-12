@@ -689,15 +689,24 @@ before broadcasting, so a `onMessage<Propose>` handler elsewhere on
 the same mailbox can't consume bids out from under it.
 
 A proposal that arrives after the deadline is not collected, and its
-sender is sent neither an `Accept` nor a `Reject`. A bidder that
-proposes and then waits for the decision therefore waits forever if it
-answered late, which happens to a process-based bidder that was busy in
-a `delay` when the call arrived. Have such a bidder skip a call whose
-deadline has passed, as `JobShopExample` and `WarehouseAGVExample` do:
+sender is sent neither an `Accept` nor a `Reject`. That happens to a
+process-based bidder that was busy in a `delay` when the call arrived.
+So a bidder waits for the decision with a time limit and treats a
+timeout as a rejection. The round closes at most `bidDeadline` after
+the bid is sent, and the decision is sent at the close, before a timer
+at the same instant, so `bidDeadline` counted from the bid is a limit
+that never cuts off a decision. A bidder can also skip a call whose
+deadline has passed, so that it sends no bid nobody reads.
+`JobShopExample` and `WarehouseAGVExample` do both:
 
 ```kotlin
 val cfp = receiveMessageOfType<AgentMessage.Request<Job>, AgentMessage>(mailbox)
 if (currentTime - cfp.payload.createdAt >= bidDeadline) continue
+// ... send the bid ...
+val decision = receiveMessageOrTimeout(mailbox, bidDeadline) { msg ->
+    msg.conversationId == cfp.conversationId &&
+        (msg is AgentMessage.Accept || msg is AgentMessage.Reject)
+}.valueOrNull()   // null after a timeout: treat it as a rejection
 ```
 
 ### ...protect a multi-message conversation

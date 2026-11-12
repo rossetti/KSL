@@ -32,7 +32,7 @@ import ksl.modeling.agent.contractNet
 import ksl.modeling.agent.nonNegative
 import ksl.modeling.agent.positive
 import ksl.modeling.agent.probability
-import ksl.modeling.agent.receiveMessage
+import ksl.modeling.agent.receiveMessageOrTimeout
 import ksl.modeling.agent.receiveMessageOfType
 import ksl.modeling.agent.sendMessage
 import ksl.modeling.agent.travelThrough
@@ -353,12 +353,8 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
             while (true) {
                 val cfp = receiveMessageOfType<AgentMessage.Request<PalletTask>, AgentMessage>(mailbox)
 
-                // Stale-CFP guard. Skip without bidding — the dispatcher's
-                // contractNet only Rejects bidders, so a stale bid would
-                // wait forever for an Accept/Reject. The age check ensures
-                // we only bid on conversations whose deadline is still
-                // open (and adds a half-step margin against same-time
-                // ordering at the boundary).
+                // A call that arrived while this controller was busy may belong to a
+                // round that has closed. Skip it, so no bid is sent that nobody reads.
                 val age = currentTime - cfp.payload.createdAt
                 if (age >= bidDeadline) continue
 
@@ -376,11 +372,15 @@ class WarehouseAGVExample(parent: ModelElement, name: String? = null) :
                 )
                 agv.bidStarted.fire()
 
-                // Wait for the dispatcher's decision on this conversation.
-                val decision = receiveMessage(mailbox) { msg ->
+                // Wait for the dispatcher's decision on this conversation. The round
+                // closes at most bidDeadline after this bid, and the decision is sent at
+                // the close, before a timer at the same instant; so a collected bid always
+                // gets its answer, and a bid that missed its round times out, which is
+                // treated as a rejection.
+                val decision = receiveMessageOrTimeout(mailbox, bidDeadline) { msg ->
                     msg.conversationId == convId &&
                         (msg is AgentMessage.Accept || msg is AgentMessage.Reject)
-                }
+                }.valueOrNull()
 
                 if (decision is AgentMessage.Accept) {
                     agv.workStarted.fire()
