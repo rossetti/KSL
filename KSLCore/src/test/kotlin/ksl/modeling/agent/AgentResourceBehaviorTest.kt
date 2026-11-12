@@ -174,4 +174,67 @@ class AgentResourceBehaviorTest {
         model.simulate()
         assertEquals(2.0, perf.numMessagesReceivedResponse.acrossReplicationStatistic.average)
     }
+
+    @Test
+    @DisplayName("stop and start a behavior from another agent resource's behavior handling messages")
+    fun stopAndStartFromMessageHandler() {
+        val model = Model("Ops${System.nanoTime()}", autoCSVReports = false)
+        val m = DeskModel(model)
+        val ops = AgentResource(m, "Ops")
+        m.desk.cyclicBehavior { m.log.add("cycle@${m.time}"); delay(10.0) }
+        ops.cyclicBehavior {
+            val msg = receiveMessage(ops.mailbox)
+            if (payload(msg) == "stop") m.desk.stopBehavior(ksl.modeling.entity.BehaviorStop.NOW) else m.desk.startBehavior()
+        }
+        m.setups.add {
+            at(5.0) { ops.mailbox.deliver(AgentMessage.Inform(peer, "stop")) }
+            at(12.0) { ops.mailbox.deliver(AgentMessage.Inform(peer, "start")) }
+        }
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 25.0
+        model.simulate()
+        assertEquals(listOf("cycle@0.0", "cycle@12.0", "cycle@22.0"), m.log)
+    }
+
+    /** A forklift on a floor whose behavior takes it to a depot as its own customer. */
+    private class FloorModel(parent: ModelElement) : AgentModel(parent, "floor") {
+        val world: Context<AgentLike> = Context("world")
+        val floor: ContinuousProjection<AgentLike> = ContinuousProjection(world, 0.0..100.0, 0.0..100.0)
+        val forklift = MovableAgentResource(this, floor, initPosition = Point2D(0.0, 0.0), name = "forklift")
+        val log = mutableListOf<String>()
+
+        inner class Customer : Agent("customer") {
+            val script: KSLProcess = process(isDefaultProcess = true) {
+                delay(6.0)
+                val a = seize(forklift)
+                log.add("customer@$time")
+                release(a)
+            }
+        }
+
+        override fun initialize() {
+            super.initialize()
+            log.clear()
+            activate(Customer().script)
+        }
+    }
+
+    @Test
+    @DisplayName("a movable agent resource's behavior seizes its own vehicle and drives it to a depot; customers wait meanwhile")
+    fun movableAgentResourceToDepot() {
+        val model = Model("Depot${System.nanoTime()}", autoCSVReports = false)
+        val m = FloorModel(model)
+        m.forklift.behavior {
+            delay(5.0)
+            val a = seize(m.forklift)
+            travelTo(agent = m.forklift, space = m.floor, destination = Point2D(10.0, 0.0), velocity = 2.0, stepSize = 2.0)
+            m.log.add("depot@${m.time}")
+            release(a)
+        }
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 30.0
+        model.simulate()
+        assertEquals(listOf("depot@10.0", "customer@10.0"), m.log)
+        assertEquals(Point2D(10.0, 0.0), m.floor.positionOf(m.forklift))
+    }
 }

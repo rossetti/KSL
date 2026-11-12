@@ -266,6 +266,26 @@ class ResourceBehaviorTest {
     }
 
     @Test
+    @DisplayName("interruptDelayAndRestart and interruptDelayAndContinue through behaviorProcess act as for any process")
+    fun interruptVariantsThroughBehaviorProcess() {
+        fun scenario(restart: Boolean): List<String> = run(length = 100.0, declare = {
+            doctor.behavior {
+                delay(50.0, suspensionName = "long")
+                log.add("behavior continues@$time")
+            }
+        }, setup = {
+            actor("I") {
+                delay(10.0)
+                if (restart) interruptDelayAndRestart(doctor.behaviorProcess!!, "long", interruptTime = 5.0)
+                else interruptDelayAndContinue(doctor.behaviorProcess!!, "long", interruptTime = 5.0)
+            }
+        }).log
+        // interrupted at 10 for 5: restarted in full at 15, or the 40 left continued from 15
+        assertEquals(listOf("behavior continues@65.0"), scenario(restart = true))
+        assertEquals(listOf("behavior continues@55.0"), scenario(restart = false))
+    }
+
+    @Test
     @DisplayName("a behavior on a resource with a capacity schedule runs")
     fun withCapacitySchedule() {
         val model = Model("Scheduled${System.nanoTime()}", autoCSVReports = false)
