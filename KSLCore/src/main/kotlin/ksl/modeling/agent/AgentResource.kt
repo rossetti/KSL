@@ -63,7 +63,8 @@ import ksl.modeling.entity.ResourceWithQ
  *    is created
  */
 open class AgentResource @JvmOverloads constructor(
-    private val agentModel: AgentModel,
+    /** The agent model this resource belongs to, through which its behavior can reach other agents. */
+    val agentModel: AgentModel,
     name: String? = null,
     capacity: Int = Defaults.capacity,
     queue: RequestQ? = null,
@@ -113,12 +114,14 @@ open class AgentResource @JvmOverloads constructor(
      *  be called at most once; a second call throws. Use
      *  [buildStatechart] + [useStatechart] for the multi-variant /
      *  design-comparison case. See [AgentModel.Statechart] for the DSL
-     *  and semantics.
+     *  and semantics. Throws when the resource has a behavior: a resource
+     *  has a statechart or a behavior, not both.
      */
     fun statechart(block: StatechartBuilder.() -> Unit): AgentModel.Statechart {
         check(statechart == null) {
             "AgentResource ${this.name} already has a statechart configured."
         }
+        check(!hasBehavior) { oneSourceOfTruth() }
         val sc = buildStatechart("statechart", block)
         useStatechart(sc)
         return sc
@@ -138,9 +141,11 @@ open class AgentResource @JvmOverloads constructor(
      *  chart (if any) is not started — between replications for a
      *  setup-time resource. The selected chart is started by this
      *  resource's [initialize] at the next replication. See
-     *  [AgentModel.Agent.useStatechart].
+     *  [AgentModel.Agent.useStatechart]. Installing a chart throws when the
+     *  resource has a behavior; `useStatechart(null)` is always allowed.
      */
     fun useStatechart(chart: AgentModel.Statechart?) {
+        check(chart == null || !hasBehavior) { oneSourceOfTruth() }
         val current = statechart
         check(current == null || !current.isStarted) {
             "cannot replace ${this.name}'s statechart while it is running."
@@ -152,6 +157,18 @@ open class AgentResource @JvmOverloads constructor(
         statechart = chart
         if (chart != null && agentModel.model.isRunning) chart.start()
     }
+
+    /**
+     *  A resource with a statechart cannot also have a behavior: it has one source of truth for its
+     *  reactions.
+     */
+    override fun checkBehaviorAllowed() {
+        check(statechart == null) { oneSourceOfTruth() }
+    }
+
+    private fun oneSourceOfTruth(): String =
+        "AgentResource ${this.name} cannot have both a statechart and a behavior: a resource has one source of truth " +
+                "for its reactions. Use a statechart for reactions that do not wait, and a behavior for ones that do."
 
     /** Gracefully stop this resource's statechart, if any. Idempotent. */
     fun stopStatechart() {
