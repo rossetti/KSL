@@ -28,12 +28,13 @@ import kotlin.test.assertEquals
  *  `RequestQ.removeAndTerminate` and `removeAllAndTerminate` hand on what the removed request leaves
  *  behind: units it had been promised, and, under a request selection rule, the free units the rule
  *  may now give another request. A request with no promise in a queue with no rule leaves nothing,
- *  and its removal changes nothing for the others.
+ *  and its removal changes nothing for the others. A process terminated while it waits hands on the
+ *  same things through the termination's own clean-up.
  */
 class RemoveAndTerminateTest {
 
-    private class QModel(parent: ModelElement) : ProcessModel(parent, "removeAndTerminate") {
-        val r = ResourceWithQ(this, "R")
+    private class QModel(parent: ModelElement, capacity: Int) : ProcessModel(parent, "removeAndTerminate") {
+        val r = ResourceWithQ(this, "R", capacity)
         val other = RequestQ(this, "Other")
         val log = mutableListOf<String>()
         val setups = mutableListOf<QModel.() -> Unit>()
@@ -43,12 +44,13 @@ class RemoveAndTerminateTest {
             val tag: String,
             val arrive: Double,
             val hold: Double,
+            val amount: Int,
             val inOther: Boolean,
             val afterRelease: (() -> Unit)?
         ) : Entity(tag) {
             val p: KSLProcess = process("p-$tag") {
                 delay(arrive)
-                val a = if (inOther) seize(r, queue = other) else seize(r)
+                val a = if (inOther) seize(r, amount, queue = other) else seize(r, amount)
                 log.add("$tag@$time")
                 delay(hold)
                 release(a)
@@ -56,8 +58,11 @@ class RemoveAndTerminateTest {
             }
         }
 
-        fun customer(tag: String, arrive: Double, hold: Double = 1.0, inOther: Boolean = false, afterRelease: (() -> Unit)? = null) {
-            val c = Customer(tag, arrive, hold, inOther, afterRelease)
+        fun customer(
+            tag: String, arrive: Double, hold: Double = 1.0, amount: Int = 1, inOther: Boolean = false,
+            afterRelease: (() -> Unit)? = null
+        ) {
+            val c = Customer(tag, arrive, hold, amount, inOther, afterRelease)
             customers[tag] = c
             activate(c.p)
         }
@@ -76,9 +81,9 @@ class RemoveAndTerminateTest {
         }
     }
 
-    private fun run(setup: QModel.() -> Unit): QModel {
+    private fun run(capacity: Int = 1, setup: QModel.() -> Unit): QModel {
         val model = Model("RemoveAndTerminate${System.nanoTime()}", autoCSVReports = false)
-        val m = QModel(model)
+        val m = QModel(model, capacity)
         m.setups.add(setup)
         model.numberOfReplications = 1
         model.lengthOfReplication = 50.0
@@ -110,5 +115,25 @@ class RemoveAndTerminateTest {
             customer("B", 2.0, inOther = true)
         }
         assertEquals(listOf("X@0.0", "B@5.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("terminating a waiting process whose request a rule had chosen lets the rule choose again at once")
+    fun terminationUnderRule() {
+        var seen = ""
+        val m = run(capacity = 2) {
+            // only the head of the queue may be served
+            r.myWaitingQ.requestSelectionRule = RequestSelectionRuleIfc { resource, queue ->
+                listOfNotNull(queue.toList().firstOrNull { it.resource == resource })
+            }
+            customer("X1", 0.0, hold = 5.0)
+            customer("X2", 0.0, hold = 10.0)
+            customer("H", 1.0, amount = 2)
+            customer("B", 2.0)
+            at(6.0) { customers["H"]!!.terminateProcess() }
+            at(6.5) { seen = "available=${r.numAvailableUnits}, waiting=${r.myWaitingQ.size}" }
+        }
+        assertEquals("available=0, waiting=0", seen, "B is now the head and fits, and is offered the free unit")
+        assertEquals(listOf("X1@0.0", "X2@0.0", "B@6.0"), m.log)
     }
 }

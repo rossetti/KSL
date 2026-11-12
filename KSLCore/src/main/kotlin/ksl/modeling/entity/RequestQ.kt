@@ -387,12 +387,15 @@ class RequestQ @JvmOverloads constructor(
     /**
      *  Removes a request whose entity will not resume to take what it was promised, because its process
      *  was terminated while it waited, and offers the promised units to whoever else is waiting for them.
-     *  Without the offer they would sit free until the next release.
+     *  Without the offer they would sit free until the next release. The free units of what the request
+     *  asked for are offered too: under a request selection rule, removing the request the rule had
+     *  chosen can let it choose another.
      */
     internal fun removeAbandoned(request: ProcessModel.Entity.Request) {
-        val promised = request.promises.keys.toList()
+        val offerOn = LinkedHashSet<Resource>(request.promises.keys)
+        offerOn.addAll(membersOf(request.resource))
         if (!remove(request, false)) return
-        offerOnward(promised, "promise_abandoned_by_request_id=${request.id}")
+        offerOnward(offerOn, "request_abandoned_request_id=${request.id}")
     }
 
     /**
