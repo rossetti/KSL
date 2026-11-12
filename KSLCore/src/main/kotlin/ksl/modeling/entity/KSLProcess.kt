@@ -464,6 +464,38 @@ interface KSLProcessBuilder {
     )
 
     /**
+     *  Waits for the signal, as `waitFor(signal)` does, but for at most [timeout] time units.
+     *
+     *  The result is satisfied if the entity is signalled in time. Otherwise, when the time runs
+     *  out, the entity leaves the signal's queue (its wait is recorded when [waitStats] is true),
+     *  and the result is timed out. While it waits, the entity is in the signal's queue exactly as
+     *  in `waitFor(signal)`, so it is counted, ranked and signalled in the same way. A signal at the
+     *  very instant the time runs out wins at the default priorities: the timer runs late in the
+     *  instant. Give an earlier [timeoutPriority] to let the time limit win instead.
+     *
+     *  @param signal the signal to wait for
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param waitPriority the entity's priority in the signal's queue. The default is the entity's
+     *  own priority. A priority supplied here is written to the entity and stays.
+     *  @param waitStats whether the time waiting in the signal's queue is recorded
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param suspensionName the name of the suspension point
+     *  @return Satisfied if the entity was signalled, TimedOut if the time ran out first
+     */
+    suspend fun waitForOrTimeout(
+        signal: Signal,
+        timeout: Double,
+        waitPriority: Int = entity.priority,
+        waitStats: Boolean = true,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        suspensionName: String? = null
+    ): WaitResult<Unit> {
+        val trigger = signal.trigger(waitPriority, waitStats)
+        val result = waitForFirst(trigger, timeout = timeout, timeoutPriority = timeoutPriority, suspensionName = suspensionName)
+        return if (result.timedOut) WaitResult.TimedOut(result.timeWaited) else WaitResult.Satisfied(Unit, result.timeWaited)
+    }
+
+    /**
      *  Causes the current process to block until the specified process completes. This function does not
      *  activate the specified process. The specified process must have been previously activated. If the specified process has
      *  already completed, then no blocking occurs.  In other words, the call immediately returns.

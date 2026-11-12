@@ -251,6 +251,22 @@ class TerminatedEntityReuseTest {
         assertNull(m.subject.myWaitGroup)
     }
 
+    // ── Timed wait for a signal ─────────────────────────────────────────────
+
+    private class TimedSignalRow(parent: ModelElement) : ReuseHarness(parent) {
+        val signal = Signal(this, "rowSignal")
+        override val body: suspend KSLProcessBuilder.() -> Unit = { waitForOrTimeout(signal, 50.0) }
+    }
+
+    @Test
+    @DisplayName("terminated in a timed wait for a signal; it leaves the signal's queue and its timer does not reach the fresh process")
+    fun terminatedInTimedSignalIsReusable() {
+        val m = run("timedSignal") { TimedSignalRow(it) }
+        assertReleasedAndReusable(m, "WaitingForSignal")
+        assertNull(m.subject.myWaitGroup)
+        assertTrue(m.signal.waitingQ.isEmpty, "the entity left the signal's queue")
+    }
+
     // ── Timed receive of a message ──────────────────────────────────────────
 
     /** An agent layer beside the harness, so the subject has a mailbox to wait on. */

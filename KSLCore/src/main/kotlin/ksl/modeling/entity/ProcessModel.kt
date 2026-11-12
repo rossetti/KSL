@@ -2164,6 +2164,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         }
                     }
                 }
+                require(triggers.count { it is SignalTrigger } <= 1) {
+                    "A wait may include at most one signal trigger, because an entity can wait in only one queue; " +
+                        "it was given ${triggers.count { it is SignalTrigger }}."
+                }
                 requireTimeout(timeout)
                 val yieldAt = triggers.mapNotNull { it.yieldPriority }.minOrNull()
                 if (yieldAt != null) {

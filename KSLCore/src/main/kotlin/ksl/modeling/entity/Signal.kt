@@ -43,6 +43,34 @@ class Signal @JvmOverloads constructor(
 
     private val holdQueue = HoldQueue(this, "${name}:HoldQ", discipline)
 
+    /** The entities in the hold queue through a signal trigger, each with its place in its wait. */
+    private val myTimedHolds: MutableMap<ProcessModel.Entity, SignalRegistration> = mutableMapOf()
+
+    override fun initialize() {
+        super.initialize()
+        // A safeguard: every registration leaves the map when it is released, and the waits of a
+        // replication end with it.
+        myTimedHolds.clear()
+    }
+
+    /**
+     *  A trigger for this signal, for use in a wait for the first of several things
+     *  (`waitForFirst`). The trigger fires when the waiting entity is signalled while the wait is
+     *  open; it never fires at once. While the wait is open, the entity waits in this signal's
+     *  queue as an entity in `waitFor(signal)` does, so it is counted, ranked and signalled in the
+     *  same way. A wait may include at most one signal trigger, because an entity can wait in only
+     *  one queue.
+     *
+     *  A trigger holds no state of any wait, so it can be kept and used in any number of waits.
+     *
+     *  @param waitPriority the entity's priority in this signal's queue; null (the default) means
+     *  the entity's own priority when the wait starts
+     *  @param waitStats whether the time the entity waits in this signal's queue is recorded,
+     *  whether the trigger wins or loses
+     */
+    fun trigger(waitPriority: Int? = null, waitStats: Boolean = true): WaitTrigger<Unit> =
+        SignalTrigger(this, waitPriority, waitStats)
+
     val waitingQ: QueueCIfc<ProcessModel.Entity>
         get() = holdQueue
 
@@ -62,6 +90,20 @@ class Signal @JvmOverloads constructor(
      */
     internal fun hold(entity: ProcessModel.Entity, queuePriority: Int = ProcessModel.QUEUE_PRIORITY) {
         holdQueue.enqueue(entity, queuePriority)
+    }
+
+    /** Holds an entity for a signal trigger's wait. */
+    internal fun holdTimed(entity: ProcessModel.Entity, queuePriority: Int, registration: SignalRegistration) {
+        hold(entity, queuePriority)
+        myTimedHolds[entity] = registration
+    }
+
+    /** Removes an entity held for a signal trigger's wait, if it is still held. */
+    internal fun releaseTimed(entity: ProcessModel.Entity, waitStats: Boolean) {
+        myTimedHolds.remove(entity)
+        if (holdQueue.contains(entity)) {
+            holdQueue.remove(entity, waitStats)
+        }
     }
 
     /**
@@ -99,6 +141,14 @@ class Signal @JvmOverloads constructor(
         // so a repeated signal at the same instant finds it here. Signalling is naturally repeated,
         // so the repeat does nothing rather than schedule a second resume.
         if (entity.hasPendingResume) {
+            return
+        }
+        val registration = myTimedHolds[entity]
+        if (registration != null) {
+            // The entity waits for the first of several things, one of which is this signal. The
+            // claim releases the wait's other registrations and schedules the resume; a wait
+            // already claimed (a second signal at this instant) does nothing.
+            registration.group.claim(registration, Unit, ResumeSource.SIGNAL, resumePriority)
             return
         }
         entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.SIGNAL, "signal=$name")
@@ -146,9 +196,14 @@ class Signal @JvmOverloads constructor(
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
     fun signal(range: IntRange, resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
+        // The entities at the ranks are found first: a signal can end a wait whose other
+        // registrations leave this queue, which would shift the ranks while signalling.
+        val targets = mutableListOf<ProcessModel.Entity>()
         for (i in range) {
-            signal(i, resumePriority)
+            require(i >= 0) { "The rank of the desired entity must be >= 0" }
+            if (i < holdQueue.size) targets.add(holdQueue[i])
         }
+        signal(targets, resumePriority)
     }
 
     /**
@@ -158,9 +213,8 @@ class Signal @JvmOverloads constructor(
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
     fun signalAll(resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
-        for (entity in holdQueue) {
-            signal(entity, resumePriority)
-        }
+        // Over a copy: a signal can end a wait whose other registrations leave this queue.
+        signal(holdQueue.toList(), resumePriority)
     }
 
     /**
