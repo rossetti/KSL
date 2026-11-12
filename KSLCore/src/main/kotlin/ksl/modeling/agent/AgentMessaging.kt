@@ -18,8 +18,15 @@
 
 package ksl.modeling.agent
 
+import ksl.modeling.entity.AfterResume
 import ksl.modeling.entity.KSLProcessBuilder
+import ksl.modeling.entity.ProcessModel
+import ksl.modeling.entity.ProcessModel.Companion.TIMEOUT_PRIORITY
+import ksl.modeling.entity.Registration
 import ksl.modeling.entity.SuspendType
+import ksl.modeling.entity.WaitGroup
+import ksl.modeling.entity.WaitResult
+import ksl.modeling.entity.WaitTrigger
 
 /**
  *  Send [message] to [mailbox] from inside an agent's `process { }`
@@ -83,6 +90,114 @@ suspend fun <M : AgentMessage> KSLProcessBuilder.receiveMessage(
     }
     @Suppress("UNCHECKED_CAST")
     return waiter.result as M
+}
+
+/**
+ *  Wait, for at most [timeout] time units, for a message matching [predicate] in [mailbox].
+ *
+ *  The result is satisfied with the message if one arrives in time, or is already waiting in
+ *  the mailbox (then the call returns at once). Otherwise, when the time runs out, the result is
+ *  timed out, nothing is taken from the mailbox, and a matching message delivered later is kept
+ *  in the mailbox as if nobody had waited. While it waits, the receiver takes its place among the
+ *  mailbox's waiting receivers in the order it started waiting, as with [receiveMessage].
+ *
+ *  A message delivered at the very instant the time runs out wins at the default priorities:
+ *  the timer runs late in the instant. Give an earlier [timeoutPriority] to let the time limit
+ *  win instead.
+ *
+ *  ```
+ *  val reply = receiveMessageOrTimeout(mailbox, timeout = 5.0) { it.conversationId == convId }
+ *  if (reply.timedOut) giveUp() else handle(reply.value)
+ *  ```
+ *
+ *  @param mailbox the mailbox to receive from
+ *  @param timeout the time limit; zero or more, or infinite for no limit
+ *  @param timeoutPriority the priority of the event that ends the wait when the time runs out
+ *  @param suspensionName a name for the suspension, for tracing
+ *  @param predicate selects the messages to accept; by default, any message
+ *  @return the message, or that the wait timed out, with the time waited
+ */
+suspend fun <M : AgentMessage> KSLProcessBuilder.receiveMessageOrTimeout(
+    mailbox: AgentModel.AgentMailbox<M>,
+    timeout: Double,
+    timeoutPriority: Int = TIMEOUT_PRIORITY,
+    suspensionName: String? = null,
+    predicate: (M) -> Boolean = { true },
+): WaitResult<M> {
+    val trigger = mailbox.trigger(predicate)
+    val result = waitForFirst(trigger, timeout = timeout, timeoutPriority = timeoutPriority, suspensionName = suspensionName)
+    return if (result.timedOut) WaitResult.TimedOut(result.timeWaited)
+    else WaitResult.Satisfied(result.valueOf(trigger), result.timeWaited)
+}
+
+/**
+ *  Wait, for at most [timeout] time units, for a message of type T in [mailbox]. Messages of
+ *  other types are left in the mailbox. See [receiveMessageOrTimeout].
+ *
+ *  @param mailbox the mailbox to receive from
+ *  @param timeout the time limit; zero or more, or infinite for no limit
+ *  @param timeoutPriority the priority of the event that ends the wait when the time runs out
+ *  @param suspensionName a name for the suspension, for tracing
+ *  @return the message, or that the wait timed out, with the time waited
+ */
+suspend inline fun <reified T : M, M : AgentMessage> KSLProcessBuilder.receiveMessageOfTypeOrTimeout(
+    mailbox: AgentModel.AgentMailbox<M>,
+    timeout: Double,
+    timeoutPriority: Int = TIMEOUT_PRIORITY,
+    suspensionName: String? = null,
+): WaitResult<T> {
+    @Suppress("UNCHECKED_CAST")
+    return receiveMessageOrTimeout(mailbox, timeout, timeoutPriority, suspensionName) { it is T } as WaitResult<T>
+}
+
+/**
+ *  The trigger of a message on a mailbox, made by `AgentMailbox.trigger`. It can fire at once
+ *  when a matching message is already waiting, which it then takes; otherwise it registers a
+ *  waiter on the mailbox, which a matching delivery claims.
+ */
+internal class MessageTrigger<M : AgentMessage>(
+    val mailbox: AgentModel.AgentMailbox<M>,
+    val predicate: (M) -> Boolean,
+) : WaitTrigger<M>() {
+
+    override fun canFireNow(entity: ProcessModel.Entity): Boolean = mailbox.hasMatch(predicate)
+
+    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): M =
+        checkNotNull(mailbox.tryTake(predicate)) { "A message trigger on the mailbox of ${mailbox.owner} found no matching message to take." }
+
+    override fun register(group: WaitGroup): Registration {
+        val registration = MessageRegistration(this, group)
+        registration.waiter = mailbox.registerWaiter(predicate, registration)
+        return registration
+    }
+
+    override fun toString(): String = "MessageTrigger(mailbox of ${mailbox.owner.name})"
+}
+
+/**
+ *  A message trigger's waiter in one wait. The delivery that matches it removes it from the
+ *  mailbox and claims the wait with the message; a loser or a terminated wait removes it.
+ */
+internal class MessageRegistration<M : AgentMessage>(
+    private val messageTrigger: MessageTrigger<M>,
+    group: WaitGroup,
+) : Registration(messageTrigger, group) {
+
+    lateinit var waiter: AgentModel.AgentMailbox<M>.Waiter
+
+    override fun onReleaseAsLoser() {
+        messageTrigger.mailbox.removeWaiter(waiter)
+    }
+
+    override fun onReleaseOnTermination() {
+        messageTrigger.mailbox.removeWaiter(waiter)
+    }
+
+    override suspend fun afterWinningResume(process: ProcessModel.Entity.ProcessCoroutine): AfterResume {
+        // The delivery has already removed the waiter and given the message to the claim.
+        markReleased()
+        return AfterResume.Value(group.value)
+    }
 }
 
 /**

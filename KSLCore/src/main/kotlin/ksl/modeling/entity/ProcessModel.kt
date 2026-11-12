@@ -63,6 +63,7 @@ internal enum class ResumeSource(val mayResumeDelay: Boolean = false) {
     SUSPENSION_OBJECT,
     BLOCKAGE_END,
     TIMEOUT,
+    MAILBOX,
     UNKNOWN_INTERNAL
 }
 

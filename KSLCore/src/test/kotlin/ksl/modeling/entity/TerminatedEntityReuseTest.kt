@@ -18,6 +18,9 @@
 
 package ksl.modeling.entity
 
+import ksl.modeling.agent.AgentMessage
+import ksl.modeling.agent.AgentModel
+import ksl.modeling.agent.receiveMessageOrTimeout
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
@@ -246,6 +249,33 @@ class TerminatedEntityReuseTest {
         // A timed wait on a suspension reports what suspendFor reports: active, suspended as SUSPEND.
         assertReleasedAndReusable(m, "Active")
         assertNull(m.subject.myWaitGroup)
+    }
+
+    // ── Timed receive of a message ──────────────────────────────────────────
+
+    /** An agent layer beside the harness, so the subject has a mailbox to wait on. */
+    private class Agents(parent: ModelElement) : AgentModel(parent, "agents") {
+        inner class Hub : Agent("hub")
+
+        val hub = Hub()
+    }
+
+    private class TimedReceiveRow(parent: ModelElement) : ReuseHarness(parent) {
+        val agents = Agents(this)
+        override val body: suspend KSLProcessBuilder.() -> Unit = { receiveMessageOrTimeout(agents.hub.mailbox, 50.0) }
+    }
+
+    @Test
+    @DisplayName("terminated in a timed receive; its waiter and timer do not reach the fresh process")
+    fun terminatedInTimedReceiveIsReusable() {
+        var sizeAfter = -1
+        val m = run("timedReceive") { TimedReceiveRow(it) }
+        // A timed receive reports what receiveMessage reports: active, suspended as SUSPEND.
+        assertReleasedAndReusable(m, "Active")
+        assertNull(m.subject.myWaitGroup)
+        m.agents.hub.mailbox.deliver(AgentMessage.Inform(m.agents.hub, "after"))
+        sizeAfter = m.agents.hub.mailbox.size
+        assertEquals(1, sizeAfter, "the terminated wait's waiter is gone, so the message is kept")
     }
 
     // ── Row 5 · blocked sending ─────────────────────────────────────────────

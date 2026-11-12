@@ -24,6 +24,9 @@ import ksl.animation.AnimationEvent
 import ksl.modeling.elements.EventGenerator
 import ksl.modeling.elements.GeneratorActionIfc
 import ksl.modeling.entity.ProcessModel
+import ksl.modeling.entity.Registration
+import ksl.modeling.entity.ResumeSource
+import ksl.modeling.entity.WaitTrigger
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.TWResponse
@@ -275,14 +278,17 @@ open class AgentModel(
     ) {
 
         /**
-         *  Records a process suspended on a [receiveMessage] call. The
-         *  predicate selects which messages this waiter accepts; when
-         *  a matching message arrives (or is found by a sync scan) the
-         *  [result] slot is set and [suspension] is resumed.
+         *  Records a process waiting for a message on this mailbox. The
+         *  predicate selects which messages this waiter accepts. A waiter
+         *  of [receiveMessage] has a [suspension], which a matching message
+         *  resumes after setting [result]. A waiter of a message trigger has
+         *  a [registration] instead, and a matching message claims the
+         *  trigger's wait.
          */
         internal inner class Waiter(
             val predicate: (M) -> Boolean,
-            val suspension: ProcessModel.Entity.Suspension,
+            val suspension: ProcessModel.Entity.Suspension?,
+            val registration: Registration? = null,
         ) {
             var result: M? = null
         }
@@ -359,9 +365,22 @@ open class AgentModel(
             if (waiterIdx >= 0) {
                 val waiter = waiters.removeAt(waiterIdx)
                 waiter.result = message
+                val registration = waiter.registration
+                if (registration != null) {
+                    // A message trigger's waiter. Claiming its wait releases the wait's other
+                    // registrations, so it comes before the observers: a message an observer
+                    // sends from here is offered only to waiters that are still waiting.
+                    val claimed = registration.group.claim(
+                        registration, message, ResumeSource.MAILBOX, ProcessModel.RESUME_PRIORITY
+                    )
+                    check(claimed) { "A message trigger's waiter was still in the mailbox of $owner after its wait had ended." }
+                    notifyDelivered(message)
+                    notifyConsumed(message)
+                    return
+                }
                 notifyDelivered(message)
                 notifyConsumed(message)   // direct handoff is delivery + immediate consumption
-                waiter.suspension.resume()
+                checkNotNull(waiter.suspension).resume()
                 return
             }
             // No matching waiter — queue the message.
@@ -420,6 +439,39 @@ open class AgentModel(
         }
 
         /**
+         *  True if a message matching [predicate] is waiting in the mailbox,
+         *  not yet taken. Removes nothing.
+         */
+        internal fun hasMatch(predicate: (M) -> Boolean): Boolean = pending.any(predicate)
+
+        /**
+         *  A trigger for a message on this mailbox that matches [predicate], for use in a
+         *  wait for the first of several things (`waitForFirst`). The trigger fires when a
+         *  matching message is delivered while the wait is open, or at once if one is
+         *  already waiting in the mailbox; its value is the message, which is taken from
+         *  the mailbox. While the wait is open, its waiter takes its place among this
+         *  mailbox's waiting receivers in the order it was registered, as a
+         *  `receiveMessage` waiter does.
+         *
+         *  A trigger holds no state of any wait, so it can be kept and used in any number
+         *  of waits.
+         *
+         *  @param predicate selects the messages the trigger accepts; by default, any message
+         */
+        fun trigger(predicate: (M) -> Boolean = { true }): WaitTrigger<M> = MessageTrigger(this, predicate)
+
+        /**
+         *  A trigger for a message of type T on this mailbox that also matches [predicate].
+         *  See `trigger`; the trigger's value is the message, typed as T.
+         *
+         *  @param predicate selects, among the messages of type T, those the trigger accepts
+         */
+        inline fun <reified T : M> triggerOfType(noinline predicate: (T) -> Boolean = { true }): WaitTrigger<T> {
+            @Suppress("UNCHECKED_CAST")
+            return trigger { it is T && predicate(it) } as WaitTrigger<T>
+        }
+
+        /**
          *  Non-suspending take: scan [pending] for a message matching
          *  [predicate], remove and return it if found, else return
          *  null. Used by the suspending `receiveMessage` extension to
@@ -467,6 +519,20 @@ open class AgentModel(
             suspension: ProcessModel.Entity.Suspension,
         ): Waiter {
             val waiter = Waiter(predicate, suspension)
+            waiters.add(waiter)
+            return waiter
+        }
+
+        /**
+         *  Register a message trigger's waiter, which claims the trigger's wait through
+         *  [registration] when a matching message arrives. It joins the same ordered list
+         *  as a `receiveMessage` waiter.
+         */
+        internal fun registerWaiter(
+            predicate: (M) -> Boolean,
+            registration: Registration,
+        ): Waiter {
+            val waiter = Waiter(predicate, null, registration)
             waiters.add(waiter)
             return waiter
         }
