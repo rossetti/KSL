@@ -2645,7 +2645,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     waitForResource(request, resource, queue)
                     waitUntilPromiseHonoured(request) { request.myResource.canAllocate(amountNeeded) }
                     // entity has been told to resume or the request was selected for allocation
-                    queue.remove(request) // take the request out of the queue after possible wait
+                    // out of the queue the request is in now: a moved request waits in its new queue, and must leave
+                    // it here, keeping its promise, rather than be swept up below as if its process had ended
+                    (request.queue as? RequestQ ?: queue).remove(request)
                 } finally {
                     // Abnormal exit only. Termination resumes the continuation with a
                     // ProcessTerminatedException, which unwinds through the suspend() inside
@@ -2775,7 +2777,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // the members promised when it was woken; leaving the queue withdraws the promise,
                     // which is what makes those units available to this allocation
                     promised = request.promises.toMap()
-                    queue.remove(request) // take the request out of the queue after possible wait
+                    // out of the queue the request is in now: a moved request waits in its new queue, and must leave
+                    // it here, keeping its promise, rather than be swept up below as if its process had ended
+                    (request.queue as? RequestQ ?: queue).remove(request)
                 } finally {
                     // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
                     // A no-op on the normal path, so it records no second waiting-time observation.
@@ -2848,7 +2852,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     waitUntilPromiseHonoured(request) { request.myMovableResourcePool.canAllocate(resourceSelectionRule) }
                     // entity has been told to resume; leaving the queue withdraws its promise
                     promisedMember = request.promises.keys.firstOrNull()
-                    queue.remove(request) // take the request out of the queue after possible wait
+                    // out of the queue the request is in now: a moved request waits in its new queue, and must leave
+                    // it here, keeping its promise, rather than be swept up below as if its process had ended
+                    (request.queue as? RequestQ ?: queue).remove(request)
                 } finally {
                     // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
                     // A no-op on the normal path, so it records no second waiting-time observation.
