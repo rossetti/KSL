@@ -28,9 +28,9 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 /**
- *  Pins today's shifts on the two non-guided vehicle kinds that keep their own copy of the shift
- *  functions: what a new replication starts with after one that ended off shift, and what
- *  `goOnShift` restores when the initial capacity was changed after construction.
+ *  Shifts on an agent resource and a movable resource: a new replication starts on shift at the
+ *  initial capacity after one that ended off shift, and `goOnShift` restores the replication's
+ *  initial capacity, also when it was changed after construction.
  */
 class ShiftCharacterizationTest {
 
@@ -92,8 +92,8 @@ class ShiftCharacterizationTest {
     }
 
     @Test
-    @DisplayName("today: goOnShift on an AgentResource restores the capacity it was constructed with, not a changed initial capacity")
-    fun restoresConstructedCapacity() {
+    @DisplayName("goOnShift on an AgentResource restores the replication's initial capacity, also when it was changed after construction")
+    fun restoresInitialCapacity() {
         val model = Model("Restore${System.nanoTime()}", autoCSVReports = false)
         val m = ShiftModel(model, desk = 2)
         m.agentDesk.initialCapacity = 3
@@ -105,6 +105,6 @@ class ShiftCharacterizationTest {
         model.numberOfReplications = 1
         model.lengthOfReplication = 20.0
         model.simulate()
-        assertEquals(listOf("start cap=3", "back cap=2, onShiftCapacity=2"), m.seen)
+        assertEquals(listOf("start cap=3", "back cap=3, onShiftCapacity=3"), m.seen)
     }
 }
