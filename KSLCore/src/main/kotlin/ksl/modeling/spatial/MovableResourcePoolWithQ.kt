@@ -61,6 +61,28 @@ class MovableResourcePoolWithQ(
      */
     internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
 
+    /**
+     *  A trigger for a movable resource of this pool, waiting in its own queue, for use in a wait for the
+     *  first of several things (`waitForFirst`). As the form of `MovableResourcePool` that takes a queue.
+     *
+     *  @param requestLocation the location the request is made from; null means the entity's location
+     *  when the wait starts
+     *  @param seizePriority the priority of the yield a wait with this trigger makes before it starts
+     *  @param resourceSelectionRule the rule that selects the movable resource, as for `seize`
+     *  @param resourceAllocationRule the rule that allocates it, as for `seize`
+     *  @param recordRenegedWait whether a request that leaves without service records its wait in the
+     *  queue's time in queue
+     */
+    fun seizeTrigger(
+        requestLocation: LocationIfc? = null,
+        seizePriority: Int = ProcessModel.SEIZE_PRIORITY,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc = defaultMovableResourceSelectionRule,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc = defaultMovableResourceAllocationRule,
+        recordRenegedWait: Boolean = true
+    ): WaitTrigger<Allocation> = seizeTrigger(
+        myWaitingQ, requestLocation, seizePriority, resourceSelectionRule, resourceAllocationRule, recordRenegedWait
+    )
+
     init {
         for (resource in myResources) {
             resource.registerCapacityChangeQueue(myWaitingQ)

@@ -31,6 +31,27 @@ class ResourcePoolWithQ @JvmOverloads constructor(
      * Holds the entities that are waiting for allocations of the resource's units in the pool
      */
     internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
+
+    /**
+     *  A trigger for units of this pool, waiting in its own queue, for use in a wait for the first of
+     *  several things (`waitForFirst`). As the form of `ResourcePool` that takes a queue.
+     *
+     *  @param amountNeeded the number of units wanted; at least 1
+     *  @param seizePriority the priority of the yield a wait with this trigger makes before it starts
+     *  @param resourceSelectionRule the rule that selects the members, as for `seize`
+     *  @param resourceAllocationRule the rule that allocates among them, as for `seize`
+     *  @param recordRenegedWait whether a request that leaves without service records its wait in the
+     *  queue's time in queue
+     */
+    fun seizeTrigger(
+        amountNeeded: Int = 1,
+        seizePriority: Int = ProcessModel.SEIZE_PRIORITY,
+        resourceSelectionRule: ResourceSelectionRuleIfc = defaultResourceSelectionRule,
+        resourceAllocationRule: ResourceAllocationRuleIfc = defaultResourceAllocationRule,
+        recordRenegedWait: Boolean = true
+    ): WaitTrigger<ResourcePoolAllocation> = seizeTrigger(
+        amountNeeded, seizePriority, myWaitingQ, resourceSelectionRule, resourceAllocationRule, recordRenegedWait
+    )
     init {
         for (resource in myResources) {
             resource.registerCapacityChangeQueue(myWaitingQ)

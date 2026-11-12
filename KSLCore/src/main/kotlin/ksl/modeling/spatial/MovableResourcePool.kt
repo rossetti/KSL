@@ -205,6 +205,30 @@ open class MovableResourcePool(
     }
 
     /**
+     *  A trigger for a movable resource of this pool, for use in a wait for the first of several things
+     *  (`waitForFirst`). As the trigger of a resource pool, for one unit. A null [requestLocation] means
+     *  the entity's location when the wait starts, which is what `seize` uses by default.
+     *
+     *  @param queue the queue the request waits in
+     *  @param requestLocation the location the request is made from
+     *  @param seizePriority the priority of the yield a wait with this trigger makes before it starts
+     *  @param resourceSelectionRule the rule that selects the movable resource, as for `seize`
+     *  @param resourceAllocationRule the rule that allocates it, as for `seize`
+     *  @param recordRenegedWait whether a request that leaves without service records its wait in the
+     *  queue's time in queue
+     */
+    fun seizeTrigger(
+        queue: RequestQ,
+        requestLocation: LocationIfc? = null,
+        seizePriority: Int = ProcessModel.SEIZE_PRIORITY,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc = defaultMovableResourceSelectionRule,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc = defaultMovableResourceAllocationRule,
+        recordRenegedWait: Boolean = true
+    ): WaitTrigger<Allocation> = MovableResourcePoolSeizeTrigger(
+        this, queue, requestLocation, seizePriority, resourceSelectionRule, resourceAllocationRule, recordRenegedWait
+    )
+
+    /**
      * Promises a member to a waiting request, chosen by the rules and from the location its seize named
      * (or the pool's defaults), as it would be chosen if it allocated now.
      *

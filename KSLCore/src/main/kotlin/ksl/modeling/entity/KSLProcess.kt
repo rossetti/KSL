@@ -1256,6 +1256,138 @@ interface KSLProcessBuilder {
     }
 
     /**
+     *  Seizes units of the resource pool, as `seize` does, but waits for at most [timeout] time units.
+     *  As `seizeOrTimeout` for a resource: the result is satisfied with the allocation if the units
+     *  are allocated in time, or timed out; a request that leaves without service records its wait
+     *  unless [recordRenegedWait] is false; a broken promise waits again for the time left.
+     *
+     *  @param resourcePool the pool to seize from
+     *  @param amountNeeded the number of units wanted; at least 1
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param seizePriority the priority of the yield before the request is placed
+     *  @param queue the queue the request waits in
+     *  @param resourceSelectionRule the rule that selects the members
+     *  @param resourceAllocationRule the rule that allocates among them
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param recordRenegedWait whether a reneged wait is recorded in the queue's time in queue
+     *  @param suspensionName the name of the suspension point
+     *  @return the allocation, or that the time ran out first
+     */
+    suspend fun seizeOrTimeout(
+        resourcePool: ResourcePool,
+        amountNeeded: Int = 1,
+        timeout: Double,
+        seizePriority: Int = SEIZE_PRIORITY,
+        queue: RequestQ,
+        resourceSelectionRule: ResourceSelectionRuleIfc = resourcePool.defaultResourceSelectionRule,
+        resourceAllocationRule: ResourceAllocationRuleIfc = resourcePool.defaultResourceAllocationRule,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        recordRenegedWait: Boolean = true,
+        suspensionName: String? = null
+    ): WaitResult<ResourcePoolAllocation> {
+        val trigger = resourcePool.seizeTrigger(amountNeeded, seizePriority, queue, resourceSelectionRule,
+            resourceAllocationRule, recordRenegedWait)
+        val result = waitForFirst(trigger, timeout = timeout, timeoutPriority = timeoutPriority, suspensionName = suspensionName)
+        return if (result.timedOut) WaitResult.TimedOut(result.timeWaited)
+        else WaitResult.Satisfied(result.valueOf(trigger), result.timeWaited)
+    }
+
+    /**
+     *  Seizes units of the resource pool, waiting in its own queue for at most [timeout] time units.
+     *
+     *  @param resourcePool the pool to seize from
+     *  @param amountNeeded the number of units wanted; at least 1
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param seizePriority the priority of the yield before the request is placed
+     *  @param resourceSelectionRule the rule that selects the members
+     *  @param resourceAllocationRule the rule that allocates among them
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param recordRenegedWait whether a reneged wait is recorded in the queue's time in queue
+     *  @param suspensionName the name of the suspension point
+     *  @return the allocation, or that the time ran out first
+     */
+    suspend fun seizeOrTimeout(
+        resourcePool: ResourcePoolWithQ,
+        amountNeeded: Int = 1,
+        timeout: Double,
+        seizePriority: Int = SEIZE_PRIORITY,
+        resourceSelectionRule: ResourceSelectionRuleIfc = resourcePool.defaultResourceSelectionRule,
+        resourceAllocationRule: ResourceAllocationRuleIfc = resourcePool.defaultResourceAllocationRule,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        recordRenegedWait: Boolean = true,
+        suspensionName: String? = null
+    ): WaitResult<ResourcePoolAllocation> {
+        return seizeOrTimeout(resourcePool, amountNeeded, timeout, seizePriority, resourcePool.myWaitingQ,
+            resourceSelectionRule, resourceAllocationRule, timeoutPriority, recordRenegedWait, suspensionName)
+    }
+
+    /**
+     *  Seizes a movable resource of the pool, as `seize` does, but waits for at most [timeout] time units.
+     *  As `seizeOrTimeout` for a resource: the result is satisfied with the allocation if the units
+     *  are allocated in time, or timed out; a request that leaves without service records its wait
+     *  unless [recordRenegedWait] is false; a broken promise waits again for the time left.
+     *
+     *  @param movableResourcePool the pool to seize from
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param queue the queue the request waits in
+     *  @param requestLocation the location the request is made from
+     *  @param seizePriority the priority of the yield before the request is placed
+     *  @param resourceSelectionRule the rule that selects the movable resource
+     *  @param resourceAllocationRule the rule that allocates it
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param recordRenegedWait whether a reneged wait is recorded in the queue's time in queue
+     *  @param suspensionName the name of the suspension point
+     *  @return the allocation, or that the time ran out first
+     */
+    suspend fun seizeOrTimeout(
+        movableResourcePool: MovableResourcePool,
+        timeout: Double,
+        queue: RequestQ,
+        requestLocation: LocationIfc = entity.currentLocation,
+        seizePriority: Int = SEIZE_PRIORITY,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc = movableResourcePool.defaultMovableResourceSelectionRule,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc = movableResourcePool.defaultMovableResourceAllocationRule,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        recordRenegedWait: Boolean = true,
+        suspensionName: String? = null
+    ): WaitResult<Allocation> {
+        val trigger = movableResourcePool.seizeTrigger(queue, requestLocation, seizePriority, resourceSelectionRule,
+            resourceAllocationRule, recordRenegedWait)
+        val result = waitForFirst(trigger, timeout = timeout, timeoutPriority = timeoutPriority, suspensionName = suspensionName)
+        return if (result.timedOut) WaitResult.TimedOut(result.timeWaited)
+        else WaitResult.Satisfied(result.valueOf(trigger), result.timeWaited)
+    }
+
+    /**
+     *  Seizes a movable resource of the pool, waiting in its own queue for at most [timeout] time units.
+     *
+     *  @param movableResourcePoolWithQ the pool to seize from
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param requestLocation the location the request is made from
+     *  @param seizePriority the priority of the yield before the request is placed
+     *  @param resourceSelectionRule the rule that selects the movable resource
+     *  @param resourceAllocationRule the rule that allocates it
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param recordRenegedWait whether a reneged wait is recorded in the queue's time in queue
+     *  @param suspensionName the name of the suspension point
+     *  @return the allocation, or that the time ran out first
+     */
+    suspend fun seizeOrTimeout(
+        movableResourcePoolWithQ: MovableResourcePoolWithQ,
+        timeout: Double,
+        requestLocation: LocationIfc = entity.currentLocation,
+        seizePriority: Int = SEIZE_PRIORITY,
+        resourceSelectionRule: MovableResourceSelectionRuleIfc = movableResourcePoolWithQ.defaultMovableResourceSelectionRule,
+        resourceAllocationRule: MovableResourceAllocationRuleIfc = movableResourcePoolWithQ.defaultMovableResourceAllocationRule,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        recordRenegedWait: Boolean = true,
+        suspensionName: String? = null
+    ): WaitResult<Allocation> {
+        return seizeOrTimeout(movableResourcePoolWithQ, timeout, movableResourcePoolWithQ.myWaitingQ, requestLocation,
+            seizePriority, resourceSelectionRule, resourceAllocationRule, timeoutPriority, recordRenegedWait, suspensionName)
+    }
+
+    /**
      *  Uses the resource with the amount of units for the delay and then releases it.
      *  Equivalent to: seize(), delay(), release()
      *

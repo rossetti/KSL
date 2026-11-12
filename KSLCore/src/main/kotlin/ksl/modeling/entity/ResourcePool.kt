@@ -219,6 +219,36 @@ open class ResourcePool @JvmOverloads constructor(
     }
 
     /**
+     *  A trigger for units of this pool, for use in a wait for the first of several things
+     *  (`waitForFirst`). The trigger fires when the request it places in [queue] is served while the
+     *  wait is open, or at once when the pool can allocate the units, as `seize` takes them. Its value
+     *  is the allocation, made after the wait ends, as `seize` makes it. While the wait is open the
+     *  request waits in [queue] as a `seize` request does. If the wait ends otherwise, the request
+     *  leaves the queue.
+     *
+     *  A trigger holds no state of any wait, so it can be kept and used in any number of waits.
+     *
+     *  @param amountNeeded the number of units wanted; at least 1
+     *  @param seizePriority the priority of the yield a wait with this trigger makes before it starts
+     *  @param queue the queue the request waits in
+     *  @param resourceSelectionRule the rule that selects the members, as for `seize`
+     *  @param resourceAllocationRule the rule that allocates among them, as for `seize`
+     *  @param recordRenegedWait whether a request that leaves without service records its wait in the
+     *  queue's time in queue. With false, the queue's number in queue has counted the request while its
+     *  time in queue leaves it out, so the two no longer agree as Little's law requires.
+     */
+    fun seizeTrigger(
+        amountNeeded: Int = 1,
+        seizePriority: Int = ProcessModel.SEIZE_PRIORITY,
+        queue: RequestQ,
+        resourceSelectionRule: ResourceSelectionRuleIfc = defaultResourceSelectionRule,
+        resourceAllocationRule: ResourceAllocationRuleIfc = defaultResourceAllocationRule,
+        recordRenegedWait: Boolean = true
+    ): WaitTrigger<ResourcePoolAllocation> = ResourcePoolSeizeTrigger(
+        this, amountNeeded, seizePriority, queue, resourceSelectionRule, resourceAllocationRule, recordRenegedWait
+    )
+
+    /**
      * Promises members' units to a waiting request, chosen by the selection and allocation rules the request's
      * seize named (or the pool's defaults), as they would be chosen if it allocated now.
      *
