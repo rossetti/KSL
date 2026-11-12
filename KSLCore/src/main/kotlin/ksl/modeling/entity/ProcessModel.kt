@@ -669,6 +669,51 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         /**
+         *  The first step of a seize of a resource pool: registers the queue on the members, makes the
+         *  request with its rules at this entity's priority, places it in the queue and announces it.
+         */
+        internal fun enqueuePoolRequest(
+            resourcePool: ResourcePool,
+            amountNeeded: Int,
+            queue: RequestQ,
+            resourceSelectionRule: ResourceSelectionRuleIfc,
+            resourceAllocationRule: ResourceAllocationRuleIfc
+        ): ResourcePoolRequest {
+            // a queue a seize waits in is offered the members' freed units, whichever way they are freed
+            resourcePool.registerQueueOnMembers(queue)
+            val request = ResourcePoolRequest(amountNeeded, resourcePool)
+            request.selectionRule = resourceSelectionRule
+            request.allocationRule = resourceAllocationRule
+            request.priority = priority // consider adding a queue priority parameter to the seize() function
+            queue.enqueue(request) // put the request in the queue
+            emitAnimation { AnimationEvent.SeizeQueued(time, id, resourcePool.name, queue.name, amountNeeded) }
+            return request
+        }
+
+        /**
+         *  The first step of a seize of a movable resource pool: as for a resource pool, with the location
+         *  the request is made from.
+         */
+        internal fun enqueueMovablePoolRequest(
+            movableResourcePool: MovableResourcePool,
+            queue: RequestQ,
+            requestLocation: LocationIfc,
+            resourceSelectionRule: MovableResourceSelectionRuleIfc,
+            resourceAllocationRule: MovableResourceAllocationRuleIfc
+        ): MovableResourcePoolRequest {
+            // a queue a seize waits in is offered the members' freed units, whichever way they are freed
+            movableResourcePool.registerQueueOnMembers(queue)
+            val request = MovableResourcePoolRequest(myMovableResourcePool = movableResourcePool)
+            request.requestLocation = requestLocation
+            request.selectionRule = resourceSelectionRule
+            request.allocationRule = resourceAllocationRule
+            request.priority = priority // consider adding a queue priority parameter to the seize() function
+            queue.enqueue(request) // put the request in the queue
+            emitAnimation { AnimationEvent.SeizeQueued(time, id, movableResourcePool.name, queue.name, 1) }
+            return request
+        }
+
+        /**
          *  True when a request just placed can take its units at once: the resource can allocate them and
          *  the queue would choose this request next for that resource.
          */
@@ -2855,18 +2900,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${resourcePool.name}")
-                // a queue a seize waits in is offered the members' freed units, whichever way they are freed
-                resourcePool.registerQueueOnMembers(queue)
-                val request = ResourcePoolRequest(amountNeeded, resourcePool)
-                var promised: Map<Resource, Int> = emptyMap()
-                request.selectionRule = resourceSelectionRule
-                request.allocationRule = resourceAllocationRule
-                request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
-                queue.enqueue(request) // put the request in the queue
-                emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, resourcePool.name, queue.name, amountNeeded) }
+                val request = entity.enqueuePoolRequest(
+                    resourcePool, amountNeeded, queue, resourceSelectionRule, resourceAllocationRule
+                )
                 // this causes the selection rule to be invoked to see if resources are available
                 //TODO: The current implementation does not facilitate partial filling
-                try {
+                val allocation = try {
                     if (!resourcePool.canAllocate(resourceSelectionRule, request.amountRequested)) {
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                         emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, resourcePool.name) }
@@ -2875,20 +2914,54 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         entity.state.activate()
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     }
-                    waitUntilPromiseHonoured(request) {
-                        request.myResourcePool.canAllocate(resourceSelectionRule, request.amountRequested)
-                    }
-                    // the members promised when it was woken; leaving the queue withdraws the promise,
-                    // which is what makes those units available to this allocation
-                    promised = request.promises.toMap()
-                    // out of the queue the request is in now: a moved request waits in its new queue, and must leave
-                    // it here, keeping its promise, rather than be swept up below as if its process had ended
-                    (request.queue as? RequestQ ?: queue).remove(request)
+                    takePool(request, resourcePool, queue, suspensionName, rewait = null)!!
                 } finally {
                     // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
                     // A no-op on the normal path, so it records no second waiting-time observation.
                     (request.queue as? RequestQ)?.removeAbandoned(request)
                 }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                return allocation
+            }
+
+            /**
+             *  The last step of a seize of a resource pool: waits, if it must, until what the request was
+             *  promised can be taken, then takes the request out of its queue and allocates. With a [rewait], a
+             *  broken promise waits again through it, and a false answer returns null with nothing allocated.
+             */
+            internal suspend fun takePool(
+                request: ResourcePoolRequest,
+                resourcePool: ResourcePool,
+                queue: RequestQ,
+                suspensionName: String?,
+                rewait: (suspend ProcessCoroutine.() -> Boolean)?
+            ): ResourcePoolAllocation? {
+                val resourceSelectionRule = request.selectionRule!!
+                if (!waitUntilPromiseHonoured(request, rewait) {
+                        request.myResourcePool.canAllocate(resourceSelectionRule, request.amountRequested)
+                    }) {
+                    return null
+                }
+                return completePoolSeize(request, resourcePool, queue, suspensionName)
+            }
+
+            /** Takes a pool request out of the queue it is in and allocates; the units can be allocated now. */
+            internal fun completePoolSeize(
+                request: ResourcePoolRequest,
+                resourcePool: ResourcePool,
+                queue: RequestQ,
+                suspensionName: String?
+            ): ResourcePoolAllocation {
+                val amountNeeded = request.amountRequested
+                val resourceSelectionRule = request.selectionRule!!
+                val resourceAllocationRule = request.allocationRule!!
+                // the members promised when it was woken; leaving the queue withdraws the promise,
+                // which is what makes those units available to this allocation
+                val promised = request.promises.toMap()
+                // out of the queue the request is in now: a moved request waits in its new queue, and must leave
+                // it here, keeping its promise, rather than be swept up as if its process had ended
+                (request.queue as? RequestQ ?: queue).remove(request)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 if (request.myResourcePool != resourcePool) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} switched from resource pool ${resourcePool.name} to resource pool ${request.myResourcePool.name}" }
@@ -2915,8 +2988,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${thePool.name} : allocation_id = ${allocation.id}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: RESOURCE POOL: ${thePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                currentSuspendName = null
-                currentSuspendType = SuspendType.NONE
                 return allocation
             }
 
@@ -2933,18 +3004,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${movableResourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${movableResourcePool.name}")
-                // a queue a seize waits in is offered the members' freed units, whichever way they are freed
-                movableResourcePool.registerQueueOnMembers(queue)
-                val request = MovableResourcePoolRequest(myMovableResourcePool = movableResourcePool)
-                var promisedMember: Resource? = null
-                request.requestLocation = requestLocation
-                request.selectionRule = resourceSelectionRule
-                request.allocationRule = resourceAllocationRule
-                request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
-                queue.enqueue(request) // put the request in the queue
-                emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, movableResourcePool.name, queue.name, 1) }
+                val request = entity.enqueueMovablePoolRequest(
+                    movableResourcePool, queue, requestLocation, resourceSelectionRule, resourceAllocationRule
+                )
                 // this causes the selection rule to be invoked to see if resources are available
-                try {
+                val allocation = try {
                     if (!movableResourcePool.canAllocate(resourceSelectionRule)) {
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                         emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, movableResourcePool.name) }
@@ -2953,17 +3017,47 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         entity.state.activate()
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     }
-                    waitUntilPromiseHonoured(request) { request.myMovableResourcePool.canAllocate(resourceSelectionRule) }
-                    // entity has been told to resume; leaving the queue withdraws its promise
-                    promisedMember = request.promises.keys.firstOrNull()
-                    // out of the queue the request is in now: a moved request waits in its new queue, and must leave
-                    // it here, keeping its promise, rather than be swept up below as if its process had ended
-                    (request.queue as? RequestQ ?: queue).remove(request)
+                    takeMovablePool(request, movableResourcePool, queue, suspensionName, rewait = null)!!
                 } finally {
                     // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
                     // A no-op on the normal path, so it records no second waiting-time observation.
                     (request.queue as? RequestQ)?.removeAbandoned(request)
                 }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                return allocation
+            }
+
+            /** The last step of a seize of a movable resource pool, as `takePool`. */
+            internal suspend fun takeMovablePool(
+                request: MovableResourcePoolRequest,
+                movableResourcePool: MovableResourcePool,
+                queue: RequestQ,
+                suspensionName: String?,
+                rewait: (suspend ProcessCoroutine.() -> Boolean)?
+            ): Allocation? {
+                val resourceSelectionRule = request.selectionRule!!
+                if (!waitUntilPromiseHonoured(request, rewait) { request.myMovableResourcePool.canAllocate(resourceSelectionRule) }) {
+                    return null
+                }
+                return completeMovablePoolSeize(request, movableResourcePool, queue, suspensionName)
+            }
+
+            /** Takes a movable pool request out of the queue it is in and allocates; a unit can be allocated now. */
+            internal fun completeMovablePoolSeize(
+                request: MovableResourcePoolRequest,
+                movableResourcePool: MovableResourcePool,
+                queue: RequestQ,
+                suspensionName: String?
+            ): Allocation {
+                val resourceSelectionRule = request.selectionRule!!
+                val resourceAllocationRule = request.allocationRule!!
+                val requestLocation = request.requestLocation!!
+                // entity has been told to resume; leaving the queue withdraws its promise
+                val promisedMember = request.promises.keys.firstOrNull()
+                // out of the queue the request is in now: a moved request waits in its new queue, and must leave
+                // it here, keeping its promise, rather than be swept up as if its process had ended
+                (request.queue as? RequestQ ?: queue).remove(request)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 if (request.myMovableResourcePool != movableResourcePool) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} switched from resource pool ${movableResourcePool.name} to resource pool ${request.myMovableResourcePool.name}" }
@@ -2988,8 +3082,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated 1 unit of ${thePool.name} : allocation_id = ${allocation.id}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: MOVABLE RESOURCE POOL: ${thePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                currentSuspendName = null
-                currentSuspendType = SuspendType.NONE
                 return allocation
             }
 

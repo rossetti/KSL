@@ -316,7 +316,7 @@ class RequestQ @JvmOverloads constructor(
      *
      * @return false when the units are no longer there to promise
      */
-    private fun promiseUnits(request: ProcessModel.Entity.Request, target: ResourceIfc): Boolean = when {
+    internal fun promiseUnits(request: ProcessModel.Entity.Request, target: ResourceIfc): Boolean = when {
         request is ProcessModel.Entity.ResourceRequest && target is Resource -> {
             if (target.numAvailableUnits >= request.amountRequested) {
                 request.promise(target, request.amountRequested); true
