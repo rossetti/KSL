@@ -267,6 +267,22 @@ class TerminatedEntityReuseTest {
         assertTrue(m.signal.waitingQ.isEmpty, "the entity left the signal's queue")
     }
 
+    // ── Timed receive from a blocking queue ─────────────────────────────────
+
+    private class TimedItemsRow(parent: ModelElement) : ReuseHarness(parent) {
+        val q = BlockingQueue<QObject>(this, name = "rowQ")
+        override val body: suspend KSLProcessBuilder.() -> Unit = { waitForItemsOrTimeout(q, 50.0) }
+    }
+
+    @Test
+    @DisplayName("terminated in a timed receive from a blocking queue; its request and timer do not reach the fresh process")
+    fun terminatedInTimedItemsIsReusable() {
+        val m = run("timedItems") { TimedItemsRow(it) }
+        assertReleasedAndReusable(m, "BlockedReceiving")
+        assertNull(m.subject.myWaitGroup)
+        assertTrue(m.q.requestQ.isEmpty, "the request left the request queue")
+    }
+
     // ── Timed receive of a message ──────────────────────────────────────────
 
     /** An agent layer beside the harness, so the subject has a mailbox to wait on. */

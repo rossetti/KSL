@@ -315,6 +315,9 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         priority: Int
     ) : QObject() {
 
+        /** The request's place in a wait for the first of several things; null for an untimed receive. */
+        internal var registration: Registration? = null
+
         init {
             this.priority = priority
         }
@@ -357,6 +360,42 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
                 return amountRequested <= list.size
             }
     }
+
+    /**
+     *  A trigger for an amount of items from this queue's channel, for use in a wait for the first
+     *  of several things (`waitForFirst`). The trigger fires when its request is selected while the
+     *  wait is open, or at once when no request is waiting ahead of it and the channel holds the
+     *  items, exactly as `waitForItems` is filled. Its value is the items, taken from the channel.
+     *  While the wait is open, its request waits in this queue's request queue as a `waitForItems`
+     *  request does, so it is selected, counted and recorded in the same way; if the wait ends
+     *  otherwise, the request leaves the queue and its wait is recorded.
+     *
+     *  A trigger holds no state of any wait, so it can be kept and used in any number of waits.
+     *
+     *  @param amount the number of items wanted; at least 1
+     *  @param predicate selects the items wanted
+     *  @param blockingPriority the request's priority in the request queue; null (the default)
+     *  means the entity's own priority when the wait starts
+     */
+    fun itemsTrigger(
+        amount: Int = 1,
+        predicate: (T) -> Boolean = alwaysTrue,
+        blockingPriority: Int? = null
+    ): WaitTrigger<List<T>> = ItemsTrigger(this, amount, predicate, blockingPriority)
+
+    /**
+     *  A trigger for every item in this queue's channel that matches [predicate], at least one, for
+     *  use in a wait for the first of several things (`waitForFirst`). See `itemsTrigger`; this is
+     *  to it what `waitForAnyItems` is to `waitForItems`.
+     *
+     *  @param predicate selects the items wanted
+     *  @param blockingPriority the request's priority in the request queue; null (the default)
+     *  means the entity's own priority when the wait starts
+     */
+    fun anyItemsTrigger(
+        predicate: (T) -> Boolean,
+        blockingPriority: Int? = null
+    ): WaitTrigger<List<T>> = ItemsTrigger(this, null, predicate, blockingPriority)
 
     /**
      *  The user of the BlockingQueue can supply a function that will select the next entity
@@ -470,9 +509,11 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     internal fun enqueueChannelRequest(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
-        priority: Int
+        priority: Int,
+        registration: Registration? = null
     ) : ChannelRequest {
         val request = ChannelRequest(receiver, predicate, priority)
+        request.registration = registration
         myRequestQ.enqueue(request)
         return request
     }
@@ -486,9 +527,11 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
         amount: Int,
-        priority: Int
+        priority: Int,
+        registration: Registration? = null
     ) : AmountRequest {
         val request = AmountRequest(receiver, predicate, amount, priority)
+        request.registration = registration
         myRequestQ.enqueue(request)
         return request
     }
@@ -563,6 +606,35 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         }
     }
 
+    /**
+     *  Removes the request of a wait that another trigger, or the timer, has ended. Its wait is
+     *  recorded as the queue records any request's wait. The requests behind it are looked at only
+     *  when the claim that ended the wait has finished, through notifyAfterDeferredRemoval.
+     */
+    internal fun removeRequestDeferringNotification(request: ChannelRequest) {
+        check(myRequestBeingResumed !== request) {
+            "$name: the request ${request.id} was released as a loser while the queue was resuming it."
+        }
+        myRequestQ.remove(request)
+    }
+
+    /** Looks at the waiting requests after a deferred removal. */
+    internal fun notifyAfterDeferredRemoval() {
+        notifyWaitingRequests()
+    }
+
+    /**
+     *  Claims the wait of a request selected while it registers. It is marked as being resumed, as a
+     *  request the queue selects is, so the items stay promised to it until it takes them.
+     */
+    internal fun claimSelected(request: ChannelRequest, registration: Registration) {
+        myRequestBeingResumed = request
+        val claimed = registration.group.claim(
+            registration, null, ResumeSource.BLOCKING_QUEUE_RECEIVER, requestQResumptionPriority
+        )
+        check(claimed) { "$name: the request ${request.id} was selected for a wait that had already ended." }
+    }
+
     /** The channel may hold items for a request that was waiting behind this one. */
     private fun afterRequestLeft(request: ChannelRequest) {
         if (myRequestBeingResumed === request) {
@@ -598,6 +670,14 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         val request = if (myRequestQ.size == 1) myRequestQ[0] else selectNextRequest()
         if (request != null && request.canBeFilled) {
             // the request is not removed here: it is the entity that causes the request to be removed
+            val registration = request.registration
+            if (registration != null) {
+                // A request of a wait for the first of several things. Its wait is still open: a
+                // request whose wait has ended has left the queue, apart from one being resumed,
+                // and then nothing is selected. The claim schedules the resume.
+                claimSelected(request, registration)
+                return
+            }
             myRequestBeingResumed = request
             request.receiver.scheduleResumeProcess(
                 0.0,

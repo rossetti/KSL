@@ -671,6 +671,120 @@ interface KSLProcessBuilder {
         return waitForAnyItems(this, predicate, blockingPriority, suspensionName)
     }
 
+    /**
+     *  Waits for an amount of items from the blocking queue, as `waitForItems` does, but for at
+     *  most [timeout] time units.
+     *
+     *  The result is satisfied with the items if they are received in time. Otherwise, when the
+     *  time runs out, the request leaves the queue's request queue, its wait recorded as any
+     *  request's, nothing is taken from the channel, and the result is timed out. While it waits,
+     *  the request is in the request queue exactly as the untimed receive's, so it is selected,
+     *  counted and recorded in the same way. Items that arrive at the very instant the time runs
+     *  out win at the default priorities: the timer runs late in the instant. Give an earlier
+     *  [timeoutPriority] to let the time limit win instead.
+     *
+     *  @param blockingQ the blocking queue to receive from
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param amount the number of items wanted; at least 1
+     *  @param predicate selects the items wanted
+     *  @param blockingPriority the request's priority in the request queue
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param suspensionName the name of the suspension point
+     *  @return the items, or that the time ran out first
+     */
+    suspend fun <T : ModelElement.QObject> waitForItemsOrTimeout(
+        blockingQ: BlockingQueue<T>,
+        timeout: Double,
+        amount: Int = 1,
+        predicate: (T) -> Boolean = alwaysTrue,
+        blockingPriority: Int = entity.priority,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        suspensionName: String? = null
+    ): WaitResult<List<T>> {
+        val trigger = blockingQ.itemsTrigger(amount, predicate, blockingPriority)
+        val result = waitForFirst(trigger, timeout = timeout, timeoutPriority = timeoutPriority, suspensionName = suspensionName)
+        return if (result.timedOut) WaitResult.TimedOut(result.timeWaited)
+        else WaitResult.Satisfied(result.valueOf(trigger), result.timeWaited)
+    }
+
+    /**
+     *  Waits for every matching item from the blocking queue, at least one, as `waitForAnyItems`
+     *  does, but for at most [timeout] time units.
+     *
+     *  The result is satisfied with the items if they are received in time. Otherwise, when the
+     *  time runs out, the request leaves the queue's request queue, its wait recorded as any
+     *  request's, nothing is taken from the channel, and the result is timed out. While it waits,
+     *  the request is in the request queue exactly as the untimed receive's, so it is selected,
+     *  counted and recorded in the same way. Items that arrive at the very instant the time runs
+     *  out win at the default priorities: the timer runs late in the instant. Give an earlier
+     *  [timeoutPriority] to let the time limit win instead.
+     *
+     *  @param blockingQ the blocking queue to receive from
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param predicate selects the items wanted
+     *  @param blockingPriority the request's priority in the request queue
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param suspensionName the name of the suspension point
+     *  @return the items, or that the time ran out first
+     */
+    suspend fun <T : ModelElement.QObject> waitForAnyItemsOrTimeout(
+        blockingQ: BlockingQueue<T>,
+        timeout: Double,
+        predicate: (T) -> Boolean,
+        blockingPriority: Int = entity.priority,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        suspensionName: String? = null
+    ): WaitResult<List<T>> {
+        val trigger = blockingQ.anyItemsTrigger(predicate, blockingPriority)
+        val result = waitForFirst(trigger, timeout = timeout, timeoutPriority = timeoutPriority, suspensionName = suspensionName)
+        return if (result.timedOut) WaitResult.TimedOut(result.timeWaited)
+        else WaitResult.Satisfied(result.valueOf(trigger), result.timeWaited)
+    }
+
+    /**
+     *  Waits for an amount of items from this blocking queue, for at most [timeout] time units.
+     *  The same as `waitForItemsOrTimeout` with this queue.
+     *
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param amount the number of items wanted; at least 1
+     *  @param predicate selects the items wanted
+     *  @param blockingPriority the request's priority in the request queue
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param suspensionName the name of the suspension point
+     *  @return the items, or that the time ran out first
+     */
+    suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitForOrTimeout(
+        timeout: Double,
+        amount: Int = 1,
+        predicate: (T) -> Boolean = alwaysTrue,
+        blockingPriority: Int = entity.priority,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        suspensionName: String? = null
+    ): WaitResult<List<T>> {
+        return waitForItemsOrTimeout(this, timeout, amount, predicate, blockingPriority, timeoutPriority, suspensionName)
+    }
+
+    /**
+     *  Waits for every matching item from this blocking queue, at least one, for at most [timeout]
+     *  time units. The same as `waitForAnyItemsOrTimeout` with this queue.
+     *
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param predicate selects the items wanted
+     *  @param blockingPriority the request's priority in the request queue
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param suspensionName the name of the suspension point
+     *  @return the items, or that the time ran out first
+     */
+    suspend fun <T : ModelElement.QObject> BlockingQueue<T>.waitForAnyOrTimeout(
+        timeout: Double,
+        predicate: (T) -> Boolean,
+        blockingPriority: Int = entity.priority,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        suspensionName: String? = null
+    ): WaitResult<List<T>> {
+        return waitForAnyItemsOrTimeout(this, timeout, predicate, blockingPriority, timeoutPriority, suspensionName)
+    }
+
     /** This method will block (suspend) if the blocking queue is full. That is, if the blocking queue
      * has reached its capacity.  When space for the item
      * becomes available, then the item is placed within the blocking queue.
