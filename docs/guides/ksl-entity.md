@@ -403,15 +403,84 @@ The other change rule, `CapacityChangeRule.IGNORE`, lets the resource's
 capacity drop immediately; in-service jobs continue but the
 resource won't grant new units until the next on-shift block.
 
-For shifts decided by the model rather than a timetable, use a
-`ShiftControl` (`goOffShift()` / `goOnShift()`) or call `changeCapacity`
-with a `CapacityChangeNotice`. A notice with the default, infinite
+For shifts decided by the model rather than a timetable, call
+`resource.goOffShift()` and `resource.goOnShift()` on any resource, or call
+`changeCapacity` with a `CapacityChangeNotice`. `goOffShift` drops the
+capacity to zero, `goOnShift` restores the replication's `initialCapacity`,
+`isOffShift` says which, and every replication starts on shift. A resource
+with a capacity schedule takes its capacity only from the schedule, so it
+refuses `goOffShift`: use one or the other. A notice with the default, infinite
 duration lasts until another change supersedes it, so going back on shift
 works whatever is busy, under either rule; under WAIT, going back on shift
 before the busy unit was released withdraws the off-shift change.
 `pendingCapacityChangeEndTime` says when a pending change ends (`NaN` when
 none is pending, infinity when it lasts until superseded). A member of a
 pool that comes back on shift is offered to the pool's waiters at once.
+
+### ...give a resource its own behavior
+
+A resource can run a process of its own every replication, such as taking
+a break. The usual form is `cyclicBehavior { }`, whose block is one cycle
+that the library repeats:
+
+```kotlin
+val doctor = ResourceWithQ(this, "Doctor")
+init {
+    doctor.cyclicBehavior {
+        delay(120.0)
+        doctor.goOffShift()
+        delay(15.0)
+        doctor.goOnShift()
+    }
+    doctor.onBehaviorStopped { if (doctor.isOffShift) doctor.goOnShift() }
+}
+```
+
+A break that waits for the doctor to finish with the patient, rather than
+cutting in, seizes the doctor like a customer and queues with them:
+
+```kotlin
+doctor.cyclicBehavior {
+    delay(120.0)
+    val a = seize(doctor)
+    delay(15.0)
+    release(a)
+}
+```
+
+- **Two forms.** `cyclicBehavior { }` repeats its block; `behavior { }`
+  runs its block once per replication, for a set-up that is not a cycle,
+  such as a delayed start. A resource has at most one behavior, declared
+  before the model runs. Anything a process can do is allowed in the block,
+  including the waits with a time limit.
+- **Every replication.** The resource starts the behavior at time 0, after
+  every element has initialized, as a fresh entity of its own, and the end
+  of the replication stops it, releasing anything it holds.
+- **Stopping and starting.** `stopBehavior()` lets the current cycle finish
+  and starts no other; `stopBehavior(BehaviorStop.NOW)` ends it at once,
+  releasing what it holds and running its `finally` blocks. The action given
+  to `onBehaviorStopped` then puts back what the behavior changed (a stop in
+  the middle of a break would otherwise leave the resource off shift).
+  `startBehavior()` starts it again, fresh. `isBehaviorActive` and
+  `isBehaviorStopRequested` are the checks. The control
+  `behaviorActiveAtStart` decides whether each replication starts it, so an
+  experiment can compare runs with and without it.
+- **The zero-time guard.** A cycle that ends at the time it began, more than
+  `maxCyclesPerInstant` (10 000) times in a row, throws, naming the resource:
+  a cycle such as `if (busy) delay(10.0)` with `busy` false never waits and
+  would otherwise hang the run.
+- **One behavior for the whole resource,** however large its capacity. For
+  per-unit behavior, use separate resources or a pool.
+- **Captured state carries over.** The block is one lambda run by a new
+  entity each replication: its local variables start fresh, but anything it
+  captures from outside keeps its value between replications. State that
+  must reset belongs inside the block.
+- **With a capacity schedule.** A behavior runs on a resource that has a
+  schedule, but the schedule owns the capacity: the behavior's
+  `goOffShift`, or any capacity change not from the schedule, is refused.
+  Use a schedule or shifts taken by a behavior, not both.
+- `behaviorProcess` is the running behavior's process, so another process
+  can interrupt its delays.
 
 ### ...run two stations in tandem
 

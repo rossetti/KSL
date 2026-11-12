@@ -108,7 +108,9 @@ typed messages. Substates compose (hierarchical state machines), and
 `final` states with an `onCompletion` hook close out the agent's
 behavior. Action handlers are *not* coroutines — they run on the
 executive. For suspending work, transition to a state that triggers a
-separate `process { … }` body.
+separate `process { … }` body. A resource whose reactions must wait can
+run a behavior, a process of its own, in place of a statechart (see
+"...make an agent a seizable resource").
 
 Because states nest, a started chart occupies a **chain** — one leaf
 plus each of its ancestors — rather than a single state;
@@ -820,9 +822,30 @@ class ForkliftModel(parent: ModelElement) : AgentModel(parent) {
 ```
 
 `goOffShift()` drops capacity to zero (no new seizes; in-flight
-allocations finish normally). `goOnShift()` restores the on-shift
-capacity. For movement-aware versions use `MovableAgentResource`,
-which composes `AgentResource` with a `ContinuousProjection`.
+allocations finish normally). `goOnShift()` restores the replication's
+initial capacity. Any resource has them, not only an agent resource. For
+movement-aware versions use `MovableAgentResource`, which composes
+`AgentResource` with a `ContinuousProjection`.
+
+A statechart's actions cannot wait. When the resource's reactions must
+wait (for a message, a delay, a unit of itself), give it a behavior
+instead: `cyclicBehavior { }` or `behavior { }`, which run as a process
+every replication (see the entity guide, "...give a resource its own
+behavior"). A resource has a statechart or a behavior, not both:
+declaring one when the other is set throws, since a resource has one
+source of truth for its reactions. A behavior reaches other agents
+through the resource's public `agentModel`:
+
+```kotlin
+desk.cyclicBehavior {
+    val call = receiveMessage(desk.mailbox)
+    delay(2.0)
+    sendMessage(AgentMessage.Inform(desk, "done"), call.from.mailbox)
+}
+```
+
+For several entities working on a resource's behalf, keep the pattern of
+an inner `Agent` whose process does the work.
 
 ### ...go 3D
 
