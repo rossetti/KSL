@@ -181,6 +181,11 @@ class RequestQ @JvmOverloads constructor(
         else -> emptyList()
     }
 
+    /** Offers the available units of what a request for [resource] can take, as when a request leaves. */
+    internal fun offerFreeUnitsOf(resource: ResourceIfc, detail: String) {
+        offerOnward(membersOf(resource), detail)
+    }
+
     /** Offers the available units of [members] to the requests waiting for them, unless the run has ended. */
     private fun offerOnward(members: Collection<Resource>, detail: String) {
         if (members.isEmpty() || executive.isEnded) return

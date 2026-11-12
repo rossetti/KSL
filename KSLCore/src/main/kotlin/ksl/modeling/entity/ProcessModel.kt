@@ -653,6 +653,30 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             if (sink.isActive) sink.emit(event())
         }
 
+        /**
+         *  The first step of a seize of a resource: registers the queue on the resource, makes the request
+         *  at this entity's priority, places it in the queue and announces it. Shared by `seize` and a
+         *  resource's seize trigger.
+         */
+        internal fun enqueueResourceRequest(resource: Resource, amountNeeded: Int, queue: RequestQ): ResourceRequest {
+            // a queue a seize waits in is offered the resource's freed units, whichever way they are freed
+            resource.registerCapacityChangeQueue(queue)
+            val request = ResourceRequest(amountNeeded, resource)
+            request.priority = priority // consider adding a queue priority parameter to the seize() function
+            queue.enqueue(request) // put the request in the queue
+            emitAnimation { AnimationEvent.SeizeQueued(time, id, resource.name, queue.name, amountNeeded) }
+            return request
+        }
+
+        /**
+         *  True when a request just placed can take its units at once: the resource can allocate them and
+         *  the queue would choose this request next for that resource.
+         */
+        internal fun canTakeResourceNow(request: ResourceRequest, queue: RequestQ): Boolean {
+            val resource = request.myResource
+            return resource.canAllocate(request.amountRequested) && queue.nextRequestForResource(resource) === request
+        }
+
         init {
             // Entity has come into existence: emit EntityCreated (only when animating).
             emitAnimation { AnimationEvent.EntityCreated(time, id, javaClass.simpleName.ifEmpty { "Entity" }) }
@@ -2193,6 +2217,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     }
                 }
                 val group = WaitGroup(this@Entity, id, triggers.toList(), time, suspensionName)
+                group.deadline = time + timeout
+                group.timeoutPriority = timeoutPriority
                 for (trigger in triggers) {
                     group.registrations.add(trigger.register(group))
                     if (group.claimed) break
@@ -2213,13 +2239,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             // One trigger: the state and suspend type of its untimed form.
                             val alone = triggers[0].aloneState
                             currentSuspendType = alone.suspendType
-                            when (alone) {
-                                AloneState.ACTIVE -> {}
-                                AloneState.WAITING_FOR_SIGNAL -> entity.state.waitForSignal()
-                                AloneState.BLOCKED_RECEIVING_ITEMS,
-                                AloneState.BLOCKED_RECEIVING_ANY_ITEMS -> entity.state.blockedReceiving()
-                            }
-                            stateChanged = alone != AloneState.ACTIVE
+                            stateChanged = enterAloneState(alone)
                         }
                         group.isSuspending = true
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst of ${triggers.size} trigger(s), timeout $timeout, ($this)" }
@@ -2245,7 +2265,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     var value = group.value
                     val registration = group.winnerRegistration
                     if (registration != null) {
-                        when (val after = registration.afterWinningResume(this)) {
+                        when (val after = with(registration) { afterWinningResume() }) {
                             is AfterResume.Value -> value = after.value
                             AfterResume.TimedOut -> {
                                 winner = null
@@ -2635,19 +2655,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: SEIZE: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource ${resource.name}")
-                // a queue a seize waits in is offered the resource's freed units, whichever way they are freed
-                resource.registerCapacityChangeQueue(queue)
-                val request = ResourceRequest(amountNeeded, resource)
-                request.priority = entity.priority // consider adding a queue priority parameter to the seize() function
-                queue.enqueue(request) // put the request in the queue
-                emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, resource.name, queue.name, amountNeeded) }
-                try {
+                val request = entity.enqueueResourceRequest(resource, amountNeeded, queue)
+                val allocation = try {
                     waitForResource(request, resource, queue)
-                    waitUntilPromiseHonoured(request) { request.myResource.canAllocate(amountNeeded) }
-                    // entity has been told to resume or the request was selected for allocation
-                    // out of the queue the request is in now: a moved request waits in its new queue, and must leave
-                    // it here, keeping its promise, rather than be swept up below as if its process had ended
-                    (request.queue as? RequestQ ?: queue).remove(request)
+                    takeResource(request, resource, queue, suspensionName, rewait = null)!!
                 } finally {
                     // Abnormal exit only. Termination resumes the continuation with a
                     // ProcessTerminatedException, which unwinds through the suspend() inside
@@ -2660,6 +2671,43 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // rather than the queue parameter because the request may have been moved.
                     (request.queue as? RequestQ)?.removeAbandoned(request)
                 }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                return allocation
+            }
+
+            /**
+             *  The last step of a seize of a resource: waits, if it must, until what the request was promised
+             *  can be taken, then takes the request out of its queue and allocates. With a [rewait], a broken
+             *  promise waits again through it, and a false answer (the time limit ran out) returns null with
+             *  nothing allocated; the request has then already left its queue.
+             */
+            internal suspend fun takeResource(
+                request: ResourceRequest,
+                resource: Resource,
+                queue: RequestQ,
+                suspensionName: String?,
+                rewait: (suspend ProcessCoroutine.() -> Boolean)?
+            ): Allocation? {
+                val amountNeeded = request.amountRequested
+                if (!waitUntilPromiseHonoured(request, rewait) { request.myResource.canAllocate(amountNeeded) }) {
+                    return null
+                }
+                return completeResourceSeize(request, resource, queue, suspensionName)
+            }
+
+            /** Takes the request out of the queue it is in and allocates its units; they can be allocated now. */
+            internal fun completeResourceSeize(
+                request: ResourceRequest,
+                resource: Resource,
+                queue: RequestQ,
+                suspensionName: String?
+            ): Allocation {
+                val amountNeeded = request.amountRequested
+                // entity has been told to resume or the request was selected for allocation
+                // out of the queue the request is in now: a moved request waits in its new queue, and must leave
+                // it here, keeping its promise, rather than be swept up as if its process had ended
+                (request.queue as? RequestQ ?: queue).remove(request)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 if (request.myResource != resource) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} switched from resource ${resource.name} to resource ${request.resource.name}" }
@@ -2671,8 +2719,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val allocation = theResource.allocate(entity, amountNeeded, queue, suspensionName)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${theResource.name} : allocation_id = ${allocation.id}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END: SEIZE: RESOURCE: ${theResource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                currentSuspendName = null
-                currentSuspendType = SuspendType.NONE
                 return allocation
             }
 
@@ -2688,8 +2734,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  in the instant between the wake and the resumption, such as one that went off shift, so that
              *  the entity waits for the next unit rather than failing. A request with no promise, one that
              *  never waited or one resumed some other way, waits on until [canAllocateNow] holds.
+             *
+             *  A seize with a time limit passes [rewait], which waits again with the time left in place of the
+             *  bare suspend; when it answers false, the time ran out and this returns false.
+             *
+             *  @return true when what was promised can be taken; false only when [rewait] answered false
              */
-            private suspend fun waitUntilPromiseHonoured(request: Request, canAllocateNow: () -> Boolean) {
+            private suspend fun waitUntilPromiseHonoured(
+                request: Request,
+                rewait: (suspend ProcessCoroutine.() -> Boolean)? = null,
+                canAllocateNow: () -> Boolean
+            ): Boolean {
                 while (true) {
                     val promises = request.promises
                     val honourable = if (promises.isEmpty()) {
@@ -2697,18 +2752,67 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     } else {
                         promises.keys.all { !it.isInactive && it.capacity - it.numBusy - it.myPromisedUnits >= 0 }
                     }
-                    if (honourable) return
+                    if (honourable) return true
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: request_id = ${request.id} cannot take what it was promised; it waits again" }
                     request.clearPromises()
                     request.clearResumePending()
-                    entity.state.waitForResource()
-                    suspend()
-                    entity.state.activate()
+                    if (rewait == null) {
+                        entity.state.waitForResource()
+                        suspend()
+                        entity.state.activate()
+                    } else if (!rewait(this)) {
+                        return false
+                    }
                 }
             }
 
+            /**
+             *  Waits in a wait group that has one registration, outside `waitForFirst`: the re-wait of a seize
+             *  trigger whose promise broke between its wake and its resume. The group's timer runs for the time
+             *  left to its deadline, the entity takes the state of [alone], and the group's claims come from the
+             *  same places as any. On termination the registration is released as `waitForFirst` releases one.
+             *
+             *  @return true when a trigger claimed the group; false when its timer did
+             */
+            internal suspend fun waitAlone(group: WaitGroup, alone: AloneState): Boolean {
+                val previous = myWaitGroup
+                val left = group.deadline - time
+                if (left.isFinite()) {
+                    group.timerEvent = myTimeoutAction.schedule(maxOf(0.0, left), group, group.timeoutPriority)
+                }
+                myWaitGroup = group
+                val stateChanged = enterAloneState(alone)
+                group.isSuspending = true
+                try {
+                    suspend()
+                    group.resumedNormally = true
+                } finally {
+                    if (!group.resumedNormally) {
+                        for (registration in group.registrations) {
+                            registration.releaseOnTermination()
+                        }
+                        group.cancelTimer()
+                    }
+                    myWaitGroup = previous
+                }
+                if (stateChanged) entity.state.activate()
+                return !group.timedOut
+            }
+
+            /** Puts the entity in the state of [alone]; true if that changed the state. */
+            private fun enterAloneState(alone: AloneState): Boolean {
+                when (alone) {
+                    AloneState.ACTIVE -> return false
+                    AloneState.WAITING_FOR_SIGNAL -> entity.state.waitForSignal()
+                    AloneState.BLOCKED_RECEIVING_ITEMS,
+                    AloneState.BLOCKED_RECEIVING_ANY_ITEMS -> entity.state.blockedReceiving()
+                    AloneState.WAITING_FOR_RESOURCE -> entity.state.waitForResource()
+                }
+                return true
+            }
+
             private suspend fun waitForResource(
-                request: Request,
+                request: ResourceRequest,
                 resource: Resource,
                 queue: RequestQ
             ) {

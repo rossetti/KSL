@@ -129,6 +129,33 @@ open class Resource @JvmOverloads constructor(
     }
 
     /**
+     *  A trigger for units of this resource, for use in a wait for the first of several things
+     *  (`waitForFirst`). The trigger fires when the request it places in [queue] is served while the
+     *  wait is open, or at once when the units can be allocated and no waiting request would be
+     *  chosen first, as `seize` takes them. Its value is the allocation, made after the wait ends, as
+     *  `seize` makes it; release it as any other. While the wait is open the request waits in [queue]
+     *  as a `seize` request does. If the wait ends otherwise, the request leaves the queue.
+     *
+     *  A trigger holds no state of any wait, so it can be kept and used in any number of waits. For a
+     *  movable resource, which is seized one unit at a time, [amountNeeded] must be 1.
+     *
+     *  @param amountNeeded the number of units wanted; at least 1
+     *  @param seizePriority the priority of the yield a wait with this trigger makes before it starts,
+     *  as `seize` yields
+     *  @param queue the queue the request waits in
+     *  @param recordRenegedWait whether a request that leaves without service (the wait timed out, or
+     *  another trigger fired first) records its wait in the queue's time in queue. With false, the
+     *  queue's number in queue has counted the request while its time in queue leaves it out, so the
+     *  two no longer agree as Little's law requires.
+     */
+    fun seizeTrigger(
+        amountNeeded: Int = 1,
+        seizePriority: Int = ProcessModel.SEIZE_PRIORITY,
+        queue: RequestQ,
+        recordRenegedWait: Boolean = true
+    ): WaitTrigger<Allocation> = ResourceSeizeTrigger(this, amountNeeded, seizePriority, queue, recordRenegedWait)
+
+    /**
      *  Unregisters a queue from this resource, so that units freed on it are no longer offered to the
      *  requests in [queue]. If the queue was not registered, nothing occurs.
      *

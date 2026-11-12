@@ -193,7 +193,7 @@ internal class MessageRegistration<M : AgentMessage>(
         messageTrigger.mailbox.removeWaiter(waiter)
     }
 
-    override suspend fun afterWinningResume(process: ProcessModel.Entity.ProcessCoroutine): AfterResume {
+    override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
         // The delivery has already removed the waiter and given the message to the claim.
         markReleased()
         return AfterResume.Value(group.value)

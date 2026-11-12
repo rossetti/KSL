@@ -84,7 +84,10 @@ internal enum class AloneState(val suspendType: SuspendType) {
     BLOCKED_RECEIVING_ITEMS(SuspendType.WAIT_FOR_ITEMS),
 
     /** Blocked receiving any matching items from a blocking queue. */
-    BLOCKED_RECEIVING_ANY_ITEMS(SuspendType.WAIT_FOR_ANY_ITEMS)
+    BLOCKED_RECEIVING_ANY_ITEMS(SuspendType.WAIT_FOR_ANY_ITEMS),
+
+    /** Waiting for a resource, as a seize. */
+    WAITING_FOR_RESOURCE(SuspendType.SEIZE)
 }
 
 /**
@@ -250,9 +253,10 @@ internal abstract class Registration(val trigger: WaitTrigger<*>, val group: Wai
 
     /**
      *  Runs in the resumed process when this registration's trigger won: leaves the thing waited on
-     *  and produces the value.
+     *  and produces the value. It extends the process because a step that suspends again (a seize's
+     *  re-wait) may call the process's suspending functions only from within the process.
      */
-    abstract suspend fun afterWinningResume(process: ProcessModel.Entity.ProcessCoroutine): AfterResume
+    abstract suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume
 }
 
 /**
@@ -290,6 +294,12 @@ internal class WaitGroup(
     /** True when the timer claimed the wait. */
     var timedOut: Boolean = false
         private set
+
+    /** When the wait's time limit runs out; infinite when it has none. */
+    var deadline: Double = Double.POSITIVE_INFINITY
+
+    /** The priority of the wait's timer, kept for a re-wait that needs a timer of its own. */
+    var timeoutPriority: Int = ProcessModel.TIMEOUT_PRIORITY
 
     /** The timer's event, when the wait has a finite time limit. */
     var timerEvent: KSLEvent<WaitGroup>? = null
@@ -413,7 +423,7 @@ internal class SignalRegistration(
         signalTrigger.signal.releaseTimed(group.entity, false)
     }
 
-    override suspend fun afterWinningResume(process: ProcessModel.Entity.ProcessCoroutine): AfterResume {
+    override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
         markReleased()
         val signal = signalTrigger.signal
         val entity = group.entity
@@ -508,7 +518,7 @@ internal class ItemsRegistration<T : ModelElement.QObject>(
         itemsTrigger.blockingQ.notifyAfterDeferredRemoval()
     }
 
-    override suspend fun afterWinningResume(process: ProcessModel.Entity.ProcessCoroutine): AfterResume {
+    override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
         markReleased()
         return AfterResume.Value(fill(itemsTrigger.blockingQ, request))
     }
@@ -517,3 +527,124 @@ internal class ItemsRegistration<T : ModelElement.QObject>(
 /** Takes a request's items, as the untimed receive of that kind takes them. */
 internal fun <T : ModelElement.QObject> fill(blockingQ: BlockingQueue<T>, request: BlockingQueue<T>.ChannelRequest): List<T> =
     if (request is BlockingQueue<T>.AmountRequest) blockingQ.fill(request) else blockingQ.fill(request)
+
+/**
+ *  The trigger of units of a resource, made by `Resource.seizeTrigger`. It fires at once when the
+ *  resource can allocate the units and no waiting request in the queue would be chosen first, which
+ *  is when `seize` takes them without waiting. Otherwise its request waits in the queue exactly as a
+ *  `seize` request does, and the claim is made when the request is woken. The units are allocated
+ *  after the resume, as `seize` allocates them.
+ */
+internal class ResourceSeizeTrigger(
+    val resource: Resource,
+    val amountNeeded: Int,
+    val seizePriority: Int,
+    val queue: RequestQ,
+    val recordRenegedWait: Boolean
+) : WaitTrigger<Allocation>() {
+
+    init {
+        require(amountNeeded >= 1) { "The amount to seize must be >= 1; it was $amountNeeded." }
+        if (resource is ksl.modeling.spatial.MovableResource) {
+            require(amountNeeded == 1) {
+                "A movable resource is seized one unit at a time; the seize trigger of ${resource.name} asked for $amountNeeded."
+            }
+        }
+    }
+
+    override val yieldPriority: Int
+        get() = seizePriority
+
+    override val aloneState: AloneState
+        get() = AloneState.WAITING_FOR_RESOURCE
+
+    override fun canFireNow(entity: ProcessModel.Entity): Boolean =
+        resource.canAllocate(amountNeeded) && queue.nextRequestForResource(resource) == null
+
+    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): Allocation {
+        // As seize does when it can take the units at once: the request enters the queue and leaves it in the
+        // same instant, which records a wait of zero.
+        val request = process.entity.enqueueResourceRequest(resource, amountNeeded, queue)
+        return process.completeResourceSeize(request, resource, queue, null)
+    }
+
+    override fun register(group: WaitGroup): Registration {
+        val entity = group.entity
+        val registration = ResourceSeizeRegistration(this, group)
+        val request = entity.enqueueResourceRequest(resource, amountNeeded, queue)
+        registration.attach(request)
+        if (entity.canTakeResourceNow(request, queue)) {
+            // It can take its units now, ahead of requests already waiting. They are promised to it, as a wake
+            // promises them, so nothing else takes them before the wait goes on to allocate; the claim is made
+            // while the wait registers, so it schedules no resume.
+            request.promise(resource, amountNeeded)
+            queue.resumeWoken(request, ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "seize trigger served at once")
+        } else {
+            entity.emitAnimation { AnimationEvent.SeizeWaiting(resource.time, entity.id, resource.name) }
+        }
+        return registration
+    }
+
+    override fun toString(): String = "SeizeTrigger(${resource.name}, amount = $amountNeeded)"
+}
+
+/**
+ *  A seize trigger's request in one wait. The winner takes its units after the resume, as `seize`
+ *  does; if what it was promised went away in the instant between its wake and its resume, it waits
+ *  again in a wait of its own with the time left. A loser leaves the queue at the claim, its wait
+ *  recorded unless the trigger says not to, and the free units of its resource are offered on once
+ *  the claim is over; termination removes the request as termination removes any waiting request.
+ */
+internal class ResourceSeizeRegistration(
+    private val seizeTrigger: ResourceSeizeTrigger,
+    group: WaitGroup
+) : Registration(seizeTrigger, group) {
+
+    lateinit var request: ProcessModel.Entity.ResourceRequest
+        private set
+
+    /** The queue the request left as a loser, through which its resource's free units are offered on. */
+    private var leftQueue: RequestQ? = null
+
+    fun attach(request: ProcessModel.Entity.ResourceRequest) {
+        this.request = request
+        request.registration = this
+    }
+
+    override fun onReleaseAsLoser() {
+        val queue = request.queue as? RequestQ ?: return
+        leftQueue = queue
+        queue.removeLeaving(request, seizeTrigger.recordRenegedWait)
+    }
+
+    override fun onReleaseOnTermination() {
+        (request.queue as? RequestQ)?.removeAbandoned(request)
+    }
+
+    override val deferredNotificationSource: Any?
+        get() = if (leftQueue != null) request.myResource else null
+
+    override fun notifyDeferred() {
+        leftQueue?.offerFreeUnitsOf(request.myResource, "request_id=${request.id} left without service")
+    }
+
+    override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
+        markReleased()
+        val allocation = takeResource(
+            request, seizeTrigger.resource, seizeTrigger.queue, group.suspensionName,
+            rewait = { rewaitAlone() }
+        )
+        return if (allocation == null) AfterResume.TimedOut else AfterResume.Value(allocation)
+    }
+
+    /** Waits again, alone, for the time left to the original deadline, with the same request. */
+    private suspend fun ProcessModel.Entity.ProcessCoroutine.rewaitAlone(): Boolean {
+        val again = WaitGroup(group.entity, group.processId, listOf(seizeTrigger), entity.processModel.time, group.suspensionName)
+        again.deadline = group.deadline
+        again.timeoutPriority = group.timeoutPriority
+        val registration = ResourceSeizeRegistration(seizeTrigger, again)
+        registration.attach(request)
+        again.registrations.add(registration)
+        return waitAlone(again, AloneState.WAITING_FOR_RESOURCE)
+    }
+}

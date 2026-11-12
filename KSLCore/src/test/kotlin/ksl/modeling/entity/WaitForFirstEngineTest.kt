@@ -82,8 +82,8 @@ class WaitForFirstEngineTest {
             gateTrigger.gate.events.add("terminated")
         }
 
-        override suspend fun afterWinningResume(process: ProcessModel.Entity.ProcessCoroutine): AfterResume {
-            gateTrigger.gate.waiting.remove(this)
+        override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
+            gateTrigger.gate.waiting.remove(this@GateRegistration)
             markReleased()
             gateTrigger.gate.events.add("winner")
             return AfterResume.Value(group.value)
@@ -272,6 +272,7 @@ class WaitForFirstEngineTest {
                 "waitingForFirst=false, type=WAIT_FOR_SIGNAL, suspended=true, signal=true, receiving=false",
                 "waitingForFirst=false, type=WAIT_FOR_ITEMS, suspended=true, signal=false, receiving=true",
                 "waitingForFirst=false, type=WAIT_FOR_ANY_ITEMS, suspended=true, signal=false, receiving=true",
+                "waitingForFirst=false, type=SEIZE, suspended=true, signal=false, receiving=false",
             ),
             seen
         )

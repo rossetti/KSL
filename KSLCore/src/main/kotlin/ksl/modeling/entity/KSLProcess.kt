@@ -1010,6 +1010,122 @@ interface KSLProcessBuilder {
     }
 
     /**
+     *  Seizes units of the resource, as `seize` does, but waits for at most [timeout] time units:
+     *  reneging, when the time runs out.
+     *
+     *  The result is satisfied with the allocation if the units are allocated in time; release it as any
+     *  other. Otherwise, when the time runs out, the request leaves the queue, nothing is allocated, and
+     *  the result is timed out. While it waits, the request is in the queue exactly as a `seize`
+     *  request, so it is served in the same order and counted in the same way. A release at the very
+     *  instant the time runs out serves it at the default priorities: the timer runs late in the
+     *  instant. If a unit promised to it goes away between its wake and its resume, it waits again for
+     *  the time left. A model counts its own reneges, from `timedOut`.
+     *
+     *  [recordRenegedWait] decides whether a request that leaves without service records its wait in the
+     *  queue's time in queue. With false, the queue's number in queue has counted the request while its
+     *  time in queue leaves it out, so the two no longer agree as Little's law requires.
+     *
+     *  @param resource the resource to seize
+     *  @param amountNeeded the number of units wanted; at least 1
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param seizePriority the priority of the yield before the request is placed, as `seize` yields
+     *  @param queue the queue the request waits in
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param recordRenegedWait whether a reneged wait is recorded in the queue's time in queue
+     *  @param suspensionName the name of the suspension point
+     *  @return the allocation, or that the time ran out first
+     */
+    suspend fun seizeOrTimeout(
+        resource: Resource,
+        amountNeeded: Int = 1,
+        timeout: Double,
+        seizePriority: Int = SEIZE_PRIORITY,
+        queue: RequestQ,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        recordRenegedWait: Boolean = true,
+        suspensionName: String? = null
+    ): WaitResult<Allocation> {
+        val trigger = resource.seizeTrigger(amountNeeded, seizePriority, queue, recordRenegedWait)
+        val result = waitForFirst(trigger, timeout = timeout, timeoutPriority = timeoutPriority, suspensionName = suspensionName)
+        return if (result.timedOut) WaitResult.TimedOut(result.timeWaited)
+        else WaitResult.Satisfied(result.valueOf(trigger), result.timeWaited)
+    }
+
+    /**
+     *  Seizes units of the resource, waiting in its own queue for at most [timeout] time units. As the
+     *  form taking a queue.
+     *
+     *  @param resource the resource to seize
+     *  @param amountNeeded the number of units wanted; at least 1
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param seizePriority the priority of the yield before the request is placed
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param recordRenegedWait whether a reneged wait is recorded in the queue's time in queue
+     *  @param suspensionName the name of the suspension point
+     *  @return the allocation, or that the time ran out first
+     */
+    suspend fun seizeOrTimeout(
+        resource: ResourceWithQ,
+        amountNeeded: Int = 1,
+        timeout: Double,
+        seizePriority: Int = SEIZE_PRIORITY,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        recordRenegedWait: Boolean = true,
+        suspensionName: String? = null
+    ): WaitResult<Allocation> {
+        return seizeOrTimeout(resource, amountNeeded, timeout, seizePriority, resource.myWaitingQ,
+            timeoutPriority, recordRenegedWait, suspensionName)
+    }
+
+    /**
+     *  Seizes the movable resource, waiting in [queue] for at most [timeout] time units. As the form
+     *  for a resource, with one unit.
+     *
+     *  @param resource the movable resource to seize
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param seizePriority the priority of the yield before the request is placed
+     *  @param queue the queue the request waits in
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param recordRenegedWait whether a reneged wait is recorded in the queue's time in queue
+     *  @param suspensionName the name of the suspension point
+     *  @return the allocation, or that the time ran out first
+     */
+    suspend fun seizeOrTimeout(
+        resource: MovableResource,
+        timeout: Double,
+        seizePriority: Int = SEIZE_PRIORITY,
+        queue: RequestQ,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        recordRenegedWait: Boolean = true,
+        suspensionName: String? = null
+    ): WaitResult<Allocation> {
+        return seizeOrTimeout(resource, 1, timeout, seizePriority, queue, timeoutPriority, recordRenegedWait, suspensionName)
+    }
+
+    /**
+     *  Seizes the movable resource, waiting in its own queue for at most [timeout] time units.
+     *
+     *  @param resource the movable resource to seize
+     *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit
+     *  @param seizePriority the priority of the yield before the request is placed
+     *  @param timeoutPriority the priority of the timer's event
+     *  @param recordRenegedWait whether a reneged wait is recorded in the queue's time in queue
+     *  @param suspensionName the name of the suspension point
+     *  @return the allocation, or that the time ran out first
+     */
+    suspend fun seizeOrTimeout(
+        resource: MovableResourceWithQ,
+        timeout: Double,
+        seizePriority: Int = SEIZE_PRIORITY,
+        timeoutPriority: Int = TIMEOUT_PRIORITY,
+        recordRenegedWait: Boolean = true,
+        suspensionName: String? = null
+    ): WaitResult<Allocation> {
+        return seizeOrTimeout(resource, 1, timeout, seizePriority, resource.myWaitingQ,
+            timeoutPriority, recordRenegedWait, suspensionName)
+    }
+
+    /**
      *  Requests a number of units from the indicated pool of resources
      *
      *  @param amountNeeded the number of units of the resource needed for the request.

@@ -129,6 +129,22 @@ open class ResourceWithQ @JvmOverloads constructor(
      * Holds the entities that are waiting for allocations of the resource's units
      */
     internal val myWaitingQ: RequestQ = queue ?: RequestQ(this, "${this.name}:Q")
+
+    /**
+     *  A trigger for units of this resource, waiting in its own queue, for use in a wait for the first
+     *  of several things (`waitForFirst`). As the form of `Resource` that takes a queue.
+     *
+     *  @param amountNeeded the number of units wanted; at least 1
+     *  @param seizePriority the priority of the yield a wait with this trigger makes before it starts
+     *  @param recordRenegedWait whether a request that leaves without service records its wait in the
+     *  queue's time in queue
+     */
+    fun seizeTrigger(
+        amountNeeded: Int = 1,
+        seizePriority: Int = ProcessModel.SEIZE_PRIORITY,
+        recordRenegedWait: Boolean = true
+    ): WaitTrigger<Allocation> = seizeTrigger(amountNeeded, seizePriority, myWaitingQ, recordRenegedWait)
+
     init {
         registerCapacityChangeQueue(myWaitingQ)
     }
