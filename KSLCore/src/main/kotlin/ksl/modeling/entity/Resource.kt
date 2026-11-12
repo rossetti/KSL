@@ -830,7 +830,7 @@ open class Resource @JvmOverloads constructor(
                     if (time == cycleStart) {
                         sameInstant++
                         check(sameInstant <= maxCyclesPerInstant) {
-                            "The cyclic behavior of $name ended $sameInstant cycles in a row at time $cycleStart without " +
+                            "The cyclic behavior of ${this@Resource.name} ended $sameInstant cycles in a row at time $cycleStart without " +
                                     "the time advancing: its cycle never waits. Make each cycle wait (a delay, a seize, a " +
                                     "wait), or raise maxCyclesPerInstant if such a burst is intended."
                         }
