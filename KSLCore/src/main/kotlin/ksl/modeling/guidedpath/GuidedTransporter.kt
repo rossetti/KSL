@@ -22,7 +22,6 @@ import ksl.controls.KSLControl
 import ksl.modeling.entity.HoldQueue
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.Resource
-import ksl.modeling.entity.ShiftControl
 import ksl.modeling.guidedpath.exceptions.GuidedPathNetworkException
 import ksl.modeling.guidedpath.routing.Route
 import ksl.modeling.guidedpath.rules.EndOfZoneControl
@@ -184,6 +183,14 @@ fun interface TransporterMovementGateIfc {
  * between; inheriting it would expose a way to move that ignores every rule this subsystem exists
  * to enforce. The two share the abstractions that genuinely mean the same thing -- position and
  * velocity -- and nothing else.
+ *
+ * **Shifts.** A transporter taken off shift with `goOffShift` cannot be allocated until `goOnShift`,
+ * and requests for it wait in whatever pool queue they were made against. It stays where it is and
+ * keeps the space it occupies: a transporter off shift is not gone from the guide path; it is a
+ * vehicle standing in an aisle, which is what a real one parked at the end of a shift is, and the
+ * blocking that follows is a fact about the layout rather than an artefact. Park it somewhere out of
+ * the way first, with `sendTo`, if that is what the site does. Back on shift, it is offered to its
+ * pools at once.
  *
  * @param system the guide path's runtime state, shared by every vehicle on it: who holds which zone,
  *   who waits for whom, the reset between replications, and the fleet's congestion statistics. In a
@@ -1188,37 +1195,13 @@ class GuidedTransporter @JvmOverloads constructor(
 
     // ---- shifts ---------------------------------------------------------------------------------
 
-    private val myShift: ShiftControl = ShiftControl(this)
-
-    /** True while this transporter has been taken off shift. */
-    override val isOffShift: Boolean
-        get() = myShift.isOffShift
-
     /**
-     *  Takes this transporter off shift: it cannot be allocated again until [goOnShift], and
-     *  requests for it wait in whatever pool queue they were made against.
-     *
-     *  **It stays where it is and keeps the space it occupies.** A transporter off shift is not
-     *  gone from the guide path; it is a vehicle standing in an aisle, which is what a real one
-     *  parked at the end of a shift is, and the blocking that follows is a fact about the layout
-     *  rather than an artefact. Park it somewhere out of the way first, with [sendTo], if that is
-     *  what the site does.
+     *  Offers this transporter to the pools that hold it when it comes back on shift: the ordinary
+     *  wake path runs on a release, and coming back on shift is not one, so a request waiting for it
+     *  would otherwise go on waiting beside it.
      */
-    fun goOffShift() = myShift.goOffShift()
-
-    /**
-     *  Puts this transporter back on shift, and offers it to the pools that hold it: the ordinary wake
-     *  path runs on a release, and coming back on shift is not one, so a request waiting for it would
-     *  otherwise go on waiting beside it.
-     */
-    fun goOnShift() {
-        myShift.goOnShift()
+    override fun afterGoOnShift() {
         announceDispatchable()
-    }
-
-    override fun initialize() {
-        super.initialize()
-        myShift.initialize()
     }
 
     override fun toString(): String =

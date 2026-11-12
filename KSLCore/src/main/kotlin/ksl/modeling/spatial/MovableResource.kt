@@ -43,6 +43,10 @@ interface MoveableResourceCIfc : ResourceCIfc {
  * fleet, and it is the one that can be interrupted and redirected part way. See "The movement seam"
  * below.
  *
+ * **Shifts.** A vehicle taken off shift with `goOffShift` cannot be seized again until `goOnShift`,
+ * and requests for it wait. Work already allocated finishes under the resource's own capacity change
+ * rule, so under the default a vehicle part way through a job finishes it before it stops.
+ *
  * @param name the name of the resource
  * @param stepSize how far apart the seam's decision points are, in the spatial model's own distance
  *   units. It fixes how quickly a redirection or a halt is observed -- at most `stepSize/velocity`
@@ -160,7 +164,6 @@ open class MovableResource @JvmOverloads constructor(
         initializeSpatialElement()
         myLivePosition = mySpatialElement.currentLocation
         towVelocity = null
-        myShift.initialize()
     }
 
     override fun initializeSpatialElement() {
@@ -435,22 +438,6 @@ open class MovableResource @JvmOverloads constructor(
     }
 
 
-    // ---- shifts ---------------------------------------------------------------------------------
-
-    private val myShift: ShiftControl = ShiftControl(this)
-
-    /** True while this vehicle has been taken off shift. */
-    val isOffShift: Boolean
-        get() = myShift.isOffShift
-
-    /**
-     *  Takes this vehicle off shift: it cannot be seized again until [goOnShift], and requests for
-     *  it wait. Work already allocated finishes under the resource's own capacity change rule.
-     */
-    fun goOffShift() = myShift.goOffShift()
-
-    /** Puts this vehicle back on shift. */
-    fun goOnShift() = myShift.goOnShift()
 
     companion object {
         /**

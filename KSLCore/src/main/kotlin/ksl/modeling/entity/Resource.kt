@@ -562,7 +562,52 @@ open class Resource @JvmOverloads constructor(
         myState = myIdleState
         capacity = initialCapacity
         requestQNotificationRule = initialRequestQueueNotificationRule
+        // every replication starts on shift; the next goOffShift makes a control for this replication
+        myShift = null
     }
+
+    /**
+     *  Takes this resource off shift and back on. Made by the first [goOffShift] of a replication, so
+     *  that it restores the initial capacity of that replication, and dropped in [initialize].
+     */
+    private var myShift: ShiftControl? = null
+
+    /** True while this resource has been taken off shift with [goOffShift]. */
+    val isOffShift: Boolean
+        get() = myShift?.isOffShift ?: false
+
+    /**
+     *  Takes this resource off shift until [goOnShift]: its capacity goes to zero, so new seize
+     *  requests wait in their queues. Work already allocated finishes under the resource's
+     *  [capacityChangeRule], `IGNORE` by default: a unit that is busy finishes its current allocation,
+     *  and when it is released it goes to the off-shift change, not to the next waiting request. A
+     *  second call while off shift does nothing.
+     *
+     *  A resource whose [initialCapacity] is 0 has nothing to take off shift, and this throws; check
+     *  that the initial capacity is greater than 0 first.
+     */
+    fun goOffShift() {
+        val shift = myShift ?: ShiftControl(this).also { myShift = it }
+        shift.goOffShift()
+    }
+
+    /**
+     *  Brings this resource back on shift, restoring the [initialCapacity] it had when this
+     *  replication's first [goOffShift] was made. The requests waiting for it are offered the units as
+     *  for any capacity increase. Nothing happens when the resource is on shift.
+     */
+    fun goOnShift() {
+        val shift = myShift ?: return
+        if (!shift.isOffShift) return
+        shift.goOnShift()
+        afterGoOnShift()
+    }
+
+    /**
+     *  Called at the end of a [goOnShift] that put this resource back on shift. A subclass whose
+     *  waiting requests are not reached by a capacity increase offers its units here.
+     */
+    protected open fun afterGoOnShift() {}
 
     /**
      * A resource may fill a request in many ways.  This function indicates if the

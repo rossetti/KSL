@@ -18,7 +18,8 @@
 package ksl.modeling.entity
 
 /**
- * Takes a resource off shift and puts it back on, by driving its capacity to zero and back.
+ * Takes a resource off shift and puts it back on, by driving its capacity to zero and back. Every
+ * `Resource` uses one for its `goOffShift` and `goOnShift`; a modeller rarely makes one.
  *
  * **A shift is not a new mechanism.** A resource with no capacity cannot be seized and its waiting
  * requests queue until it has some again, which is exactly what being off shift means; the capacity
@@ -31,8 +32,8 @@ package ksl.modeling.entity
  * [goOffShift] and silently given capacity by [goOnShift]. The two are different facts and are kept
  * apart.
  *
- * Held by whatever wants a shift rather than inherited from a base class, so that adding shifts to
- * a vehicle does not add a member to every resource in every model that already exists.
+ * A resource makes its control at the first `goOffShift` of a replication and drops it when the
+ * replication starts, so a resource that never takes a shift carries none.
  *
  * @param resource the resource whose capacity is being driven
  * @param onShiftCapacity what to restore. The resource's initial capacity by default, which is what

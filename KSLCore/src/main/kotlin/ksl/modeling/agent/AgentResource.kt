@@ -33,7 +33,7 @@ import ksl.modeling.entity.ResourceWithQ
  *   - an optional [AgentModel.Statechart] for reactive autonomous
  *     behavior,
  *   - convenience helpers for taking the resource off-shift
- *     ([goOffShift]) and back on-shift ([goOnShift]).
+ *     (`goOffShift`) and back on-shift (`goOnShift`).
  *
  *  `AgentResource` sits in the *permanent* tier of agents — it is a
  *  [ResourceWithQ], which is a [ksl.simulation.ModelElement], so
@@ -78,10 +78,11 @@ open class AgentResource @JvmOverloads constructor(
     }
 
     /**
-     *  The capacity this resource has when on-shift. Captured at
-     *  construction so [goOnShift] can restore it after a break.
+     *  The capacity `goOnShift` restores after a break: the resource's
+     *  `initialCapacity` for the current replication.
      */
-    val onShiftCapacity: Int = capacity
+    val onShiftCapacity: Int
+        get() = initialCapacity
 
     /**
      *  Default mailbox for receiving [AgentMessage] traffic. A send to
@@ -197,7 +198,6 @@ open class AgentResource @JvmOverloads constructor(
         // previous replication, then start() re-registers the chart's
         // arrival listener on the now-clean mailbox.
         mailbox.reset()
-        myShift.initialize()
         statechart?.start()
     }
 
@@ -206,43 +206,6 @@ open class AgentResource @JvmOverloads constructor(
         statechart?.stop()
     }
 
-    /**
-     *  Drives the capacity for [goOffShift] and [goOnShift].
-     *
-     *  The pattern is shared with the other vehicle kinds rather than
-     *  reimplemented here: a free-path `MovableResource` and a
-     *  `GuidedTransporter` go off shift the same way, through the same
-     *  object, so the three cannot drift apart.
-     */
-    private val myShift: ksl.modeling.entity.ShiftControl =
-        ksl.modeling.entity.ShiftControl(this, onShiftCapacity)
-
-    /**
-     *  Whether the resource is currently off-shift (taken off via
-     *  [goOffShift]).
-     */
-    val isOffShift: Boolean
-        get() = myShift.isOffShift
-
-    /**
-     *  Take the resource off-shift indefinitely. New seize requests
-     *  wait in the request queue until [goOnShift]; in-flight
-     *  allocations finish normally under the current
-     *  [ksl.modeling.entity.Resource.capacityChangeRule] (IGNORE by
-     *  default). Under IGNORE, a unit that is busy when this is called
-     *  finishes its current allocation, and when it is released it goes to
-     *  the off-shift change, not to the next waiting request. So a server
-     *  that goes off shift mid-service finishes the customer in front of it
-     *  and then stops.
-     */
-    fun goOffShift() = myShift.goOffShift()
-
-    /**
-     *  Bring the resource back on-shift, restoring its
-     *  [onShiftCapacity]. Any requests waiting in the resource's
-     *  request queue are notified per the capacity-change rule.
-     */
-    fun goOnShift() = myShift.goOnShift()
 
     init {
         // Register with the model so this resource-agent participates in the registry snapshot
