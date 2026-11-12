@@ -2120,6 +2120,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     group.timerEvent = myTimeoutAction.schedule(timeout, group, timeoutPriority)
                 }
                 myWaitGroup = group
+                group.isSuspending = true
                 try {
                     suspend()
                     group.resumedNormally = true
@@ -2193,8 +2194,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             entity.state.waitForFirst()
                             stateChanged = true
                         } else {
-                            currentSuspendType = SuspendType.SUSPEND
+                            // One trigger: the state and suspend type of its untimed form.
+                            val alone = triggers[0].aloneState
+                            currentSuspendType = alone.suspendType
+                            when (alone) {
+                                AloneState.ACTIVE -> {}
+                                AloneState.WAITING_FOR_SIGNAL -> entity.state.waitForSignal()
+                                AloneState.BLOCKED_RECEIVING_ITEMS,
+                                AloneState.BLOCKED_RECEIVING_ANY_ITEMS -> entity.state.blockedReceiving()
+                            }
+                            stateChanged = alone != AloneState.ACTIVE
                         }
+                        group.isSuspending = true
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst of ${triggers.size} trigger(s), timeout $timeout, ($this)" }
                         try {
                             suspend()

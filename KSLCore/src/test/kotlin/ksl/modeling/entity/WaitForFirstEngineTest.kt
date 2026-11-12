@@ -43,6 +43,12 @@ class WaitForFirstEngineTest {
         var readyValue: String? = null
         var registerCount = 0
 
+        /** If set, the gate claims a wait as it registers, as a blocking queue does for a request it can fill. */
+        var claimAtRegister: String? = null
+
+        /** The state its trigger asks for when it is the only trigger. */
+        var aloneState: AloneState = AloneState.ACTIVE
+
         /** Claims the earliest wait on this gate; returns whether a claim succeeded. */
         fun open(value: String): Boolean {
             val registration = waiting.firstOrNull() ?: return false
@@ -57,8 +63,11 @@ class WaitForFirstEngineTest {
         override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): String = gate.readyValue!!
         override fun register(group: WaitGroup): Registration {
             gate.registerCount++
-            return GateRegistration(this, group).also { gate.waiting.add(it) }
+            val registration = GateRegistration(this, group).also { gate.waiting.add(it) }
+            gate.claimAtRegister?.let { group.claim(registration, it, ResumeSource.UNKNOWN_INTERNAL, ProcessModel.RESUME_PRIORITY) }
+            return registration
         }
+        override val aloneState: AloneState get() = gate.aloneState
         override fun toString(): String = "GateTrigger(${gate.name})"
     }
 
@@ -100,11 +109,15 @@ class WaitForFirstEngineTest {
         var endTime = Double.NaN
         val observed = mutableListOf<String>()
 
+        var afterDelay = Double.NaN
+
         inner class Subject : Entity("subject") {
             val p: KSLProcess = process {
                 result = if (single) waitForFirst(ta, timeout = timeout, suspensionName = "w")
                 else waitForFirst(ta, tb, timeout = timeout, suspensionName = "w")
                 endTime = time
+                delay(10.0)
+                afterDelay = time
             }
         }
 
@@ -121,7 +134,8 @@ class WaitForFirstEngineTest {
         }
 
         fun observeState() {
-            observed.add("waitingForFirst=${subject.isWaitingForFirst}, type=${subject.currentSuspendType}, suspended=${subject.isSuspended}")
+            observed.add("waitingForFirst=${subject.isWaitingForFirst}, type=${subject.currentSuspendType}, suspended=${subject.isSuspended}" +
+                    ", signal=${subject.isWaitingForSignal}, receiving=${subject.isBlockedReceiving}")
         }
     }
 
@@ -158,7 +172,7 @@ class WaitForFirstEngineTest {
         assertEquals(false, claimedAgain)
         assertEquals(listOf("loser"), m.a.events)
         assertEquals(listOf("winner"), m.b.events)
-        assertEquals(listOf("waitingForFirst=true, type=WAIT_FOR_FIRST, suspended=true"), m.observed)
+        assertEquals(listOf("waitingForFirst=true, type=WAIT_FOR_FIRST, suspended=true, signal=false, receiving=false"), m.observed)
         assertFalse(m.subject.isWaitingForFirst)
         assertNull(m.subject.myWaitGroup)
     }
@@ -235,8 +249,50 @@ class WaitForFirstEngineTest {
         val m = run {
             EngineModel(it, single = true, actions = mapOf(1.0 to { observeState() }, 2.0 to { a.open("x") }))
         }
-        assertEquals(listOf("waitingForFirst=false, type=SUSPEND, suspended=true"), m.observed)
+        assertEquals(listOf("waitingForFirst=false, type=SUSPEND, suspended=true, signal=false, receiving=false"), m.observed)
         assertEquals("x", m.result!!.valueOf(m.ta))
+    }
+
+    @Test
+    @DisplayName("a single trigger takes the state and suspend type its untimed form reports, and is active again after")
+    fun singleTriggerAloneState() {
+        val seen = mutableListOf<String>()
+        for (state in AloneState.entries) {
+            val m = run {
+                EngineModel(it, single = true, timeout = 20.0, actions = mapOf(1.0 to { observeState() }, 2.0 to { a.open("x") }))
+                    .also { e -> e.a.aloneState = state }
+            }
+            seen.add(m.observed.single())
+            assertEquals("x", m.result!!.valueOf(m.ta))
+            assertTrue(m.subject.isProcessEnded, "the state was returned to active, so the process could go on to its end")
+        }
+        assertEquals(
+            listOf(
+                "waitingForFirst=false, type=SUSPEND, suspended=true, signal=false, receiving=false",
+                "waitingForFirst=false, type=WAIT_FOR_SIGNAL, suspended=true, signal=true, receiving=false",
+                "waitingForFirst=false, type=WAIT_FOR_ITEMS, suspended=true, signal=false, receiving=true",
+                "waitingForFirst=false, type=WAIT_FOR_ANY_ITEMS, suspended=true, signal=false, receiving=true",
+            ),
+            seen
+        )
+    }
+
+    @Test
+    @DisplayName("a claim while the wait registers ends it at once and leaves no resume pending for the next wait")
+    fun claimDuringRegistration() {
+        var pendingAfter: Boolean? = null
+        val m = run {
+            EngineModel(it, timeout = 5.0, actions = mapOf(0.5 to { pendingAfter = subject.hasPendingResume }))
+                .also { e -> e.b.claimAtRegister = "at once" }
+        }
+        val r = m.result!!
+        assertTrue(r.firedBy(m.tb))
+        assertEquals("at once", r.valueOf(m.tb))
+        assertEquals(0.0, r.timeWaited)
+        assertEquals(listOf("loser"), m.a.events, "the other registration is released at the claim")
+        assertEquals(listOf("winner"), m.b.events)
+        assertEquals(false, pendingAfter, "no resume was scheduled for a wait that never suspended")
+        assertEquals(10.0, m.afterDelay, "the next suspension, a delay, runs its full length")
     }
 
     /** The argument checks, made before anything else. */

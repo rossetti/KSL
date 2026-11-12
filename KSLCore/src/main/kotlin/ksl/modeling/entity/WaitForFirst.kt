@@ -59,6 +59,31 @@ abstract class WaitTrigger<out T> internal constructor() {
      *  before it joins its queue.
      */
     internal open val yieldPriority: Int? = null
+
+    /**
+     *  The state the entity takes, and the suspend type it reports, when this is the only trigger of
+     *  a wait: the same as the untimed form of the wait, so code that reads the state sees no
+     *  difference between the two.
+     */
+    internal open val aloneState: AloneState = AloneState.ACTIVE
+}
+
+/**
+ *  The state of an entity in a wait with one trigger, as its untimed form reports it.
+ *  @param suspendType the suspend type the wait reports
+ */
+internal enum class AloneState(val suspendType: SuspendType) {
+    /** Active, as a plain suspension or a message receive. */
+    ACTIVE(SuspendType.SUSPEND),
+
+    /** Waiting for a signal. */
+    WAITING_FOR_SIGNAL(SuspendType.WAIT_FOR_SIGNAL),
+
+    /** Blocked receiving an amount of items from a blocking queue. */
+    BLOCKED_RECEIVING_ITEMS(SuspendType.WAIT_FOR_ITEMS),
+
+    /** Blocked receiving any matching items from a blocking queue. */
+    BLOCKED_RECEIVING_ANY_ITEMS(SuspendType.WAIT_FOR_ANY_ITEMS)
 }
 
 /**
@@ -258,6 +283,12 @@ internal class WaitGroup(
     /** The timer's event, when the wait has a finite time limit. */
     var timerEvent: KSLEvent<WaitGroup>? = null
 
+    /**
+     *  Set by the wait just before it suspends. A claim made earlier, while the wait is still
+     *  registering, schedules no resume, because the wait then goes on without suspending.
+     */
+    var isSuspending: Boolean = false
+
     /** Set by the wait when its process resumes normally, so its clean-up knows the exit was not abnormal. */
     var resumedNormally: Boolean = false
 
@@ -271,8 +302,9 @@ internal class WaitGroup(
      *  On a successful claim, in one step: the winner and its value are recorded; every other
      *  registration is released, so a second occurrence at this instant goes elsewhere rather than
      *  into a wait that has already ended; the timer is cancelled if something else won, or the
-     *  timeout is announced if the timer won; and the entity is scheduled to resume, so the
-     *  stale-resume check applies to it like any other resume.
+     *  timeout is announced if the timer won; and, if the wait has suspended, the entity is scheduled
+     *  to resume, so the stale-resume check applies to it like any other resume. A claim made while
+     *  the wait is still registering schedules nothing: the wait sees the claim and goes on at once.
      *
      *  @param by the registration whose trigger fired; null for the timer and for a suspension's holder
      *  @param value the value the trigger produced, when it produces it at the claim
@@ -296,12 +328,14 @@ internal class WaitGroup(
         } else {
             cancelTimer()
         }
-        val what = when {
-            by != null -> "trigger=${by.trigger}"
-            suspension != null -> "suspension=${suspension?.name}"
-            else -> "timer"
+        if (isSuspending) {
+            val what = when {
+                by != null -> "trigger=${by.trigger}"
+                suspension != null -> "suspension=${suspension?.name}"
+                else -> "timer"
+            }
+            entity.scheduleResumeProcess(0.0, resumePriority, source, "wait claimed by $what")
         }
-        entity.scheduleResumeProcess(0.0, resumePriority, source, "wait claimed by $what")
         return true
     }
 
