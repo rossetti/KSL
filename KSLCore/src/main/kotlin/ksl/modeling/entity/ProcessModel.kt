@@ -2801,6 +2801,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: request_id = ${request.id} cannot take what it was promised; it waits again" }
                     request.clearPromises()
                     request.clearResumePending()
+                    // What was promised went away, but something else may be free now, such as another member of a
+                    // pool. The release that freed it has already offered it, so waiting would strand the request
+                    // beside it until the next release: take it now instead.
+                    if (canAllocateNow()) return true
                     if (rewait == null) {
                         entity.state.waitForResource()
                         suspend()
