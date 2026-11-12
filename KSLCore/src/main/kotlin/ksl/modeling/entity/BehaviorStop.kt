@@ -24,7 +24,7 @@ package ksl.modeling.entity
 enum class BehaviorStop {
     /**
      *  The current cycle of a cyclic behavior finishes and no other starts. A behavior declared with
-     *  `behavior` has no cycles, so for it this is the same as [NOW].
+     *  `behavior` has no cycles, so for it this is the same as `NOW`.
      */
     AFTER_CYCLE,
 
