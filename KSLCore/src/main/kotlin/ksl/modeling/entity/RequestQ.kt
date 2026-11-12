@@ -390,10 +390,44 @@ class RequestQ @JvmOverloads constructor(
         if (!promiseUnits(request, request.resource)) return false
         val detail = "queue=$name, resource=${request.resource.name}, freed=${freed.name}, request_id=${request.id}, " +
                 "entity_id=${request.entity.id}, amount=${request.amountRequested}, $resumeDetail"
-        request.markResumePending(resumeSource, detail)
-        request.entity.scheduleResumeProcess(0.0, resumePriority, resumeSource, detail)
+        resumeWoken(request, resumePriority, resumeSource, detail)
         return true
     }
+
+    /**
+     *  Resumes a request that has just been promised its units: the one step every wake of a waiting
+     *  request ends with. The request is marked as having a resume pending, so nothing wakes it twice.
+     *  A request of an untimed seize then has its entity's resume scheduled. A request of a wait for
+     *  the first of several things has its wait claimed instead, which withdraws the wait's other
+     *  registrations, cancels its timer and schedules the resume.
+     */
+    internal fun resumeWoken(
+        request: ProcessModel.Entity.Request,
+        resumePriority: Int,
+        resumeSource: ResumeSource,
+        resumeDetail: String?
+    ) {
+        request.markResumePending(resumeSource, resumeDetail)
+        val registration = request.registration
+        if (registration == null) {
+            request.entity.scheduleResumeProcess(0.0, resumePriority, resumeSource, resumeDetail)
+            return
+        }
+        // A request whose wait has ended has already left the queue, so its wait is still open.
+        val claimed = registration.group.claim(registration, null, resumeSource, resumePriority)
+        check(claimed) { "$name: request ${request.id} was woken for a wait that had already ended." }
+    }
+
+    /**
+     *  Removes a request that leaves without being served, because its wait ended in another way: a
+     *  time limit ran out, or another thing it waited for came first. Its wait is recorded when
+     *  [recordWait] is true and the queue records waits. Such a request was never woken, so it holds
+     *  no promise and has no resume pending.
+     *
+     *  @return true if the request was in the queue
+     */
+    internal fun removeLeaving(request: ProcessModel.Entity.Request, recordWait: Boolean): Boolean =
+        remove(request, recordWait && waitTimeStatOption)
 
     /**
      *  The purpose of this function is to resume requests that have been selected for allocation.
@@ -434,8 +468,7 @@ class RequestQ @JvmOverloads constructor(
             val detail = "queue=$name, resource=${resource.name}, request_id=${request.id}, " +
                     "entity_id=${request.entity.id}, amount=${request.amountRequested}, $resumeDetail"
             if (!promiseUnits(request, resource)) continue
-            request.markResumePending(resumeSource, detail)
-            request.entity.scheduleResumeProcess(0.0, resumePriority, resumeSource, detail)
+            resumeWoken(request, resumePriority, resumeSource, detail)
             sum = sum + request.amountRequested
         }
         return sum

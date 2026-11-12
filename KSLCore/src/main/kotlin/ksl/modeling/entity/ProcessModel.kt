@@ -852,6 +852,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             val entity = this@Entity
             abstract val resource: ResourceIfc
 
+            /** The request's place in a wait for the first of several things; null for an untimed seize. */
+            internal var registration: Registration? = null
+
             internal var resumePending: Boolean = false
                 private set
             internal var resumePendingSource: ResumeSource? = null
@@ -1489,8 +1492,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     val detail = "request_id=${request.id}, moved_to_resource=${resource.name}, amount=${request.amountRequested}"
                     // promised now, so that nothing else takes the units before it resumes
                     request.promise(resource, request.amountRequested)
-                    request.markResumePending(ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
-                    request.entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
+                    newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
                 }
             }
         }
@@ -1544,8 +1546,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // promised now, as the rule given for the move would choose
                     request.selectionRule = resourceSelectionRule
                     pool.promiseMembers(request)
-                    request.markResumePending(ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
-                    request.entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
+                    newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
                 }
             }
         }
@@ -1599,8 +1600,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // promised now, as the rule given for the move would choose
                     request.selectionRule = resourceSelectionRule
                     pool.promiseMember(request)
-                    request.markResumePending(ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
-                    request.entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
+                    newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
                 }
             }
         }
