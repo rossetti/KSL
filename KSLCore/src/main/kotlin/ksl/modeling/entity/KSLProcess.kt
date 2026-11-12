@@ -914,6 +914,8 @@ interface KSLProcessBuilder {
     /**
      *  Requests a number of units of the indicated resource.
      *
+     *  To give up waiting after a time limit (reneging), use `seizeOrTimeout`.
+     *
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
@@ -942,6 +944,8 @@ interface KSLProcessBuilder {
      *  The queue that will hold the entity is internal to the resource.  If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling seize.
+     *  To give up waiting after a time limit (reneging), use `seizeOrTimeout`.
+     *
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resource the resource from which the units are being requested.
@@ -965,6 +969,8 @@ interface KSLProcessBuilder {
 
     /**
      *  Requests a number of units of the indicated movable resource.
+     *
+     *  To give up waiting after a time limit (reneging), use `seizeOrTimeout`.
      *
      *  @param resource the resource from which the units are being requested.
      *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
@@ -990,6 +996,8 @@ interface KSLProcessBuilder {
 
     /**
      *  Requests a number of units of the indicated movable resource.
+     *
+     *  To give up waiting after a time limit (reneging), use `seizeOrTimeout`.
      *
      *  @param resource the resource from which the units are being requested.
      *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
@@ -1128,6 +1136,8 @@ interface KSLProcessBuilder {
     /**
      *  Requests a number of units from the indicated pool of resources
      *
+     *  To give up waiting after a time limit (reneging), use `seizeOrTimeout`.
+     *
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource pool from which the units are being requested.
@@ -1161,6 +1171,8 @@ interface KSLProcessBuilder {
      *  The queue that will hold the entity is internal to the resource pool.  If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority attribute for use in ranking the queue
      *  prior to the calling seize.
+     *  To give up waiting after a time limit (reneging), use `seizeOrTimeout`.
+     *
      *  @param amountNeeded the number of units of the resource needed for the request.
      *   The default is 1 unit.
      *  @param resourcePool the resource pool from which the units are being requested.
@@ -1195,6 +1207,8 @@ interface KSLProcessBuilder {
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority
      *  attribute for use in ranking the queue prior to the calling seize.
      *
+     *  To give up waiting after a time limit (reneging), use `seizeOrTimeout`.
+     *
      *  @param movableResourcePool the resource pool from which the units are being requested.
      *  @param requestLocation The location of the request. The default is the entity's currentLocation
      *  @param seizePriority the priority of the event that makes the request, which orders seizes made at
@@ -1228,6 +1242,8 @@ interface KSLProcessBuilder {
      *  The queue that will hold the entity is internal to the movable resource pool.  If the queue
      *  is priority based (i.e. uses a ranked queue discipline) the user should set the entity's priority
      *  attribute for use in ranking the queue prior to the calling seize.
+     *
+     *  To give up waiting after a time limit (reneging), use `seizeOrTimeout`.
      *
      *  @param movableResourcePoolWithQ the resource pool from which the units are being requested.
      *  @param requestLocation The location of the request. The default is the entity's currentLocation

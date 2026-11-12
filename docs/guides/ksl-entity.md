@@ -332,6 +332,41 @@ queue keeps its own discipline. To offer freed units queue by queue in the
 order the queues were registered, as before R1.8, set the resource's
 `initialRequestQueueNotificationRule` to `RegistrationOrderNotificationRule`.
 
+### ...renege (give up waiting for a resource)
+
+`seizeOrTimeout` seizes as `seize` does, but gives up when the time runs out:
+
+```kotlin
+val r = seizeOrTimeout(doctors, timeout = 120.0)
+if (r.timedOut) {
+    leftWithoutBeingSeen.increment()      // count reneges yourself
+    return@process
+}
+val a = r.value
+delay(examTime)
+release(a)
+```
+
+It has a form for every `seize` that waits in a queue: a resource (with a queue or its
+own), a movable resource, a resource pool and a movable resource pool. Each takes the
+`seize` parameters plus `timeout`, right after the amount (or after the resource when
+there is none), and `timeoutPriority` and `recordRenegedWait`.
+
+- While it waits, the request is in the queue exactly as a `seize` request, so it is
+  served in the same order. A release or capacity increase that serves it wins over the
+  timer at the same instant, at the default priorities.
+- On a timeout the request leaves the queue and nothing is allocated. There is no
+  built-in count of reneges: count them from `timedOut`.
+- **Reneged waits in the statistics.** By default a reneged wait is recorded in the
+  queue's time in queue, so `NumInQ` and `TimeInQ` agree (Little's law). With
+  `recordRenegedWait = false` it is left out of `TimeInQ` while `NumInQ` has counted it,
+  so the two no longer agree.
+- If a unit promised to the request goes away between its wake and its resume, it
+  takes another free unit if there is one, and otherwise waits again for the time left.
+- To wait for a resource or something else, whichever comes first, use a seize trigger
+  (`resource.seizeTrigger()`, `pool.seizeTrigger()`) in `waitForFirst`; see
+  [...wait for whichever comes first](#wait-for-whichever-comes-first).
+
 ### ...add a shift / capacity schedule
 
 A resource can follow a repeating `CapacitySchedule`. Items run in
@@ -517,7 +552,9 @@ class HoldAndSignal(parent: ModelElement) : ProcessModel(parent) {
 or filter to pick a specific entity). `Signal` is the right tool for
 broadcast wakeups (e.g. shift start, batch arrival, light change).
 To wait for a signal for at most some time, use `waitForOrTimeout(signal, timeout)`;
-see [...wait with a deadline](#wait-with-a-deadline).
+see [...wait with a deadline](#wait-with-a-deadline). A hold with a deadline is a signal
+with a timeout: wait on a `Signal` with `waitForOrTimeout`, and release the entity with
+`signal(entity)` in place of `removeAndResume`.
 
 ### ...wait with a deadline
 
@@ -582,9 +619,21 @@ when (r.trigger) {
 ```
 
 The triggers are `mailbox.trigger(predicate)` and `mailbox.triggerOfType<T>()`,
-`signal.trigger()`, and `queue.itemsTrigger(amount, predicate)` and
-`queue.anyItemsTrigger(predicate)`. A trigger is only a description, so you can keep one
-as a property and use it in any number of waits, and by several entities at once.
+`signal.trigger()`, `queue.itemsTrigger(amount, predicate)` and
+`queue.anyItemsTrigger(predicate)`, and `resource.seizeTrigger(amount)` and
+`pool.seizeTrigger(amount)` for a resource, a resource pool or a movable resource pool.
+A trigger is only a description, so you can keep one as a property and use it in any
+number of waits, and by several entities at once.
+
+```kotlin
+val bed = beds.seizeTrigger()
+val r = waitForFirst(bed, deteriorated.trigger(), timeout = 240.0)
+when (r.trigger) {
+    bed  -> admit(r.valueOf(bed))     // the allocation; release it as usual
+    null -> leaveHospital()
+    else -> transferToICU()
+}
+```
 
 - **The result.** `trigger` is the trigger that ended the wait, or null on a timeout.
   `firedBy(t)` says whether `t` did. `valueOf(t)` is its value, typed by the trigger,
@@ -597,8 +646,14 @@ as a property and use it in any number of waits, and by several entities at once
 - **Ties.** In time, the first to happen wins. At one instant, the event that runs first
   wins: the higher-priority event, then the earlier-scheduled one; within one event, the
   order of the code. Argument order decides only when several triggers can already fire
-  when `waitForFirst` is called. Choose a winner by the priority of the events that cause
-  the triggers, never by argument order.
+  when `waitForFirst` is called, and between two seize triggers whose requests wait in the
+  same queue (they enter it in argument order). Seize requests in different queues on one
+  resource are served by the resource's notification rule. Choose a winner by the
+  priority of the events that cause the triggers, never by argument order.
+- **A seize trigger** yields once before the wait starts, at the lowest `seizePriority`
+  among the wait's seize triggers, as `seize` yields. Its value is the allocation; a
+  losing seize request leaves its queue at the claim, recorded unless
+  `recordRenegedWait = false`.
 - **Limits.** At least one trigger, each at most once, and at most one signal trigger,
   because an entity can wait in only one queue.
 - With more than one trigger the entity reports `isWaitingForFirst` and the suspend type
@@ -788,7 +843,8 @@ on the Dokka pages.
 - `HoldQueue` — entities `hold` themselves; you release by reference
   or rule.
 - `Signal` — broadcast wake-up for all waiters.
-- `WaitResult<T>` (`Satisfied`, `TimedOut`) — the result of a wait with a time limit.
+- `WaitResult<T>` (`Satisfied`, `TimedOut`) — the result of a wait with a time limit,
+  including `seizeOrTimeout`.
 - `WaitTrigger<T>`, `WaitForFirstResult` — a thing to wait for, and the result of
   `waitForFirst`.
 - `BatchQueue`, `BatchingEntity<T>` — batch-then-resume primitives.
