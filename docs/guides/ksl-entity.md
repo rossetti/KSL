@@ -479,6 +479,10 @@ more. To avoid it, use more capacity or put work into a different queue from
 the one it came from. `canSendWithoutWaiting` tells a process whether a send would
 go ahead now.
 
+A receiver that should not wait forever uses `waitForItemsOrTimeout` (or
+`buffer.waitForOrTimeout(timeout, amount)`); see
+[...wait with a deadline](#wait-with-a-deadline).
+
 ### ...wait with `HoldQueue` and `Signal`
 
 Two coordination patterns side by side. `hold` parks an entity until
@@ -512,6 +516,93 @@ class HoldAndSignal(parent: ModelElement) : ProcessModel(parent) {
 `HoldQueue` is the right tool for selective release (FIFO by default,
 or filter to pick a specific entity). `Signal` is the right tool for
 broadcast wakeups (e.g. shift start, batch arrival, light change).
+To wait for a signal for at most some time, use `waitForOrTimeout(signal, timeout)`;
+see [...wait with a deadline](#wait-with-a-deadline).
+
+### ...wait with a deadline
+
+Each wait that ends when something else happens has a form with a time limit.
+It returns a `WaitResult`: either `Satisfied`, carrying the value, or `TimedOut`.
+
+```kotlin
+val reply = receiveMessageOrTimeout(mailbox, timeout = 5.0)    // ksl.modeling.agent
+if (reply.timedOut) giveUp() else handle(reply.value)
+
+val parts = waitForItemsOrTimeout(bin, timeout = 10.0, amount = 2)
+val got = parts.valueOrNull() ?: emptyList()
+
+val lit = waitForOrTimeout(greenLight, timeout = 30.0)
+val answered = suspendForOrTimeout(callBack, timeout = 3.0)
+```
+
+| Untimed | With a time limit |
+|---|---|
+| `receiveMessage`, `receiveMessageOfType` | `receiveMessageOrTimeout`, `receiveMessageOfTypeOrTimeout` |
+| `waitFor(signal)` | `waitForOrTimeout(signal, timeout)` |
+| `waitForItems`, `waitForAnyItems`, `q.waitFor`, `q.waitForAny` | `waitForItemsOrTimeout`, `waitForAnyItemsOrTimeout`, `q.waitForOrTimeout`, `q.waitForAnyOrTimeout` |
+| `suspendFor(suspension)` | `suspendForOrTimeout(suspension, timeout)` |
+
+While it waits, the entity is exactly where the untimed wait would put it: in the
+signal's queue, its request in the blocking queue's request queue, its waiter in the
+mailbox. So it is ranked, counted and served in the same way. When the time runs out,
+the entity leaves; its wait is recorded as the queue records any wait that ends, and
+nothing is taken.
+
+- `result.value` throws on a timeout; check `timedOut` first, or use `valueOrNull()`.
+  `timeWaited` is the time from the start of the wait to its end.
+- A zero timeout still suspends, so events at the current time can still end the wait.
+  `Double.POSITIVE_INFINITY` means no limit, and behaves exactly as the untimed wait.
+- If what the wait is for has already happened (a message or items already there),
+  the wait ends at once and does not suspend.
+- The timer runs late in its instant (`TIMEOUT_PRIORITY`), so something that happens at
+  the very instant of the deadline wins. Pass an earlier `timeoutPriority` to let the
+  deadline win instead.
+- After `suspendForOrTimeout` times out, the suspension's holder must not call
+  `resume()`: it throws. Check `isSuspended` first.
+- `entity.resumeProcess()` refuses an entity in such a wait; end the wait through what
+  it waits for. `canResumeProcess` tells you beforehand.
+
+### ...wait for whichever comes first
+
+To wait for the first of several things, get a *trigger* from each thing, and pass the
+triggers to `waitForFirst`:
+
+```kotlin
+val reply = mailbox.trigger { it.conversationId == convId }
+val alarm = alarmSignal.trigger()
+val part = bin.itemsTrigger(amount = 1)
+
+val r = waitForFirst(reply, alarm, part, timeout = 60.0)
+when (r.trigger) {
+    reply -> handle(r.valueOf(reply))          // an AgentMessage
+    alarm -> evacuate()
+    part -> assemble(r.valueOf(part))          // a List of items
+    null -> giveUp()                           // timed out
+}
+```
+
+The triggers are `mailbox.trigger(predicate)` and `mailbox.triggerOfType<T>()`,
+`signal.trigger()`, and `queue.itemsTrigger(amount, predicate)` and
+`queue.anyItemsTrigger(predicate)`. A trigger is only a description, so you can keep one
+as a property and use it in any number of waits, and by several entities at once.
+
+- **The result.** `trigger` is the trigger that ended the wait, or null on a timeout.
+  `firedBy(t)` says whether `t` did. `valueOf(t)` is its value, typed by the trigger,
+  and throws if `t` did not end the wait. `valueOrNull(t)` returns null instead. Both
+  throw for a trigger that was not passed to the wait.
+- **The others are withdrawn at that instant.** When one trigger fires, the wait's
+  other registrations leave their sources at once, each recorded as its source records
+  a wait that ends. So a second message, signal or item at the same instant goes
+  elsewhere.
+- **Ties.** In time, the first to happen wins. At one instant, the event that runs first
+  wins: the higher-priority event, then the earlier-scheduled one; within one event, the
+  order of the code. Argument order decides only when several triggers can already fire
+  when `waitForFirst` is called. Choose a winner by the priority of the events that cause
+  the triggers, never by argument order.
+- **Limits.** At least one trigger, each at most once, and at most one signal trigger,
+  because an entity can wait in only one queue.
+- With more than one trigger the entity reports `isWaitingForFirst` and the suspend type
+  `WAIT_FOR_FIRST`. With one, it reports what the untimed wait reports.
 
 ### ...move an entity in space
 
@@ -697,6 +788,9 @@ on the Dokka pages.
 - `HoldQueue` — entities `hold` themselves; you release by reference
   or rule.
 - `Signal` — broadcast wake-up for all waiters.
+- `WaitResult<T>` (`Satisfied`, `TimedOut`) — the result of a wait with a time limit.
+- `WaitTrigger<T>`, `WaitForFirstResult` — a thing to wait for, and the result of
+  `waitForFirst`.
 - `BatchQueue`, `BatchingEntity<T>` — batch-then-resume primitives.
 
 **Capacity scheduling**

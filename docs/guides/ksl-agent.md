@@ -456,6 +456,26 @@ onMessage<AgentMessage.Request<String>> { question ->
 `from` is an `AgentLike`, so a plain `Entity` can't be a sender: it has no
 mailbox to reply to. Cast `from` to reach anything beyond the mailbox and name.
 
+In a process, `receiveMessage(mailbox)` waits for a message, with no time limit.
+`receiveMessageOrTimeout(mailbox, timeout)` waits for at most `timeout`.
+It returns a `WaitResult`: either the message, or `TimedOut`. A timed-out receive
+takes nothing, and a matching message that arrives later is kept in the mailbox,
+as if nobody had waited:
+
+```kotlin
+val reply = receiveMessageOrTimeout(mailbox, timeout = 5.0) { it.conversationId == convId }
+if (reply.timedOut) retry() else handle(reply.value)
+```
+
+To wait for whichever comes first, a message, a `Signal` or items from a
+`BlockingQueue`, make a trigger from the mailbox with `mailbox.trigger(predicate)`
+or `mailbox.triggerOfType<T>()`, and pass it to `waitForFirst` with the others.
+The entity guide covers both forms ("...wait with a deadline" and "...wait for
+whichever comes first"). A process's trigger and a statechart's `onMessage` are
+two ways to react to one mailbox. A waiting process is offered a message before
+the statechart, and the earlier-registered of several waiting receivers is served
+first, whether its wait is timed or not.
+
 ### ...group agents in a `Context` + `Population`
 
 A `Context` is a named, replication-aware container. A `Population`
@@ -942,6 +962,11 @@ on the Dokka pages.
   conversation cannot be intercepted. Releases on every exit path.
 - `sendMessage(msg, mailbox)` — suspending; for `process { … }`.
 - `mailbox.deliver(msg)` — non-suspending; for statechart actions.
+- `receiveMessage(mailbox)`, `receiveMessageOrTimeout(mailbox, timeout)` —
+  suspending receives, without and with a time limit; the `OfType` forms filter by
+  message type.
+- `mailbox.trigger(predicate)`, `mailbox.triggerOfType<T>()` — a message as one
+  of the things a `waitForFirst` waits for.
 
 **Population & spatial context**
 
