@@ -330,6 +330,30 @@ class TerminatedEntityReuseTest {
         assertTrue(m.r.myWaitingQ.isEmpty, "the request left the queue")
     }
 
+    // ── Timed seize of a resource pool ──────────────────────────────────────
+
+    private class TimedPoolSeizeRow(parent: ModelElement) : ReuseHarness(parent) {
+        val pool = ResourcePoolWithQ(this, listOf(Resource(this, "rowMember")), name = "rowPool")
+        override fun prepare() {
+            activate(Blocker().p)
+        }
+
+        inner class Blocker : Entity() {
+            val p: KSLProcess = process("block") { val a = seize(pool); delay(100.0); release(a) }
+        }
+
+        override val body: suspend KSLProcessBuilder.() -> Unit = { yield(); seizeOrTimeout(pool, timeout = 50.0) }
+    }
+
+    @Test
+    @DisplayName("terminated in a timed seize of a pool; its request leaves the queue and its timer does not reach the fresh process")
+    fun terminatedInTimedPoolSeizeIsReusable() {
+        val m = run("timedPoolSeize") { TimedPoolSeizeRow(it) }
+        assertReleasedAndReusable(m, "WaitingForResource")
+        assertNull(m.subject.myWaitGroup)
+        assertTrue(m.pool.myWaitingQ.isEmpty, "the request left the queue")
+    }
+
     // ── Timed receive of a message ──────────────────────────────────────────
 
     /** An agent layer beside the harness, so the subject has a mailbox to wait on. */
