@@ -178,6 +178,20 @@ sealed class AnimationEvent {
         val suspensionName: String? = null
     ) : AnimationEvent()
 
+    /**
+     *  An entity's `delayOrInterrupt` ended early because units of a resource it depends on went missing;
+     *  emitted after its `DelayEnded`. The cause is `FAILURE` or `PREEMPTION`.
+     */
+    @Serializable
+    @SerialName("DelayInterrupted")
+    data class DelayInterrupted(
+        override val simTime: Double,
+        val entityId: Long,
+        val suspensionName: String?,
+        val resourceName: String,
+        val cause: String
+    ) : AnimationEvent()
+
     // ──────────────────────────────────────────────────────────────────────
     //  Seize / release of resources
     // ──────────────────────────────────────────────────────────────────────
@@ -1099,6 +1113,7 @@ internal val AnimationEvent.entityIdOrNull: Long?
         is AnimationEvent.ProcessCompleted -> entityId
         is AnimationEvent.DelayStarted -> entityId
         is AnimationEvent.DelayEnded -> entityId
+        is AnimationEvent.DelayInterrupted -> entityId
         is AnimationEvent.SeizeQueued -> entityId
         is AnimationEvent.SeizeWaiting -> entityId
         is AnimationEvent.SeizeAllocated -> entityId

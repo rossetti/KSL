@@ -19,10 +19,13 @@
 package ksl.modeling.entity
 
 /**
- *  How a delay meets a unit it depends on going missing. Internal: the only mode is to freeze, and a
- *  later delay that reports the interruption adds its own.
+ *  How a delay meets a unit it depends on going missing: a plain delay freezes, and `delayOrInterrupt`
+ *  reports it.
  */
 internal enum class DelayMode {
     /** The delay is held until the unit comes back. */
-    FREEZE
+    FREEZE,
+
+    /** The delay ends at once, and the process is told why. */
+    REPORT
 }

@@ -1648,6 +1648,51 @@ interface KSLProcessBuilder {
     }
 
     /**
+     *  A delay that reports an interruption instead of freezing. It runs as `delay` does, but if units of an
+     *  allocation it depends on go missing, to a failure or a preemption under `RESUME` or `RESTART`, it ends
+     *  at once and returns `DelayResult.Interrupted`, saying which allocation, why, and how much time was left.
+     *  The units are still missing: the process decides what to do, for example wait for them with
+     *  `restoredTrigger()` on the allocation, release it and seize another, or carry on with what it holds.
+     *  When it runs to its end it returns `DelayResult.Completed`.
+     *
+     *  It depends on [uses], or on every allocation the entity holds when [uses] is null; an empty collection
+     *  means no resource can end it. If units of one it depends on are already missing when it is called, it
+     *  returns `Interrupted` at once, with nothing done and no delay. A process interrupt holds it as it holds
+     *  any delay; units going missing while it is held end it at once. Units going missing at the instant its
+     *  end is due do not end it: it completes.
+     *
+     *  @param delayDuration the length of the delay, at least 0 and finite
+     *  @param uses the allocations the work depends on, each allocated to this entity; null for all it holds
+     *  @param delayPriority the priority of the event that ends the delay
+     *  @param suspensionName the name of the delay
+     *  @return how the delay ended
+     */
+    suspend fun delayOrInterrupt(
+        delayDuration: Double,
+        uses: Collection<Allocation>? = null,
+        delayPriority: Int = DELAY_PRIORITY,
+        suspensionName: String? = null
+    ): DelayResult
+
+    /**
+     *  As the [delayOrInterrupt] for a [Double] duration, with the duration sampled once from [delayDuration].
+     *
+     *  @param delayDuration the source of the length of the delay
+     *  @param uses the allocations the work depends on, each allocated to this entity; null for all it holds
+     *  @param delayPriority the priority of the event that ends the delay
+     *  @param suspensionName the name of the delay
+     *  @return how the delay ended
+     */
+    suspend fun delayOrInterrupt(
+        delayDuration: GetValueIfc,
+        uses: Collection<Allocation>? = null,
+        delayPriority: Int = DELAY_PRIORITY,
+        suspensionName: String? = null
+    ): DelayResult {
+        return delayOrInterrupt(delayDuration.value, uses, delayPriority, suspensionName)
+    }
+
+    /**
      *  Seizes [amountNeeded] units of [resource] as `seize` does, taking them from holders of lower priority
      *  when too few are free. The entity's `priority` decides: a holder whose entity's priority is a larger
      *  number is lower. Free units are taken first; then units of the lowest-priority holders, the most

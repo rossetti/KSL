@@ -93,6 +93,9 @@ interface AllocationIfc {
 
     /** The total length of those stretches. */
     val timeInterrupted: Double
+
+    /** True while units of this allocation are missing, to a failure or a preemption. */
+    val hasMissingUnits: Boolean
 }
 
 /**
@@ -210,6 +213,9 @@ class Allocation internal constructor(
 
     private var myInterruptedSince: Double = Double.NaN
 
+    override val hasMissingUnits: Boolean
+        get() = missingUnits > 0
+
     /**
      *  Units of this allocation go missing under [rule], which is `RESUME` or `RESTART` (under `FINISH`
      *  nothing is taken from a holder). When the first go missing, an interruption starts and the holder's
@@ -230,7 +236,7 @@ class Allocation internal constructor(
             myInterruptedSince = myResource.time
         }
         if (before == 0 || rule == InterruptRule.RESTART) {
-            myEntity.addFreezeReason(this, freezeRestart)
+            myEntity.addFreezeReason(this, freezeRestart, if (byFailure > 0) InterruptCause.FAILURE else InterruptCause.PREEMPTION)
         }
     }
 

@@ -64,6 +64,8 @@ internal enum class ResumeSource(val mayResumeDelay: Boolean = false) {
     BLOCKAGE_END,
     TIMEOUT,
     MAILBOX,
+    /** A delayOrInterrupt ended because units it depends on went missing: the one source that may end a delay. */
+    DELAY_REPORTED(mayResumeDelay = true),
     UNKNOWN_INTERNAL
 }
 
@@ -846,6 +848,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /** The allocations the current delay depends on; null means every allocation the entity holds. */
         private var myDelayUses: Set<Allocation>? = null
 
+        /** The report of a delayOrInterrupt that units going missing ended; null otherwise. */
+        private var myDelayReport: DelayResult.Interrupted? = null
+
+        /** When the current delayOrInterrupt began. */
+        private var myDelayStartTime: Double = Double.NaN
+
+        /** True while the entity is in a delayOrInterrupt; read by the tests' checks. */
+        internal val isInReportingDelay: Boolean
+            get() = myDelayMode == DelayMode.REPORT && currentSuspendType == SuspendType.DELAY
+
         /** Every allocation this entity holds. */
         internal val heldAllocations: List<Allocation>
             get() = resourceAllocations.values.flatten()
@@ -872,7 +884,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  process interrupt. Nothing happens unless the entity is in a delay that is not a move or a yield.
          *  At the first reason the time left is banked and the delay's event is cancelled.
          */
-        internal fun addFreezeReason(by: Allocation?, restart: Boolean) {
+        internal fun addFreezeReason(by: Allocation?, restart: Boolean, cause: InterruptCause? = null) {
             val process = myCurrentProcess ?: return
             if (currentSuspendType != SuspendType.DELAY || process.inMoveDelay || process.inYieldDelay) return
             // a delay that names what it uses is frozen only by those
@@ -880,6 +892,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             if (by != null && uses != null && by !in uses) return
             when (myDelayMode) {
                 DelayMode.FREEZE -> {}
+                DelayMode.REPORT -> if (by != null) {
+                    // a delayOrInterrupt ends and reports rather than freezing; a process interrupt still freezes it
+                    reportInterruption(by, restart, cause ?: InterruptCause.FAILURE)
+                    return
+                }
             }
             if (freezeCount == 0) {
                 val event = myDelayEvent
@@ -921,6 +938,34 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             delayEvent.entity = this
             myDelayEvent = delayEvent
             emitAnimation { AnimationEvent.DelayStarted(processModel.time, id, duration, delayEvent.time, currentSuspendName) }
+        }
+
+        /**
+         *  Ends the current delayOrInterrupt because units of [by] went missing: records the report, cancels the
+         *  delay's event, drops a process interrupt's hold on it, and schedules the resume. The first allocation
+         *  reported wins. Nothing is reported when the delay's end is due at this instant: it completes.
+         */
+        private fun reportInterruption(by: Allocation, restart: Boolean, cause: InterruptCause) {
+            if (myDelayReport != null) return
+            val remaining = delayTimeLeft
+            if (remaining == 0.0) return
+            myDelayReport = DelayResult.Interrupted(
+                duration = myDelayDuration,
+                timeElapsed = processModel.time - myDelayStartTime,
+                timeRemaining = remaining,
+                by = by,
+                cause = cause,
+                rule = if (restart) InterruptRule.RESTART else InterruptRule.RESUME
+            )
+            val event = myDelayEvent
+            if (event != null && event.isScheduled) event.cancel = true
+            myFrozenBy.clear()
+            myProcessInterruptActive = false
+            myDelayEvent = null
+            scheduleResumeProcess(
+                0.0, RESUME_PRIORITY, ResumeSource.DELAY_REPORTED,
+                "delayOrInterrupt reported: units of allocation ${by.id} of ${by.myResource.name} went missing ($cause)"
+            )
         }
 
         /** The current delay's token, recorded by a process interrupt when it freezes the delay. */
@@ -3316,15 +3361,66 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 delayPriority: Int,
                 suspensionName: String?
             ) {
+                checkUses(uses)
+                beginDelay(delayDuration, delayPriority, suspensionName, DelayMode.FREEZE, uses.toSet())
+                suspend()
+                endDelay()
+            }
+
+            /** Requires each allocation a delay names in its uses to be allocated to this entity. */
+            private fun checkUses(uses: Collection<Allocation>) {
                 for (a in uses) {
                     require(a.myEntity === entity && a.isAllocated) {
                         "The delay of entity_id = ${entity.id} names allocation ${a.id} of ${a.myResource.name} in uses, " +
                                 "which is not allocated to it."
                     }
                 }
-                beginDelay(delayDuration, delayPriority, suspensionName, DelayMode.FREEZE, uses.toSet())
+            }
+
+            override suspend fun delayOrInterrupt(
+                delayDuration: Double,
+                uses: Collection<Allocation>?,
+                delayPriority: Int,
+                suspensionName: String?
+            ): DelayResult {
+                require(delayDuration >= 0.0) { "The duration of the delay must be >= 0.0 in process, ($this)" }
+                require(delayDuration.isFinite()) { "The duration of the delay must be finite (cannot be infinite) in process, ($this)" }
+                val useSet = uses?.let { checkUses(it); it.toSet() }
+                // already interrupted: report at once, with no delay and no delay events
+                val missing = (useSet ?: heldAllocations).firstOrNull { it.missingUnits > 0 }
+                if (missing != null) {
+                    return DelayResult.Interrupted(
+                        duration = delayDuration,
+                        timeElapsed = 0.0,
+                        timeRemaining = delayDuration,
+                        by = missing,
+                        cause = if (missing.missingByFailure > 0) InterruptCause.FAILURE else InterruptCause.PREEMPTION,
+                        rule = if (missing.freezeRestart) InterruptRule.RESTART else InterruptRule.RESUME
+                    )
+                }
+                myDelayStartTime = time
+                myDelayReport = null
+                beginDelay(delayDuration, delayPriority, suspensionName, DelayMode.REPORT, useSet)
                 suspend()
-                endDelay()
+                val report = myDelayReport
+                val result = if (report != null) {
+                    entity.state.activate()
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id}: suspension name = $currentSuspendName : reported $report" }
+                    emitAnimation { AnimationEvent.DelayEnded(time, entity.id, currentSuspendName) }
+                    emitAnimation {
+                        AnimationEvent.DelayInterrupted(time, entity.id, currentSuspendName, report.by.myResource.name, report.cause.name)
+                    }
+                    myDelayReport = null
+                    myDelayUses = null
+                    currentSuspendName = null
+                    currentSuspendType = SuspendType.NONE
+                    report
+                } else {
+                    endDelay()
+                    DelayResult.Completed(delayDuration, time - myDelayStartTime)
+                }
+                myDelayMode = DelayMode.FREEZE
+                return result
             }
 
             /**
@@ -4122,6 +4218,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // a terminated delay is over, and nothing that froze it may reschedule it
                 myDelayEvent = null
                 resetFreezeState()
+                myDelayReport = null
+                myDelayMode = DelayMode.FREEZE
                 // Release the entity itself, not only its entanglements. Successful completion clears
                 // the binding in afterSuccessfulProcessCompletion; termination must do the same, and
                 // must also leave the suspended state that the exception unwound from -- otherwise the
