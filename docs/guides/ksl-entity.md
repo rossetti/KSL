@@ -531,6 +531,8 @@ not failed, throws).
   reports are unchanged.
 - **A guided transporter** that is failed is not dispatched, and is offered
   to its pools again at the repair.
+- **To have a process told** of the failure instead of held, see
+  "...react to a failure or preemption".
 
 ### ...let urgent work take a resource (preemption)
 
@@ -571,6 +573,8 @@ private inner class Emergency : Entity() {
 - **A waiting preemptor in a `RANKED` queue** is served ahead of waiting
   requests of lower priority, as any request of its priority is.
 - A movable resource cannot be preempted.
+- **To have a holder told** of a preemption instead of held, see
+  "...react to a failure or preemption".
 
 ### ...hold a resource across work that does not use it
 
@@ -592,7 +596,65 @@ no resource can (a process interrupt still can). For a pool, pass
 
 A held holder keeps its other resources and is not told: its process simply
 resumes later. To learn of an interruption afterwards, read the allocation's
-records, `timesInterrupted` and `timeInterrupted`.
+records, `timesInterrupted` and `timeInterrupted`. To be told at the moment it
+happens, use `delayOrInterrupt` (next entry).
+
+### ...react to a failure or preemption
+
+A plain `delay` is held while units it depends on are missing, and its
+process is not told. `delayOrInterrupt` runs as a delay does, but ends at the
+moment units go missing and returns what happened, so the process can decide:
+
+```kotlin
+val room = seize(rooms)
+val doc  = seize(doctors)
+when (val r = delayOrInterrupt(treatmentRV, uses = listOf(doc, room))) {
+    is DelayResult.Completed -> { release(doc); release(room) }
+    is DelayResult.Interrupted -> {
+        // wait up to 15 minutes for the doctor to come back, else see another one
+        val back = waitForFirst(r.by.restoredTrigger(), timeout = 15.0)
+        val d = if (back.timedOut) { release(r.by); seize(otherDoctors) } else r.by
+        delayOrInterrupt(r.timeRemaining, uses = listOf(d, room))   // the rest of the work
+        release(d); release(room)
+    }
+}
+```
+
+- **Which to use.** `delay` when the work simply waits for the resource to
+  come back; `delayOrInterrupt` when the process should choose. The resource's
+  `interruptRule` still decides whether units are taken at all: under `FINISH`
+  nothing is taken, so neither form is interrupted.
+- **The result.** `Completed` has the `duration` and the `timeElapsed`.
+  `Interrupted` adds `by` (the allocation whose units went missing first),
+  `cause` (`FAILURE` or `PREEMPTION`), `timeDone`, `timeRemaining` and the
+  `rule` of the taking (`RESUME` or `RESTART`), which says whether to go on
+  with `timeRemaining` or start again with `duration`. The rest of the work is
+  not resampled: pass the time you want.
+- **The units stay missing.** Reporting changes only what happens to the
+  holder: a failed resource is still failed and a lent unit is still lent. The
+  process can wait for them, release the allocation (a failed resource keeps
+  the unit from the queue until its repair; a lent one ends the loan), or carry
+  on with what it holds.
+- **Already missing.** If units it depends on are missing when it is called, it
+  returns `Interrupted` at once, with nothing done. A process interrupt holds it
+  as it holds any delay; units going missing then end it at once.
+- **The triggers.** `allocation.interruptedTrigger()` fires when units of that
+  allocation go missing, with the cause; `allocation.restoredTrigger()` when all
+  have come back. Each fires at once if its condition already holds. They
+  compose with any other trigger in `waitForFirst`, and any entity may wait on
+  them, so a supervisor can wait for another entity's resource to come back. A
+  released allocation's triggers cannot be waited on. When the work itself is a
+  wait whose time is the work's length, compose it directly:
+
+  ```kotlin
+  val w = waitForFirst(doc.interruptedTrigger(), calledAway.trigger(), timeout = treatment)
+  ```
+
+  Work that completes this way is recorded in the animation trace as a wait
+  that timed out.
+- `allocation.hasMissingUnits` says whether units are missing now. In the
+  trace, an interrupted `delayOrInterrupt` shows `DelayEnded` followed by
+  `DelayInterrupted`.
 
 ### ...run two stations in tandem
 
@@ -996,7 +1058,8 @@ on the Dokka pages.
 - `KSLProcess` — the runtime handle on a coroutine (state queries:
   `isCreated`, `isSuspended`, `isRunning`, `isCompleted`, …).
 - `KSLProcessBuilder` — the receiver for `process { … }`; provides
-  every suspending verb (`delay`, `seize`, `preempt`, `release`, `use`,
+  every suspending verb (`delay`, `delayOrInterrupt`, `seize`, `preempt`,
+  `release`, `use`,
   `move`/`moveTo`, `requestConveyor`/`rideConveyor`/`exitConveyor`,
   `convey`, `hold`, `waitFor`, `send`/`sendItems`/`waitForItems`,
   `syncWith`, `blockUntilCompleted`/`blockUntilAllCompleted`,
@@ -1019,6 +1082,8 @@ on the Dokka pages.
   lost to failures and preemption.
 - `InterruptRule` (`FINISH`, `RESUME`, `RESTART`) — what happens to work in
   service when a resource fails or is preempted.
+- `DelayResult` (`Completed`, `Interrupted`), `InterruptCause` (`FAILURE`,
+  `PREEMPTION`) — what `delayOrInterrupt` returns, and why units went missing.
 - `ResourceFailureBasis` (`CALENDAR_TIME`, `BUSY_TIME`, `USES`) — what the
   time between declared failures counts.
 

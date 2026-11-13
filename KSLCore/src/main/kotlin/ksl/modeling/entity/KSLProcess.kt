@@ -1756,7 +1756,8 @@ interface KSLProcessBuilder {
      *  The delay depends on every resource the entity holds: if units of any of them go missing, to a
      *  failure or a preemption under `RESUME` or `RESTART`, the delay is held until they come back, and
      *  a delay that starts while they are missing begins held. The delay that names what it uses limits
-     *  this to the allocations it names.
+     *  this to the allocations it names. The process is not told; to be told and decide, use
+     *  `delayOrInterrupt`.
      *
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and
      *  must be finite.

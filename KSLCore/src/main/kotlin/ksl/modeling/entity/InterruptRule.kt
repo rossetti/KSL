@@ -20,16 +20,18 @@ package ksl.modeling.entity
 
 /**
  *  What happens to work in service when units of the resource it holds are taken away, by a failure
- *  or by a more urgent request. The holder is not told; its delay is held or not, and its `release`
- *  works as before.
+ *  or by a more urgent request. Under `RESUME` and `RESTART` the units are taken; the holder's own
+ *  construct then decides what that means for it. A plain `delay` is held, and the holder is not told.
+ *  A `delayOrInterrupt` ends at once and reports the taking, with this rule in its result, so the
+ *  process can decide. Either way its `release` works as before.
  */
 enum class InterruptRule {
     /** Nothing is taken from the holder: its work completes, and the units are taken at its release. */
     FINISH,
 
-    /** The holder's delay is held while the units are away, and goes on with the time left when they return. */
+    /** A plain delay is held while the units are away, and goes on with the time left when they return. */
     RESUME,
 
-    /** The holder's delay is held while the units are away, and starts again in full when they return. */
+    /** A plain delay is held while the units are away, and starts again in full when they return. */
     RESTART
 }
