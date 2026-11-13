@@ -1680,6 +1680,43 @@ interface KSLProcessBuilder {
     }
 
     /**
+     *  Causes the process to delay for the specified amount of time, as work that depends only on the named
+     *  allocations. The delay is frozen only when one of [uses] loses units, to a failure or to preemption;
+     *  units of another resource the entity holds going missing do not affect it. A delay without [uses]
+     *  depends on every allocation the entity holds. If units of one of [uses] are already missing when the
+     *  delay begins, it begins frozen and starts when they come back.
+     *
+     *  @param delayDuration the length of time required before the process continues executing, must not be
+     *  negative and must be finite.
+     *  @param uses the allocations the work depends on; each must be allocated to this entity.
+     *  @param delayPriority the priority of the event that ends the delay.
+     *  @param suspensionName the name of the delay.
+     */
+    suspend fun delay(
+        delayDuration: Double,
+        uses: Collection<Allocation>,
+        delayPriority: Int = DELAY_PRIORITY,
+        suspensionName: String? = null
+    )
+
+    /**
+     *  As the delay with [uses] for a [Double] duration, with the duration drawn from [delayDuration].
+     *
+     *  @param delayDuration the source of the length of the delay.
+     *  @param uses the allocations the work depends on; each must be allocated to this entity.
+     *  @param delayPriority the priority of the event that ends the delay.
+     *  @param suspensionName the name of the delay.
+     */
+    suspend fun delay(
+        delayDuration: GetValueIfc,
+        uses: Collection<Allocation>,
+        delayPriority: Int = DELAY_PRIORITY,
+        suspensionName: String? = null
+    ) {
+        delay(delayDuration.value, uses, delayPriority, suspensionName)
+    }
+
+    /**
      *  Causes movement of the entity from the specified location to the specified location at
      *  the supplied velocity.  If the entity is not currently at [fromLoc] then its
      *  current location is quietly set to [fromLoc], without movement before the move commences.

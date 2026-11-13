@@ -614,6 +614,18 @@ open class Resource @JvmOverloads constructor(
      */
     protected open fun afterGoOnShift() {}
 
+    /**
+     *  What happens to work in service when this resource's units are taken away, by a failure or by a
+     *  more urgent request: `FINISH` (the default) lets it complete, `RESUME` holds the holder's delay and
+     *  goes on with the time left, `RESTART` holds it and starts it again in full. A failure or a preemption
+     *  can override it for itself. Set while the model is not running.
+     */
+    var interruptRule: InterruptRule = InterruptRule.FINISH
+        set(value) {
+            require(model.isNotRunning) { "The interrupt rule of $name cannot be changed while the model is running." }
+            field = value
+        }
+
     // ---- behavior --------------------------------------------------------------------------------
 
     private var myBehaviorBlock: (suspend KSLProcessBuilder.() -> Unit)? = null

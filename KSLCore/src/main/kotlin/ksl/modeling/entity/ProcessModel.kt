@@ -840,6 +840,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /** The priority of the current delay's event, for the reschedule. */
         private var myDelayPriority: Int = KSLEvent.DEFAULT_PRIORITY
 
+        /** How the current delay meets a missing unit. */
+        private var myDelayMode: DelayMode = DelayMode.FREEZE
+
+        /** The allocations the current delay depends on; null means every allocation the entity holds. */
+        private var myDelayUses: Set<Allocation>? = null
+
+        /** Every allocation this entity holds. */
+        internal val heldAllocations: List<Allocation>
+            get() = resourceAllocations.values.flatten()
+
         /** How many reasons hold the current delay frozen. */
         internal val freezeCount: Int
             get() = myFrozenBy.size + (if (myProcessInterruptActive) 1 else 0)
@@ -865,6 +875,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         internal fun addFreezeReason(by: Allocation?, restart: Boolean) {
             val process = myCurrentProcess ?: return
             if (currentSuspendType != SuspendType.DELAY || process.inMoveDelay || process.inYieldDelay) return
+            // a delay that names what it uses is frozen only by those
+            val uses = myDelayUses
+            if (by != null && uses != null && by !in uses) return
+            when (myDelayMode) {
+                DelayMode.FREEZE -> {}
+            }
             if (freezeCount == 0) {
                 val event = myDelayEvent
                 if (event != null) {
@@ -3233,6 +3249,40 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             override suspend fun delay(delayDuration: Double, delayPriority: Int, suspensionName: String?) {
+                beginDelay(delayDuration, delayPriority, suspensionName, DelayMode.FREEZE, null)
+                suspend()
+                endDelay()
+            }
+
+            override suspend fun delay(
+                delayDuration: Double,
+                uses: Collection<Allocation>,
+                delayPriority: Int,
+                suspensionName: String?
+            ) {
+                for (a in uses) {
+                    require(a.myEntity === entity && a.isAllocated) {
+                        "The delay of entity_id = ${entity.id} names allocation ${a.id} of ${a.myResource.name} in uses, " +
+                                "which is not allocated to it."
+                    }
+                }
+                beginDelay(delayDuration, delayPriority, suspensionName, DelayMode.FREEZE, uses.toSet())
+                suspend()
+                endDelay()
+            }
+
+            /**
+             *  The start of a delay: the checks, the suspend name and type, the entity's state, and either the
+             *  event that ends it or, when an allocation the delay depends on has units missing, a delay begun
+             *  frozen, with its full length banked and no event until the units come back.
+             */
+            private fun beginDelay(
+                delayDuration: Double,
+                delayPriority: Int,
+                suspensionName: String?,
+                mode: DelayMode,
+                uses: Set<Allocation>?
+            ) {
                 require(delayDuration >= 0.0) { "The duration of the delay must be >= 0.0 in process, ($this)" }
                 require(delayDuration.isFinite()) { "The duration of the delay must be finite (cannot be infinite) in process, ($this)" }
                 currentSuspendName = suspensionName
@@ -3244,18 +3294,36 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 myDelayDuration = delayDuration
                 resetFreezeState()
                 myDelayToken++
+                myDelayMode = mode
+                myDelayUses = uses
                 myDelayPriority = delayPriority
+                val missing = if (inMoveDelay || inYieldDelay) emptyList()
+                else (uses ?: heldAllocations).filter { it.missingUnits > 0 }
+                if (missing.isNotEmpty()) {
+                    // begun frozen: nothing ends it until the units it depends on are back
+                    myDelayEvent = null
+                    myFrozenRemaining = delayDuration
+                    myFrozenBy.addAll(missing)
+                    myFreezeRestart = missing.any { it.freezeRestart }
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: DELAY for ($delayDuration) STARTED frozen: units it depends on are missing" }
+                    emitAnimation { AnimationEvent.DelayStarted(time, entity.id, delayDuration, time + delayDuration, suspensionName) }
+                    return
+                }
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority, name = eName)
                 myDelayEvent!!.entity = entity
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: SCHEDULED end of delay: event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time} : DELAY for ($delayDuration) STARTED" }
                 if (!inMoveDelay && !inYieldDelay) emitAnimation { AnimationEvent.DelayStarted(time, entity.id, delayDuration, myDelayEvent!!.time, suspensionName) }
-                suspend()
+            }
+
+            /** The end of a delay: the entity's state, the trace, the check of the time, and the reset. */
+            private fun endDelay() {
                 entity.state.activate()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : DELAY: entity_id = ${entity.id}: suspension name = $currentSuspendName : event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time}" }
-                if (!inMoveDelay && !inYieldDelay) emitAnimation { AnimationEvent.DelayEnded(time, entity.id, suspensionName) }
+                if (!inMoveDelay && !inYieldDelay) emitAnimation { AnimationEvent.DelayEnded(time, entity.id, currentSuspendName) }
                 require(time == myDelayEvent!!.time) { "r = ${model.currentReplicationNumber} : $time > END : DELAY: suspension name = $currentSuspendName : entity_id = ${entity.id} : the actual event time ($time) was not the same as the scheduled delay event time (${myDelayEvent!!.time})" }
                 // the delay is over: a finished delay must not be mistaken for a current one
                 myDelayEvent = null
+                myDelayUses = null
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
             }

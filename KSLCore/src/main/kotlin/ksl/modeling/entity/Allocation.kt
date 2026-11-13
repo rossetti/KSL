@@ -83,6 +83,16 @@ interface AllocationIfc {
      *  The resource associated with the allocation
      */
     val resource: ResourceCIfc
+
+    /**
+     *  How many times the holder's work was interrupted: the stretches of time during which units of
+     *  this allocation were taken away (down in a failure, or lent to a more urgent request) under the
+     *  rule `RESUME` or `RESTART`, whether or not the holder was in a delay at the time.
+     */
+    val timesInterrupted: Int
+
+    /** The total length of those stretches. */
+    val timeInterrupted: Double
 }
 
 /**
@@ -162,9 +172,86 @@ class Allocation internal constructor(
         private set
 
     internal fun deallocate(){
+        // an interruption still open at the release ends with it; nothing is rescheduled, and units
+        // coming back later have no holder to return to
+        if (missingUnits > 0) {
+            timeInterrupted += myResource.time - myInterruptedSince
+            myInterruptedSince = Double.NaN
+            missingByFailure = 0
+            missingByLoan = 0
+            freezeRestart = false
+        }
         amountReleased = amount
         amount = 0
         timeDeallocated = myResource.time
+    }
+
+    /** Units of this allocation down in a failure. */
+    internal var missingByFailure: Int = 0
+        private set
+
+    /** Units of this allocation lent to a more urgent request. */
+    internal var missingByLoan: Int = 0
+        private set
+
+    /** Units of this allocation taken away, for either reason. */
+    internal val missingUnits: Int
+        get() = missingByFailure + missingByLoan
+
+    /** The action that took the units asked for a restart. */
+    internal var freezeRestart: Boolean = false
+        private set
+
+    override var timesInterrupted: Int = 0
+        private set
+
+    override var timeInterrupted: Double = 0.0
+        private set
+
+    private var myInterruptedSince: Double = Double.NaN
+
+    /**
+     *  Units of this allocation go missing under [rule], which is `RESUME` or `RESTART` (under `FINISH`
+     *  nothing is taken from a holder). When the first go missing, an interruption starts and the holder's
+     *  delay, if it is in one that depends on this allocation, gains a reason to freeze.
+     */
+    internal fun unitsGoMissing(byFailure: Int, byLoan: Int, rule: InterruptRule) {
+        require(rule != InterruptRule.FINISH) { "Under FINISH nothing is taken from the holder of allocation $id." }
+        check(isAllocated) { "Allocation $id has been released; no units of it can go missing." }
+        require(byFailure >= 0 && byLoan >= 0) { "The units going missing from allocation $id must be >= 0." }
+        val before = missingUnits
+        missingByFailure += byFailure
+        missingByLoan += byLoan
+        check(missingUnits <= amount) { "Allocation $id would have $missingUnits units missing of $amount." }
+        if (missingUnits == 0) return
+        freezeRestart = freezeRestart || rule == InterruptRule.RESTART
+        if (before == 0) {
+            timesInterrupted++
+            myInterruptedSince = myResource.time
+        }
+        if (before == 0 || rule == InterruptRule.RESTART) {
+            myEntity.addFreezeReason(this, freezeRestart)
+        }
+    }
+
+    /**
+     *  Units of this allocation come back. When the last return, the interruption ends and the reason it
+     *  gave the holder's delay is removed, which reschedules the delay if it was the last reason.
+     */
+    internal fun unitsComeBack(byFailure: Int, byLoan: Int) {
+        require(byFailure >= 0 && byLoan >= 0) { "The units coming back to allocation $id must be >= 0." }
+        // the interruption of a released allocation ended at its release
+        if (isDeallocated) return
+        val before = missingUnits
+        missingByFailure -= byFailure
+        missingByLoan -= byLoan
+        check(missingByFailure >= 0 && missingByLoan >= 0) { "Allocation $id had fewer units missing than came back." }
+        if (before > 0 && missingUnits == 0) {
+            timeInterrupted += myResource.time - myInterruptedSince
+            myInterruptedSince = Double.NaN
+            freezeRestart = false
+            myEntity.removeFreezeReason(this, null)
+        }
     }
 
     override fun toString(): String {
