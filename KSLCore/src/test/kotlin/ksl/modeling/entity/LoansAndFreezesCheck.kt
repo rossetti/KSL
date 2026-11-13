@@ -25,8 +25,9 @@ package ksl.modeling.entity
  *
  *  It checks that the units busy equal the units allocated less those lent to a borrower, and do not
  *  exceed the capacity except while a capacity decrease waits for busy units to be released; that each
- *  allocation's units missing by loan equal its loans out and never exceed its amount; and that no loan
- *  outlives its borrower's allocation.
+ *  allocation's units missing by loan equal its loans out and never exceed its amount; that no loan
+ *  outlives its borrower's allocation; and that an entity in a delay that reports an interruption is never
+ *  held by a missing unit.
  */
 internal object LoansAndFreezesCheck {
 
@@ -53,6 +54,15 @@ internal object LoansAndFreezesCheck {
         // above the capacity only while a capacity decrease waits for busy units to be released
         require(resource.numBusy <= resource.capacity || resource.isPendingCapacityChange) {
             "${resource.name}: ${resource.numBusy} units busy exceeds the capacity ${resource.capacity}"
+        }
+    }
+
+    /** Checks that an entity in a delay that reports an interruption is never held by a missing unit. */
+    fun checkEntity(entity: ProcessModel.Entity) {
+        if (entity.isInReportingDelay) {
+            require(entity.myFrozenBy.isEmpty()) {
+                "entity ${entity.id} is in a delay that reports, yet held by ${entity.myFrozenBy.size} allocations"
+            }
         }
     }
 
