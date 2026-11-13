@@ -238,6 +238,10 @@ class Allocation internal constructor(
         if (before == 0 || rule == InterruptRule.RESTART) {
             myEntity.addFreezeReason(this, freezeRestart, if (byFailure > 0) InterruptCause.FAILURE else InterruptCause.PREEMPTION)
         }
+        // then the waits on this allocation's interrupted trigger, with the cause of this taking
+        if (before == 0) {
+            claimTriggers(onRestore = false, value = if (byFailure > 0) InterruptCause.FAILURE else InterruptCause.PREEMPTION)
+        }
     }
 
     /**
@@ -257,8 +261,56 @@ class Allocation internal constructor(
             myInterruptedSince = Double.NaN
             freezeRestart = false
             myEntity.removeFreezeReason(this, null)
+            claimTriggers(onRestore = true, value = Unit)
         }
     }
+
+    /** The waits on this allocation's triggers, in the order they registered. */
+    internal val myTriggerRegistrations: MutableList<AllocationRegistration> = mutableListOf()
+
+    /** Why units of this allocation are missing now: a failure if any are down in one, else a preemption. */
+    internal val currentCause: InterruptCause
+        get() = if (missingByFailure > 0) InterruptCause.FAILURE else InterruptCause.PREEMPTION
+
+    /** Registers a wait on one of this allocation's triggers; a released allocation refuses it. */
+    internal fun registerTrigger(trigger: WaitTrigger<*>, group: WaitGroup, onRestore: Boolean): AllocationRegistration {
+        require(isAllocated) {
+            "Allocation $id of ${myResource.name} has been released; a wait on its ${if (onRestore) "restored" else "interrupted"} " +
+                    "trigger would never end. Use the triggers of an allocation that is held."
+        }
+        val registration = AllocationRegistration(trigger, group, this, onRestore)
+        myTriggerRegistrations.add(registration)
+        return registration
+    }
+
+    /**
+     *  Claims the waits on this allocation's interrupted trigger ([onRestore] false) or restored trigger
+     *  ([onRestore] true), in the order they registered. A copy is walked, since a claim releases the
+     *  wait's other registrations, which may be in this list.
+     */
+    private fun claimTriggers(onRestore: Boolean, value: Any?) {
+        for (registration in myTriggerRegistrations.toList()) {
+            if (registration.onRestore != onRestore || registration.isReleased) continue
+            myTriggerRegistrations.remove(registration)
+            registration.group.claim(registration, value, ResumeSource.ALLOCATION, ProcessModel.RESUME_PRIORITY)
+        }
+    }
+
+    /**
+     *  A trigger for `waitForFirst` that fires when units of this allocation go missing, to a failure or a
+     *  preemption, with the cause as its value; at once if units are missing already. Any entity may wait
+     *  on it, not only the holder. A wait on it ends by its other triggers or its time limit if the
+     *  allocation is released first, and a released allocation's trigger cannot be waited on.
+     */
+    fun interruptedTrigger(): WaitTrigger<InterruptCause> = InterruptedTrigger(this)
+
+    /**
+     *  A trigger for `waitForFirst` that fires when all the missing units of this allocation have come
+     *  back; at once if none are missing. Any entity may wait on it, not only the holder. A wait on it
+     *  ends by its other triggers or its time limit if the allocation is released first, and a released
+     *  allocation's trigger cannot be waited on.
+     */
+    fun restoredTrigger(): WaitTrigger<Unit> = RestoredTrigger(this)
 
     override fun toString(): String {
         val sb = StringBuilder()

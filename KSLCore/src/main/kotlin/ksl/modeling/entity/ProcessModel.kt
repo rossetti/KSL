@@ -66,6 +66,8 @@ internal enum class ResumeSource(val mayResumeDelay: Boolean = false) {
     MAILBOX,
     /** A delayOrInterrupt ended because units it depends on went missing: the one source that may end a delay. */
     DELAY_REPORTED(mayResumeDelay = true),
+    /** A wait on an allocation's trigger: its units went missing, or came back. */
+    ALLOCATION,
     UNKNOWN_INTERNAL
 }
 
