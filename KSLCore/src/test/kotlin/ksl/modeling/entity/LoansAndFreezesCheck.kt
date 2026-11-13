@@ -26,8 +26,8 @@ package ksl.modeling.entity
  *  It checks that the units busy equal the units allocated less those lent to a borrower, and do not
  *  exceed the capacity except while a capacity decrease waits for busy units to be released; that each
  *  allocation's units missing by loan equal its loans out and never exceed its amount; that no loan
- *  outlives its borrower's allocation; and that an entity in a delay that reports an interruption is never
- *  held by a missing unit.
+ *  outlives its borrower's allocation; that every wait on an allocation's triggers is still open; and that
+ *  an entity in a delay that reports an interruption is never held by a missing unit.
  */
 internal object LoansAndFreezesCheck {
 
@@ -46,6 +46,13 @@ internal object LoansAndFreezesCheck {
             }
             require(a.missingUnits <= a.amount) {
                 "${resource.name}: allocation ${a.id} has ${a.missingUnits} units missing of ${a.amount}"
+            }
+        }
+        for (a in resource.allocations()) {
+            for (registration in a.myTriggerRegistrations) {
+                require(!registration.group.claimed) {
+                    "${resource.name}: allocation ${a.id} still lists a wait that has already ended"
+                }
             }
         }
         for (loan in resource.loans) {
