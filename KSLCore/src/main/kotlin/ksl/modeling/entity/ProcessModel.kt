@@ -814,8 +814,106 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /** The length of the delay as it was started, so that a restart after an interrupt means that length. */
         private var myDelayDuration: Double = Double.NaN
 
-        /** True while the current delay is frozen by an interrupt, between the cancel and the reschedule. */
-        private var myDelayInterrupted: Boolean = false
+        // The freeze of the current delay. A delay is frozen while it has at least one reason: a process
+        // interrupt, or an allocation it depends on with units missing. The time left is banked at the first
+        // reason and the delay is rescheduled when the last one ends, in full if some reason asked for a
+        // restart, else for the time left.
+
+        /** Counts the entity's delays; a process interrupt records it so its removal reaches only the delay it froze. */
+        private var myDelayToken: Long = 0L
+
+        /** The token of the delay a process interrupt froze. */
+        private var myFreezeToken: Long = -1L
+
+        /** The allocations holding the current delay frozen. */
+        internal val myFrozenBy: MutableSet<Allocation> = mutableSetOf()
+
+        /** A process interrupt is one of the reasons. */
+        private var myProcessInterruptActive: Boolean = false
+
+        /** Some reason of this freeze asked for a restart. */
+        private var myFreezeRestart: Boolean = false
+
+        /** The time left, banked at the first reason. */
+        private var myFrozenRemaining: Double = Double.NaN
+
+        /** The priority of the current delay's event, for the reschedule. */
+        private var myDelayPriority: Int = KSLEvent.DEFAULT_PRIORITY
+
+        /** How many reasons hold the current delay frozen. */
+        internal val freezeCount: Int
+            get() = myFrozenBy.size + (if (myProcessInterruptActive) 1 else 0)
+
+        /** True while the current delay is frozen. */
+        internal val isDelayFrozen: Boolean
+            get() = freezeCount > 0
+
+        /** Clears the freeze state: at the start of each delay and when a process is terminated. */
+        private fun resetFreezeState() {
+            myFreezeToken = -1L
+            myFrozenBy.clear()
+            myProcessInterruptActive = false
+            myFreezeRestart = false
+            myFrozenRemaining = Double.NaN
+        }
+
+        /**
+         *  Adds a reason to freeze the current delay: [by] is the allocation with units missing, or null for a
+         *  process interrupt. Nothing happens unless the entity is in a delay that is not a move or a yield.
+         *  At the first reason the time left is banked and the delay's event is cancelled.
+         */
+        internal fun addFreezeReason(by: Allocation?, restart: Boolean) {
+            val process = myCurrentProcess ?: return
+            if (currentSuspendType != SuspendType.DELAY || process.inMoveDelay || process.inYieldDelay) return
+            if (freezeCount == 0) {
+                val event = myDelayEvent
+                if (event != null) {
+                    myFrozenRemaining = maxOf(0.0, event.time - processModel.time)
+                    // a delay ending after the run's end was never placed on the calendar, so there is nothing to cancel
+                    if (event.isScheduled) event.cancel = true
+                }
+            }
+            if (by != null) {
+                myFrozenBy.add(by)
+            } else {
+                myProcessInterruptActive = true
+                myFreezeToken = myDelayToken
+            }
+            myFreezeRestart = myFreezeRestart || restart
+        }
+
+        /**
+         *  Removes a reason; when the last ends, the delay is rescheduled for [postTime] when given (a process
+         *  interrupt's explicit time, used only if it ends last), else in full after a restart, else for the
+         *  time left. A process interrupt's removal reaches only the delay it froze ([token]). Nothing is
+         *  rescheduled once the run has ended.
+         */
+        internal fun removeFreezeReason(by: Allocation?, postTime: Double?, token: Long? = null) {
+            if (by != null) {
+                if (!myFrozenBy.remove(by)) return
+            } else {
+                if (!myProcessInterruptActive || token != myFreezeToken) return
+                myProcessInterruptActive = false
+            }
+            if (freezeCount > 0) return
+            val duration = postTime ?: (if (myFreezeRestart) myDelayDuration else myFrozenRemaining)
+            myFreezeRestart = false
+            val process = myCurrentProcess ?: return
+            if (currentSuspendType != SuspendType.DELAY || processModel.executive.isEnded) return
+            val eName = "Delay Event: duration = $duration suspension name = $currentSuspendName (after an interrupt)"
+            val delayEvent = process.scheduleDelayEnd(duration, myDelayPriority, eName)
+            delayEvent.entity = this
+            myDelayEvent = delayEvent
+            emitAnimation { AnimationEvent.DelayStarted(processModel.time, id, duration, delayEvent.time, currentSuspendName) }
+        }
+
+        /** The current delay's token, recorded by a process interrupt when it freezes the delay. */
+        internal val currentDelayToken: Long
+            get() = myDelayToken
+
+        /** The time left in the current delay: banked when frozen, else to its event. */
+        internal val delayTimeLeft: Double
+            get() = if (isDelayFrozen) myFrozenRemaining else maxOf(0.0, (myDelayEvent?.time ?: processModel.time) - processModel.time)
 
         private val myResumeAction = ResumeAction()
 
@@ -2018,10 +2116,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             private val delayAction = DelayAction()
 
+            /** Schedules the end of this process's current delay, after a freeze, for [duration] at [priority]. */
+            internal fun scheduleDelayEnd(duration: Double, priority: Int, name: String): KSLEvent<Nothing> =
+                delayAction.schedule(duration, priority = priority, name = name)
+
             // True while the delay below is the internal delay of a move(): used to
             // suppress DelayStarted/DelayEnded so a move emits MoveStarted/MoveCompleted
             // (the spatial event the renderer interpolates) rather than a bare delay.
-            private var inMoveDelay: Boolean = false
+            internal var inMoveDelay: Boolean = false
 
             // True while a hold() below is an internal hold of a conveyor request/ride/exit:
             // used to suppress HoldEntered/HoldReleased so the conveyor emits its own events
@@ -2032,7 +2134,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // order seize/yield resumptions in the event calendar): suppress its DelayStarted/
             // DelayEnded so this purely internal ordering step never surfaces as a modeler-visible
             // delay (e.g. an auto-placed storage or noise in the suspension-name harvest).
-            private var inYieldDelay: Boolean = false
+            internal var inYieldDelay: Boolean = false
 
             /**
              *  Used to invoke activation of a process
@@ -3140,7 +3242,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 entity.state.schedule()
                 val eName = "Delay Event: duration = $delayDuration suspension name = $suspensionName"
                 myDelayDuration = delayDuration
-                myDelayInterrupted = false
+                resetFreezeState()
+                myDelayToken++
+                myDelayPriority = delayPriority
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority, name = eName)
                 myDelayEvent!!.entity = entity
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: SCHEDULED end of delay: event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time} : DELAY for ($delayDuration) STARTED" }
@@ -3377,7 +3481,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             override fun isInDelay(name: String): Boolean =
                 entity.currentProcess === this && entity.isScheduled &&
                         entity.currentSuspendType == SuspendType.DELAY && !inMoveDelay && !inYieldDelay &&
-                        entity.currentSuspendName == name && entity.myDelayEvent != null
+                        entity.currentSuspendName == name && (entity.myDelayEvent != null || entity.isDelayFrozen)
 
             /** What the entity is doing, in words, for the error when an interrupt finds it elsewhere. */
             private fun delayStateDescription(): String = when {
@@ -3401,7 +3505,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             "entity_id = ${target.entity.id}: ${target.delayStateDescription()}. " +
                             "Check with isInDelay(\"$delayName\") before interrupting."
                 }
-                if (target.entity.myDelayInterrupted) {
+                if (target.entity.myProcessInterruptActive) {
                     logger.warn {
                         "r = ${model.currentReplicationNumber} : $time > delay '$delayName' of entity_id = " +
                                 "${target.entity.id} is already interrupted; this interrupt is ignored"
@@ -3409,39 +3513,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     return null
                 }
                 return target
-            }
-
-            /** Freezes the target's delay and returns the priority to reschedule it at. */
-            private fun freezeDelay(target: ProcessCoroutine): Int {
-                val delayEvent = target.entity.myDelayEvent!!
-                // a delay ending after the run's end was never placed on the calendar, so there is nothing to cancel
-                if (delayEvent.isScheduled) {
-                    delayEvent.cancel = true
-                }
-                target.entity.myDelayInterrupted = true
-                return delayEvent.priority
-            }
-
-            /**
-             *  Schedules the rest of a frozen delay as a delay of its own, so that it ends the way any delay
-             *  ends. Nothing happens when the target no longer needs it: it was terminated, or it left the delay.
-             */
-            private fun rescheduleInterruptedDelay(target: ProcessCoroutine, duration: Double, priority: Int) {
-                val e = target.entity
-                if (!e.myDelayInterrupted || e.currentProcess !== target || e.currentSuspendType != SuspendType.DELAY) {
-                    return
-                }
-                e.myDelayInterrupted = false
-                if (executive.isEnded) {
-                    return
-                }
-                val eName = "Delay Event: duration = $duration suspension name = ${e.currentSuspendName} (after an interrupt)"
-                val delayEvent = target.delayAction.schedule(duration, priority = priority, name = eName)
-                delayEvent.entity = e
-                e.myDelayEvent = delayEvent
-                emitAnimation {
-                    AnimationEvent.DelayStarted(time, e.id, duration, delayEvent.time, e.currentSuspendName)
-                }
             }
 
             override suspend fun interruptDelay(
@@ -3454,12 +3525,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(interruptTime >= 0.0) { "The interrupt time must be >= 0.0" }
                 require(postInterruptDelayTime >= 0.0) { "The post interrupt delay time must be >= 0.0" }
                 val target = interruptTarget(process, delayName) ?: return
-                val priority = freezeDelay(target)
+                val e = target.entity
+                val token = e.currentDelayToken
+                e.addFreezeReason(null, restart = false)
                 try {
                     delay(interruptTime, interruptPriority)
                 } finally {
                     // also when this process is terminated mid-interrupt: the target is not left frozen
-                    rescheduleInterruptedDelay(target, postInterruptDelayTime, priority)
+                    e.removeFreezeReason(null, postInterruptDelayTime, token)
                 }
             }
 
@@ -3480,7 +3553,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptPriority: Int
             ) {
                 val target = interruptTarget(process, delayName) ?: return
-                val remaining = maxOf(0.0, target.entity.myDelayEvent!!.time - time)
+                // the time left, banked if a missing unit has already frozen the delay
+                val remaining = target.entity.delayTimeLeft
                 interruptDelay(target, delayName, interruptTime, interruptPriority, remaining)
             }
 
@@ -3495,11 +3569,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(interruptingProcess != process) { "The interrupting process cannot be the same as the process being interrupted" }
                 require(postInterruptDelayTime >= 0.0) { "The post interrupt delay time must be >= 0.0" }
                 val target = interruptTarget(process, delayName) ?: return
-                val priority = freezeDelay(target)
+                val e = target.entity
+                val token = e.currentDelayToken
+                e.addFreezeReason(null, restart = false)
                 try {
                     waitFor(interruptingProcess, priority = interruptPriority)
                 } finally {
-                    rescheduleInterruptedDelay(target, postInterruptDelayTime, priority)
+                    e.removeFreezeReason(null, postInterruptDelayTime, token)
                 }
             }
 
@@ -3522,7 +3598,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptPriority: Int
             ) {
                 val target = interruptTarget(process, delayName) ?: return
-                val remaining = maxOf(0.0, target.entity.myDelayEvent!!.time - time)
+                val remaining = target.entity.delayTimeLeft
                 interruptDelayWithProcess(target, delayName, interruptingProcess, interruptPriority, remaining)
             }
 
@@ -3919,9 +3995,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 // a resume scheduled for the dead process will be dropped as stale; it is no longer pending
                 myPendingResume = null
-                // a terminated delay is over, and an interrupt that froze it must not reschedule it
+                // a terminated delay is over, and nothing that froze it may reschedule it
                 myDelayEvent = null
-                myDelayInterrupted = false
+                resetFreezeState()
                 // Release the entity itself, not only its entanglements. Successful completion clears
                 // the binding in afterSuccessfulProcessCompletion; termination must do the same, and
                 // must also leave the suspended state that the exception unwound from -- otherwise the
