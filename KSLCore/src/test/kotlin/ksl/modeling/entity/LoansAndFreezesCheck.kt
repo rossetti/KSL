@@ -23,19 +23,32 @@ package ksl.modeling.entity
  *  and at the end of each replication, it checks that a resource's units are accounted for. It is not a
  *  general auditor.
  *
- *  It checks today that the units busy equal the units allocated and do not exceed the capacity, except
- *  while a capacity decrease waits for busy units to be released. As units
- *  can be lent and delays frozen, it gains the checks for those: that the units busy equal the units
- *  allocated less those lent, that no loan exceeds its lender's missing units, and that each entity's
- *  freeze count matches the reasons it should have with no event on the calendar for a frozen delay.
+ *  It checks that the units busy equal the units allocated less those lent to a borrower, and do not
+ *  exceed the capacity except while a capacity decrease waits for busy units to be released; that each
+ *  allocation's units missing by loan equal its loans out and never exceed its amount; and that no loan
+ *  outlives its borrower's allocation.
  */
 internal object LoansAndFreezesCheck {
 
     /** Checks [resource]; the message names the resource and what is out of balance. */
     fun check(resource: Resource) {
         val allocated = resource.allocations().sumOf { it.amount }
-        require(resource.numBusy == allocated) {
-            "${resource.name}: ${resource.numBusy} units busy, but ${allocated} are allocated"
+        // a unit lent counts once, busy for its borrower
+        val lent = resource.loans.filter { it.lender != null }.sumOf { it.amount }
+        require(resource.numBusy == allocated - lent) {
+            "${resource.name}: ${resource.numBusy} units busy, but ${allocated} are allocated and $lent lent"
+        }
+        for (a in resource.allocations()) {
+            val out = resource.loans.filter { it.lender === a }.sumOf { it.amount }
+            require(a.missingByLoan == out) {
+                "${resource.name}: allocation ${a.id} has ${a.missingByLoan} units missing by loan, but $out are lent"
+            }
+            require(a.missingUnits <= a.amount) {
+                "${resource.name}: allocation ${a.id} has ${a.missingUnits} units missing of ${a.amount}"
+            }
+        }
+        for (loan in resource.loans) {
+            require(loan.borrower.isAllocated) { "${resource.name}: a loan to the released allocation ${loan.borrower.id} is still recorded" }
         }
         // above the capacity only while a capacity decrease waits for busy units to be released
         require(resource.numBusy <= resource.capacity || resource.isPendingCapacityChange) {
