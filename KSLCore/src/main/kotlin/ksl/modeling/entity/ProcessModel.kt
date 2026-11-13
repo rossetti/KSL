@@ -2894,7 +2894,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             /**
              *  Waits on in the queue for as long as what the request was promised cannot be taken. Promises
              *  are kept by the resources, so normally this returns at once; it covers a member that changed
-             *  in the instant between the wake and the resumption, such as one that went off shift, so that
+             *  in the instant between the wake and the resumption, such as one that went off shift or failed, so that
              *  the entity waits for the next unit rather than failing. A request with no promise, one that
              *  never waited or one resumed some other way, waits on until [canAllocateNow] holds.
              *
@@ -2913,7 +2913,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     val honourable = if (promises.isEmpty()) {
                         canAllocateNow()
                     } else {
-                        promises.keys.all { !it.isInactive && it.capacity - it.numBusy - it.myPromisedUnits >= 0 }
+                        promises.keys.all { !it.isInactive && !it.isFailed && it.capacity - it.numBusy - it.myPromisedUnits >= 0 }
                     }
                     if (honourable) return true
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: request_id = ${request.id} cannot take what it was promised; it waits again" }

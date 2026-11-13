@@ -24,8 +24,10 @@ import ksl.modeling.variable.*
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.random.rvariable.RVariableIfc
 import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
+import kotlin.math.roundToInt
 
 /**
  *  A Resource represents a number of common units that can be allocated to entities.  A resource
@@ -273,14 +275,7 @@ open class Resource @JvmOverloads constructor(
         protected set(value) {
             require(value >= 0) { "The capacity must be >= 0" }
             field = value
-            // handle the state change
-            if ((numBusy == 0) && (field == 0)) {
-                myState = myInactiveState
-            } else if ((numBusy == 0) && (field > 0)) {
-                myState = myIdleState
-            } else if ((numBusy > 0) && (field >= 0)) {
-                myState = myBusyState
-            }
+            updateState()
             myCapacity.value = field.toDouble()
             instantUtilTW.value = instantaneousUtil
         }
@@ -306,24 +301,29 @@ open class Resource @JvmOverloads constructor(
                 // increasing the number busy
                 val increase = newValue - previousValue
                 myNumBusy.increment(increase.toDouble())
-                numTimesSeized++
-                mySeizeCounter.increment()
             } else if (newValue < previousValue) {
                 // decreasing the number busy
                 val decrease = previousValue - newValue
                 myNumBusy.decrement(decrease.toDouble())
-                numTimesReleased++
             }
-            // handle the state change
-            if ((field == 0) && (capacity == 0)) {
-                myState = myInactiveState
-            } else if ((field == 0) && (capacity > 0)) {
-                myState = myIdleState
-            } else if ((field > 0) && (capacity >= 0)) {
-                myState = myBusyState
-            }
+            updateState()
             instantUtilTW.value = instantaneousUtil
         }
+
+    /** The state the capacity and the busy units give: inactive, idle or busy. */
+    private fun stateFromUnits(): ResourceState =
+        if (numBusy == 0 && capacity == 0) myInactiveState
+        else if (numBusy == 0) myIdleState
+        else myBusyState
+
+    /**
+     *  Assigns the state the capacity and the busy units give, even when it is unchanged, as each change of
+     *  either always has. While failed it does nothing: the failed state takes precedence until repair.
+     */
+    protected fun updateState() {
+        if (!isFailed) myState = stateFromUnits()
+        myFailureClock?.update()
+    }
 
     /**
      * Units promised to entities that have been woken to take them and have not yet resumed. A waiting
@@ -335,10 +335,10 @@ open class Resource @JvmOverloads constructor(
 
     /**
      * The units that can be allocated now: the capacity less the busy units and less any units promised
-     * to a waiting entity that has been woken to take them.
+     * to a waiting entity that has been woken to take them. None while the resource is failed.
      */
     override val numAvailableUnits: Int
-         get() = maxOf(0, capacity - numBusy - myPromisedUnits)
+         get() = if (isFailed) 0 else maxOf(0, capacity - numBusy - myPromisedUnits)
 
     override val hasAvailableUnits: Boolean
         get() = numAvailableUnits > 0
@@ -390,13 +390,18 @@ open class Resource @JvmOverloads constructor(
             return myIdleState
         }
 
-    /** The failed state, keeps track of when no units
-     * are available because the resource is failed
-     *
+    /** The failed state, keeps track of when no units are available because the resource is failed.
+     *  It takes precedence over the other three until the resource is repaired.
      */
-//    protected val myFailedState: ResourceState = FailedState("${this.name}_Failed", collectStateStatistics)
-//    override val failedState: StateAccessorIfc
-//        get() = myFailedState
+    protected val myFailedState: ResourceState = ResourceState("${this.name}_Failed")
+    override val failedState: StateAccessorIfc
+        get() {
+            if (isFailed) {
+                myState.exit(time)
+                myState.enter(time)
+            }
+            return myFailedState
+        }
 
     /** The inactive state, keeps track of when no units
      * are available because the resource's capacity is zero.
@@ -439,10 +444,9 @@ open class Resource @JvmOverloads constructor(
     override val isBusy: Boolean
         get() = myState === myBusyState
 
-    /** Checks if the resource is failed
-     */
-//    override val isFailed: Boolean
-//        get() = myState === myFailedState
+    /** True from a [fail] until the [repair] that follows it. */
+    override val isFailed: Boolean
+        get() = myState === myFailedState
 
     /** True when no units are allocated and the capacity is zero, as when a resource is off shift
      * and its last unit has been released.
@@ -525,6 +529,7 @@ open class Resource @JvmOverloads constructor(
         myBusyState.resetStateCollection()
         myInactiveState.resetStateCollection()
         myIdleState.resetStateCollection()
+        myFailedState.resetStateCollection()
         myState.enter(time)
     }
 
@@ -539,11 +544,14 @@ open class Resource @JvmOverloads constructor(
             myIdleProp.value = idleState.totalTimeInState / totalStateTime
             myInactiveProp.value = inactiveState.totalTimeInState / totalStateTime
             myBusyProp.value = busyState.totalTimeInState / totalStateTime
+            myFailedProp?.value = failedState.totalTimeInState / totalStateTime
         }
     }
 
     override fun initialize() {
         super.initialize()
+        // every replication starts repaired, with its failures, if declared, starting afresh
+        resetFailures()
         entityAllocations.clear()
         myPromisedUnits = 0
         startStateTime = 0.0
@@ -553,7 +561,8 @@ open class Resource @JvmOverloads constructor(
         myIdleState.initialize()
         myBusyState.initialize()
         myInactiveState.initialize()
-        // myState is one of the states (idle, busy, inactive)
+        myFailedState.initialize()
+        // myState is one of the states (idle, busy, inactive, failed)
         // but now the state thinks we are not in it, make it think we are in it
         myState.enter(time)
         // now exit it for the inactive state
@@ -594,6 +603,7 @@ open class Resource @JvmOverloads constructor(
     fun goOffShift() {
         val shift = myShift ?: ShiftControl(this).also { myShift = it }
         shift.goOffShift()
+        myFailureClock?.update()
     }
 
     /**
@@ -605,14 +615,16 @@ open class Resource @JvmOverloads constructor(
         val shift = myShift ?: return
         if (!shift.isOffShift) return
         shift.goOnShift()
-        afterGoOnShift()
+        myFailureClock?.update()
+        afterUnitsRestored()
     }
 
     /**
-     *  Called at the end of a [goOnShift] that put this resource back on shift. A subclass whose
-     *  waiting requests are not reached by a capacity increase offers its units here.
+     *  Called when this resource's units come back by other than a release: at the end of a [goOnShift]
+     *  that put it back on shift, and of a [repair]. A subclass whose waiting requests are not reached by
+     *  a capacity increase offers its units here.
      */
-    protected open fun afterGoOnShift() {}
+    protected open fun afterUnitsRestored() {}
 
     /**
      *  What happens to work in service when this resource's units are taken away, by a failure or by a
@@ -625,6 +637,236 @@ open class Resource @JvmOverloads constructor(
             require(model.isNotRunning) { "The interrupt rule of $name cannot be changed while the model is running." }
             field = value
         }
+
+    // ---- failures --------------------------------------------------------------------------------
+
+    /**
+     *  Fails this resource now: no unit can be allocated until [repair], and the requests waiting for it
+     *  go on waiting. Its holders meet [rule]: under `FINISH` they complete their work, and the units they
+     *  release are kept from the waiting requests until the repair; under `RESUME` and `RESTART` all their
+     *  units go missing, so a holder's delay that depends on them is held, and a delay it starts while
+     *  failed begins held. The capacity is unchanged, and capacity changes and shifts still apply
+     *  underneath. A resource that is already failed throws; [isFailed] is the check.
+     *
+     *  @param rule what happens to work in service; by default the resource's [interruptRule]
+     */
+    fun fail(rule: InterruptRule = interruptRule) {
+        check(!isFailed) { "$name is already failed; check isFailed before calling fail()." }
+        myState = myFailedState
+        if (rule != InterruptRule.FINISH) {
+            for (a in allocations()) {
+                a.unitsGoMissing(byFailure = a.amount - a.missingByFailure, byLoan = 0, rule = rule)
+            }
+        }
+        myNumFailures?.increment()
+        failureNotification()
+        myFailureClock?.update()
+    }
+
+    /**
+     *  Repairs this resource: the units its holders lost come back (a held delay goes on, or starts again
+     *  under `RESTART`), the resource takes the state its capacity and busy units give, and its available
+     *  units are offered to the waiting requests as for a capacity increase. A resource that is not failed
+     *  throws; [isFailed] is the check.
+     */
+    fun repair() {
+        check(isFailed) { "$name is not failed; check isFailed before calling repair()." }
+        for (a in allocations()) {
+            if (a.missingByFailure > 0) a.unitsComeBack(byFailure = a.missingByFailure, byLoan = 0)
+        }
+        myState = stateFromUnits()
+        offerFreedUnits(ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "repaired_resource=$name")
+        failureNotification()
+        myFailureClock?.update()
+        val failures = myFailuresEntity
+        if (failures != null && failures.repaired.isSuspended) failures.repaired.resume()
+        afterUnitsRestored()
+    }
+
+    private fun failureNotification() {
+        for (listener in allocationListeners) {
+            listener.failureStateChanged(this)
+        }
+    }
+
+    /** The failures declared by [failures]; null when none are. */
+    private var myFailureSpec: FailureSpec? = null
+
+    private class FailureSpec(
+        val timeBetween: RVariableIfc,
+        val repairTime: RVariableIfc,
+        val basis: ResourceFailureBasis,
+        val rule: InterruptRule
+    )
+
+    /** True if failures have been declared with [failures]. */
+    val hasFailures: Boolean
+        get() = myFailureSpec != null
+
+    private var myFailedProp: Response? = null
+    private var myNumFailures: Counter? = null
+
+    /**
+     *  Declares that this resource fails and is repaired on its own, in every replication: it waits out
+     *  [timeBetween] on [basis], fails under [rule], stays failed for [repairTime], and is repaired, over
+     *  and over. A failure that comes due while the resource is already failed by a call of [fail] waits for
+     *  that repair, and its time between failures starts again from there. The waiting is done by an entity
+     *  of the resource's own, separate from a behavior it may have.
+     *
+     *  On `BUSY_TIME`, the time counts only while at least one unit is busy and the resource is on shift
+     *  and not failed, so a failure comes due at the exact instant that much busy time has passed. On
+     *  `USES`, [timeBetween] is rounded to a whole number of releases (at least 1), and the resource fails at
+     *  the release that completes it.
+     *
+     *  It also collects the failure statistics, as [collectFailureStatistics] does. Declared once, while
+     *  the model is not running.
+     *
+     *  @param timeBetween the time, or the number of uses, between failures
+     *  @param repairTime the time each failure lasts
+     *  @param basis what [timeBetween] counts
+     *  @param rule what happens to work in service at each failure; by default the resource's [interruptRule]
+     */
+    fun failures(
+        timeBetween: RVariableIfc,
+        repairTime: RVariableIfc,
+        basis: ResourceFailureBasis = ResourceFailureBasis.CALENDAR_TIME,
+        rule: InterruptRule = interruptRule
+    ) {
+        check(model.isNotRunning) { "The failures of $name must be declared before the model runs." }
+        check(myFailureSpec == null) { "$name already has its failures declared; they are declared once." }
+        myFailureSpec = FailureSpec(timeBetween, repairTime, basis, rule)
+        if (basis == ResourceFailureBasis.BUSY_TIME) myFailureClock = BusyClock()
+        collectFailureStatistics()
+    }
+
+    /**
+     *  Adds two statistics for this resource's failures, whether they come from [failures] or from calls
+     *  of [fail]: the proportion of time it is failed (`PTimeFailed`) and the number of failures in a
+     *  replication (`NumFailures`). Without them the failed state still keeps its own times, and no element
+     *  is added to the model. Called while the model is not running; a second call does nothing.
+     */
+    fun collectFailureStatistics() {
+        check(model.isNotRunning) { "The failure statistics of $name must be asked for before the model runs." }
+        if (myFailedProp != null) return
+        myFailedProp = Response(this, name = "${this.name}:PTimeFailed")
+        myNumFailures = Counter(this, name = "${this.name}:NumFailures")
+    }
+
+    /** The entity waiting out this replication's failures; null when none are declared. */
+    private var myFailuresEntity: ResourceFailures? = null
+
+    /** Counts busy time toward the next failure on `BUSY_TIME`; null on the other bases. */
+    private var myFailureClock: BusyClock? = null
+
+    /** The releases left before the next failure on `USES`; 0 when not counting. */
+    private var myUsesLeft: Int = 0
+
+    private fun resetFailures() {
+        myFailureClock?.disarm()
+        myUsesLeft = 0
+        myFailuresEntity = null
+        if (myFailureSpec != null) {
+            val entity = ResourceFailures()
+            myFailuresEntity = entity
+            activate(entity.run)
+        }
+    }
+
+    private fun countUse() {
+        if (myUsesLeft <= 0) return
+        myUsesLeft--
+        if (myUsesLeft == 0) failureCameDue()
+    }
+
+    private fun failureCameDue() {
+        val due = myFailuresEntity?.due ?: return
+        if (due.isSuspended) due.resume()
+    }
+
+    private fun failureClockFired(event: KSLEvent<Nothing>) {
+        myFailureClock?.fired()
+    }
+
+    /**
+     *  The busy time left before the next failure on `BUSY_TIME`. It runs while at least one unit is busy
+     *  and the resource is on shift and not failed: when it starts, it schedules the failure for the time
+     *  left; when it stops, it banks what is left and cancels the event.
+     */
+    private inner class BusyClock {
+        private var armed = false
+        private var running = false
+        private var left = 0.0
+        private var since = 0.0
+        private var event: KSLEvent<Nothing>? = null
+
+        fun arm(busyTime: Double) {
+            require(busyTime >= 0.0 && busyTime.isFinite()) { "The busy time between failures of $name must be finite and >= 0; it was $busyTime." }
+            armed = true
+            running = false
+            left = busyTime
+            update()
+        }
+
+        fun disarm() {
+            event?.cancel = true
+            event = null
+            armed = false
+            running = false
+        }
+
+        fun update() {
+            if (!armed) return
+            val shouldRun = numBusy > 0 && !isFailed && !isOffShift
+            if (shouldRun && !running) {
+                running = true
+                since = time
+                event = schedule(::failureClockFired, left)
+            } else if (!shouldRun && running) {
+                running = false
+                left = maxOf(0.0, left - (time - since))
+                event?.cancel = true
+                event = null
+            }
+        }
+
+        fun fired() {
+            event = null
+            armed = false
+            running = false
+            failureCameDue()
+        }
+    }
+
+    /** The entity that waits out a resource's declared failures; a new one for every replication. */
+    private inner class ResourceFailures : Entity() {
+        val due: Suspension = Suspension("${this@Resource.name}:failure due")
+        val repaired: Suspension = Suspension("${this@Resource.name}:repaired")
+
+        val run: KSLProcess = process("failures", isDefaultProcess = true) {
+            val spec = myFailureSpec!!
+            while (true) {
+                when (spec.basis) {
+                    ResourceFailureBasis.CALENDAR_TIME -> delay(spec.timeBetween.value)
+                    ResourceFailureBasis.BUSY_TIME -> {
+                        myFailureClock!!.arm(spec.timeBetween.value)
+                        suspendFor(due)
+                    }
+                    ResourceFailureBasis.USES -> {
+                        myUsesLeft = maxOf(1, spec.timeBetween.value.roundToInt())
+                        suspendFor(due)
+                    }
+                }
+                if (isFailed) {
+                    // failed by a call of fail(): this failure waits for that repair and its clock starts again
+                    suspendFor(repaired)
+                    continue
+                }
+                fail(spec.rule)
+                delay(spec.repairTime.value)
+                repair()
+            }
+        }
+    }
 
     // ---- behavior --------------------------------------------------------------------------------
 
@@ -900,6 +1142,8 @@ open class Resource @JvmOverloads constructor(
         }
         entityAllocations[entity]?.add(allocation)
         numBusy = numBusy + amountNeeded
+        numTimesSeized++
+        mySeizeCounter.increment()
         //need to put this allocation in Entity also
         entity.allocate(allocation)
         allocationNotification(allocation)
@@ -926,6 +1170,7 @@ open class Resource @JvmOverloads constructor(
         }
         // give back to the resource
         numBusy = numBusy - allocation.amount
+        numTimesReleased++
         // need to also deallocate from the entity
         allocation.myEntity.deallocate(allocation)
         // deallocate the allocation, so it can't be used again
@@ -943,6 +1188,7 @@ open class Resource @JvmOverloads constructor(
                 }
             }
         }
+        countUse()
     }
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :

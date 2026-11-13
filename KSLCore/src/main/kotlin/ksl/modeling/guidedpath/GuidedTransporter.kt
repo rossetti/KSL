@@ -1055,14 +1055,14 @@ class GuidedTransporter @JvmOverloads constructor(
      * by its movement gate part way, or one that something else is towing: it belongs to nobody, and
      * it is going nowhere.
      *
-     * A transporter off shift is not dispatchable either: it stands where it is and may not be
-     * allocated until it is back on shift.
+     * A transporter off shift or failed is not dispatchable either: it stands where it is and may not
+     * be allocated until it is back on shift and repaired.
      *
      * A pool sends only dispatchable transporters, and an allocation rule is offered only these, so
      * a rule never has to know this property exists.
      */
     override val isDispatchable: Boolean
-        get() = numBusy == 0 && !isHalted && !isUnderTow && !isOffShift
+        get() = numBusy == 0 && !isHalted && !isUnderTow && !isOffShift && !isFailed
 
     private val myPools = mutableListOf<GuidedTransporterPoolWithQ>()
 
@@ -1196,11 +1196,11 @@ class GuidedTransporter @JvmOverloads constructor(
     // ---- shifts ---------------------------------------------------------------------------------
 
     /**
-     *  Offers this transporter to the pools that hold it when it comes back on shift: the ordinary
-     *  wake path runs on a release, and coming back on shift is not one, so a request waiting for it
-     *  would otherwise go on waiting beside it.
+     *  Offers this transporter to the pools that hold it when it comes back on shift or is repaired:
+     *  the ordinary wake path runs on a release, and neither is one, so a request waiting for it would
+     *  otherwise go on waiting beside it.
      */
-    override fun afterGoOnShift() {
+    override fun afterUnitsRestored() {
         announceDispatchable()
     }
 

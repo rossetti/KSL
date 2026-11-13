@@ -65,6 +65,12 @@ class ResourceAnimationEmitter(private val resource: Resource) : AllocationListe
         emitState(sink)
     }
 
+    override fun failureStateChanged(resource: Resource) {
+        val sink = resource.model.animationSink
+        if (!sink.isActive) return
+        emitState(sink)
+    }
+
     private fun emitState(sink: AnimationSink) {
         sink.emit(
             AnimationEvent.ResourceStateChanged(

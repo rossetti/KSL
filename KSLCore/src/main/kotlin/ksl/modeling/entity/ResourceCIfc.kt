@@ -30,6 +30,17 @@ interface ResourceCIfc : ResourceIfc, DefaultReportingOptionIfc {
     val inactiveState: StateAccessorIfc
 
     /**
+     * Access to the failed state. Failed means that no units of the resource can be allocated until it
+     * is repaired.
+     */
+    val failedState: StateAccessorIfc
+
+    /**
+     *  True from a failure of the resource until its repair.
+     */
+    val isFailed: Boolean
+
+    /**
      *  Indicates if proportion of time spent in states (idle, busy, inactive) is automatically reported
      */
     val stateReportingOption: Boolean

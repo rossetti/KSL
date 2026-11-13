@@ -20,6 +20,13 @@ interface AllocationListenerIfc {
      * @param allocation the allocation that was deallocated
      */
     fun deallocate(allocation: Allocation)
+
+    /**
+     * Called when the resource fails and when it is repaired; the default does nothing.
+     *
+     * @param resource the resource whose failed state changed
+     */
+    fun failureStateChanged(resource: Resource) {}
 }
 
 /**
