@@ -1648,6 +1648,64 @@ interface KSLProcessBuilder {
     }
 
     /**
+     *  Seizes [amountNeeded] units of [resource] as `seize` does, taking them from holders of lower priority
+     *  when too few are free. The entity's `priority` decides: a holder whose entity's priority is a larger
+     *  number is lower. Free units are taken first; then units of the lowest-priority holders, the most
+     *  recently allocated first among equals, only as many as are still needed. A holder of equal or higher
+     *  priority is never preempted, and the entity's own allocations never are.
+     *
+     *  What happens to a holder's work follows [rule]:
+     *  - `RESUME` and `RESTART`: the units are taken now. The holder's delay that depends on them is held,
+     *    and goes on with the time left, or starts again, when the units come back.
+     *  - `FINISH`: nothing is taken in service. The entity is promised the free units and takes the rest as
+     *    units of the resource are released, ahead of the requests waiting in the queue.
+     *
+     *  The holder keeps its allocation. When the entity releases its allocation, the units it took go back
+     *  to their holders first, newest first, before the queue. A holder that releases while its units are
+     *  taken ends that loan, and the units go to the queue when the entity releases them.
+     *
+     *  When the free units and the units of all lower-priority holders together are still too few, or the
+     *  resource is failed or inactive, nothing is taken: the entity waits as a `seize` waits, and does not
+     *  preempt later. A movable resource cannot be preempted; use `seize` for it.
+     *
+     *  @param resource the resource to take units of
+     *  @param amountNeeded the number of units, at least 1
+     *  @param seizePriority the priority of the yield before the request is made, as for `seize`
+     *  @param queue the queue the request waits in
+     *  @param rule what happens to the work of the holders; by default the resource's `interruptRule`
+     *  @param suspensionName the name of the suspension point
+     *  @return the allocation of the units
+     */
+    suspend fun preempt(
+        resource: Resource,
+        amountNeeded: Int = 1,
+        seizePriority: Int = SEIZE_PRIORITY,
+        queue: RequestQ,
+        rule: InterruptRule = resource.interruptRule,
+        suspensionName: String? = null
+    ): Allocation
+
+    /**
+     *  As the [preempt] that names a queue, waiting in the resource's own queue.
+     *
+     *  @param resource the resource to take units of
+     *  @param amountNeeded the number of units, at least 1
+     *  @param seizePriority the priority of the yield before the request is made, as for `seize`
+     *  @param rule what happens to the work of the holders; by default the resource's `interruptRule`
+     *  @param suspensionName the name of the suspension point
+     *  @return the allocation of the units
+     */
+    suspend fun preempt(
+        resource: ResourceWithQ,
+        amountNeeded: Int = 1,
+        seizePriority: Int = SEIZE_PRIORITY,
+        rule: InterruptRule = resource.interruptRule,
+        suspensionName: String? = null
+    ): Allocation {
+        return preempt(resource, amountNeeded, seizePriority, resource.myWaitingQ, rule, suspensionName)
+    }
+
+    /**
      *  Causes the process to delay (suspend execution) for the specified amount of time.
      *
      *  @param delayDuration, the length of time required before the process continues executing, must not be negative and

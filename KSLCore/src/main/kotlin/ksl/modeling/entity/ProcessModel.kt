@@ -1079,6 +1079,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 member.myPromisedUnits += amount
             }
 
+            /** A preemption's reservation of the units its victims still use; null for any other request. */
+            internal var reservation: Resource.Reservation? = null
+
+            /** True while this request waits on a reservation; the queue's selection passes over it. */
+            internal val isReserved: Boolean
+                get() = reservation != null
+
             /** Withdraws this request's promises, making the units available again. */
             internal fun clearPromises() {
                 for ((member, amount) in myPromises) {
@@ -2832,6 +2839,55 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // A no-op on the normal path -- Queue.remove has already nulled request.queue --
                     // so no second waiting-time observation is recorded. Swept through request.queue
                     // rather than the queue parameter because the request may have been moved.
+                    (request.queue as? RequestQ)?.removeAbandoned(request)
+                }
+                currentSuspendName = null
+                currentSuspendType = SuspendType.NONE
+                return allocation
+            }
+
+            override suspend fun preempt(
+                resource: Resource,
+                amountNeeded: Int,
+                seizePriority: Int,
+                queue: RequestQ,
+                rule: InterruptRule,
+                suspensionName: String?
+            ): Allocation {
+                require(amountNeeded >= 1) { "The amount to allocate must be >= 1" }
+                require(resource !is MovableResource && resource !is ksl.modeling.guidedpath.GuidedTransporter) {
+                    "${resource.name} is a movable resource or a guided transporter; preempt takes units of a resource that does not move. Use seize for it."
+                }
+                currentSuspendName = suspensionName
+                currentSuspendType = SuspendType.SEIZE
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: PREEMPT: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                yield(seizePriority, "PREEMPT yield for resource ${resource.name}")
+                val request = entity.enqueueResourceRequest(resource, amountNeeded, queue)
+                val allocation = try {
+                    if (entity.canTakeResourceNow(request, queue)) {
+                        // the free units are enough: no one is preempted
+                        takeResource(request, resource, queue, suspensionName, rewait = null)!!
+                    } else {
+                        val plan = if (!resource.isFailed && !resource.isInactive) {
+                            resource.planPreemption(entity, amountNeeded)
+                        } else null
+                        if (plan != null && rule != InterruptRule.FINISH) {
+                            // taken at once: the request leaves its queue with a wait of zero
+                            (request.queue as? RequestQ ?: queue).remove(request)
+                            val a = resource.allocateWithLoans(entity, amountNeeded, plan, queue, rule, suspensionName)
+                            logger.trace { "r = ${model.currentReplicationNumber} : $time > END: PREEMPT: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: allocation_id = ${a.id}" }
+                            a
+                        } else {
+                            // under FINISH the victims' units are reserved as they release them; with no plan
+                            // it waits as a seize waits and does not preempt later
+                            if (plan != null) resource.reserve(request, plan.free)
+                            waitForResource(request, resource, queue)
+                            takeResource(request, resource, queue, suspensionName, rewait = null)!!
+                        }
+                    }
+                } finally {
+                    // abnormal exit only, as for seize: a terminated preemptor's request, promise and
+                    // reservation are dropped and what it was promised is offered on
                     (request.queue as? RequestQ)?.removeAbandoned(request)
                 }
                 currentSuspendName = null

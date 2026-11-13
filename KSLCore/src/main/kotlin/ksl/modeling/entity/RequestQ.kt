@@ -72,6 +72,7 @@ class RequestQ @JvmOverloads constructor(
         val removed = super.remove(qObj, waitStats)
         if (removed) {
             qObj.clearResumePending()
+            qObj.reservation?.let { (qObj.resource as Resource).dropReservation(qObj) }
             qObj.clearPromises()
         }
         return removed
@@ -80,6 +81,7 @@ class RequestQ @JvmOverloads constructor(
     override fun clear() {
         for (request in immutableList) {
             request.clearResumePending()
+            request.reservation?.let { (request.resource as Resource).dropReservation(request) }
             request.clearPromises()
         }
         super.clear()
@@ -287,7 +289,7 @@ class RequestQ @JvmOverloads constructor(
         resource: ResourceIfc,
         amountAvailable: Int
     ): Boolean = request.resource == resource &&
-            !request.resumePending &&
+            !request.resumePending && !request.isReserved &&
             request.amountRequested <= amountAvailable
 
     private fun pendingResumeAmountFor(resource: ResourceIfc): Int {
@@ -338,7 +340,7 @@ class RequestQ @JvmOverloads constructor(
         val list = mutableListOf<ProcessModel.Entity.Request>()
         var remaining = amountAvailable
         for (request in candidates) {
-            if (request.resumePending) continue
+            if (request.resumePending || request.isReserved) continue
             if (request.amountRequested <= remaining) {
                 list.add(request)
                 remaining -= request.amountRequested
@@ -370,7 +372,7 @@ class RequestQ @JvmOverloads constructor(
         }
         // in the queue's own discipline order, which for a LIFO or random queue is not the list order
         return firstMatching { request ->
-            if (request.resumePending || (allowed != null && request !in allowed)) {
+            if (request.resumePending || request.isReserved || (allowed != null && request !in allowed)) {
                 false
             } else {
                 val target = request.resource

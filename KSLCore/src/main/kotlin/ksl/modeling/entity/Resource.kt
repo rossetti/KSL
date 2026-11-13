@@ -553,6 +553,9 @@ open class Resource @JvmOverloads constructor(
         // every replication starts repaired, with its failures, if declared, starting afresh
         resetFailures()
         entityAllocations.clear()
+        myLoans.clear()
+        myReservations.clear()
+        numTimesPreempted = 0
         myPromisedUnits = 0
         startStateTime = 0.0
         numTimesSeized = 0
@@ -637,6 +640,128 @@ open class Resource @JvmOverloads constructor(
             require(model.isNotRunning) { "The interrupt rule of $name cannot be changed while the model is running." }
             field = value
         }
+
+    // ---- preemption ------------------------------------------------------------------------------
+
+    /**
+     *  Units of [lender] in use by [borrower], taken by a preemption. The lender's allocation keeps its
+     *  amount, with the units counted as missing for it. [lender] is null when the lender's allocation has
+     *  ended: the units are then the borrower's until it releases them. When a borrower that lent the units
+     *  on ends, its borrowers' loans are recorded again against the lenders it borrowed from.
+     */
+    internal class Loan(val lender: Allocation?, val borrower: Allocation, val amount: Int)
+
+    /**
+     *  A preemption under `FINISH` waiting for the units its victims still use: [request] takes the units of
+     *  any release, capacity increase or repair of this resource ahead of the queue until [stillNeeded] is 0.
+     */
+    internal class Reservation(val request: ProcessModel.Entity.Request, var stillNeeded: Int)
+
+    /** What a preemption would take: the free units, and the units of each victim. */
+    internal class PreemptionPlan(val free: Int, val takes: List<Pair<Allocation, Int>>)
+
+    private val myLoans: MutableList<Loan> = mutableListOf()
+
+    private val myReservations: MutableList<Reservation> = mutableListOf()
+
+    /** The loans now recorded on this resource, for checks. */
+    internal val loans: List<Loan>
+        get() = myLoans
+
+    /**
+     *  The number of preemptions of this resource in the replication: each `preempt` that took units from
+     *  at least one holder, or reserved them from holders that finish their work.
+     */
+    var numTimesPreempted: Int = 0
+        protected set
+
+    /**
+     *  What a preemption by [entity] for [amountNeeded] units would take: the free units, then units of the
+     *  holders whose entity's priority is lower (a larger number) than [entity]'s, lowest priority first and,
+     *  among equals, the most recently allocated first, only as many as are still needed. Null when the free
+     *  units are already enough or when the free and lendable units together are too few.
+     */
+    internal fun planPreemption(entity: ProcessModel.Entity, amountNeeded: Int): PreemptionPlan? {
+        val free = numAvailableUnits
+        var short = amountNeeded - free
+        if (short <= 0) return null
+        val candidates = allocations()
+            .filter { it.myEntity.priority > entity.priority && it.amount - it.missingByLoan > 0 }
+            .sortedWith(compareByDescending<Allocation> { it.myEntity.priority }.thenByDescending { it.timeAllocated })
+        val takes = mutableListOf<Pair<Allocation, Int>>()
+        for (victim in candidates) {
+            if (short == 0) break
+            val k = minOf(short, victim.amount - victim.missingByLoan)
+            takes.add(victim to k)
+            short -= k
+        }
+        return if (short > 0) null else PreemptionPlan(free, takes)
+    }
+
+    /**
+     *  Allocates [amountNeeded] units to [entity] under [plan]: the free units, and the victims' units as
+     *  loans, which go missing for them under [rule]. The units are counted busy once, for the borrower.
+     */
+    internal fun allocateWithLoans(
+        entity: ProcessModel.Entity,
+        amountNeeded: Int,
+        plan: PreemptionPlan,
+        queue: RequestQ,
+        rule: InterruptRule,
+        allocationName: String?
+    ): Allocation {
+        require(rule != InterruptRule.FINISH) { "Under FINISH nothing is taken from a holder of $name in service." }
+        val allocation = Allocation(entity, this, amountNeeded, queue, allocationName)
+        entityAllocations.getOrPut(entity) { mutableListOf() }.add(allocation)
+        numBusy = numBusy + plan.free
+        numTimesSeized++
+        mySeizeCounter.increment()
+        entity.allocate(allocation)
+        for ((victim, k) in plan.takes) {
+            myLoans.add(Loan(victim, allocation, k))
+            victim.unitsGoMissing(byFailure = 0, byLoan = k, rule = rule)
+        }
+        numTimesPreempted++
+        allocationNotification(allocation)
+        return allocation
+    }
+
+    /**
+     *  Reserves for [request], under `FINISH`, the units its victims still use: it is promised the [free]
+     *  units now and takes the rest from the next releases, ahead of the queue.
+     */
+    internal fun reserve(request: ProcessModel.Entity.Request, free: Int) {
+        if (free > 0) request.promise(this, free)
+        val reservation = Reservation(request, request.amountRequested - free)
+        request.reservation = reservation
+        myReservations.add(reservation)
+        numTimesPreempted++
+    }
+
+    /** Drops the reservation of a request leaving its queue; its promises are withdrawn with the request's. */
+    internal fun dropReservation(request: ProcessModel.Entity.Request) {
+        myReservations.removeAll { it.request === request }
+        request.reservation = null
+    }
+
+    /**
+     *  Gives the available units to the waiting reservations, oldest first, and resumes each one that has
+     *  all it needs.
+     */
+    private fun serveReservations(priority: Int, source: ResumeSource, detail: String?) {
+        while (numAvailableUnits > 0 && myReservations.isNotEmpty()) {
+            val reservation = myReservations.first()
+            val k = minOf(reservation.stillNeeded, numAvailableUnits)
+            reservation.request.promise(this, k)
+            reservation.stillNeeded -= k
+            if (reservation.stillNeeded > 0) break
+            myReservations.removeAt(0)
+            val request = reservation.request
+            request.reservation = null
+            val queue = request.queue as RequestQ
+            queue.resumeWoken(request, priority, source, "reservation_completed_resource=$name, request_id=${request.id}, $detail")
+        }
+    }
 
     // ---- failures --------------------------------------------------------------------------------
 
@@ -1172,8 +1297,41 @@ open class Resource @JvmOverloads constructor(
             // no more allocations for this entity, remove it from the map also
             entityAllocations.remove(allocation.myEntity)
         }
-        // give back to the resource
-        numBusy = numBusy - allocation.amount
+        // give back to the resource. Units this allocation lent out stay with their borrowers. Of the units it
+        // still holds, those it borrowed go back to their lenders first, newest loan first, and stay busy for
+        // them. Borrowed units it lent on are not here to give back: its borrowers now owe them to the
+        // original lenders, and the rest of what it lent goes to the queue at the borrowers' release.
+        val lentOutLoans = myLoans.filter { it.lender === allocation }
+        val lentOut = lentOutLoans.sumOf { it.amount }
+        var held = allocation.amount - lentOut
+        var returned = 0
+        val stillOwed = ArrayDeque<Pair<Allocation, Int>>()
+        for (loan in myLoans.filter { it.borrower === allocation }.asReversed()) {
+            myLoans.remove(loan)
+            val lender = loan.lender ?: continue
+            val back = minOf(loan.amount, held)
+            if (back > 0) {
+                lender.unitsComeBack(byFailure = 0, byLoan = back)
+                returned += back
+                held -= back
+            }
+            if (loan.amount > back) stillOwed.addLast(lender to loan.amount - back)
+        }
+        for (loan in lentOutLoans) {
+            myLoans.remove(loan)
+            var left = loan.amount
+            while (left > 0 && stillOwed.isNotEmpty()) {
+                val (lender, owed) = stillOwed.removeFirst()
+                val piece = minOf(owed, left)
+                myLoans.add(Loan(lender, loan.borrower, piece))
+                left -= piece
+                if (owed > piece) stillOwed.addFirst(lender to owed - piece)
+            }
+            if (left > 0) myLoans.add(Loan(null, loan.borrower, left))
+        }
+        // only the units freed reach the queue or a pending capacity decrease, not those back with a lender
+        val freed = allocation.amount - returned - lentOut
+        numBusy = numBusy - freed
         numTimesReleased++
         // need to also deallocate from the entity
         allocation.myEntity.deallocate(allocation)
@@ -1182,13 +1340,13 @@ open class Resource @JvmOverloads constructor(
         deallocationNotification(allocation)
         // deallocation completed need to check for pending capacity change
         if (isPendingCapacityChange) {
-            if (capacityChangeRule == CapacityChangeRule.IGNORE) {
-                handleIgnoreRuleDeallocation(allocation)
-            } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
+            if (freed > 0 && capacityChangeRule == CapacityChangeRule.IGNORE) {
+                handleIgnoreRuleRelease(freed)
+            } else if (freed > 0 && capacityChangeRule == CapacityChangeRule.WAIT) {
                 // for WAIT rule handle releases only until full change gets allocated and scheduled
                 if (myCurrentChangeNotice!!.changeEvent == null) {
                     // once it is not null, the full change has been completed and is being processed
-                    handleWaitRuleDeallocation(allocation)
+                    handleWaitRuleRelease(freed)
                 }
             }
         }
@@ -1406,10 +1564,14 @@ open class Resource @JvmOverloads constructor(
     }
 
     protected fun handleIgnoreRuleDeallocation(allocation: Allocation) {
+        handleIgnoreRuleRelease(allocation.amountReleased)
+    }
+
+    /** Gives [amountReleased] freed units to the pending change under the IGNORE rule. */
+    private fun handleIgnoreRuleRelease(amountReleased: Int) {
         // a capacity change is pending and needs units that were deallocated
         val amountNeeded = myCurrentChangeNotice!!.amountNeeded
         // number busy went down and number available went up by amount released
-        val amountReleased = allocation.amountReleased
         val amountToDecrease = minOf(amountReleased, amountNeeded)
         // give the units to the pending change
         myCurrentChangeNotice!!.amountNeeded = myCurrentChangeNotice!!.amountNeeded - amountToDecrease
@@ -1425,12 +1587,15 @@ open class Resource @JvmOverloads constructor(
     }
 
     protected fun handleWaitRuleDeallocation(allocation: Allocation) {
-        // a capacity change is pending and needs units that were deallocated
+        handleWaitRuleRelease(allocation.amountReleased)
+    }
+
+    /** Gives [amountReleased] freed units to the pending change under the WAIT rule. */
+    private fun handleWaitRuleRelease(amountReleased: Int) {
         // a capacity change is pending and needs units that were deallocated
         val amountNeeded = myCurrentChangeNotice!!.amountNeeded
         // capacity needs to go down by amount needed
         // number busy went down and number available went up by amount released
-        val amountReleased = allocation.amountReleased
         val amountToDecrease = minOf(amountReleased, amountNeeded)
         capacity = capacity - amountToDecrease
         logger.trace { "$time > Resource: $name, decreased capacity by $amountToDecrease" }
@@ -1581,6 +1746,9 @@ open class Resource @JvmOverloads constructor(
         alsoQueue: RequestQ? = null
     ) {
         if (isInactive || numAvailableUnits <= 0) return
+        // a preemption waiting for units its victims used takes them ahead of the queue
+        serveReservations(priority, source, detail)
+        if (numAvailableUnits <= 0) return
         val queues: Set<RequestQ> =
             if (alsoQueue == null || alsoQueue in myCapacityChangeQSet) myCapacityChangeQSet
             else LinkedHashSet(myCapacityChangeQSet).apply { add(alsoQueue) }
