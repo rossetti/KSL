@@ -654,8 +654,10 @@ open class Resource @JvmOverloads constructor(
         check(!isFailed) { "$name is already failed; check isFailed before calling fail()." }
         myState = myFailedState
         if (rule != InterruptRule.FINISH) {
+            // units already missing (lent to a preemptor) go missing through the borrower's allocation
             for (a in allocations()) {
-                a.unitsGoMissing(byFailure = a.amount - a.missingByFailure, byLoan = 0, rule = rule)
+                val units = a.amount - a.missingUnits
+                if (units > 0) a.unitsGoMissing(byFailure = units, byLoan = 0, rule = rule)
             }
         }
         myNumFailures?.increment()
@@ -710,7 +712,8 @@ open class Resource @JvmOverloads constructor(
      *  Declares that this resource fails and is repaired on its own, in every replication: it waits out
      *  [timeBetween] on [basis], fails under [rule], stays failed for [repairTime], and is repaired, over
      *  and over. A failure that comes due while the resource is already failed by a call of [fail] waits for
-     *  that repair, and its time between failures starts again from there. The waiting is done by an entity
+     *  that repair, and its time between failures starts again from there. A call of [repair] during the
+     *  repair time ends that failure early. The waiting is done by an entity
      *  of the resource's own, separate from a behavior it may have.
      *
      *  On `BUSY_TIME`, the time counts only while at least one unit is busy and the resource is on shift
@@ -863,7 +866,8 @@ open class Resource @JvmOverloads constructor(
                 }
                 fail(spec.rule)
                 delay(spec.repairTime.value)
-                repair()
+                // a repair by hand during the repair time has already ended this failure
+                if (isFailed) repair()
             }
         }
     }
