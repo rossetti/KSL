@@ -482,6 +482,118 @@ doctor.cyclicBehavior {
 - `behaviorProcess` is the running behavior's process, so another process
   can interrupt its delays.
 
+### ...fail and repair a resource
+
+Any resource can fail and be repaired, by a call or on a declared schedule:
+
+```kotlin
+val machine = ResourceWithQ(this, "Machine")
+init {
+    machine.interruptRule = InterruptRule.RESUME
+    machine.failures(
+        timeBetween = ExponentialRV(120.0, 3),
+        repairTime = ExponentialRV(10.0, 4),
+        basis = ResourceFailureBasis.BUSY_TIME
+    )
+}
+```
+
+or, from any process or event, `machine.fail()` and later `machine.repair()`
+(`isFailed` is the check; failing a failed resource, or repairing one that is
+not failed, throws).
+
+- **While failed** no unit can be allocated: requests wait in their queues,
+  and a pool passes over the member. Capacity is unchanged, and capacity
+  changes and shifts still apply underneath; at the repair the resource takes
+  the state they give and its free units go to the waiting requests. The
+  state is `<name>_Failed`, and it takes precedence over idle, busy and
+  inactive.
+- **Work in service** follows the interrupt rule, the resource's
+  `interruptRule` unless `fail(rule)` names one:
+  - `FINISH` (the default): holders complete their work, but the units they
+    release are kept from the queue until the repair;
+  - `RESUME`: a holder's delay is held, and goes on with the time it had left
+    when the units come back;
+  - `RESTART`: as `RESUME`, but the delay starts again in full.
+  A movement is never held: a holder moving a failed vehicle finishes the
+  trip, and its next delay begins held.
+- **The bases** of `failures(…)`: `CALENDAR_TIME` counts simulated time;
+  `BUSY_TIME` counts time with a unit busy, on shift and not failed, so the
+  failure comes at the exact instant that much work has been done; `USES`
+  fails at the release that completes the given number of uses. A failure
+  that comes due while the resource is failed by hand waits for that repair,
+  and a repair by hand during a declared failure ends it early. The failures
+  are waited out by an entity of the resource's own, started each
+  replication, separate from a behavior.
+- **Statistics are added only when asked for.** `failures(…)` or
+  `collectFailureStatistics()` adds `<name>:PTimeFailed` and
+  `<name>:NumFailures`; without them no response is added and existing
+  reports are unchanged.
+- **A guided transporter** that is failed is not dispatched, and is offered
+  to its pools again at the repair.
+
+### ...let urgent work take a resource (preemption)
+
+`preempt` seizes like `seize`, but when too few units are free it takes them
+from holders of lower priority (a larger `priority` number):
+
+```kotlin
+private inner class Emergency : Entity() {
+    init { priority = 1 }
+    val script: KSLProcess = process(isDefaultProcess = true) {
+        val a = preempt(doctor)          // or preempt(doctor, rule = InterruptRule.RESTART)
+        delay(treatment)
+        release(a)
+    }
+}
+```
+
+- **Who is preempted.** Free units are taken first; then units of the
+  holders of lowest priority, the most recently allocated first among
+  equals, only as many as are still needed. A holder of equal or higher
+  priority is never preempted. When the free units and all the lower-priority
+  holders' units together are too few, or the resource is failed or inactive,
+  nothing is taken: `preempt` waits like `seize` and does not preempt later.
+- **The rule** is the resource's `interruptRule` unless the call names one.
+  Under `RESUME` and `RESTART` the units are taken now and the holder's delay
+  is held. Under `FINISH` nothing is taken in service: the preemptor is
+  promised the free units and takes the rest as units are released, ahead of
+  everyone waiting in the queue.
+- **The units go back.** The holder keeps its allocation. When the preemptor
+  releases, the units it took go back to their holders first, newest first,
+  and only then to the queue. Preemptions can nest; the units go back along
+  the chain. A holder that releases or is terminated while its units are
+  taken ends that loan, and the units go to the queue at the preemptor's
+  release.
+- **Counting.** A unit counts as busy once, for whoever is using it.
+  `numTimesPreempted` counts the preemptions in a replication; a preemption
+  counts one seize.
+- **A waiting preemptor in a `RANKED` queue** is served ahead of waiting
+  requests of lower priority, as any request of its priority is.
+- A movable resource cannot be preempted.
+
+### ...hold a resource across work that does not use it
+
+By default a delay depends on every resource its entity holds, so units of
+any of them going missing (a failure or a preemption under `RESUME` or
+`RESTART`) hold the delay. When an entity holds a resource across work that
+does not use it, name what the work uses:
+
+```kotlin
+val bay = seize(loadingBay)
+val truck = seize(forklift)
+delay(loadTime, uses = listOf(truck))   // a bay failure does not stop the loading
+release(truck)
+```
+
+Only the named allocations can hold that delay; `uses = emptyList()` means
+no resource can (a process interrupt still can). For a pool, pass
+`poolAllocation.allocations`.
+
+A held holder keeps its other resources and is not told: its process simply
+resumes later. To learn of an interruption afterwards, read the allocation's
+records, `timesInterrupted` and `timeInterrupted`.
+
 ### ...run two stations in tandem
 
 Two resources in sequence — the canonical Ch. 7 pattern:
@@ -815,6 +927,13 @@ if (machine.script.isInDelay("work")) {
 Interrupting a process that is not in the named delay is an error that
 says what the target was doing.
 
+A delay can be held for several reasons at once: a process interrupt, a
+failure, a preemption. It goes on only when the last one ends. If any of them
+asked for a restart, it starts again in full; otherwise it goes on with the
+time it had left. A process interrupt's own post time (the
+`postInterruptDelayTime` of `interruptDelay`) applies only when that interrupt
+is the last reason to end.
+
 ### ...declare multiple processes on one entity
 
 An entity can carry several named processes. The default one is what
@@ -877,7 +996,7 @@ on the Dokka pages.
 - `KSLProcess` — the runtime handle on a coroutine (state queries:
   `isCreated`, `isSuspended`, `isRunning`, `isCompleted`, …).
 - `KSLProcessBuilder` — the receiver for `process { … }`; provides
-  every suspending verb (`delay`, `seize`, `release`, `use`,
+  every suspending verb (`delay`, `seize`, `preempt`, `release`, `use`,
   `move`/`moveTo`, `requestConveyor`/`rideConveyor`/`exitConveyor`,
   `convey`, `hold`, `waitFor`, `send`/`sendItems`/`waitForItems`,
   `syncWith`, `blockUntilCompleted`/`blockUntilAllCompleted`,
@@ -895,7 +1014,13 @@ on the Dokka pages.
 - `Resource` — bare resource; supply your own `RequestQ`.
 - `ResourceWithQ` — resource bundled with a queue (the typical pick).
 - `RequestQ` — the queue type that holds waiting `Entity.Request`s.
-- `Allocation` — the receipt returned by `seize`; pass to `release`.
+- `Allocation` — the receipt returned by `seize` or `preempt`; pass to
+  `release`. Its `timesInterrupted` and `timeInterrupted` record the units it
+  lost to failures and preemption.
+- `InterruptRule` (`FINISH`, `RESUME`, `RESTART`) — what happens to work in
+  service when a resource fails or is preempted.
+- `ResourceFailureBasis` (`CALENDAR_TIME`, `BUSY_TIME`, `USES`) — what the
+  time between declared failures counts.
 
 **Resource pools**
 
