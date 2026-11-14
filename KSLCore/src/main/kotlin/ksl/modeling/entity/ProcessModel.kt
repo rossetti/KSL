@@ -900,6 +900,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     return
                 }
             }
+            // a delay whose end is due at this instant has done its work: units going missing now do not hold
+            // it, as they do not end a delayOrInterrupt. A process interrupt still holds it, as it always has.
+            if (by != null && freezeCount == 0 && delayTimeLeft == 0.0) return
             if (freezeCount == 0) {
                 val event = myDelayEvent
                 if (event != null) {

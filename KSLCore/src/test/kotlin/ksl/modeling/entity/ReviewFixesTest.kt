@@ -272,4 +272,66 @@ class ReviewFixesTest {
         }
         assertEquals(listOf("at 4 V missing=1 byFailure=1", "V done@40.0"), m.log)
     }
+
+    // ---------- ties at a delay's end ----------
+
+    @Test
+    @DisplayName("a failure at the instant a delay's end is due, before its end runs: the delay completes, under either rule")
+    fun failureAtTheEndInstant() {
+        for (rule in listOf(InterruptRule.RESUME, InterruptRule.RESTART)) {
+            val m = run {
+                actor("W") { val a = seize(r); delay(10.0); log.add("W done@$time"); release(a) }
+                actor("F") { delay(10.0, delayPriority = ProcessModel.DELAY_PRIORITY - 1); r.fail(rule) }
+                at(20.0) { r.repair() }
+            }
+            assertEquals(listOf("W done@10.0"), m.log, "rule $rule")
+        }
+    }
+
+    @Test
+    @DisplayName("a preemption at the instant a delay's end is due: the delay completes")
+    fun preemptionAtTheEndInstant() {
+        val m = run {
+            actor("L", 9) { val a = seize(r); delay(10.0); log.add("L done@$time"); release(a) }
+            // the preempt's yield runs before L's end, so it takes the unit at the instant L's work is done
+            actor("P", 1) {
+                delay(10.0, delayPriority = ProcessModel.DELAY_PRIORITY - 2)
+                val a = preempt(r, seizePriority = ProcessModel.DELAY_PRIORITY - 1, rule = InterruptRule.RESUME)
+                log.add("P got@$time")
+                delay(1.0)
+                release(a)
+            }
+        }
+        assertEquals(listOf("P got@10.0", "L done@10.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("a process interrupt at the instant a delay's end is due still holds it, as before")
+    fun processInterruptAtTheEndInstantUnchanged() {
+        lateinit var w: FModel.Actor
+        val m = run {
+            w = actor("W") { delay(10.0, suspensionName = "work"); log.add("W done@$time") }
+            actor("I") { delay(10.0, delayPriority = ProcessModel.DELAY_PRIORITY - 1); interruptDelay(w.p, "work", 3.0, postInterruptDelayTime = 1.0) }
+        }
+        assertEquals(listOf("W done@14.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("with constant times, where events of different jobs fall on the same instants, reacting still imitates freezing")
+    fun reactingImitatesFreezingWithTies() {
+        val reacting = ReactingMetamorphicModels.Work { _, duration ->
+            var res = delayOrInterrupt(duration)
+            while (res is DelayResult.Interrupted) {
+                waitForFirst(res.by.restoredTrigger())
+                res = delayOrInterrupt(if (res.rule == InterruptRule.RESTART) res.duration else res.timeRemaining)
+            }
+        }
+        for (variant in listOf("constant failures RESUME", "constant failures RESTART", "constant preemption RESUME", "constant preemption RESTART")) {
+            assertEquals(
+                ReactingMetamorphicModels.results(variant, ReactingMetamorphicModels.plainDelay),
+                ReactingMetamorphicModels.results(variant, reacting),
+                variant
+            )
+        }
+    }
 }

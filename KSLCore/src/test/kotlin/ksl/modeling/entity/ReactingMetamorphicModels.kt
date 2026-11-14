@@ -22,7 +22,9 @@ import ksl.modeling.variable.Response
 import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
+import ksl.utilities.random.rvariable.ConstantRV
 import ksl.utilities.random.rvariable.ExponentialRV
+import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
  *  The models of the metamorphic checks for work that reacts to an interruption: a shop of two machines
@@ -50,13 +52,20 @@ internal object ReactingMetamorphicModels {
         parent: ModelElement,
         val interruptions: Interruptions,
         val rule: InterruptRule,
-        val work: Work
+        val work: Work,
+        val constantTimes: Boolean = false
     ) : ProcessModel(parent, "Shop") {
         val machines = ResourceWithQ(this, "Machines", capacity = 2)
-        private val arrivals = ExponentialRV(1.0, 1)
-        private val workTime = ExponentialRV(1.6, 2)
-        private val urgentArrivals = ExponentialRV(8.0, 5)
-        private val urgentWork = ExponentialRV(1.0, 6)
+
+        /** Exponential with [mean], or the constant [constant] when the times are constant. */
+        private fun time(mean: Double, stream: Int, constant: Double): RVariableIfc =
+            if (constantTimes) ConstantRV(constant) else ExponentialRV(mean, stream)
+
+        // the constants are exact in binary, so the events of different jobs fall on the same instants
+        private val arrivals = time(1.0, 1, 1.0)
+        private val workTime = time(1.6, 2, 1.5)
+        private val urgentArrivals = time(8.0, 5, 8.0)
+        private val urgentWork = time(1.0, 6, 1.0)
         val systemTime = Response(this, "SystemTime")
         val urgentSystemTime = Response(this, "UrgentSystemTime")
 
@@ -71,7 +80,7 @@ internal object ReactingMetamorphicModels {
         init {
             machines.interruptRule = rule
             if (interruptions == Interruptions.FAILURES) {
-                machines.failures(ExponentialRV(30.0, 3), ExponentialRV(3.0, 4), rule = rule)
+                machines.failures(time(30.0, 3, 30.0), time(3.0, 4, 3.0), rule = rule)
             }
         }
 
@@ -122,14 +131,21 @@ internal object ReactingMetamorphicModels {
         }
     }
 
-    /** The variants the checks run, by name. */
-    val variants: Map<String, Pair<Interruptions, InterruptRule>> = linkedMapOf(
-        "none" to (Interruptions.NONE to InterruptRule.FINISH),
-        "failures FINISH" to (Interruptions.FAILURES to InterruptRule.FINISH),
-        "failures RESUME" to (Interruptions.FAILURES to InterruptRule.RESUME),
-        "failures RESTART" to (Interruptions.FAILURES to InterruptRule.RESTART),
-        "preemption RESUME" to (Interruptions.PREEMPTION to InterruptRule.RESUME),
-        "preemption RESTART" to (Interruptions.PREEMPTION to InterruptRule.RESTART)
+    /** A variant of the shop: what interrupts it, under which rule, and whether its times are constant. */
+    data class Variant(val interruptions: Interruptions, val rule: InterruptRule, val constantTimes: Boolean = false)
+
+    /** The variants the checks run, by name. The constant ones make same-instant ties happen. */
+    val variants: Map<String, Variant> = linkedMapOf(
+        "none" to Variant(Interruptions.NONE, InterruptRule.FINISH),
+        "failures FINISH" to Variant(Interruptions.FAILURES, InterruptRule.FINISH),
+        "failures RESUME" to Variant(Interruptions.FAILURES, InterruptRule.RESUME),
+        "failures RESTART" to Variant(Interruptions.FAILURES, InterruptRule.RESTART),
+        "preemption RESUME" to Variant(Interruptions.PREEMPTION, InterruptRule.RESUME),
+        "preemption RESTART" to Variant(Interruptions.PREEMPTION, InterruptRule.RESTART),
+        "constant failures RESUME" to Variant(Interruptions.FAILURES, InterruptRule.RESUME, constantTimes = true),
+        "constant failures RESTART" to Variant(Interruptions.FAILURES, InterruptRule.RESTART, constantTimes = true),
+        "constant preemption RESUME" to Variant(Interruptions.PREEMPTION, InterruptRule.RESUME, constantTimes = true),
+        "constant preemption RESTART" to Variant(Interruptions.PREEMPTION, InterruptRule.RESTART, constantTimes = true)
     )
 
     /**
@@ -137,9 +153,9 @@ internal object ReactingMetamorphicModels {
      *  number of jobs, and the machines' time-average number busy, so that two forms can be compared exactly.
      */
     fun results(variant: String, work: Work, reps: Int = 5, length: Double = 2_000.0): List<List<Double>> {
-        val (interruptions, rule) = variants.getValue(variant)
+        val v = variants.getValue(variant)
         val model = Model("ReactingShop${System.nanoTime()}", autoCSVReports = false)
-        val shop = Shop(model, interruptions, rule, work)
+        val shop = Shop(model, v.interruptions, v.rule, work, v.constantTimes)
         model.numberOfReplications = reps
         model.lengthOfReplication = length
         model.simulate()
