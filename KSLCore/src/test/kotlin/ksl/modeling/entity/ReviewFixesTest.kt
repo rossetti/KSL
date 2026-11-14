@@ -461,4 +461,18 @@ class ReviewFixesTest {
         assertEquals(1, m.res.becameActive)
     }
 
+    @Test
+    @DisplayName("reading the inactive state's statistics while inactive tells no one anything")
+    fun readingTheInactiveStateIsQuiet() {
+        val m = hooks {
+            activate(Holder().run)
+            at(1.5) { res.goOffShift() }
+            at(10.0) {
+                log.add("before read told=$toldInactive active=${res.becameActive}")
+                res.inactiveState.totalTimeInState
+                log.add("after read told=$toldInactive active=${res.becameActive}")
+            }
+        }
+        assertEquals(listOf("before read told=1 active=0", "after read told=1 active=0"), m.log)
+    }
 }

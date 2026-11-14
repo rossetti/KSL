@@ -371,8 +371,7 @@ open class Resource @JvmOverloads constructor(
     override val busyState: StateAccessorIfc
         get() {
             if (isBusy) {
-                myState.exit(time)
-                myState.enter(time)
+                refreshCurrentState()
             }
             return myBusyState
         }
@@ -395,8 +394,7 @@ open class Resource @JvmOverloads constructor(
     override val idleState: StateAccessorIfc
         get() {
             if (isIdle) {
-                myState.exit(time)
-                myState.enter(time)
+                refreshCurrentState()
             }
             return myIdleState
         }
@@ -408,8 +406,7 @@ open class Resource @JvmOverloads constructor(
     override val failedState: StateAccessorIfc
         get() {
             if (isFailed) {
-                myState.exit(time)
-                myState.enter(time)
+                refreshCurrentState()
             }
             return myFailedState
         }
@@ -421,8 +418,7 @@ open class Resource @JvmOverloads constructor(
     override val inactiveState: StateAccessorIfc
         get() {
             if (isInactive) {
-                myState.exit(time)
-                myState.enter(time)
+                refreshCurrentState()
             }
             return myInactiveState
         }
@@ -536,12 +532,26 @@ open class Resource @JvmOverloads constructor(
     override fun warmUp() {
         super.warmUp()
         startStateTime = time
+        myQuietAvailabilityHooks = true
         myState.exit(time)
         myBusyState.resetStateCollection()
         myInactiveState.resetStateCollection()
         myIdleState.resetStateCollection()
         myFailedState.resetStateCollection()
         myState.enter(time)
+        myQuietAvailabilityHooks = false
+    }
+
+    /**
+     *  Brings the current state's time up to date by leaving it and entering it again at this instant. The
+     *  state does not change, so the availability hooks keep quiet: reading a state's statistics, or
+     *  resetting them at the warm-up, tells no one that the resource became inactive or active.
+     */
+    private fun refreshCurrentState() {
+        myQuietAvailabilityHooks = true
+        myState.exit(time)
+        myState.enter(time)
+        myQuietAvailabilityHooks = false
     }
 
     override fun replicationEnded() {
