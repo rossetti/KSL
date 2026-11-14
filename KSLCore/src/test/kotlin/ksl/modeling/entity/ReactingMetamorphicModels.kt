@@ -46,7 +46,7 @@ internal object ReactingMetamorphicModels {
     /** The plain form: the work is a delay, which is held under RESUME and RESTART until the units come back. */
     val plainDelay = Work { _, duration -> delay(duration) }
 
-    enum class Interruptions { NONE, FAILURES, PREEMPTION }
+    enum class Interruptions { NONE, FAILURES, PREEMPTION, BOTH }
 
     class Shop(
         parent: ModelElement,
@@ -79,7 +79,7 @@ internal object ReactingMetamorphicModels {
 
         init {
             machines.interruptRule = rule
-            if (interruptions == Interruptions.FAILURES) {
+            if (interruptions == Interruptions.FAILURES || interruptions == Interruptions.BOTH) {
                 machines.failures(time(30.0, 3, 30.0), time(3.0, 4, 3.0), rule = rule)
             }
         }
@@ -117,7 +117,9 @@ internal object ReactingMetamorphicModels {
 
         override fun initialize() {
             schedule(::arrive, arrivals.value)
-            if (interruptions == Interruptions.PREEMPTION) schedule(::urgentArrive, urgentArrivals.value)
+            if (interruptions == Interruptions.PREEMPTION || interruptions == Interruptions.BOTH) {
+                schedule(::urgentArrive, urgentArrivals.value)
+            }
         }
 
         private fun arrive(event: KSLEvent<Nothing>) {
@@ -145,7 +147,11 @@ internal object ReactingMetamorphicModels {
         "constant failures RESUME" to Variant(Interruptions.FAILURES, InterruptRule.RESUME, constantTimes = true),
         "constant failures RESTART" to Variant(Interruptions.FAILURES, InterruptRule.RESTART, constantTimes = true),
         "constant preemption RESUME" to Variant(Interruptions.PREEMPTION, InterruptRule.RESUME, constantTimes = true),
-        "constant preemption RESTART" to Variant(Interruptions.PREEMPTION, InterruptRule.RESTART, constantTimes = true)
+        "constant preemption RESTART" to Variant(Interruptions.PREEMPTION, InterruptRule.RESTART, constantTimes = true),
+        "both RESUME" to Variant(Interruptions.BOTH, InterruptRule.RESUME),
+        "both RESTART" to Variant(Interruptions.BOTH, InterruptRule.RESTART),
+        "constant both RESUME" to Variant(Interruptions.BOTH, InterruptRule.RESUME, constantTimes = true),
+        "constant both RESTART" to Variant(Interruptions.BOTH, InterruptRule.RESTART, constantTimes = true)
     )
 
     /**

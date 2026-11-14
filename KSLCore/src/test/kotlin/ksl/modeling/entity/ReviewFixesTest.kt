@@ -34,6 +34,9 @@ class ReviewFixesTest {
     private class FModel(parent: ModelElement) : ProcessModel(parent, "fixes") {
         val r = ResourceWithQ(this, "R")
         val r2 = ResourceWithQ(this, "R2", capacity = 2)
+        val p1 = ResourceWithQ(this, "P1")
+        val p2 = ResourceWithQ(this, "P2")
+        val pool = ResourcePoolWithQ(this, listOf(p1, p2), name = "Pool")
 
         val log = mutableListOf<String>()
         val setups = mutableListOf<FModel.() -> Unit>()
@@ -57,7 +60,7 @@ class ReviewFixesTest {
         }
 
         override fun replicationEnded() {
-            LoansAndFreezesCheck.check(r, r2)
+            LoansAndFreezesCheck.check(r, r2, p1, p2)
         }
     }
 
@@ -474,5 +477,58 @@ class ReviewFixesTest {
             }
         }
         assertEquals(listOf("before read told=1 active=0", "after read told=1 active=0"), m.log)
+    }
+
+    // ---------- failures and preemption together ----------
+
+    @Test
+    @DisplayName("with failures and preemption together, reacting imitates freezing, with random and with constant times")
+    fun reactingImitatesFreezingWithBoth() {
+        val reacting = ReactingMetamorphicModels.Work { _, duration ->
+            var res = delayOrInterrupt(duration)
+            while (res is DelayResult.Interrupted) {
+                waitForFirst(res.by.restoredTrigger())
+                res = delayOrInterrupt(if (res.rule == InterruptRule.RESTART) res.duration else res.timeRemaining)
+            }
+        }
+        for (variant in listOf("both RESUME", "both RESTART", "constant both RESUME", "constant both RESTART")) {
+            assertEquals(
+                ReactingMetamorphicModels.results(variant, ReactingMetamorphicModels.plainDelay),
+                ReactingMetamorphicModels.results(variant, reacting),
+                variant
+            )
+        }
+    }
+
+    // ---------- pools and preemption ----------
+
+    @Test
+    @DisplayName("a pool member preempted from a holder through the pool: the holder is held for the loan, and its release frees both members")
+    fun poolMemberPreempted() {
+        val m = run {
+            actor("L", 9) {
+                val pa = seize(pool, 2)
+                log.add("L got@$time")
+                delay(10.0)
+                release(pa)
+                log.add("L done@$time busy=${p1.numBusy + p2.numBusy}")
+            }
+            actor("U", 1) { delay(2.0); val a = preempt(p1, rule = InterruptRule.RESUME); log.add("U got@$time"); delay(3.0); release(a); log.add("U done@$time") }
+            at(3.0) { log.add("at 3 loans=${p1.loans.size}"); LoansAndFreezesCheck.check(p1, p2) }
+            actor("N", 5) { delay(3.0); val pa = seize(pool); log.add("N got ${pa.allocations.single().myResource.name}@$time"); release(pa) }
+        }
+        // L is held 2 to 5 while P1 is lent, so it ends at 13; N, waiting for the pool from 3, then gets a member
+        assertEquals(listOf("L got@0.0", "U got@2.0", "at 3 loans=1", "U done@5.0", "L done@13.0 busy=0", "N got P1@13.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("a FINISH preemption of a pool member is served by the pool's release, ahead of the member's own queue")
+    fun reservationServedByAPoolRelease() {
+        val m = run {
+            actor("L", 9) { val pa = seize(pool, 2); delay(10.0); release(pa) }
+            actor("N", 5) { delay(1.0); val a = seize(p1); log.add("N got@$time"); delay(1.0); release(a) }
+            actor("U", 1) { delay(2.0); val a = preempt(p1, rule = InterruptRule.FINISH); log.add("U got@$time"); delay(1.0); release(a) }
+        }
+        assertEquals(listOf("U got@10.0", "N got@11.0"), m.log)
     }
 }
