@@ -265,6 +265,28 @@ class Allocation internal constructor(
         }
     }
 
+    /**
+     *  Lent units of this allocation come back, [down] of them still down in a failure of the resource,
+     *  which takes them under [rule]. The units move from lent to down at once, so the count of missing
+     *  units never passes through none: the holder's delay stays held, and the restored trigger does not
+     *  fire, until the repair returns them. With none down, or no failure taking units, it is an ordinary
+     *  return.
+     */
+    internal fun loanComesBack(back: Int, down: Int, rule: InterruptRule?) {
+        require(down in 0..back) { "Of the $back units coming back to allocation $id, $down cannot be down." }
+        if (down == 0 || rule == null || rule == InterruptRule.FINISH) {
+            unitsComeBack(byFailure = 0, byLoan = back)
+            return
+        }
+        if (isDeallocated) return
+        missingByLoan -= back
+        check(missingByLoan >= 0) { "Allocation $id had fewer units lent than came back." }
+        missingByFailure += down
+        // the interruption goes on, now for the failure; a restart it asks for dominates
+        freezeRestart = freezeRestart || rule == InterruptRule.RESTART
+        if (rule == InterruptRule.RESTART) myEntity.addFreezeReason(this, freezeRestart, InterruptCause.FAILURE)
+    }
+
     /** The waits on this allocation's triggers, in the order they registered. */
     internal val myTriggerRegistrations: MutableList<AllocationRegistration> = mutableListOf()
 

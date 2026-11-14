@@ -789,6 +789,7 @@ open class Resource @JvmOverloads constructor(
     fun fail(rule: InterruptRule = interruptRule) {
         check(!isFailed) { "$name is already failed; check isFailed before calling fail()." }
         myState = myFailedState
+        myFailureRule = rule
         if (rule != InterruptRule.FINISH) {
             // units already missing (lent to a preemptor) go missing through the borrower's allocation
             for (a in allocations()) {
@@ -812,6 +813,7 @@ open class Resource @JvmOverloads constructor(
         for (a in allocations()) {
             if (a.missingByFailure > 0) a.unitsComeBack(byFailure = a.missingByFailure, byLoan = 0)
         }
+        myFailureRule = null
         myState = stateFromUnits()
         offerFreedUnits(ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "repaired_resource=$name")
         failureNotification()
@@ -820,6 +822,9 @@ open class Resource @JvmOverloads constructor(
         if (failures != null && failures.repaired.isSuspended) failures.repaired.resume()
         afterUnitsRestored()
     }
+
+    /** The rule of the failure in progress; null while not failed. */
+    private var myFailureRule: InterruptRule? = null
 
     private fun failureNotification() {
         for (listener in allocationListeners) {
@@ -901,6 +906,7 @@ open class Resource @JvmOverloads constructor(
     private var myUsesLeft: Int = 0
 
     private fun resetFailures() {
+        myFailureRule = null
         myFailureClock?.disarm()
         myUsesLeft = 0
         myFailuresEntity = null
@@ -1324,13 +1330,17 @@ open class Resource @JvmOverloads constructor(
         val lentOut = lentOutLoans.sumOf { it.amount }
         var held = allocation.amount - lentOut
         var returned = 0
+        // units of this allocation down in a failure stay down when they go back to a lender
+        var downLeft = allocation.missingByFailure
         val stillOwed = ArrayDeque<Pair<Allocation, Int>>()
         for (loan in myLoans.filter { it.borrower === allocation }.asReversed()) {
             myLoans.remove(loan)
             val lender = loan.lender ?: continue
             val back = minOf(loan.amount, held)
             if (back > 0) {
-                lender.unitsComeBack(byFailure = 0, byLoan = back)
+                val down = minOf(back, downLeft)
+                downLeft -= down
+                lender.loanComesBack(back, down, myFailureRule)
                 returned += back
                 held -= back
             }

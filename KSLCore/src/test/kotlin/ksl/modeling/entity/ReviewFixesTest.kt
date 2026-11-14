@@ -212,4 +212,64 @@ class ReviewFixesTest {
             assertEquals(trace(false), trace(true), "rule $rule")
         }
     }
+
+    // ---------- a failure carried back through a loan ----------
+
+    /**
+     *  V holds R and works 10 from 0; P preempts at 2 under RESUME; R fails at 3 under [failRule] and is
+     *  repaired at 30. [borrower] decides how P lets go of the unit while R is failed.
+     */
+    private fun lenderThroughAFailure(failRule: InterruptRule, borrower: suspend KSLProcessBuilder.(Allocation) -> String?): Pair<FModel, Allocation> {
+        lateinit var v: Allocation
+        val m = run {
+            actor("V", 9) { v = seize(r); delay(10.0); log.add("V done@$time"); release(v) }
+            actor("P", 1) {
+                delay(2.0)
+                val a = preempt(r, rule = InterruptRule.RESUME)
+                val note = borrower(a)
+                if (note != null) log.add("$note@$time")
+                release(a)
+            }
+            at(3.0) { r.fail(failRule); LoansAndFreezesCheck.check(r) }
+            at(4.0) { log.add("at 4 V missing=${v.missingUnits} byFailure=${v.missingByFailure}"); LoansAndFreezesCheck.check(r) }
+            at(30.0) { r.repair(); LoansAndFreezesCheck.check(r) }
+        }
+        return m to v
+    }
+
+    @Test
+    @DisplayName("a borrower told of a failure releases while failed: the unit goes back to the lender still down, and the lender waits for the repair")
+    fun borrowerReleasesWhileFailed() {
+        val (m, v) = lenderThroughAFailure(InterruptRule.RESUME) {
+            if (delayOrInterrupt(10.0) is DelayResult.Interrupted) "P told" else "P done"
+        }
+        // V: 2 of its 10 done when lent at 2; held until the repair at 30, then the 8 left
+        assertEquals(listOf("P told@3.0", "at 4 V missing=1 byFailure=1", "V done@38.0"), m.log)
+        assertEquals(1, v.timesInterrupted)
+        assertEquals(28.0, v.timeInterrupted, 1e-12)
+    }
+
+    @Test
+    @DisplayName("a borrower terminated while failed: the lender waits for the repair")
+    fun borrowerTerminatedWhileFailed() {
+        lateinit var v: Allocation
+        val m = run {
+            actor("V", 9) { v = seize(r); delay(10.0); log.add("V done@$time"); release(v) }
+            val p = actor("P", 1) { delay(2.0); val a = preempt(r, rule = InterruptRule.RESUME); delay(10.0); release(a) }
+            at(3.0) { r.fail(InterruptRule.RESUME) }
+            at(5.0) { p.terminateProcess(); log.add("at 5 V missing=${v.missingUnits}"); LoansAndFreezesCheck.check(r) }
+            at(30.0) { r.repair() }
+        }
+        assertEquals(listOf("at 5 V missing=1", "V done@38.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("the lender follows the failure's rule: under RESTART it starts its work again at the repair")
+    fun lenderFollowsTheFailuresRule() {
+        val (m, _) = lenderThroughAFailure(InterruptRule.RESTART) {
+            delayOrInterrupt(10.0)
+            null
+        }
+        assertEquals(listOf("at 4 V missing=1 byFailure=1", "V done@40.0"), m.log)
+    }
 }
