@@ -1346,8 +1346,10 @@ open class Resource @JvmOverloads constructor(
         // deallocate the allocation, so it can't be used again
         allocation.deallocate()
         deallocationNotification(allocation)
-        // deallocation completed need to check for pending capacity change
-        if (isPendingCapacityChange) {
+        // deallocation completed need to check for pending capacity change; not once the run has ended, when
+        // the releases come from terminating the replication's entities and nothing more can be scheduled.
+        // The capacity and its changes start afresh at the next replication.
+        if (isPendingCapacityChange && !isRunEnded) {
             if (freed > 0 && capacityChangeRule == CapacityChangeRule.IGNORE) {
                 handleIgnoreRuleRelease(freed)
             } else if (freed > 0 && capacityChangeRule == CapacityChangeRule.WAIT) {

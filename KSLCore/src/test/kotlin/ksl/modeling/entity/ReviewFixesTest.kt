@@ -115,4 +115,37 @@ class ReviewFixesTest {
         model.simulate()
         assertEquals(0, customers.served)
     }
+
+    private class DecreaseCustomers(parent: ModelElement) : ProcessModel(parent, "decreaseCustomers") {
+        lateinit var resource: ResourceWithQ
+        var served = 0
+
+        inner class Customer : Entity() {
+            val run: KSLProcess = process("customer") { val a = seize(resource); delay(1_000.0); release(a); served++ }
+        }
+
+        override fun initialize() {
+            served = 0
+            activate(Customer().run)
+            schedule({ _: ksl.simulation.KSLEvent<Nothing> ->
+                resource.changeCapacity(resource.CapacityChangeNotice(capacity = 0, duration = 5.0))
+            }, 2.0)
+        }
+    }
+
+    @Test
+    @DisplayName("a WAIT decrease pending at the replication's end, completed by a terminated holder's release: the run completes")
+    fun pendingDecreaseAtTheEnd() {
+        val model = Model("FixesDecrease${System.nanoTime()}", autoCSVReports = false)
+        val customers = DecreaseCustomers(model)
+        // created after the model whose customer holds it, so its pending decrease is still there at the termination
+        val resource = ResourceWithQ(model, "Sibling")
+        resource.capacityChangeRule = CapacityChangeRule.WAIT
+        customers.resource = resource
+        model.numberOfReplications = 2
+        model.lengthOfReplication = 10.0
+        model.simulate()
+        assertEquals(0, customers.served)
+        assertEquals(1, resource.capacity)
+    }
 }
