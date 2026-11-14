@@ -198,6 +198,11 @@ class Model @JvmOverloads constructor(
      */
     internal val myExecutive: Executive = Executive(eventCalendar)
 
+    init {
+        // the resources' accounting is checked after every event when ksl.checkInvariants=true
+        ksl.modeling.entity.ResourceInvariants.attachIfEnabled(this, myExecutive)
+    }
+
     /**
      * Used internally to specify the model's experiment parameters
      */

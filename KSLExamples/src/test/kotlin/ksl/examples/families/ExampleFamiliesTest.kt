@@ -125,10 +125,11 @@ class ExampleFamiliesTest {
         try {
             val java = File(System.getProperty("java.home"), "bin/java").absolutePath
             val silent = File("src/test/resources/pinned/logback-silent.xml").absolutePath
+            val invariants = System.getProperty("ksl.checkInvariants")?.let { listOf("-Dksl.checkInvariants=$it") } ?: emptyList()
             val process = ProcessBuilder(
-                java, "-Djava.awt.headless=true", "-Dlogback.configurationFile=$silent",
-                "-cp", System.getProperty("java.class.path"),
-                "ksl.examples.release.PinnedModelRunKt", "class", className, out.toString()
+                listOf(java, "-Djava.awt.headless=true", "-Dlogback.configurationFile=$silent") + invariants +
+                    listOf("-cp", System.getProperty("java.class.path"),
+                        "ksl.examples.release.PinnedModelRunKt", "class", className, out.toString())
             ).directory(work.toFile()).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
             assertTrue(process.waitFor(300, TimeUnit.SECONDS), "$className did not finish")
             assertEquals(0, process.exitValue(), "$className exited with ${process.exitValue()}")

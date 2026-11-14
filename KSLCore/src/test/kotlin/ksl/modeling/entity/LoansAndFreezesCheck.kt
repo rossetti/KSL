@@ -20,8 +20,8 @@ package ksl.modeling.entity
 
 /**
  *  A test helper for interrupted work: called at chosen points in the tests of failures and preemption,
- *  and at the end of each replication, it checks that a resource's units are accounted for. It is not a
- *  general auditor.
+ *  and at the end of each replication, it checks that a resource's units are accounted for. The checks are
+ *  the library's own (`ResourceInvariants`), which `-Dksl.checkInvariants=true` also runs after every event.
  *
  *  It checks that the units busy equal the units allocated less those lent to a borrower, and do not
  *  exceed the capacity except while a capacity decrease waits for busy units to be released; that each
@@ -31,37 +31,9 @@ package ksl.modeling.entity
  */
 internal object LoansAndFreezesCheck {
 
-    /** Checks [resource]; the message names the resource and what is out of balance. */
+    /** Checks [resource] with the library's own invariant checks; the message names what is out of balance. */
     fun check(resource: Resource) {
-        val allocated = resource.allocations().sumOf { it.amount }
-        // a unit lent counts once, busy for its borrower
-        val lent = resource.loans.filter { it.lender != null }.sumOf { it.amount }
-        require(resource.numBusy == allocated - lent) {
-            "${resource.name}: ${resource.numBusy} units busy, but ${allocated} are allocated and $lent lent"
-        }
-        for (a in resource.allocations()) {
-            val out = resource.loans.filter { it.lender === a }.sumOf { it.amount }
-            require(a.missingByLoan == out) {
-                "${resource.name}: allocation ${a.id} has ${a.missingByLoan} units missing by loan, but $out are lent"
-            }
-            require(a.missingUnits <= a.amount) {
-                "${resource.name}: allocation ${a.id} has ${a.missingUnits} units missing of ${a.amount}"
-            }
-        }
-        for (a in resource.allocations()) {
-            for (registration in a.myTriggerRegistrations) {
-                require(!registration.group.claimed) {
-                    "${resource.name}: allocation ${a.id} still lists a wait that has already ended"
-                }
-            }
-        }
-        for (loan in resource.loans) {
-            require(loan.borrower.isAllocated) { "${resource.name}: a loan to the released allocation ${loan.borrower.id} is still recorded" }
-        }
-        // above the capacity only while a capacity decrease waits for busy units to be released
-        require(resource.numBusy <= resource.capacity || resource.isPendingCapacityChange) {
-            "${resource.name}: ${resource.numBusy} units busy exceeds the capacity ${resource.capacity}"
-        }
+        ResourceInvariants.check(resource)
     }
 
     /** Checks that an entity in a delay that reports an interruption is never held by a missing unit. */

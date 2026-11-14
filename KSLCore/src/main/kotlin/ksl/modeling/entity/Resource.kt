@@ -703,6 +703,14 @@ open class Resource @JvmOverloads constructor(
     internal val loans: List<Loan>
         get() = myLoans
 
+    /** The reservations now waiting, for checks. */
+    internal val reservations: List<Reservation>
+        get() = myReservations
+
+    /** The queues registered on this resource, for checks. */
+    internal val registeredQueues: Set<RequestQ>
+        get() = myCapacityChangeQSet
+
     /**
      *  The number of preemptions of this resource in the replication: each `preempt` that took units from
      *  at least one holder, or reserved them from holders that finish their work.

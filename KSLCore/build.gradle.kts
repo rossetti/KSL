@@ -126,6 +126,8 @@ tasks.test {
     // compared on every run and re-recorded only when a behaviour change has been approved, which
     // requires the switch to reach the test worker rather than stopping at the Gradle JVM.
     System.getProperty("moda.baseline.record")?.let { systemProperty("moda.baseline.record", it) }
+    // with -Dksl.checkInvariants=true every model in the tests checks its resources' accounting after each event
+    System.getProperty("ksl.checkInvariants")?.let { systemProperty("ksl.checkInvariants", it) }
 }
 
 /**
@@ -148,6 +150,8 @@ val fastTest by tasks.registering(Test::class) {
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform { excludeTags("slow") }
     System.getProperty("moda.baseline.record")?.let { systemProperty("moda.baseline.record", it) }
+    // with -Dksl.checkInvariants=true every model in the tests checks its resources' accounting after each event
+    System.getProperty("ksl.checkInvariants")?.let { systemProperty("ksl.checkInvariants", it) }
 }
 
 kotlin {

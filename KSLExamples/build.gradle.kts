@@ -61,6 +61,8 @@ tasks.test {
     System.getProperty("ksl.runExamples")?.let { systemProperty("ksl.runExamples", it) }
     // the pinned-results test writes its pins, instead of checking them, under this property
     System.getProperty("ksl.updatePins")?.let { systemProperty("ksl.updatePins", it) }
+    // with -Dksl.checkInvariants=true every model in the tests checks its resources' accounting after each event
+    System.getProperty("ksl.checkInvariants")?.let { systemProperty("ksl.checkInvariants", it) }
 }
 
 // Produces the slim, distributable "KSL Book Examples" bundle JAR — a manifest

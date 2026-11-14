@@ -856,6 +856,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /** When the current delayOrInterrupt began. */
         private var myDelayStartTime: Double = Double.NaN
 
+        /**
+         *  True while the end of the current delay is on the calendar and will happen; read by the invariant
+         *  checks. A cancelled event stays on the calendar, marked scheduled, until the executive discards it.
+         */
+        internal val hasScheduledDelayEvent: Boolean
+            get() = myDelayEvent?.let { it.isScheduled && !it.cancel } == true
+
         /** True while the entity is in a delayOrInterrupt; read by the tests' checks. */
         internal val isInReportingDelay: Boolean
             get() = myDelayMode == DelayMode.REPORT && currentSuspendType == SuspendType.DELAY

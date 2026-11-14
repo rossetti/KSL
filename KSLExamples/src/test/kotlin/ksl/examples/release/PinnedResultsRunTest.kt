@@ -345,8 +345,10 @@ class PinnedResultsRunTest {
         val names = listOf(work.toRealPath().toString(), work.toAbsolutePath().toString()).distinct().sortedByDescending { it.length }
         val java = File(System.getProperty("java.home"), "bin/java").absolutePath
         val logConfig = File(pinRoot, "logback-silent.xml").absolutePath
-        val command = listOf(java, "-Djava.awt.headless=true", "-Dlogback.configurationFile=$logConfig",
-            "-cp", System.getProperty("java.class.path")) + args
+        // an example run with the invariant checks on checks them in its own JVM too
+        val invariants = System.getProperty("ksl.checkInvariants")?.let { listOf("-Dksl.checkInvariants=$it") } ?: emptyList()
+        val command = listOf(java, "-Djava.awt.headless=true", "-Dlogback.configurationFile=$logConfig") + invariants +
+            listOf("-cp", System.getProperty("java.class.path")) + args
         val output = work.resolve("stdout.txt").toFile()
         val process = ProcessBuilder(command).directory(work.toFile())
             .redirectOutput(output).redirectError(ProcessBuilder.Redirect.DISCARD).start()
