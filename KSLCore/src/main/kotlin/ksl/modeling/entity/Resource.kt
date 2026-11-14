@@ -828,6 +828,7 @@ open class Resource @JvmOverloads constructor(
             if (a.missingByFailure > 0) a.unitsComeBack(byFailure = a.missingByFailure, byLoan = 0)
         }
         myFailureRule = null
+        myDeclaredFailureInProgress = false
         myState = stateFromUnits()
         offerFreedUnits(ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "repaired_resource=$name")
         failureNotification()
@@ -836,6 +837,9 @@ open class Resource @JvmOverloads constructor(
         if (failures != null && failures.repaired.isSuspended) failures.repaired.resume()
         afterUnitsRestored()
     }
+
+    /** True while the failure in progress is one the declared failures started. */
+    private var myDeclaredFailureInProgress: Boolean = false
 
     /** The rule of the failure in progress; null while not failed. */
     private var myFailureRule: InterruptRule? = null
@@ -868,7 +872,9 @@ open class Resource @JvmOverloads constructor(
      *  [timeBetween] on [basis], fails under [rule], stays failed for [repairTime], and is repaired, over
      *  and over. A failure that comes due while the resource is already failed by a call of [fail] waits for
      *  that repair, and its time between failures starts again from there. A call of [repair] during the
-     *  repair time ends that failure early. The waiting is done by an entity
+     *  repair time ends that failure early, and the time to the next failure counts from that repair. The
+     *  declared failures repair only a failure they started: if the model fails the resource again during
+     *  what was the repair time, that failure lasts until the model repairs it. The waiting is done by an entity
      *  of the resource's own, separate from a behavior it may have.
      *
      *  On `BUSY_TIME`, the time counts only while at least one unit is busy and the resource is on shift
@@ -921,6 +927,7 @@ open class Resource @JvmOverloads constructor(
 
     private fun resetFailures() {
         myFailureRule = null
+        myDeclaredFailureInProgress = false
         myFailureClock?.disarm()
         myUsesLeft = 0
         myFailuresEntity = null
@@ -1029,9 +1036,12 @@ open class Resource @JvmOverloads constructor(
                     continue
                 }
                 fail(spec.rule)
-                delay(spec.repairTime.value)
-                // a repair by hand during the repair time has already ended this failure
-                if (isFailed) repair()
+                myDeclaredFailureInProgress = true
+                // the repair time, or a repair by hand before it ends, whichever comes first; a hand repair
+                // ends this failure early, and the time to the next one counts from it
+                suspendForOrTimeout(repaired, spec.repairTime.value)
+                // repair only the failure this entity started, not one the model made after a hand repair
+                if (isFailed && myDeclaredFailureInProgress) repair()
             }
         }
     }

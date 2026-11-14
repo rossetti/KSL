@@ -348,4 +348,40 @@ class ReviewFixesTest {
         }
         assertEquals(listOf("U got@20.0", "N got@21.0"), m.log)
     }
+
+    // ---------- declared failures and hand repairs ----------
+
+    /** Logs each failure and repair of [res]. */
+    private fun FModel.watch(res: Resource) {
+        res.addAllocationListener(object : AllocationListenerIfc {
+            override fun allocate(allocation: Allocation) {}
+            override fun deallocate(allocation: Allocation) {}
+            override fun failureStateChanged(resource: Resource) {
+                log.add("${if (resource.isFailed) "fail" else "repair"}@$time")
+            }
+        })
+    }
+
+    @Test
+    @DisplayName("a hand repair and a hand failure inside a declared repair time: the declared failure does not end the hand one")
+    fun declaredFailureLeavesAHandFailureAlone() {
+        val m = run(length = 40.0, configure = { r.failures(ConstantRV(10.0), ConstantRV(5.0)); watch(r) }) {
+            at(12.0) { r.repair() }
+            at(13.0) { r.fail() }
+            at(16.0) { log.add("at 16 failed=${r.isFailed}") }
+            at(20.0) { r.repair() }
+        }
+        // declared failure at 10; hand repair 12; hand failure 13, still failed at 16, repaired by hand at 20;
+        // the next declared failure counts from the hand repair at 12, so it comes due at 22 and waits for nothing
+        assertEquals(listOf("fail@10.0", "repair@12.0", "fail@13.0", "at 16 failed=true", "repair@20.0", "fail@22.0", "repair@27.0", "fail@37.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("after a hand repair of a declared failure, the time to the next failure counts from that repair")
+    fun nextFailureFromTheHandRepair() {
+        val m = run(length = 40.0, configure = { r.failures(ConstantRV(10.0), ConstantRV(5.0)); watch(r) }) {
+            at(12.0) { r.repair() }
+        }
+        assertEquals(listOf("fail@10.0", "repair@12.0", "fail@22.0", "repair@27.0", "fail@37.0"), m.log)
+    }
 }
