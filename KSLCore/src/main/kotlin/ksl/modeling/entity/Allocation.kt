@@ -289,6 +289,9 @@ class Allocation internal constructor(
      *  wait's other registrations, which may be in this list.
      */
     private fun claimTriggers(onRestore: Boolean, value: Any?) {
+        // a release made while the replication's entities are terminated claims nothing: every waiter is
+        // about to be terminated too, and no resume can be scheduled once the run has ended
+        if (myResource.isRunEnded) return
         for (registration in myTriggerRegistrations.toList()) {
             if (registration.onRestore != onRestore || registration.isReleased) continue
             myTriggerRegistrations.remove(registration)

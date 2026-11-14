@@ -900,8 +900,16 @@ open class Resource @JvmOverloads constructor(
         }
     }
 
+    /**
+     *  True once the run has ended. The releases that end-of-replication termination makes must then schedule
+     *  nothing, since the executive no longer accepts events.
+     */
+    internal val isRunEnded: Boolean
+        get() = executive.isEnded
+
     private fun countUse() {
-        if (myUsesLeft <= 0) return
+        // a release made while the replication's entities are terminated completes no failure count
+        if (myUsesLeft <= 0 || isRunEnded) return
         myUsesLeft--
         if (myUsesLeft == 0) failureCameDue()
     }
