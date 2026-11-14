@@ -340,6 +340,17 @@ open class Resource @JvmOverloads constructor(
     override val numAvailableUnits: Int
          get() = if (isFailed) 0 else maxOf(0, capacity - numBusy - myPromisedUnits)
 
+    /**
+     *  The units not busy and not promised: those a capacity decrease can remove at once. Unlike
+     *  [numAvailableUnits] it is not zeroed by a failure, since capacity changes apply underneath a failure.
+     *
+     *  Two readings of the units must not be confused. [numAvailableUnits] is what can be *allocated* now,
+     *  none while failed; every allocation and offer reads it. [numIdleUnits] is what is *idle* now, failed
+     *  or not; the capacity decreases read it.
+     */
+    internal val numIdleUnits: Int
+        get() = maxOf(0, capacity - numBusy - myPromisedUnits)
+
     override val hasAvailableUnits: Boolean
         get() = numAvailableUnits > 0
 
@@ -1792,7 +1803,7 @@ open class Resource @JvmOverloads constructor(
         logger.trace { "$time > Resource: $name, change notice $notice is decreasing the capacity from $capacity to ${notice.capacity}." }
         // notice.capacity < capacity, need to decrease the capacity
         val decrease = capacity - notice.capacity
-        if (numAvailableUnits >= decrease) {
+        if (numIdleUnits >= decrease) {
             // there are enough available units to handle the change w/o using busy resources
             capacity = capacity - decrease
             logger.trace { "$time > Resource: $name, enough units idle to immediately reduce capacity by $decrease." }
@@ -1853,7 +1864,7 @@ open class Resource @JvmOverloads constructor(
         logger.trace { "$time > Resource: $name, change notice $notice is decreasing the capacity from $capacity to ${notice.capacity}." }
         // notice.capacity < capacity, need to decrease the capacity
         val decrease = capacity - notice.capacity
-        if (numAvailableUnits >= decrease) {
+        if (numIdleUnits >= decrease) {
             // there are enough available units to handle the change w/o using busy resources
             capacity = capacity - decrease
             // removed idle units, but remaining units are (busy or idle) or all units have been removed
@@ -1898,7 +1909,7 @@ open class Resource @JvmOverloads constructor(
         logger.trace { "$time > Resource: $name, change notice $notice is decreasing the capacity from $capacity to ${notice.capacity}." }
         // notice.capacity < capacity, need to decrease the capacity
         val decrease = capacity - notice.capacity
-        if (numAvailableUnits >= decrease) {
+        if (numIdleUnits >= decrease) {
             // there are enough available units to handle the change w/o using busy resources
             capacity = capacity - decrease
             // removed idle units, but remaining units are (busy or idle) or all units have been removed

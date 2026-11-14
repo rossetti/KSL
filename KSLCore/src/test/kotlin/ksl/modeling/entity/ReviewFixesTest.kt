@@ -148,4 +148,68 @@ class ReviewFixesTest {
         assertEquals(0, customers.served)
         assertEquals(1, resource.capacity)
     }
+
+    // ---------- capacity changes during a failure ----------
+
+    @Test
+    @DisplayName("going off shift while failed takes the idle unit at once, and the repair serves no one until back on shift")
+    fun offShiftWhileFailed() {
+        for (rule in listOf(CapacityChangeRule.WAIT, CapacityChangeRule.IGNORE)) {
+            val m = run(configure = { r.capacityChangeRule = rule }) {
+                at(1.0) { r.fail() }
+                at(2.0) { r.goOffShift(); log.add("off cap=${r.capacity} pending=${r.isPendingCapacityChange}") }
+                actor("N") { delay(3.0); val a = seize(r); log.add("N got@$time"); delay(1.0); release(a) }
+                at(5.0) { r.repair(); log.add("repaired ${r.state.name}") }
+                at(50.0) { r.goOnShift() }
+            }
+            assertEquals(listOf("off cap=0 pending=false", "repaired R_Inactive", "N got@50.0"), m.log, "rule $rule")
+        }
+    }
+
+    /** The capacity at [times], with or without a failure from [failAt] to [repairAt], as the changes [setup] makes it. */
+    private fun capacityTrace(
+        rule: CapacityChangeRule, times: List<Double>, failAt: Double?, repairAt: Double?,
+        configure: FModel.() -> Unit = {}, setup: FModel.() -> Unit = {}
+    ): List<String> = run(configure = { r2.capacityChangeRule = rule; configure() }) {
+        setup()
+        if (failAt != null) at(failAt) { r2.fail() }
+        if (repairAt != null) at(repairAt) { r2.repair() }
+        for (t in times) at(t) { log.add("$t cap=${r2.capacity} pending=${r2.isPendingCapacityChange}") }
+    }.log
+
+    @Test
+    @DisplayName("a capacity schedule's changes apply underneath a failure as they would without it")
+    fun scheduleUnderAFailure() {
+        for (rule in listOf(CapacityChangeRule.WAIT, CapacityChangeRule.IGNORE)) {
+            fun trace(withFailure: Boolean) = capacityTrace(
+                rule, listOf(5.0, 15.0, 25.0, 35.0),
+                failAt = if (withFailure) 4.0 else null, repairAt = if (withFailure) 26.0 else null,
+                configure = {
+                    val schedule = CapacitySchedule(this, startTime = 0.0)
+                    schedule.addItem(capacity = 2, duration = 10.0)
+                    schedule.addItem(capacity = 1, duration = 10.0)
+                    schedule.addItem(capacity = 2, duration = 30.0)
+                    r2.useSchedule(schedule, rule)
+                }
+            )
+            val without = trace(false)
+            assertEquals(listOf("5.0 cap=2 pending=false", "15.0 cap=1 pending=false", "25.0 cap=2 pending=false", "35.0 cap=2 pending=false"), without, "rule $rule")
+            assertEquals(without, trace(true), "rule $rule")
+        }
+    }
+
+    @Test
+    @DisplayName("two overlapping finite decreases during a failure behave as they do without it")
+    fun overlappingDecreasesUnderAFailure() {
+        for (rule in listOf(CapacityChangeRule.IGNORE, CapacityChangeRule.WAIT)) {
+            fun trace(withFailure: Boolean) = capacityTrace(
+                rule, listOf(3.0, 5.0, 10.0, 15.0),
+                failAt = if (withFailure) 1.0 else null, repairAt = if (withFailure) 30.0 else null
+            ) {
+                at(2.0) { r2.changeCapacity(r2.CapacityChangeNotice(capacity = 1, duration = 10.0)) }
+                at(4.0) { r2.changeCapacity(r2.CapacityChangeNotice(capacity = 0, duration = 5.0)) }
+            }
+            assertEquals(trace(false), trace(true), "rule $rule")
+        }
+    }
 }
