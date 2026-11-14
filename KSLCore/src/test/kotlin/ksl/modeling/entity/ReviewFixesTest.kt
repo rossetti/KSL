@@ -334,4 +334,18 @@ class ReviewFixesTest {
             )
         }
     }
+
+    // ---------- a reservation and a broken promise ----------
+
+    @Test
+    @DisplayName("a FINISH preemption whose reservation is complete, but whose promise breaks in that instant, keeps its place ahead of the queue")
+    fun reservationKeptThroughABrokenPromise() {
+        val m = run {
+            actor("L", 9) { val a = seize(r); delay(10.0); release(a); r.fail() }
+            actor("N", 5) { delay(1.0); val a = seize(r); log.add("N got@$time"); delay(1.0); release(a) }
+            actor("U", 1) { delay(2.0); val a = preempt(r, rule = InterruptRule.FINISH); log.add("U got@$time"); delay(1.0); release(a) }
+            at(20.0) { r.repair() }
+        }
+        assertEquals(listOf("U got@20.0", "N got@21.0"), m.log)
+    }
 }

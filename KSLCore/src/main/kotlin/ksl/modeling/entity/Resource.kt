@@ -666,7 +666,20 @@ open class Resource @JvmOverloads constructor(
      *  A preemption under `FINISH` waiting for the units its victims still use: [request] takes the units of
      *  any release, capacity increase or repair of this resource ahead of the queue until [stillNeeded] is 0.
      */
-    internal class Reservation(val request: ProcessModel.Entity.Request, var stillNeeded: Int)
+    internal class Reservation(val request: ProcessModel.Entity.Request, var stillNeeded: Int) {
+        /**
+         *  True once every unit has been promised and the request has been woken to take them. The
+         *  reservation stays until the request takes its units and leaves its queue, so a promise broken
+         *  in between does not cost it its place: it collects again.
+         */
+        var isComplete: Boolean = false
+
+        /** Collects again, from nothing, after the promise of a completed reservation broke. */
+        fun reopen() {
+            isComplete = false
+            stillNeeded = request.amountRequested
+        }
+    }
 
     /** What a preemption would take: the free units, and the units of each victim. */
     internal class PreemptionPlan(val free: Int, val takes: List<Pair<Allocation, Int>>)
@@ -760,15 +773,16 @@ open class Resource @JvmOverloads constructor(
      *  all it needs.
      */
     private fun serveReservations(priority: Int, source: ResumeSource, detail: String?) {
-        while (numAvailableUnits > 0 && myReservations.isNotEmpty()) {
-            val reservation = myReservations.first()
+        for (reservation in myReservations.toList()) {
+            if (numAvailableUnits <= 0) break
+            // one already woken to take its units keeps its place until it takes them
+            if (reservation.isComplete) continue
             val k = minOf(reservation.stillNeeded, numAvailableUnits)
             reservation.request.promise(this, k)
             reservation.stillNeeded -= k
             if (reservation.stillNeeded > 0) break
-            myReservations.removeAt(0)
+            reservation.isComplete = true
             val request = reservation.request
-            request.reservation = null
             val queue = request.queue as RequestQ
             queue.resumeWoken(request, priority, source, "reservation_completed_resource=$name, request_id=${request.id}, $detail")
         }
