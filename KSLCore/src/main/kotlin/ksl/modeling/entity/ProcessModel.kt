@@ -860,9 +860,21 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         internal val isInReportingDelay: Boolean
             get() = myDelayMode == DelayMode.REPORT && currentSuspendType == SuspendType.DELAY
 
-        /** Every allocation this entity holds. */
-        internal val heldAllocations: List<Allocation>
-            get() = resourceAllocations.values.flatten()
+        /**
+         *  The allocations among [uses], or among all this entity holds when [uses] is null, that have units
+         *  missing. Called at every delay, so it builds no list unless one is found.
+         */
+        internal fun allocationsWithMissingUnits(uses: Collection<Allocation>?): List<Allocation> {
+            var found: MutableList<Allocation>? = null
+            if (uses != null) {
+                for (a in uses) if (a.missingUnits > 0) (found ?: mutableListOf<Allocation>().also { found = it }).add(a)
+            } else {
+                for (list in resourceAllocations.values) {
+                    for (a in list) if (a.missingUnits > 0) (found ?: mutableListOf<Allocation>().also { found = it }).add(a)
+                }
+            }
+            return found ?: emptyList()
+        }
 
         /** How many reasons hold the current delay frozen. */
         internal val freezeCount: Int
@@ -3394,7 +3406,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(delayDuration.isFinite()) { "The duration of the delay must be finite (cannot be infinite) in process, ($this)" }
                 val useSet = uses?.let { checkUses(it); it.toSet() }
                 // already interrupted: report at once, with no delay and no delay events
-                val missing = (useSet ?: heldAllocations).firstOrNull { it.missingUnits > 0 }
+                val missing = allocationsWithMissingUnits(useSet).firstOrNull()
                 if (missing != null) {
                     return DelayResult.Interrupted(
                         duration = delayDuration,
@@ -3457,7 +3469,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 myDelayUses = uses
                 myDelayPriority = delayPriority
                 val missing = if (inMoveDelay || inYieldDelay) emptyList()
-                else (uses ?: heldAllocations).filter { it.missingUnits > 0 }
+                else allocationsWithMissingUnits(uses)
                 if (missing.isNotEmpty()) {
                     // begun frozen: nothing ends it until the units it depends on are back
                     myDelayEvent = null

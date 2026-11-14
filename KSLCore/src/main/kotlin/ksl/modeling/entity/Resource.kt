@@ -1374,7 +1374,40 @@ open class Resource @JvmOverloads constructor(
             // no more allocations for this entity, remove it from the map also
             entityAllocations.remove(allocation.myEntity)
         }
-        // give back to the resource. Units this allocation lent out stay with their borrowers. Of the units it
+        // give back to the resource; only the units freed reach the queue or a pending capacity decrease, not
+        // those that stay with a borrower or go back to a lender. Most resources have no loans to settle.
+        val notFreed = if (myLoans.isEmpty()) 0 else settleLoans(allocation)
+        val freed = allocation.amount - notFreed
+        numBusy = numBusy - freed
+        numTimesReleased++
+        // need to also deallocate from the entity
+        allocation.myEntity.deallocate(allocation)
+        // deallocate the allocation, so it can't be used again
+        allocation.deallocate()
+        deallocationNotification(allocation)
+        // deallocation completed need to check for pending capacity change; not once the run has ended, when
+        // the releases come from terminating the replication's entities and nothing more can be scheduled.
+        // The capacity and its changes start afresh at the next replication.
+        if (isPendingCapacityChange && !isRunEnded) {
+            if (freed > 0 && capacityChangeRule == CapacityChangeRule.IGNORE) {
+                handleIgnoreRuleRelease(freed)
+            } else if (freed > 0 && capacityChangeRule == CapacityChangeRule.WAIT) {
+                // for WAIT rule handle releases only until full change gets allocated and scheduled
+                if (myCurrentChangeNotice!!.changeEvent == null) {
+                    // once it is not null, the full change has been completed and is being processed
+                    handleWaitRuleRelease(freed)
+                }
+            }
+        }
+        countUse()
+    }
+
+    /**
+     *  Settles the loans of [allocation] as it is released, and returns the units that are not freed: those
+     *  it lent out, which stay with their borrowers, and those it borrowed that go back to their lenders.
+     */
+    private fun settleLoans(allocation: Allocation): Int {
+        // Units this allocation lent out stay with their borrowers. Of the units it
         // still holds, those it borrowed go back to their lenders first, newest loan first, and stay busy for
         // them. Borrowed units it lent on are not here to give back: its borrowers now owe them to the
         // original lenders, and the rest of what it lent goes to the queue at the borrowers' release.
@@ -1410,30 +1443,7 @@ open class Resource @JvmOverloads constructor(
             }
             if (left > 0) myLoans.add(Loan(null, loan.borrower, left))
         }
-        // only the units freed reach the queue or a pending capacity decrease, not those back with a lender
-        val freed = allocation.amount - returned - lentOut
-        numBusy = numBusy - freed
-        numTimesReleased++
-        // need to also deallocate from the entity
-        allocation.myEntity.deallocate(allocation)
-        // deallocate the allocation, so it can't be used again
-        allocation.deallocate()
-        deallocationNotification(allocation)
-        // deallocation completed need to check for pending capacity change; not once the run has ended, when
-        // the releases come from terminating the replication's entities and nothing more can be scheduled.
-        // The capacity and its changes start afresh at the next replication.
-        if (isPendingCapacityChange && !isRunEnded) {
-            if (freed > 0 && capacityChangeRule == CapacityChangeRule.IGNORE) {
-                handleIgnoreRuleRelease(freed)
-            } else if (freed > 0 && capacityChangeRule == CapacityChangeRule.WAIT) {
-                // for WAIT rule handle releases only until full change gets allocated and scheduled
-                if (myCurrentChangeNotice!!.changeEvent == null) {
-                    // once it is not null, the full change has been completed and is being processed
-                    handleWaitRuleRelease(freed)
-                }
-            }
-        }
-        countUse()
+        return returned + lentOut
     }
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
