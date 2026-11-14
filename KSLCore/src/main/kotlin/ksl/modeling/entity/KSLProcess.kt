@@ -1657,9 +1657,9 @@ interface KSLProcessBuilder {
      *
      *  It depends on [uses], or on every allocation the entity holds when [uses] is null; an empty collection
      *  means no resource can end it. If units of one it depends on are already missing when it is called, it
-     *  returns `Interrupted` at once, with nothing done and no delay. A process interrupt holds it as it holds
-     *  any delay; units going missing while it is held end it at once. Units going missing at the instant its
-     *  end is due do not end it: it completes.
+     *  returns `Interrupted` at once, with nothing done and no delay, even for a duration of 0. A process
+     *  interrupt holds it as it holds any delay; units going missing while it is held end it at once. Units
+     *  going missing at the instant its end is due do not end it: it completes, as a plain delay does.
      *
      *  @param delayDuration the length of the delay, at least 0 and finite
      *  @param uses the allocations the work depends on, each allocated to this entity; null for all it holds

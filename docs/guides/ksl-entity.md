@@ -516,15 +516,22 @@ not failed, throws).
     when the units come back;
   - `RESTART`: as `RESUME`, but the delay starts again in full.
   A movement is never held: a holder moving a failed vehicle finishes the
-  trip, and its next delay begins held.
+  trip, and its next delay begins held. A delay whose end is due at the
+  instant of the failure has done its work, and completes.
+- **Loans and failures.** Units lent to a preemptor are taken from the
+  preemptor's allocation by the failure. If the preemptor lets them go while
+  the resource is still failed, they go back to the holder still down, and
+  the holder stays held until the repair.
 - **The bases** of `failures(…)`: `CALENDAR_TIME` counts simulated time;
   `BUSY_TIME` counts time with a unit busy, on shift and not failed, so the
   failure comes at the exact instant that much work has been done; `USES`
   fails at the release that completes the given number of uses. A failure
-  that comes due while the resource is failed by hand waits for that repair,
-  and a repair by hand during a declared failure ends it early. The failures
-  are waited out by an entity of the resource's own, started each
-  replication, separate from a behavior.
+  that comes due while the resource is failed by hand waits for that repair.
+  A repair by hand during a declared failure ends it early, and the time to
+  the next failure counts from that repair. The declared failures repair only
+  a failure they started: one the model makes by hand lasts until the model
+  repairs it. The failures are waited out by an entity of the resource's own,
+  started each replication, separate from a behavior.
 - **Statistics are added only when asked for.** `failures(…)` or
   `collectFailureStatistics()` adds `<name>:PTimeFailed` and
   `<name>:NumFailures`; without them no response is added and existing
@@ -636,8 +643,10 @@ when (val r = delayOrInterrupt(treatmentRV, uses = listOf(doc, room))) {
   the unit from the queue until its repair; a lent one ends the loan), or carry
   on with what it holds.
 - **Already missing.** If units it depends on are missing when it is called, it
-  returns `Interrupted` at once, with nothing done. A process interrupt holds it
-  as it holds any delay; units going missing then end it at once.
+  returns `Interrupted` at once, with nothing done, even for a duration of 0. A
+  process interrupt holds it as it holds any delay; units going missing then
+  end it at once. Units going missing at the instant its end is due do not end
+  it: it completes, as a plain delay does.
 - **The triggers.** `allocation.interruptedTrigger()` fires when units of that
   allocation go missing, with the cause; `allocation.restoredTrigger()` when all
   have come back. Each fires at once if its condition already holds. They

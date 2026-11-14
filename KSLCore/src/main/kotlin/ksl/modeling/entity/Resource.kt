@@ -622,7 +622,8 @@ open class Resource @JvmOverloads constructor(
      *  second call while off shift does nothing.
      *
      *  A resource whose [initialCapacity] is 0 has nothing to take off shift, and this throws; check
-     *  that the initial capacity is greater than 0 first.
+     *  that the initial capacity is greater than 0 first. A resource that uses a capacity schedule takes
+     *  its capacity from the schedule alone, and this throws too; [hasSchedule] is the check.
      */
     fun goOffShift() {
         val shift = myShift ?: ShiftControl(this).also { myShift = it }
