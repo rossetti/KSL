@@ -1,0 +1,48 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 20000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 30
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 20000.0
+Warm up time period for replication: 5000.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 30
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+TestResourcePool_1:R1:InstantaneousUtil                                	           30 	       0.3365 	       0.0032
+TestResourcePool_1:R1:NumBusyUnits                                     	           30 	       0.3365 	       0.0032
+TestResourcePool_1:R1:ScheduledUtil                                    	           30 	       0.3365 	       0.0032
+TestResourcePool_1:R2:InstantaneousUtil                                	           30 	       0.1322 	       0.0025
+TestResourcePool_1:R2:NumBusyUnits                                     	           30 	       0.1322 	       0.0025
+TestResourcePool_1:R2:ScheduledUtil                                    	           30 	       0.1322 	       0.0025
+TestResourcePool_1:R3:InstantaneousUtil                                	           30 	       0.0349 	       0.0014
+TestResourcePool_1:R3:NumBusyUnits                                     	           30 	       0.0349 	       0.0014
+TestResourcePool_1:R3:ScheduledUtil                                    	           30 	       0.0349 	       0.0014
+pool:NumBusy                                                           	           30 	       0.5036 	       0.0060
+pool:FractionBusy                                                      	           30 	       0.1679 	       0.0020
+pool:Q:NumInQ                                                          	           30 	       0.0031 	       0.0003
+pool:Q:TimeInQ                                                         	           30 	       0.0184 	       0.0020
+TestResourcePool_1:WIP                                                 	           30 	       0.5067 	       0.0060
+TestResourcePool_1:TimeInSystem                                        	           30 	       3.0232 	       0.0262
+TestResourcePool_1:R1:SeizeCount                                       	           30 	    1684.0667 	      13.7492
+TestResourcePool_1:R2:SeizeCount                                       	           30 	     654.2333 	       9.8378
+TestResourcePool_1:R3:SeizeCount                                       	           30 	     175.4667 	       5.5936
+------------------------------------------------------------------------------------------------------------------------

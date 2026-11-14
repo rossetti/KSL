@@ -1,0 +1,54 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 20000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 30
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 20000.0
+Warm up time period for replication: 5000.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 30
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Conveyor:Enter:AccessQ:NumInQ                                          	           30 	    2360.2981 	      42.6021
+Conveyor:Enter:AccessQ:TimeInQ                                         	           30 	    2360.7768 	      40.2906
+Conveyor:Station1:AccessQ:NumInQ                                       	           30 	       0.0000 	       0.0000
+Conveyor:Station1:AccessQ:TimeInQ                                      	            0 	          NaN 	          NaN
+Conveyor:Station2:AccessQ:NumInQ                                       	           30 	       0.0000 	       0.0000
+Conveyor:Station2:AccessQ:TimeInQ                                      	            0 	          NaN 	          NaN
+Conveyor:NumOccupiedCells                                              	           30 	     170.0000 	       0.0000
+Conveyor:CellUtilization                                               	           30 	       1.0000 	       0.0000
+worker1:InstantaneousUtil                                              	           30 	       0.5639 	       0.0016
+worker1:NumBusyUnits                                                   	           30 	       0.5639 	       0.0016
+worker1:ScheduledUtil                                                  	           30 	       0.5639 	       0.0016
+worker1:Q:NumInQ                                                       	           30 	       0.0000 	       0.0000
+worker1:Q:TimeInQ                                                      	           30 	       0.0000 	       0.0000
+worker1:WIP                                                            	           30 	       0.5639 	       0.0016
+worker2:InstantaneousUtil                                              	           30 	       0.7275 	       0.0012
+worker2:NumBusyUnits                                                   	           30 	       0.7275 	       0.0012
+worker2:ScheduledUtil                                                  	           30 	       0.7275 	       0.0012
+worker2:Q:NumInQ                                                       	           30 	       0.0000 	       0.0000
+worker2:Q:TimeInQ                                                      	           30 	       0.0000 	       0.0000
+worker2:WIP                                                            	           30 	       0.7275 	       0.0012
+TandemQueueWithConveyor:NumInSystem                                    	           30 	    2530.3249 	      42.6021
+TandemQueueWithConveyor:TimeInSystem                                   	           30 	    2531.0643 	      39.9703
+worker1:SeizeCount                                                     	           30 	   12081.5333 	      31.2566
+worker2:SeizeCount                                                     	           30 	   12081.5333 	      31.2566
+------------------------------------------------------------------------------------------------------------------------

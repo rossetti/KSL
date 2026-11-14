@@ -1,0 +1,11 @@
+reps=5 length=2000.0 warmup=0.0
+R SyncQ:NumInQ n=5.0 avg=0.0095 sd=0.0 min=0.0095 max=0.0095
+R SyncQ:TimeInQ n=5.0 avg=6.333333333333333 sd=0.0 min=6.333333333333333 max=6.333333333333333
+R WaitForDaughterToExitQ:NumInQ n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R WaitForDaughterToExitQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R WaitForDaughterToLoadQ:NumInQ n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R WaitForDaughterToLoadQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R WaitForDaughterToPlayQ:NumInQ n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R WaitForDaughterToPlayQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R WaitForMomToShopQ:NumInQ n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R WaitForMomToShopQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity

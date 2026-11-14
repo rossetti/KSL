@@ -1,0 +1,200 @@
+reps=5 length=2000.0 warmup=0.0
+R % Abandoned Calls for All Customers n=5.0 avg=0.0014230824788609216 sd=4.9990251039157074E-5 min=0.0013646055437100213 max=0.0014643810836420018
+R % Cardholder Busy Signals n=5.0 avg=0.11661246310489887 sd=0.005980975253490727 min=0.11063385186905038 max=0.12527755054341475
+R % Regular Busy Signals n=5.0 avg=0.48263175643851436 sd=0.0062292083232886805 min=0.47437056165267916 max=0.4897675593734209
+R Gold Counter n=5.0 avg=5.4562156630817205 sd=0.2884140375900886 min=5.025562000529839 max=5.722415712146219
+R Gold Customers Time in Queue n=5.0 avg=0.6437478185657265 sd=0.07862394001660133 min=0.5140771342717613 max=0.7078260369662939
+R Gold Operator Pool:FractionBusy n=5.0 avg=1.079528944116135 sd=0.004888930489837652 min=1.0731895751183347 max=1.0852122762360115
+R Gold Operator Pool:NumBusy n=5.0 avg=25.908694658787244 sd=0.11733433175610607 min=25.75654980284003 max=26.045094629664277
+R Gold Operator Pool:Q:NumInQ n=5.0 avg=0.7847123451874943 sd=0.1153004433251071 min=0.6013791534992711 max=0.8953999367623617
+R Gold Operator Pool:Q:TimeInQ n=5.0 avg=0.6437478185657265 sd=0.07862394001660133 min=0.5140771342717613 max=0.7078260369662939
+R Gold Operators:InstantaneousUtil n=5.0 avg=0.727513363240667 sd=0.01584085606391373 min=0.7034804509560226 max=0.7413547934945695
+R Gold Operators:InstantaneousUtil:IntervalAvg:Hourly Gold:01:[0_0,60_0] n=5.0 avg=0.6407770904254539 sd=0.09609018682552282 min=0.558261326981715 max=0.751307200185911
+R Gold Operators:InstantaneousUtil:IntervalAvg:Hourly Gold:02:[60_0,120_0] n=5.0 avg=0.7472364987933321 sd=0.09946755050030415 min=0.6390366616583493 max=0.8564433544964614
+R Gold Operators:InstantaneousUtil:IntervalAvg:Hourly Gold:03:[120_0,180_0] n=5.0 avg=0.6814148161909663 sd=0.07539434651179945 min=0.6083332802077613 max=0.7745739921004796
+R Gold Operators:InstantaneousUtil:IntervalAvg:Hourly Gold:04:[180_0,240_0] n=5.0 avg=0.5196271468692173 sd=0.0511206211572306 min=0.4684843352456113 max=0.5860816450266607
+R Gold Operators:InstantaneousUtil:IntervalAvg:Hourly Gold:05:[240_0,300_0] n=5.0 avg=0.5175053599859529 sd=0.04430232376202409 min=0.46542645659112053 max=0.5769810471031287
+R Gold Operators:InstantaneousUtil:IntervalAvg:Hourly Gold:06:[300_0,360_0] n=5.0 avg=0.7798579963562075 sd=0.027209994036850718 min=0.7439273987520575 max=0.8051443832027843
+R Gold Operators:InstantaneousUtil:IntervalAvg:Hourly Gold:07:[360_0,420_0] n=5.0 avg=0.6980064707204264 sd=0.05245523578837553 min=0.6185033353594638 max=0.7589215880724216
+R Gold Operators:InstantaneousUtil:IntervalAvg:Hourly Gold:08:[420_0,480_0] n=5.0 avg=0.6087793228921735 sd=0.0805542039297558 min=0.5259517978211988 max=0.7222034553737066
+R Gold Operators:InstantaneousUtil:IntervalAvg:Hourly Gold:09:[480_0,540_0] n=5.0 avg=0.5538565242283872 sd=0.02654998207084856 min=0.5239933746939547 max=0.5934931680619429
+R Gold Operators:InstantaneousUtil:IntervalAvg:Hourly Gold:10:[540_0,600_0] n=5.0 avg=0.7896893812908984 sd=0.06010767483679199 min=0.721437316493343 max=0.870416169752707
+R Gold Operators:InstantaneousUtil:IntervalAvg:Hourly Gold:11:[600_0,660_0] n=5.0 avg=0.4875710466937767 sd=0.05721459222068533 min=0.3993250836078327 max=0.5553805093551782
+R Gold Operators:InstantaneousUtil:IntervalAvg:Hourly Gold:12:[660_0,720_0] n=5.0 avg=0.289258116445377 sd=0.06729169628381262 min=0.2146463899826358 max=0.3514561085130623
+R Gold Operators:InstantaneousUtil:ValueAtStart:Hourly Gold:01:[0_0,60_0] n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Gold Operators:InstantaneousUtil:ValueAtStart:Hourly Gold:02:[60_0,120_0] n=5.0 avg=0.23333333333333334 sd=0.14907119849998599 min=0.0 max=0.3333333333333333
+R Gold Operators:InstantaneousUtil:ValueAtStart:Hourly Gold:03:[120_0,180_0] n=5.0 avg=0.7 sd=0.4149966532662911 min=0.0 max=1.0
+R Gold Operators:InstantaneousUtil:ValueAtStart:Hourly Gold:04:[180_0,240_0] n=5.0 avg=0.5428571428571428 sd=0.11952286093343939 min=0.42857142857142855 max=0.7142857142857143
+R Gold Operators:InstantaneousUtil:ValueAtStart:Hourly Gold:05:[240_0,300_0] n=5.0 avg=0.3333333333333333 sd=0.05892556509887897 min=0.25 max=0.4166666666666667
+R Gold Operators:InstantaneousUtil:ValueAtStart:Hourly Gold:06:[300_0,360_0] n=5.0 avg=0.44999999999999996 sd=0.13944333775567927 min=0.3333333333333333 max=0.6666666666666666
+R Gold Operators:InstantaneousUtil:ValueAtStart:Hourly Gold:07:[360_0,420_0] n=5.0 avg=0.7833333333333333 sd=0.16244657241348276 min=0.5 max=0.9166666666666666
+R Gold Operators:InstantaneousUtil:ValueAtStart:Hourly Gold:08:[420_0,480_0] n=5.0 avg=0.7833333333333333 sd=0.1513825177048746 min=0.5833333333333334 max=0.9166666666666666
+R Gold Operators:InstantaneousUtil:ValueAtStart:Hourly Gold:09:[480_0,540_0] n=5.0 avg=0.7999999999999999 sd=0.1870828693386971 min=0.6 max=1.0
+R Gold Operators:InstantaneousUtil:ValueAtStart:Hourly Gold:10:[540_0,600_0] n=5.0 avg=0.7000000000000001 sd=0.29814239699997197 min=0.3333333333333333 max=1.0
+R Gold Operators:InstantaneousUtil:ValueAtStart:Hourly Gold:11:[600_0,660_0] n=5.0 avg=0.8333333333333334 sd=0.23570226039551587 min=0.5 max=1.0
+R Gold Operators:InstantaneousUtil:ValueAtStart:Hourly Gold:12:[660_0,720_0] n=5.0 avg=0.64 sd=0.16733200530681513 min=0.4 max=0.8
+R Gold Operators:NumActiveUnits n=5.0 avg=6.08 sd=0.0 min=6.08 max=6.08
+R Gold Operators:NumBusyUnits n=5.0 avg=4.3223891554597955 sd=0.11640464468167819 min=4.151667382260717 max=4.416150968741266
+R Gold Operators:NumBusyUnits:IntervalAvg:Hourly Gold:01:[0_0,60_0] n=5.0 avg=1.2815541808509079 sd=0.19218037365104565 min=1.11652265396343 max=1.502614400371822
+R Gold Operators:NumBusyUnits:IntervalAvg:Hourly Gold:02:[60_0,120_0] n=5.0 avg=4.483418992759994 sd=0.596805303001825 min=3.834219969950099 max=5.1386601269787695
+R Gold Operators:NumBusyUnits:IntervalAvg:Hourly Gold:03:[120_0,180_0] n=5.0 avg=4.0884888971457976 sd=0.45236607907079424 min=3.649999681246568 max=4.647443952602872
+R Gold Operators:NumBusyUnits:IntervalAvg:Hourly Gold:04:[180_0,240_0] n=5.0 avg=3.6373900280845275 sd=0.3578443481006188 min=3.2793903467192953 max=4.102571515186639
+R Gold Operators:NumBusyUnits:IntervalAvg:Hourly Gold:05:[240_0,300_0] n=5.0 avg=6.2100643198314405 sd=0.5316278851442792 min=5.585117479093466 max=6.923772565237543
+R Gold Operators:NumBusyUnits:IntervalAvg:Hourly Gold:06:[300_0,360_0] n=5.0 avg=9.358295956274482 sd=0.3265199284421938 min=8.927128785024713 max=9.661732598433373
+R Gold Operators:NumBusyUnits:IntervalAvg:Hourly Gold:07:[360_0,420_0] n=5.0 avg=8.376077648645081 sd=0.629462829460496 min=7.422040024313583 max=9.107059056869085
+R Gold Operators:NumBusyUnits:IntervalAvg:Hourly Gold:08:[420_0,480_0] n=5.0 avg=7.305351874706098 sd=0.9666504471571153 min=6.3114215738544015 max=8.666441464484569
+R Gold Operators:NumBusyUnits:IntervalAvg:Hourly Gold:09:[480_0,540_0] n=5.0 avg=5.544126577718026 sd=0.2720386217995858 min=5.239933746939528 max=5.948921429092767
+R Gold Operators:NumBusyUnits:IntervalAvg:Hourly Gold:10:[540_0,600_0] n=5.0 avg=4.73882482460374 sd=0.3605874224129097 min=4.328623898960078 max=5.222497018516242
+R Gold Operators:NumBusyUnits:IntervalAvg:Hourly Gold:11:[600_0,660_0] n=5.0 avg=2.925426280162687 sd=0.34328755332409877 min=2.39595050164703 max=3.3322830561310712
+R Gold Operators:NumBusyUnits:IntervalAvg:Hourly Gold:12:[660_0,720_0] n=5.0 avg=1.446290582226878 sd=0.3364584814190463 min=1.0732319499131941 max=1.7572805425652784
+R Gold Operators:NumBusyUnits:ValueAtStart:Hourly Gold:01:[0_0,60_0] n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Gold Operators:NumBusyUnits:ValueAtStart:Hourly Gold:02:[60_0,120_0] n=5.0 avg=1.4 sd=0.8944271909999159 min=0.0 max=2.0
+R Gold Operators:NumBusyUnits:ValueAtStart:Hourly Gold:03:[120_0,180_0] n=5.0 avg=4.2 sd=2.489979919597747 min=0.0 max=6.0
+R Gold Operators:NumBusyUnits:ValueAtStart:Hourly Gold:04:[180_0,240_0] n=5.0 avg=3.8 sd=0.8366600265340756 min=3.0 max=5.0
+R Gold Operators:NumBusyUnits:ValueAtStart:Hourly Gold:05:[240_0,300_0] n=5.0 avg=4.0 sd=0.7071067811865475 min=3.0 max=5.0
+R Gold Operators:NumBusyUnits:ValueAtStart:Hourly Gold:06:[300_0,360_0] n=5.0 avg=5.4 sd=1.6733200530681511 min=4.0 max=8.0
+R Gold Operators:NumBusyUnits:ValueAtStart:Hourly Gold:07:[360_0,420_0] n=5.0 avg=9.4 sd=1.9493588689617931 min=6.0 max=11.0
+R Gold Operators:NumBusyUnits:ValueAtStart:Hourly Gold:08:[420_0,480_0] n=5.0 avg=9.4 sd=1.8165902124584952 min=7.0 max=11.0
+R Gold Operators:NumBusyUnits:ValueAtStart:Hourly Gold:09:[480_0,540_0] n=5.0 avg=8.8 sd=2.949576240750525 min=6.0 max=12.0
+R Gold Operators:NumBusyUnits:ValueAtStart:Hourly Gold:10:[540_0,600_0] n=5.0 avg=4.6 sd=2.4083189157584592 min=2.0 max=8.0
+R Gold Operators:NumBusyUnits:ValueAtStart:Hourly Gold:11:[600_0,660_0] n=5.0 avg=5.0 sd=1.4142135623730951 min=3.0 max=6.0
+R Gold Operators:NumBusyUnits:ValueAtStart:Hourly Gold:12:[660_0,720_0] n=5.0 avg=3.2 sd=0.8366600265340756 min=2.0 max=4.0
+R Gold Operators:PTimeBusy n=5.0 avg=0.9679752561442218 sd=0.005127960707474741 min=0.9615587303317595 max=0.974027319058747
+R Gold Operators:PTimeIdle n=5.0 avg=0.03202474385577817 sd=0.005127960707474711 min=0.025972680941253098 max=0.038441269668240415
+R Gold Operators:PTimeInactive n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Gold Operators:ScheduledUtil n=5.0 avg=0.7109192689900979 sd=0.019145500770012813 min=0.6828400299770916 max=0.7263406198587609
+R Probability Gold Q Time <= 1 min n=5.0 avg=0.7217301851152389 sd=0.02885135327569291 min=0.6964426877470355 max=0.768109729961423
+R Probability Regular Q Time <= 5 min n=5.0 avg=0.8124204354028469 sd=0.01585296877005141 min=0.7856966097500618 max=0.8278953922789539
+R Probability Silver Q Time <= 2 min n=5.0 avg=0.6111899257012338 sd=0.027830758037598314 min=0.5836059264960555 max=0.6482490272373541
+R Reg Counter n=5.0 avg=13.447042943679552 sd=0.3865056857866379 min=12.893459322544418 max=13.860920030416214
+R Regular Customers Time in Queue n=5.0 avg=2.4444012725042135 sd=0.18270833270656858 min=2.20876279362123 max=2.686692879609091
+R Regular Operator Pool:FractionBusy n=5.0 avg=1.3594133214961233 sd=0.0077807984986271875 min=1.3468344031393882 max=1.3666815390449942
+R Regular Operator Pool:NumBusy n=5.0 avg=10.875306571968986 sd=0.0622463879890175 min=10.774675225115105 max=10.933452312359954
+R Regular Operator Pool:Q:NumInQ n=5.0 avg=4.978651759503614 sd=0.35420797830284567 min=4.478866317623311 max=5.429200994705952
+R Regular Operator Pool:Q:TimeInQ n=5.0 avg=2.4444012725042135 sd=0.18270833270656858 min=2.20876279362123 max=2.686692879609091
+R Regular Operators:InstantaneousUtil n=5.0 avg=0.8978268325079642 sd=0.005018517700508343 min=0.8924041209364844 max=0.9046857869500584
+R Regular Operators:InstantaneousUtil:IntervalAvg:Hourly Regular:01:[0_0,60_0] n=5.0 avg=0.907989471807132 sd=0.04774448046059224 min=0.8538468655973663 max=0.9611005195795512
+R Regular Operators:InstantaneousUtil:IntervalAvg:Hourly Regular:02:[60_0,120_0] n=5.0 avg=0.994440230451535 sd=0.007731394955499696 min=0.9841946523250864 max=1.0000000000000002
+R Regular Operators:InstantaneousUtil:IntervalAvg:Hourly Regular:03:[120_0,180_0] n=5.0 avg=0.9729052324371735 sd=0.019742468966848767 min=0.9532798072758967 max=0.9999793151395797
+R Regular Operators:InstantaneousUtil:IntervalAvg:Hourly Regular:04:[180_0,240_0] n=5.0 avg=0.9661538152838779 sd=0.02708875226256366 min=0.9312862133625591 max=0.9981635548577648
+R Regular Operators:InstantaneousUtil:IntervalAvg:Hourly Regular:05:[240_0,300_0] n=5.0 avg=0.6638842996972896 sd=0.027569049768577956 min=0.6333678963412235 max=0.6890305220746882
+R Regular Operators:InstantaneousUtil:IntervalAvg:Hourly Regular:06:[300_0,360_0] n=5.0 avg=0.692863473613351 sd=0.033819551464003644 min=0.6425455491271284 max=0.7271818321862601
+R Regular Operators:InstantaneousUtil:IntervalAvg:Hourly Regular:07:[360_0,420_0] n=5.0 avg=0.5851224612551943 sd=0.013431530893099959 min=0.5632518763950277 max=0.5979194802506972
+R Regular Operators:InstantaneousUtil:IntervalAvg:Hourly Regular:08:[420_0,480_0] n=5.0 avg=0.710938463547639 sd=0.019262103325411034 min=0.6838656357126989 max=0.7345183868478443
+R Regular Operators:InstantaneousUtil:IntervalAvg:Hourly Regular:09:[480_0,540_0] n=5.0 avg=0.5457494307158836 sd=0.03955855309522254 min=0.4797633155626585 max=0.5845074206183691
+R Regular Operators:InstantaneousUtil:IntervalAvg:Hourly Regular:10:[540_0,600_0] n=5.0 avg=0.9909118282882314 sd=0.005601144341670386 min=0.9830462557997426 max=0.9962642142205596
+R Regular Operators:InstantaneousUtil:IntervalAvg:Hourly Regular:11:[600_0,660_0] n=5.0 avg=0.6794213574238173 sd=0.05030587462396588 min=0.597820178687517 max=0.7180068114083288
+R Regular Operators:InstantaneousUtil:IntervalAvg:Hourly Regular:12:[660_0,720_0] n=5.0 avg=0.5683600180614087 sd=0.05375486135962643 min=0.48164279864663323 max=0.6135030310527838
+R Regular Operators:InstantaneousUtil:ValueAtStart:Hourly Regular:01:[0_0,60_0] n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Regular Operators:InstantaneousUtil:ValueAtStart:Hourly Regular:02:[60_0,120_0] n=5.0 avg=0.8923076923076922 sd=0.14995068222783023 min=0.6923076923076923 max=1.0
+R Regular Operators:InstantaneousUtil:ValueAtStart:Hourly Regular:03:[120_0,180_0] n=5.0 avg=0.9444444444444444 sd=0.12422599874998831 min=0.7222222222222222 max=1.0
+R Regular Operators:InstantaneousUtil:ValueAtStart:Hourly Regular:04:[180_0,240_0] n=5.0 avg=0.928 sd=0.16099689437998485 min=0.64 max=1.0
+R Regular Operators:InstantaneousUtil:ValueAtStart:Hourly Regular:05:[240_0,300_0] n=5.0 avg=0.7818181818181819 sd=0.21998413833795805 min=0.48484848484848486 max=1.0
+R Regular Operators:InstantaneousUtil:ValueAtStart:Hourly Regular:06:[300_0,360_0] n=5.0 avg=0.696969696969697 sd=0.14689938961867663 min=0.48484848484848486 max=0.8181818181818182
+R Regular Operators:InstantaneousUtil:ValueAtStart:Hourly Regular:07:[360_0,420_0] n=5.0 avg=0.7333333333333334 sd=0.07234749325038378 min=0.6666666666666666 max=0.8484848484848485
+R Regular Operators:InstantaneousUtil:ValueAtStart:Hourly Regular:08:[420_0,480_0] n=5.0 avg=0.6545454545454545 sd=0.12045216311728357 min=0.5151515151515151 max=0.8181818181818182
+R Regular Operators:InstantaneousUtil:ValueAtStart:Hourly Regular:09:[480_0,540_0] n=5.0 avg=0.876923076923077 sd=0.11665962221617768 min=0.7692307692307693 max=1.0
+R Regular Operators:InstantaneousUtil:ValueAtStart:Hourly Regular:10:[540_0,600_0] n=5.0 avg=0.7 sd=0.1 min=0.6 max=0.85
+R Regular Operators:InstantaneousUtil:ValueAtStart:Hourly Regular:11:[600_0,660_0] n=5.0 avg=1.0 sd=0.0 min=1.0 max=1.0
+R Regular Operators:InstantaneousUtil:ValueAtStart:Hourly Regular:12:[660_0,720_0] n=5.0 avg=0.9 sd=0.16298006013006622 min=0.625 max=1.0
+R Regular Operators:NumActiveUnits n=5.0 avg=13.04 sd=0.0 min=13.04 max=13.04
+R Regular Operators:NumBusyUnits n=5.0 avg=10.875306571968986 sd=0.0622463879890175 min=10.774675225115105 max=10.933452312359954
+R Regular Operators:NumBusyUnits:IntervalAvg:Hourly Regular:01:[0_0,60_0] n=5.0 avg=6.355926302649923 sd=0.3342113632241464 min=5.976928059181563 max=6.727703637056859
+R Regular Operators:NumBusyUnits:IntervalAvg:Hourly Regular:02:[60_0,120_0] n=5.0 avg=12.927722995869951 sd=0.10050813442149108 min=12.794530480226118 max=13.0
+R Regular Operators:NumBusyUnits:IntervalAvg:Hourly Regular:03:[120_0,180_0] n=5.0 avg=17.51229418386912 sd=0.355364441403292 min=17.15903653096613 max=17.99962767251247
+R Regular Operators:NumBusyUnits:IntervalAvg:Hourly Regular:04:[180_0,240_0] n=5.0 avg=24.15384538209692 sd=0.6772188065640844 min=23.282155334064033 max=24.954088871444053
+R Regular Operators:NumBusyUnits:IntervalAvg:Hourly Regular:05:[240_0,300_0] n=5.0 avg=21.908181890010553 sd=0.909778642363084 min=20.90114057926036 max=22.738007228464735
+R Regular Operators:NumBusyUnits:IntervalAvg:Hourly Regular:06:[300_0,360_0] n=5.0 avg=22.864494629240564 sd=1.1160451983119901 min=21.204003121195424 max=23.997000462146495
+R Regular Operators:NumBusyUnits:IntervalAvg:Hourly Regular:07:[360_0,420_0] n=5.0 avg=19.30904122142154 sd=0.44324051947219656 min=18.587311921036175 max=19.731342848273002
+R Regular Operators:NumBusyUnits:IntervalAvg:Hourly Regular:08:[420_0,480_0] n=5.0 avg=23.46096929707222 sd=0.635649409738364 min=22.567565978519543 max=24.239106765978978
+R Regular Operators:NumBusyUnits:IntervalAvg:Hourly Regular:09:[480_0,540_0] n=5.0 avg=14.189578859307664 sd=1.0285701339976014 min=12.473846204629202 max=15.19719293607765
+R Regular Operators:NumBusyUnits:IntervalAvg:Hourly Regular:10:[540_0,600_0] n=5.0 avg=19.818236565764728 sd=0.11202288683341055 min=19.660925115994935 max=19.92528428441104
+R Regular Operators:NumBusyUnits:IntervalAvg:Hourly Regular:11:[600_0,660_0] n=5.0 avg=10.239073072671806 sd=0.7684258592953561 min=8.997429826175539 max=10.809912406663988
+R Regular Operators:NumBusyUnits:IntervalAvg:Hourly Regular:12:[660_0,720_0] n=5.0 avg=4.580286657527522 sd=0.39236673770183217 min=3.967299876213595 max=4.9080242484224375
+R Regular Operators:NumBusyUnits:ValueAtStart:Hourly Regular:01:[0_0,60_0] n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Regular Operators:NumBusyUnits:ValueAtStart:Hourly Regular:02:[60_0,120_0] n=5.0 avg=11.6 sd=1.949358868961793 min=9.0 max=13.0
+R Regular Operators:NumBusyUnits:ValueAtStart:Hourly Regular:03:[120_0,180_0] n=5.0 avg=17.0 sd=2.23606797749979 min=13.0 max=18.0
+R Regular Operators:NumBusyUnits:ValueAtStart:Hourly Regular:04:[180_0,240_0] n=5.0 avg=23.2 sd=4.024922359499622 min=16.0 max=25.0
+R Regular Operators:NumBusyUnits:ValueAtStart:Hourly Regular:05:[240_0,300_0] n=5.0 avg=25.8 sd=7.259476565152615 min=16.0 max=33.0
+R Regular Operators:NumBusyUnits:ValueAtStart:Hourly Regular:06:[300_0,360_0] n=5.0 avg=23.0 sd=4.847679857416329 min=16.0 max=27.0
+R Regular Operators:NumBusyUnits:ValueAtStart:Hourly Regular:07:[360_0,420_0] n=5.0 avg=24.2 sd=2.387467277262665 min=22.0 max=28.0
+R Regular Operators:NumBusyUnits:ValueAtStart:Hourly Regular:08:[420_0,480_0] n=5.0 avg=21.6 sd=3.9749213828703582 min=17.0 max=27.0
+R Regular Operators:NumBusyUnits:ValueAtStart:Hourly Regular:09:[480_0,540_0] n=5.0 avg=23.0 sd=3.3166247903553994 min=20.0 max=27.0
+R Regular Operators:NumBusyUnits:ValueAtStart:Hourly Regular:10:[540_0,600_0] n=5.0 avg=14.0 sd=1.9999999999999998 min=12.0 max=17.0
+R Regular Operators:NumBusyUnits:ValueAtStart:Hourly Regular:11:[600_0,660_0] n=5.0 avg=20.0 sd=0.0 min=20.0 max=20.0
+R Regular Operators:NumBusyUnits:ValueAtStart:Hourly Regular:12:[660_0,720_0] n=5.0 avg=9.2 sd=3.1937438845342627 min=5.0 max=13.0
+R Regular Operators:PTimeBusy n=5.0 avg=0.9989719574247711 sd=6.726316795337054E-4 min=0.9980054319919204 max=0.999738303700683
+R Regular Operators:PTimeIdle n=5.0 avg=0.001028042575228892 sd=6.726316795336691E-4 min=2.6169629931707716E-4 max=0.0019945680080795426
+R Regular Operators:PTimeInactive n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Regular Operators:ScheduledUtil n=5.0 avg=0.8339959027583579 sd=0.004773496011427691 min=0.8262787749321401 max=0.8384549319294443
+R Silver Counter n=5.0 avg=14.142287580878573 sd=0.29794333418960434 min=13.735715746550115 max=14.496700162639941
+R Silver Customers Time in Queue n=5.0 avg=1.35575063051135 sd=0.09609316037188366 min=1.2181578213185227 max=1.452330608596465
+R Silver Operator Pool:FractionBusy n=5.0 avg=1.136121342280393 sd=0.0033828344732826357 min=1.1318992755801005 max=1.1405081773193786
+R Silver Operator Pool:NumBusy n=5.0 avg=21.586305503327466 sd=0.06427385499236934 min=21.50608623602191 max=21.66965536906819
+R Silver Operator Pool:Q:NumInQ n=5.0 avg=3.4862408690776103 sd=0.2549967787616878 min=3.135825010332648 max=3.7434657357254126
+R Silver Operator Pool:Q:TimeInQ n=5.0 avg=1.35575063051135 sd=0.09609316037188366 min=1.2181578213185227 max=1.452330608596465
+R Silver Operators:InstantaneousUtil n=5.0 avg=0.8175578340434734 sd=0.004714116257706043 min=0.8119791343289156 max=0.8225092127673768
+R Silver Operators:InstantaneousUtil:IntervalAvg:Hourly Silver:01:[0_0,60_0] n=5.0 avg=0.8270771030385734 sd=0.09095451246996042 min=0.7141907034205801 max=0.9355129104065955
+R Silver Operators:InstantaneousUtil:IntervalAvg:Hourly Silver:02:[60_0,120_0] n=5.0 avg=0.9467803933370361 sd=0.04567097250767966 min=0.8754491115234457 max=0.9871857970816661
+R Silver Operators:InstantaneousUtil:IntervalAvg:Hourly Silver:03:[120_0,180_0] n=5.0 avg=0.8611835071692824 sd=0.057181824927519366 min=0.7624778874254564 max=0.909942412147462
+R Silver Operators:InstantaneousUtil:IntervalAvg:Hourly Silver:04:[180_0,240_0] n=5.0 avg=0.5856561436745745 sd=0.035197636855743154 min=0.5452118644959455 max=0.6351403043318432
+R Silver Operators:InstantaneousUtil:IntervalAvg:Hourly Silver:05:[240_0,300_0] n=5.0 avg=0.5757274224406885 sd=0.016826694032424643 min=0.5569282064247237 max=0.6005139073026062
+R Silver Operators:InstantaneousUtil:IntervalAvg:Hourly Silver:06:[300_0,360_0] n=5.0 avg=0.8328118838782512 sd=0.020649842023963035 min=0.8084085383180124 max=0.8557425147693745
+R Silver Operators:InstantaneousUtil:IntervalAvg:Hourly Silver:07:[360_0,420_0] n=5.0 avg=0.7362353777180456 sd=0.03773557360712569 min=0.6943014919119918 max=0.7811565744531076
+R Silver Operators:InstantaneousUtil:IntervalAvg:Hourly Silver:08:[420_0,480_0] n=5.0 avg=0.6481048572505282 sd=0.0395973075030918 min=0.608103656561327 max=0.7137603111246837
+R Silver Operators:InstantaneousUtil:IntervalAvg:Hourly Silver:09:[480_0,540_0] n=5.0 avg=0.5820594737529234 sd=0.03351539882194191 min=0.5530949409826519 max=0.6208290279090619
+R Silver Operators:InstantaneousUtil:IntervalAvg:Hourly Silver:10:[540_0,600_0] n=5.0 avg=0.9434954175783635 sd=0.026542403578951747 min=0.9047621726955971 max=0.9794100583986117
+R Silver Operators:InstantaneousUtil:IntervalAvg:Hourly Silver:11:[600_0,660_0] n=5.0 avg=0.5842809988034365 sd=0.012683412132884774 min=0.5699796197627223 max=0.6034187038370732
+R Silver Operators:InstantaneousUtil:IntervalAvg:Hourly Silver:12:[660_0,720_0] n=5.0 avg=0.3251235162944999 sd=0.07126469436712965 min=0.21993607474191207 max=0.41815444914481453
+R Silver Operators:InstantaneousUtil:ValueAtStart:Hourly Silver:01:[0_0,60_0] n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Silver Operators:InstantaneousUtil:ValueAtStart:Hourly Silver:02:[60_0,120_0] n=5.0 avg=0.5692307692307692 sd=0.2805320389047764 min=0.3076923076923077 max=1.0
+R Silver Operators:InstantaneousUtil:ValueAtStart:Hourly Silver:03:[120_0,180_0] n=5.0 avg=0.8769230769230769 sd=0.2005908432370046 min=0.5384615384615384 max=1.0
+R Silver Operators:InstantaneousUtil:ValueAtStart:Hourly Silver:04:[180_0,240_0] n=5.0 avg=0.75 sd=0.09882117688026186 min=0.625 max=0.875
+R Silver Operators:InstantaneousUtil:ValueAtStart:Hourly Silver:05:[240_0,300_0] n=5.0 avg=0.3333333333333333 sd=0.0868595511078413 min=0.25925925925925924 max=0.4444444444444444
+R Silver Operators:InstantaneousUtil:ValueAtStart:Hourly Silver:06:[300_0,360_0] n=5.0 avg=0.5703703703703704 sd=0.16058876584206516 min=0.37037037037037035 max=0.8148148148148148
+R Silver Operators:InstantaneousUtil:ValueAtStart:Hourly Silver:07:[360_0,420_0] n=5.0 avg=0.8296296296296296 sd=0.18257418583505539 min=0.5185185185185185 max=1.0
+R Silver Operators:InstantaneousUtil:ValueAtStart:Hourly Silver:08:[420_0,480_0] n=5.0 avg=0.6 sd=0.1467526870826589 min=0.4074074074074074 max=0.7407407407407407
+R Silver Operators:InstantaneousUtil:ValueAtStart:Hourly Silver:09:[480_0,540_0] n=5.0 avg=0.8272727272727273 sd=0.0985431063121764 min=0.6818181818181818 max=0.9545454545454546
+R Silver Operators:InstantaneousUtil:ValueAtStart:Hourly Silver:10:[540_0,600_0] n=5.0 avg=0.7999999999999999 sd=0.2390457218668787 min=0.42857142857142855 max=1.0
+R Silver Operators:InstantaneousUtil:ValueAtStart:Hourly Silver:11:[600_0,660_0] n=5.0 avg=0.9428571428571428 sd=0.12777531299998798 min=0.7142857142857143 max=1.0
+R Silver Operators:InstantaneousUtil:ValueAtStart:Hourly Silver:12:[660_0,720_0] n=5.0 avg=0.6727272727272727 sd=0.1885131032120702 min=0.45454545454545453 max=0.9090909090909091
+R Silver Operators:NumActiveUnits n=5.0 avg=13.52 sd=0.0 min=13.52 max=13.52
+R Silver Operators:NumBusyUnits n=5.0 avg=10.710998931358487 sd=0.030560943941905384 min=10.666214093593261 max=10.736203056708273
+R Silver Operators:NumBusyUnits:IntervalAvg:Hourly Silver:01:[0_0,60_0] n=5.0 avg=4.135385515192868 sd=0.4547725623498024 min=3.5709535171029003 max=4.677564552032978
+R Silver Operators:NumBusyUnits:IntervalAvg:Hourly Silver:02:[60_0,120_0] n=5.0 avg=12.308145113381464 sd=0.593722642599828 min=11.380838449804807 max=12.83341536206165
+R Silver Operators:NumBusyUnits:IntervalAvg:Hourly Silver:03:[120_0,180_0] n=5.0 avg=11.195385593200683 sd=0.7433637240577685 min=9.91221253653092 max=11.829251357917043
+R Silver Operators:NumBusyUnits:IntervalAvg:Hourly Silver:04:[180_0,240_0] n=5.0 avg=9.37049829879318 sd=0.5631621896918956 min=8.723389831935098 max=10.162244869309445
+R Silver Operators:NumBusyUnits:IntervalAvg:Hourly Silver:05:[240_0,300_0] n=5.0 avg=15.544640405898582 sd=0.45432073887543906 min=15.037061573467668 max=16.213875497170374
+R Silver Operators:NumBusyUnits:IntervalAvg:Hourly Silver:06:[300_0,360_0] n=5.0 avg=22.48592086471273 sd=0.5575457346469957 min=21.82703053458621 max=23.105047898773044
+R Silver Operators:NumBusyUnits:IntervalAvg:Hourly Silver:07:[360_0,420_0] n=5.0 avg=19.878355198387162 sd=1.0188604873925486 min=18.746140281623624 max=21.0912275102343
+R Silver Operators:NumBusyUnits:IntervalAvg:Hourly Silver:08:[420_0,480_0] n=5.0 avg=17.4988311457642 sd=1.0691273025834487 min=16.41879872715561 max=19.271528400366286
+R Silver Operators:NumBusyUnits:IntervalAvg:Hourly Silver:09:[480_0,540_0] n=5.0 avg=12.805308422564257 sd=0.7373387740827113 min=12.168088701618338 max=13.658238613999174
+R Silver Operators:NumBusyUnits:IntervalAvg:Hourly Silver:10:[540_0,600_0] n=5.0 avg=13.217225719925006 sd=0.3836781817707569 min=12.666670417738397 max=13.74693028285983
+R Silver Operators:NumBusyUnits:IntervalAvg:Hourly Silver:11:[600_0,660_0] n=5.0 avg=8.179933983248091 sd=0.17756776986043069 min=7.979714676677941 max=8.447861853719012
+R Silver Operators:NumBusyUnits:IntervalAvg:Hourly Silver:12:[660_0,720_0] n=5.0 avg=3.5763586792394504 sd=0.7839116380384513 min=2.419296822160959 max=4.599698940592953
+R Silver Operators:NumBusyUnits:ValueAtStart:Hourly Silver:01:[0_0,60_0] n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Silver Operators:NumBusyUnits:ValueAtStart:Hourly Silver:02:[60_0,120_0] n=5.0 avg=7.4 sd=3.646916505762094 min=4.0 max=13.0
+R Silver Operators:NumBusyUnits:ValueAtStart:Hourly Silver:03:[120_0,180_0] n=5.0 avg=11.4 sd=2.60768096208106 min=7.0 max=13.0
+R Silver Operators:NumBusyUnits:ValueAtStart:Hourly Silver:04:[180_0,240_0] n=5.0 avg=12.0 sd=1.5811388300841898 min=10.0 max=14.0
+R Silver Operators:NumBusyUnits:ValueAtStart:Hourly Silver:05:[240_0,300_0] n=5.0 avg=9.0 sd=2.345207879911715 min=7.0 max=12.0
+R Silver Operators:NumBusyUnits:ValueAtStart:Hourly Silver:06:[300_0,360_0] n=5.0 avg=15.4 sd=4.33589667773576 min=10.0 max=22.0
+R Silver Operators:NumBusyUnits:ValueAtStart:Hourly Silver:07:[360_0,420_0] n=5.0 avg=22.4 sd=4.9295030175464944 min=14.0 max=27.0
+R Silver Operators:NumBusyUnits:ValueAtStart:Hourly Silver:08:[420_0,480_0] n=5.0 avg=16.2 sd=3.96232255123179 min=11.0 max=20.0
+R Silver Operators:NumBusyUnits:ValueAtStart:Hourly Silver:09:[480_0,540_0] n=5.0 avg=18.2 sd=2.16794833886788 min=15.0 max=21.0
+R Silver Operators:NumBusyUnits:ValueAtStart:Hourly Silver:10:[540_0,600_0] n=5.0 avg=11.8 sd=4.024922359499622 min=6.0 max=16.0
+R Silver Operators:NumBusyUnits:ValueAtStart:Hourly Silver:11:[600_0,660_0] n=5.0 avg=13.2 sd=1.788854381999832 min=10.0 max=14.0
+R Silver Operators:NumBusyUnits:ValueAtStart:Hourly Silver:12:[660_0,720_0] n=5.0 avg=7.4 sd=2.073644135332772 min=5.0 max=10.0
+R Silver Operators:PTimeBusy n=5.0 avg=0.9969156463827673 sd=0.0011901325367572326 min=0.9957431699897417 max=0.9985187068451304
+R Silver Operators:PTimeIdle n=5.0 avg=0.003084353617232739 sd=0.0011901325367571617 min=0.001481293154869654 max=0.004256830010258307
+R Silver Operators:PTimeInactive n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Silver Operators:ScheduledUtil n=5.0 avg=0.792233648769119 sd=0.0022604248477740754 min=0.7889211607687323 max=0.7940978592239848
+R Trunk Lines n=5.0 avg=42.85546604356524 sd=0.6678443582287887 min=41.977410407825865 max=43.433095381493
+C Count of Abandoned Calls from Waiting n=5.0 avg=16.6 sd=0.5477225575051664
+C Count of Cardholder Busy Signals n=5.0 avg=999.6 sd=50.77696328060591
+C Count of Regular Busy Signals n=5.0 avg=3818.4 sd=86.05986288624914
+C Gold Operators:SeizeCount n=5.0 avg=2075.6 sd=49.11517077237944
+C Number of Cardholder Customers in System n=5.0 avg=8572.2 sd=32.33728498189038
+C Number of Regular Customers in System n=5.0 avg=7911.4 sd=132.3397143717637
+C Regular Operators:SeizeCount n=5.0 avg=4709.4 sd=51.4081705568288
+C Silver Operators:SeizeCount n=5.0 avg=4850.0 sd=30.174492539229142
+C Total Number in System After Trunk Line n=5.0 avg=11665.6 sd=52.9131363651786

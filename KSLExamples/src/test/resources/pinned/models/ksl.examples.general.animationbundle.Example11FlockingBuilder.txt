@@ -1,0 +1,4 @@
+reps=1 length=25.0 warmup=0.0
+R AvgNeighborCount n=1.0 avg=5.968 sd=NaN min=5.968 max=5.968
+R AvgSpeed n=1.0 avg=1.4763511456740002 sd=NaN min=1.4763511456740002 max=1.4763511456740002
+R Polarization n=1.0 avg=0.3158848553786784 sd=NaN min=0.3158848553786784 max=0.3158848553786784

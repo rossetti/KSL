@@ -1,0 +1,146 @@
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+CartsSentHome
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+AgvSystem:EventsPerZoneTraversal                                       	           10 	       1.0081 	       0.0012
+AgvSystem:NumTransportersMoving                                        	           10 	       1.7574 	       0.0214
+AgvSystem:NumTransportersBlocked                                       	           10 	       0.0106 	       0.0014
+AgvSystem:NumTransportersIdle                                          	           10 	       0.2320 	       0.0210
+AgvSystem:ZoneUtilization                                              	           10 	       0.0625 	       0.0000
+AgvSystem:NumTransportsNeverStarted                                    	           10 	       2.2000 	       1.3404
+AgvSystem:NumTransportsUnfinished                                      	           10 	       1.6000 	       0.5002
+AgvSystem:ApproachTime                                                 	           10 	      11.2344 	       0.1310
+AgvSystem:RideTime                                                     	           10 	      20.5786 	       0.0255
+AgvSystem:TransportBlockedTime                                         	           10 	       0.2062 	       0.0295
+AgvSystem:ZonesTraversedPerTransport                                   	           10 	      21.0000 	       0.0000
+AgvSystem:RouteLengthPerTransport                                      	           10 	     204.0000 	       0.0000
+AgvSystem:AwaitingPickupHoldQ:NumInQ                                   	           10 	       0.5610 	       0.0119
+AgvSystem:AwaitingPickupHoldQ:TimeInQ                                  	           10 	      11.2311 	       0.1335
+AgvSystem:RidingHoldQ:NumInQ                                           	           10 	       1.0292 	       0.0255
+AgvSystem:RidingHoldQ:TimeInQ                                          	           10 	      20.5785 	       0.0256
+AgvSystem:DrivingHoldQ:NumInQ                                          	           10 	       0.0000 	       0.0000
+AgvSystem:DrivingHoldQ:TimeInQ                                         	            0 	          NaN 	          NaN
+AgvSystem:NumBlockedByVehicle                                          	           10 	       0.0106 	       0.0014
+AgvSystem:NumBlockedByOccupier                                         	           10 	       0.0000 	       0.0000
+AgvSystem:NumBlockedByPopulation                                       	           10 	       0.0000 	       0.0000
+AgvSystem:NumBlockedByIdleVehicle                                      	           10 	       0.0000 	       0.0000
+AgvSystem:NumZonesClosed                                               	           10 	       0.0000 	       0.0000
+AgvSystem:NumHoldersAwaitingSpace                                      	           10 	       0.0000 	       0.0000
+AgvSystem:TimeToCloseZones                                             	            0 	          NaN 	          NaN
+AgvSystem:TransportTime                                                	           10 	      61.7608 	       4.3396
+Cart1:NumActiveUnits                                                   	           10 	       1.0000 	       0.0000
+Cart1:PTimeInactive                                                    	           10 	       0.0000 	       0.0000
+Cart1:PTimeIdle                                                        	           10 	       0.1906 	       0.0217
+Cart1:PTimeBusy                                                        	           10 	       0.8094 	       0.0217
+Cart1:InstantaneousUtil                                                	           10 	       0.8094 	       0.0217
+Cart1:NumBusyUnits                                                     	           10 	       0.8094 	       0.0217
+Cart1:ScheduledUtil                                                    	           10 	       0.8094 	       0.0217
+Cart1:FracTimeMoving                                                   	           10 	       0.8541 	       0.0168
+Cart1:FracTimeTransporting                                             	           10 	       0.4974 	       0.0143
+Cart1:FracTimeMovingEmpty                                              	           10 	       0.3566 	       0.0068
+Cart1:FracTimeBlocked                                                  	           10 	       0.0053 	       0.0014
+Cart2:NumActiveUnits                                                   	           10 	       1.0000 	       0.0000
+Cart2:PTimeInactive                                                    	           10 	       0.0000 	       0.0000
+Cart2:PTimeIdle                                                        	           10 	       0.1691 	       0.0172
+Cart2:PTimeBusy                                                        	           10 	       0.8309 	       0.0172
+Cart2:InstantaneousUtil                                                	           10 	       0.8309 	       0.0172
+Cart2:NumBusyUnits                                                     	           10 	       0.8309 	       0.0172
+Cart2:ScheduledUtil                                                    	           10 	       0.8309 	       0.0172
+Cart2:FracTimeMoving                                                   	           10 	       0.9033 	       0.0080
+Cart2:FracTimeTransporting                                             	           10 	       0.5229 	       0.0124
+Cart2:FracTimeMovingEmpty                                              	           10 	       0.3804 	       0.0103
+Cart2:FracTimeBlocked                                                  	           10 	       0.0053 	       0.0019
+Carts:NumBusy                                                          	           10 	       1.6403 	       0.0376
+Carts:FractionBusy                                                     	           10 	       0.8201 	       0.0188
+Carts:Q:NumInQ                                                         	           10 	       1.4633 	       0.2418
+Carts:Q:TimeInQ                                                        	           10 	      29.0625 	       4.3784
+TimeInSystem                                                           	           10 	      61.7608 	       4.3396
+AgvSystem:NumZoneTraversals                                            	           10 	   12698.7000 	     149.6303
+AgvSystem:NumEventsScheduled                                           	           10 	   12801.5000 	     151.6936
+AgvSystem:NumDeadlocksDetected                                         	           10 	       0.0000 	       0.0000
+AgvSystem:NumObstructionsDetected                                      	           10 	       0.0000 	       0.0000
+AgvSystem:NumZoneEngagements                                           	           10 	       0.0000 	       0.0000
+AgvSystem:NumRequestsUnfilled                                          	           10 	       0.0000 	       0.0000
+Cart1:SeizeCount                                                       	           10 	     170.7000 	       5.0476
+Cart1:NumTimesBlocked                                                  	           10 	      53.1000 	      13.6875
+Cart2:SeizeCount                                                       	           10 	     179.0000 	       4.3054
+Cart2:NumTimesBlocked                                                  	           10 	      50.1000 	      17.3676
+PartsDelivered                                                         	           10 	     349.9000 	       8.7772
+------------------------------------------------------------------------------------------------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+CartsLeftInPlace
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+AgvSystem:EventsPerZoneTraversal                                       	           10 	       1.0143 	       0.0014
+AgvSystem:NumTransportersMoving                                        	           10 	       1.5602 	       0.0391
+AgvSystem:NumTransportersBlocked                                       	           10 	       0.1484 	       0.0133
+AgvSystem:NumTransportersIdle                                          	           10 	       0.2915 	       0.0263
+AgvSystem:ZoneUtilization                                              	           10 	       0.0625 	       0.0000
+AgvSystem:NumTransportsNeverStarted                                    	           10 	       2.1000 	       1.2367
+AgvSystem:NumTransportsUnfinished                                      	           10 	       1.6000 	       0.3694
+AgvSystem:ApproachTime                                                 	           10 	      10.8000 	       0.0000
+AgvSystem:RideTime                                                     	           10 	      23.3914 	       0.3197
+AgvSystem:TransportBlockedTime                                         	           10 	       2.9914 	       0.3197
+AgvSystem:ZonesTraversedPerTransport                                   	           10 	      21.0000 	       0.0000
+AgvSystem:RouteLengthPerTransport                                      	           10 	     204.0000 	       0.0000
+AgvSystem:AwaitingPickupHoldQ:NumInQ                                   	           10 	       0.5400 	       0.0136
+AgvSystem:AwaitingPickupHoldQ:TimeInQ                                  	           10 	      10.8000 	       0.0000
+AgvSystem:RidingHoldQ:NumInQ                                           	           10 	       1.1686 	       0.0128
+AgvSystem:RidingHoldQ:TimeInQ                                          	           10 	      23.3903 	       0.3184
+AgvSystem:DrivingHoldQ:NumInQ                                          	           10 	       0.0000 	       0.0000
+AgvSystem:DrivingHoldQ:TimeInQ                                         	            0 	          NaN 	          NaN
+AgvSystem:NumBlockedByVehicle                                          	           10 	       0.1484 	       0.0133
+AgvSystem:NumBlockedByOccupier                                         	           10 	       0.0000 	       0.0000
+AgvSystem:NumBlockedByPopulation                                       	           10 	       0.0000 	       0.0000
+AgvSystem:NumBlockedByIdleVehicle                                      	           10 	       0.1166 	       0.0104
+AgvSystem:NumZonesClosed                                               	           10 	       0.0000 	       0.0000
+AgvSystem:NumHoldersAwaitingSpace                                      	           10 	       0.0000 	       0.0000
+AgvSystem:TimeToCloseZones                                             	            0 	          NaN 	          NaN
+AgvSystem:TransportTime                                                	           10 	      62.9644 	       3.7609
+Cart1:NumActiveUnits                                                   	           10 	       1.0000 	       0.0000
+Cart1:PTimeInactive                                                    	           10 	       0.0000 	       0.0000
+Cart1:PTimeIdle                                                        	           10 	       0.1270 	       0.0152
+Cart1:PTimeBusy                                                        	           10 	       0.8730 	       0.0152
+Cart1:InstantaneousUtil                                                	           10 	       0.8730 	       0.0152
+Cart1:NumBusyUnits                                                     	           10 	       0.8730 	       0.0152
+Cart1:ScheduledUtil                                                    	           10 	       0.8730 	       0.0152
+Cart1:FracTimeMoving                                                   	           10 	       0.7804 	       0.0197
+Cart1:FracTimeTransporting                                             	           10 	       0.5105 	       0.0128
+Cart1:FracTimeMovingEmpty                                              	           10 	       0.2699 	       0.0069
+Cart1:FracTimeBlocked                                                  	           10 	       0.0676 	       0.0094
+Cart2:NumActiveUnits                                                   	           10 	       1.0000 	       0.0000
+Cart2:PTimeInactive                                                    	           10 	       0.0000 	       0.0000
+Cart2:PTimeIdle                                                        	           10 	       0.1145 	       0.0161
+Cart2:PTimeBusy                                                        	           10 	       0.8855 	       0.0161
+Cart2:InstantaneousUtil                                                	           10 	       0.8855 	       0.0161
+Cart2:NumBusyUnits                                                     	           10 	       0.8855 	       0.0161
+Cart2:ScheduledUtil                                                    	           10 	       0.8855 	       0.0161
+Cart2:FracTimeMoving                                                   	           10 	       0.7798 	       0.0195
+Cart2:FracTimeTransporting                                             	           10 	       0.5097 	       0.0127
+Cart2:FracTimeMovingEmpty                                              	           10 	       0.2701 	       0.0068
+Cart2:FracTimeBlocked                                                  	           10 	       0.0807 	       0.0104
+Carts:NumBusy                                                          	           10 	       1.7585 	       0.0275
+Carts:FractionBusy                                                     	           10 	       0.8793 	       0.0138
+Carts:Q:NumInQ                                                         	           10 	       1.4027 	       0.2210
+Carts:Q:TimeInQ                                                        	           10 	      27.8676 	       3.9650
+TimeInSystem                                                           	           10 	      62.9644 	       3.7609
+AgvSystem:NumZoneTraversals                                            	           10 	   11201.9000 	     280.8431
+AgvSystem:NumEventsScheduled                                           	           10 	   11361.7000 	     282.3287
+AgvSystem:NumDeadlocksDetected                                         	           10 	       0.0000 	       0.0000
+AgvSystem:NumObstructionsDetected                                      	           10 	      40.5000 	       5.3453
+AgvSystem:NumZoneEngagements                                           	           10 	       0.0000 	       0.0000
+AgvSystem:NumRequestsUnfilled                                          	           10 	       0.0000 	       0.0000
+Cart1:SeizeCount                                                       	           10 	     174.9000 	       4.4540
+Cart1:NumTimesBlocked                                                  	           10 	      80.3000 	      18.3067
+Cart2:SeizeCount                                                       	           10 	     174.7000 	       4.6121
+Cart2:NumTimesBlocked                                                  	           10 	      79.8000 	      11.5239
+PartsDelivered                                                         	           10 	     349.8000 	       8.9463
+------------------------------------------------------------------------------------------------------------------------
+Where an idle cart waits: CartsSentHome minus CartsLeftInPlace, paired by replication
+(10 replications, 95% intervals)
+  response                                   difference   half-width  detectable?
+  PartsDelivered                                 0.1000       0.5278           no
+  TimeInSystem                                  -1.2036       1.0676          yes
+  AgvSystem:NumObstructionsDetected            -40.5000       5.3453          yes
+  AgvSystem:NumBlockedByIdleVehicle             -0.1166       0.0104          yes
+  AgvSystem:NumTransportersBlocked              -0.1378       0.0127          yes

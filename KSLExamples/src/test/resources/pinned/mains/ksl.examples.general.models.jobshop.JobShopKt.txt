@@ -1,0 +1,70 @@
+Name: Job Shop Model
+Last Executive stopping message:
+	Scheduled end event occurred at time 2920.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 30
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 2920.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 30
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Machine1:InstantaneousUtil                                             	           30 	       0.9543 	       0.0030
+Machine1:NumBusyUnits                                                  	           30 	       2.8630 	       0.0091
+Machine1:ScheduledUtil                                                 	           30 	       0.9543 	       0.0030
+Machine1:Q:NumInQ                                                      	           30 	      12.2091 	       1.3736
+Machine1:Q:TimeInQ                                                     	           30 	       3.0605 	       0.3396
+Machine1:WIP                                                           	           30 	      15.0722 	       1.3805
+Machine2:InstantaneousUtil                                             	           30 	       0.9827 	       0.0041
+Machine2:NumBusyUnits                                                  	           30 	       1.9653 	       0.0082
+Machine2:ScheduledUtil                                                 	           30 	       0.9827 	       0.0041
+Machine2:Q:NumInQ                                                      	           30 	      39.1277 	       8.8953
+Machine2:Q:TimeInQ                                                     	           30 	      19.5671 	       4.3952
+Machine2:WIP                                                           	           30 	      41.0931 	       8.9021
+Machine3:InstantaneousUtil                                             	           30 	       0.7211 	       0.0026
+Machine3:NumBusyUnits                                                  	           30 	       2.8844 	       0.0103
+Machine3:ScheduledUtil                                                 	           30 	       0.7211 	       0.0026
+Machine3:Q:NumInQ                                                      	           30 	       0.7239 	       0.0277
+Machine3:Q:TimeInQ                                                     	           30 	       0.1819 	       0.0068
+Machine3:WIP                                                           	           30 	       3.6083 	       0.0359
+Machine4:InstantaneousUtil                                             	           30 	       0.9682 	       0.0037
+Machine4:NumBusyUnits                                                  	           30 	       2.9046 	       0.0111
+Machine4:ScheduledUtil                                                 	           30 	       0.9682 	       0.0037
+Machine4:Q:NumInQ                                                      	           30 	      19.3243 	       3.3946
+Machine4:Q:TimeInQ                                                     	           30 	       6.9058 	       1.1957
+Machine4:WIP                                                           	           30 	      22.2288 	       3.4021
+Machine5:InstantaneousUtil                                             	           30 	       0.7896 	       0.0031
+Machine5:NumBusyUnits                                                  	           30 	       0.7896 	       0.0031
+Machine5:ScheduledUtil                                                 	           30 	       0.7896 	       0.0031
+Machine5:Q:NumInQ                                                      	           30 	       1.7998 	       0.0690
+Machine5:Q:TimeInQ                                                     	           30 	       0.9089 	       0.0351
+Machine5:WIP                                                           	           30 	       2.5894 	       0.0705
+JobShop:NumInSystem                                                    	           30 	      84.5918 	      10.8547
+JobShop:TimeInSystem                                                   	           30 	      21.1718 	       2.6784
+Type1:TimeInSystem                                                     	           30 	      26.2834 	       4.5068
+Type2:TimeInSystem                                                     	           30 	      12.7850 	       1.3620
+Type3:TimeInSystem                                                     	           30 	      34.5394 	       4.9249
+Machine1:SeizeCount                                                    	           30 	   11624.8000 	      36.1142
+Machine2:SeizeCount                                                    	           30 	    5784.0667 	      23.3485
+Machine3:SeizeCount                                                    	           30 	   11619.6333 	      35.2678
+Machine4:SeizeCount                                                    	           30 	    8132.3667 	      33.0176
+Machine5:SeizeCount                                                    	           30 	    5780.0667 	      23.0200
+------------------------------------------------------------------------------------------------------------------------

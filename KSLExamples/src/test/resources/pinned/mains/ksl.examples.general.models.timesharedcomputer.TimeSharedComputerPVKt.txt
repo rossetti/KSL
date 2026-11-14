@@ -1,0 +1,44 @@
+KSL ADVISORY: Model: Preparing to run replications for model = Simulation1, experiment Experiment_1:
+The experiment has an infinite horizon for each replication.
+There was no maximum real-clock execution time specified.
+The user is responsible for ensuring that the replications are stopped.
+Name: Simulation1
+Last Executive stopping message:
+	Completed all steps.
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 20
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: Infinity
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 20
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Number Thinking                                                        	           20 	      17.4824 	       0.1243
+Response Time                                                          	           20 	       2.4140 	       0.0844
+Number Jobs In Progress                                                	           20 	       1.6887 	       0.0648
+CPU:InstantaneousUtil                                                  	           20 	       0.6565 	       0.0104
+CPU:NumBusyUnits                                                       	           20 	       0.6565 	       0.0104
+CPU:ScheduledUtil                                                      	           20 	       0.6565 	       0.0104
+CPU:Q:NumInQ                                                           	           20 	       1.0322 	       0.0582
+CPU:Q:TimeInQ                                                          	           20 	       0.1713 	       0.0085
+CPU:WIP                                                                	           20 	       1.6887 	       0.0648
+CPU:SeizeCount                                                         	           20 	    8780.7000 	      96.0486
+------------------------------------------------------------------------------------------------------------------------

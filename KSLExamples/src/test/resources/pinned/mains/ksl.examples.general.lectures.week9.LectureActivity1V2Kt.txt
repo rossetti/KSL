@@ -1,0 +1,51 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 3600.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 20
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 3600.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 20
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+machine1:InstantaneousUtil                                             	           20 	       0.5468 	       0.0330
+machine1:NumBusyUnits                                                  	           20 	       0.5468 	       0.0330
+machine1:ScheduledUtil                                                 	           20 	       0.5468 	       0.0330
+machine1:Q:NumInQ                                                      	           20 	       0.4156 	       0.0795
+machine1:Q:TimeInQ                                                     	           20 	      20.0688 	       3.0326
+machine1:WIP                                                           	           20 	       0.9624 	       0.1080
+machine2:InstantaneousUtil                                             	           20 	       0.8274 	       0.0324
+machine2:NumBusyUnits                                                  	           20 	       0.8274 	       0.0324
+machine2:ScheduledUtil                                                 	           20 	       0.8274 	       0.0324
+machine2:Q:NumInQ                                                      	           20 	       2.0814 	       0.6264
+machine2:Q:TimeInQ                                                     	           20 	      64.7802 	      16.9101
+machine2:WIP                                                           	           20 	       2.9088 	       0.6512
+machine3:InstantaneousUtil                                             	           20 	       0.9860 	       0.0051
+machine3:NumBusyUnits                                                  	           20 	       0.9860 	       0.0051
+machine3:ScheduledUtil                                                 	           20 	       0.9860 	       0.0051
+machine3:Q:NumInQ                                                      	           20 	      25.9489 	       2.9016
+machine3:Q:TimeInQ                                                     	           20 	     497.6071 	      50.5499
+machine3:WIP                                                           	           20 	      26.9349 	       2.9026
+machine1:SeizeCount                                                    	           20 	      72.2500 	       4.2132
+machine2:SeizeCount                                                    	           20 	     109.5500 	       3.7640
+machine3:SeizeCount                                                    	           20 	     132.2500 	       1.3655
+------------------------------------------------------------------------------------------------------------------------

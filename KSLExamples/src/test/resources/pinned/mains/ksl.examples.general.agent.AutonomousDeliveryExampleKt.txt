@@ -1,0 +1,55 @@
+Name: AutonomousDeliveryExample
+Last Executive stopping message:
+	Scheduled end event occurred at time 1000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 1
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 1000.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 1
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+truck-1:InstantaneousUtil                                              	            1 	       0.9916 	          NaN
+truck-1:NumBusyUnits                                                   	            1 	       0.9916 	          NaN
+truck-1:ScheduledUtil                                                  	            1 	       0.9916 	          NaN
+truck-1:Q:NumInQ                                                       	            1 	       7.3591 	          NaN
+truck-1:Q:TimeInQ                                                      	            1 	     147.1934 	          NaN
+truck-1:WIP                                                            	            1 	       8.3507 	          NaN
+truck-2:InstantaneousUtil                                              	            1 	       0.9969 	          NaN
+truck-2:NumBusyUnits                                                   	            1 	       0.9969 	          NaN
+truck-2:ScheduledUtil                                                  	            1 	       0.9969 	          NaN
+truck-2:Q:NumInQ                                                       	            1 	       5.2751 	          NaN
+truck-2:Q:TimeInQ                                                      	            1 	     106.3279 	          NaN
+truck-2:WIP                                                            	            1 	       6.2720 	          NaN
+truck-3:InstantaneousUtil                                              	            1 	       0.9934 	          NaN
+truck-3:NumBusyUnits                                                   	            1 	       0.9934 	          NaN
+truck-3:ScheduledUtil                                                  	            1 	       0.9934 	          NaN
+truck-3:Q:NumInQ                                                       	            1 	       4.9801 	          NaN
+truck-3:Q:TimeInQ                                                      	            1 	     128.3141 	          NaN
+truck-3:WIP                                                            	            1 	       5.9735 	          NaN
+DeliveryTime                                                           	            1 	     156.1146 	          NaN
+NumCouriersActive                                                      	            1 	      20.5962 	          NaN
+truck-1:SeizeCount                                                     	            1 	      35.0000 	          NaN
+truck-2:SeizeCount                                                     	            1 	      28.0000 	          NaN
+truck-3:SeizeCount                                                     	            1 	      31.0000 	          NaN
+NumOrdersDelivered                                                     	            1 	      91.0000 	          NaN
+------------------------------------------------------------------------------------------------------------------------
+Orders delivered: 91.0

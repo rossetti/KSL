@@ -1,0 +1,29 @@
+One condition, three answers: the space asked for is already promised
+A zone is a minute. The cart reaches Zone k at time k and holds it until k+1.
+ABSORB
+    2.50  Crew   asks for [Zone3, Zone4] -- the cart is still crossing Zone3
+    2.60  Spill  asks for [Zone4, Zone5] -- refused: Zone4 is promised to Crew, still waiting for it to drain
+    2.60  Spill  absorbed into the closure already there; nothing to do
+    5.00  Crew   takes [Zone3, Zone4]
+    6.00  Cart   reaches B
+    9.00  Crew   gives back [Zone3, Zone4]
+DEFER
+    2.50  Crew   asks for [Zone3, Zone4] -- the cart is still crossing Zone3
+    2.60  Spill  asks for [Zone4, Zone5] -- refused: Zone4 is promised to Crew, still waiting for it to drain
+    2.60  Spill  deferring 3.0 minutes and asking again
+    5.00  Crew   takes [Zone3, Zone4]
+    5.60  Spill  asks for [Zone4, Zone5] -- accepted: Zone4 is *held* by Crew, which is not a collision; waiting for the hold to end
+    6.00  Cart   reaches B
+    9.00  Crew   gives back [Zone3, Zone4]
+    9.00  Spill  takes [Zone4, Zone5]
+   11.00  Spill  gives back [Zone4, Zone5]
+RELOCATE
+    2.50  Crew   asks for [Zone3, Zone4] -- the cart is still crossing Zone3
+    2.60  Spill  asks for [Zone4, Zone5] -- refused: Zone4 is promised to Crew, still waiting for it to drain
+    2.60  Spill  moving the work to [Zone5, Zone6]
+    2.60  Spill  asks for [Zone5, Zone6] -- accepted: the space is free
+    2.60  Spill  takes [Zone5, Zone6]
+    4.60  Spill  gives back [Zone5, Zone6]
+    5.60  Crew   takes [Zone3, Zone4]
+    6.60  Cart   reaches B
+    9.60  Crew   gives back [Zone3, Zone4]

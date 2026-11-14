@@ -1,0 +1,24 @@
+A two-lane warehouse grid: 3 pick aisles and two cross-aisles,
+every span a pair of opposed one-way lanes. Pallets from the pick faces to one dock.
+10 replications of 5000 after a 1000 warm-up, arrivals every 3 -- above capacity on
+purpose, so that the building rather than the arrival stream is what limits the answer.
+Study 1 -- two-lane aisles: what does adding a cart buy?
+  carts    delivered       hw   in system        hw   blocked       hw
+  2            443.7      2.0     2007.78     24.92    0.0215   0.0013
+  4            834.7      5.3     1132.61     31.14    0.0797   0.0040
+  6           1109.4      0.9      525.30     33.21    0.1861   0.0015
+  8           1111.0      0.0      522.16     33.53    0.3886   0.0013
+  10          1111.0      0.0      523.06     33.02    0.5109   0.0011
+  12        DEADLOCK       --          --        --        --       --
+  Throughput flattens at 6 cart(s).
+  From 6 to 10 carts, deliveries go 1109.4 (+/- 0.9) -> 1111.0 (+/- 0.0): a gain of 1.6
+  against intervals summing to 0.9, so it is real but negligible.
+  Over the same range fleet time blocked goes 18.6% -> 51.1%.
+  At 12 cart(s) the grid **deadlocks**, among 6 transporters.
+Study 2 -- the same building with single two-way aisles: what did the second lane buy?
+  carts    delivered       hw   in system        hw   blocked       hw
+  1            226.7      1.9     2491.73     22.43    0.0000   0.0000
+  2         DEADLOCK       --          --        --        --       --
+  3         DEADLOCK       --          --        --        --       --
+  4         DEADLOCK       --          --        --        --       --
+  Single two-way aisles carry 1 cart(s); paired one-way lanes carry 10.

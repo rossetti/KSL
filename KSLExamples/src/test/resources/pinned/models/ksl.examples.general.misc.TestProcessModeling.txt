@@ -1,0 +1,14 @@
+reps=5 length=2000.0 warmup=0.0
+R hold:NumInQ n=5.0 avg=0.0045 sd=0.0 min=0.0045 max=0.0045
+R hold:TimeInQ n=5.0 avg=4.5 sd=0.0 min=4.5 max=4.5
+R test resource:InstantaneousUtil n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R test resource:NumActiveUnits n=5.0 avg=1.0 sd=0.0 min=1.0 max=1.0
+R test resource:NumBusyUnits n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R test resource:PTimeBusy n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R test resource:PTimeIdle n=5.0 avg=1.0 sd=0.0 min=1.0 max=1.0
+R test resource:PTimeInactive n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R test resource:Q:NumInQ n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R test resource:Q:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R test resource:ScheduledUtil n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R test resource:WIP n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+C test resource:SeizeCount n=5.0 avg=0.0 sd=0.0

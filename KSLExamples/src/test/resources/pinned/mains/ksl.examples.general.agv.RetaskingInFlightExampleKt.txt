@@ -1,0 +1,13 @@
+Re-tasking a cart in mid-journey - what the passive paradigm has no place for
+  Without re-tasking: the cart commits at t=0 and finishes what it started.
+    far    in system    62.0   waited   32.0   reassignments 0
+    near   in system   100.0   waited   90.0   reassignments 0
+    revocations: 0
+  With re-tasking, near job at t=2 (worth 200 units): the cart is turned round.
+    near   in system    20.0   waited   10.0   reassignments 0
+    far    in system    62.0   waited   32.0   reassignments 1
+    revocations: 1
+  With re-tasking, near job at t=15 (would cost 200): the rule declines the swap.
+    far    in system    62.0   waited   32.0   reassignments 0
+    near   in system    87.0   waited   77.0   reassignments 0
+    revocations: 0

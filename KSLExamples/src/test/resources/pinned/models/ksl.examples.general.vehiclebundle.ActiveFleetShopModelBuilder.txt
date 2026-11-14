@@ -1,0 +1,85 @@
+reps=20 length=8000.0 warmup=1000.0
+R Agv:AvailabilityQ:NumInQ n=20.0 avg=0.12687831301507968 sd=0.028127906920441075 min=0.07374139219041242 max=0.18022451486001068
+R Agv:AvailabilityQ:TimeInQ n=20.0 avg=4.053419716541472 sd=0.9881262819376674 min=2.254103691409987 max=5.979012341327369
+R Agv:AwaitingBoardingHoldQ:NumInQ n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:AwaitingBoardingHoldQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Agv:AwaitingPickupHoldQ:NumInQ n=20.0 avg=1.7084824556440878 sd=0.5253313465914382 min=1.0600218953375165 max=2.960691840887751
+R Agv:AwaitingPickupHoldQ:TimeInQ n=20.0 avg=67.90663353755855 sd=18.522979833731693 min=46.09643796156865 max=114.02821569042834
+R Agv:Dispatcher:TaskQ:NumInQ n=20.0 avg=1.7084824556440878 sd=0.5253313465914382 min=1.0600218953375165 max=2.960691840887751
+R Agv:Dispatcher:TaskQ:TimeInQ n=20.0 avg=67.90663353755855 sd=18.522979833731693 min=46.09643796156865 max=114.02821569042834
+R Agv:Dispatcher:WaitForAssignment n=20.0 avg=55.94861740112295 sd=18.626380994476776 min=33.874424557410215 max=102.29055297533893
+R Agv:DispatcherIdleQ:NumInQ n=20.0 avg=1.0 sd=0.0 min=1.0 max=1.0
+R Agv:DispatcherIdleQ:TimeInQ n=20.0 avg=18.82227146698481 sd=0.6801690677250549 min=17.697835843373607 max=20.166293459632183
+R Agv:InTransitHoldQ:NumInQ n=20.0 avg=0.5095675351249527 sd=0.02509385758191833 min=0.46371834228289044 max=0.5546016057326724
+R Agv:InTransitHoldQ:TimeInQ n=20.0 avg=20.399999999997476 sd=8.973081894771932E-14 min=20.399999999997295 max=20.399999999997597
+R Agv:NumAssignmentsStillOpen n=20.0 avg=0.7499999999999999 sd=0.44426165831931924 min=0.0 max=1.0
+R Agv:NumEntitiesNeverResumed n=20.0 avg=1.9000000000000004 sd=1.7740824166460338 min=0.0 max=6.0
+R Agv:NumTasksNeverAssigned n=20.0 avg=1.1500000000000004 sd=1.5312533566021211 min=0.0 max=5.0
+R Agv:NumVehiclesCharging n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:NumVehiclesFailedAtHorizon n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:NumVehiclesIdle n=20.0 avg=0.2097532415794285 sd=0.03603315770783493 min=0.15096982283879473 max=0.277595943431428
+R Agv:NumVehiclesOnTask n=20.0 avg=0.7902467584205715 sd=0.03603315770783493 min=0.722404056568572 max=0.8490301771612052
+R Agv:NumVehiclesOutOfService n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:NumVehiclesStranded n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:OutOfServiceQ:NumInQ n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:OutOfServiceQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Agv:Space:ApproachTime n=20.0 avg=11.955195647097252 sd=0.2615482797757527 min=11.526535522867324 max=12.554804692326934
+R Agv:Space:AwaitingPickupHoldQ:NumInQ n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:Space:AwaitingPickupHoldQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Agv:Space:DrivingHoldQ:NumInQ n=20.0 avg=0.8731216869849201 sd=0.0281279069204411 min=0.8197754851399893 max=0.9262586078095877
+R Agv:Space:DrivingHoldQ:TimeInQ n=20.0 avg=16.41551960651332 sd=0.16786669873733281 min=16.173913043476265 max=16.722253521124763
+R Agv:Space:EventsPerZoneTraversal n=20.0 avg=0.9999929197843305 sd=9.385633096395919E-5 min=0.9998439937597504 max=1.0001587553579934
+R Agv:Space:NumBlockedByIdleVehicle n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:Space:NumBlockedByOccupier n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:Space:NumBlockedByPopulation n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:Space:NumBlockedByVehicle n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:Space:NumHoldersAwaitingSpace n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:Space:NumTransportersBlocked n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:Space:NumTransportersIdle n=20.0 avg=0.12687831301507968 sd=0.028127906920441075 min=0.07374139219041242 max=0.18022451486001068
+R Agv:Space:NumTransportersMoving n=20.0 avg=0.8731216869849201 sd=0.0281279069204411 min=0.8197754851399893 max=0.9262586078095877
+R Agv:Space:NumTransportsNeverStarted n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:Space:NumTransportsUnfinished n=20.0 avg=0.7999999999999997 sd=0.4103913408340616 min=0.0 max=1.0
+R Agv:Space:NumZonesClosed n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:Space:RideTime n=20.0 avg=20.399999999997476 sd=8.973081894771932E-14 min=20.399999999997295 max=20.399999999997597
+R Agv:Space:RidingHoldQ:NumInQ n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:Space:RidingHoldQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Agv:Space:RouteLengthPerTransport n=20.0 avg=204.0 sd=0.0 min=204.0 max=204.0
+R Agv:Space:TimeToCloseZones n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Agv:Space:TransportBlockedTime n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:Space:ZoneUtilization n=20.0 avg=0.03333333333333333 sd=0.0 min=0.03333333333333333 max=0.03333333333333333
+R Agv:Space:ZonesTraversedPerTransport n=20.0 avg=21.0 sd=0.0 min=21.0 max=21.0
+R Agv:TimeAboard n=20.0 avg=20.399999999997476 sd=8.973081894771932E-14 min=20.399999999997295 max=20.399999999997597
+R Cart:Body:FracTimeBlocked n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Cart:Body:FracTimeMoving n=20.0 avg=0.8731216869849201 sd=0.0281279069204411 min=0.8197754851399893 max=0.9262586078095877
+R Cart:Body:FracTimeMovingEmpty n=20.0 avg=0.36355415185996753 sd=0.011608556978243771 min=0.345679476949495 max=0.3812871792382248
+R Cart:Body:FracTimeTransporting n=20.0 avg=0.5095675351249527 sd=0.02509385758191833 min=0.46371834228289044 max=0.5546016057326724
+R Cart:Body:InstantaneousUtil n=20.0 avg=0.7902467584205715 sd=0.03603315770783493 min=0.722404056568572 max=0.8490301771612052
+R Cart:Body:NumActiveUnits n=20.0 avg=1.0 sd=0.0 min=1.0 max=1.0
+R Cart:Body:NumBusyUnits n=20.0 avg=0.7902467584205715 sd=0.03603315770783493 min=0.722404056568572 max=0.8490301771612052
+R Cart:Body:PTimeBusy n=20.0 avg=0.7902467584205715 sd=0.03603315770783493 min=0.722404056568572 max=0.8490301771612052
+R Cart:Body:PTimeIdle n=20.0 avg=0.2097532415794285 sd=0.03603315770783493 min=0.15096982283879473 max=0.277595943431428
+R Cart:Body:PTimeInactive n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Cart:Body:ScheduledUtil n=20.0 avg=0.7902467584205715 sd=0.03603315770783493 min=0.722404056568572 max=0.8490301771612052
+R Cart:BodyQ:NumInQ n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Cart:BodyQ:TimeInQ n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Cart:FracTimeOnTask n=20.0 avg=0.7902467584205715 sd=0.03603315770783493 min=0.722404056568572 max=0.8490301771612052
+R TimeInSystem n=20.0 avg=88.28943640065695 sd=18.55921588749643 min=66.4924810826125 max=134.56238330747215
+C Agv:Dispatcher:NumAssignmentsMade n=20.0 avg=174.84999999999997 sd=8.499380782398832
+C Agv:Dispatcher:NumAssignmentsRevoked n=20.0 avg=0.0 sd=0.0
+C Agv:Dispatcher:NumAuctionsRun n=20.0 avg=0.0 sd=0.0
+C Agv:Dispatcher:NumAuctionsUnfilled n=20.0 avg=0.0 sd=0.0
+C Agv:Dispatcher:NumTasksCancelled n=20.0 avg=0.0 sd=0.0
+C Agv:Dispatcher:NumTasksCompleted n=20.0 avg=174.9 sd=8.735288384357712
+C Agv:Dispatcher:NumTasksPosted n=20.0 avg=175.00000000000003 sd=8.117557319914981
+C Agv:Space:NumDeadlocksDetected n=20.0 avg=0.0 sd=0.0
+C Agv:Space:NumEventsScheduled n=20.0 avg=6315.949999999999 sd=196.69037249336571
+C Agv:Space:NumObstructionsDetected n=20.0 avg=0.0 sd=0.0
+C Agv:Space:NumRequestsUnfilled n=20.0 avg=0.0 sd=0.0
+C Agv:Space:NumZoneEngagements n=20.0 avg=0.0 sd=0.0
+C Agv:Space:NumZoneTraversals n=20.0 avg=6316.0 sd=196.8750605680775
+C Cart:Body:NumTimesBlocked n=20.0 avg=0.0 sd=0.0
+C Cart:Body:SeizeCount n=20.0 avg=174.89999999999995 sd=8.552623481777548
+C Cart:NumCarriedPast n=20.0 avg=0.0 sd=0.0
+C Cart:NumStopsSkipped n=20.0 avg=0.0 sd=0.0
+C Cart:NumTasksCompleted n=20.0 avg=174.9 sd=8.735288384357712
+C Delivered n=20.0 avg=174.9 sd=8.735288384357712

@@ -1,0 +1,41 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 20000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 30
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 20000.0
+Warm up time period for replication: 5000.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 30
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Pharmacists:InstantaneousUtil                                          	           30 	       0.5035 	       0.0060
+Pharmacists:NumBusyUnits                                               	           30 	       0.5035 	       0.0060
+Pharmacists:ScheduledUtil                                              	           30 	       0.5035 	       0.0060
+Pharmacists:Q:NumInQ                                                   	           30 	       0.5025 	       0.0222
+Pharmacists:Q:TimeInQ                                                  	           30 	       2.9961 	       0.1235
+Pharmacists:WIP                                                        	           30 	       1.0060 	       0.0271
+DriveThrough:NumInSystem                                               	           30 	       1.0060 	       0.0271
+DriveThrough:TimeInSystem                                              	           30 	       6.0001 	       0.1441
+SysTime > 4_0 minutes                                                  	           30 	       0.5136 	       0.0071
+Pharmacists:SeizeCount                                                 	           30 	    2513.4000 	      17.6653
+DriveThrough:NumServed                                                 	           30 	    2513.2667 	      17.6883
+------------------------------------------------------------------------------------------------------------------------

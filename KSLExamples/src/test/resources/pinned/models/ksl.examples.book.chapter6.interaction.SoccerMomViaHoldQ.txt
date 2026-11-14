@@ -1,0 +1,9 @@
+reps=5 length=2000.0 warmup=0.0
+R WaitForDaughterToExitQ:NumInQ n=5.0 avg=0.001 sd=0.0 min=0.001 max=0.001
+R WaitForDaughterToExitQ:TimeInQ n=5.0 avg=2.0 sd=0.0 min=2.0 max=2.0
+R WaitForDaughterToLoadQ:NumInQ n=5.0 avg=0.001 sd=0.0 min=0.001 max=0.001
+R WaitForDaughterToLoadQ:TimeInQ n=5.0 avg=2.0 sd=0.0 min=2.0 max=2.0
+R WaitForDaughterToPlayQ:NumInQ n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R WaitForDaughterToPlayQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R WaitForMomToShopQ:NumInQ n=5.0 avg=0.0075 sd=0.0 min=0.0075 max=0.0075
+R WaitForMomToShopQ:TimeInQ n=5.0 avg=15.0 sd=0.0 min=15.0 max=15.0

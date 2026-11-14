@@ -1,0 +1,76 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 20000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 30
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 20000.0
+Warm up time period for replication: 5000.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 30
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Mover1:InstantaneousUtil                                               	           30 	       0.7127 	       0.0020
+Mover1:NumBusyUnits                                                    	           30 	       0.7127 	       0.0020
+Mover1:ScheduledUtil                                                   	           30 	       0.7127 	       0.0020
+Mover1:FracTimeMoving                                                  	           30 	       0.7127 	       0.0020
+Mover1:FracTimeTransporting                                            	           30 	       0.3564 	       0.0010
+Mover1:FracTimeMovingEmpty                                             	           30 	       0.3563 	       0.0010
+Mover1:Q:NumInQ                                                        	           30 	       0.9048 	       0.0149
+Mover1:Q:TimeInQ                                                       	           30 	       0.9058 	       0.0135
+Mover1:WIP                                                             	           30 	       1.6175 	       0.0163
+Mover2:InstantaneousUtil                                               	           30 	       0.3563 	       0.0009
+Mover2:NumBusyUnits                                                    	           30 	       0.3563 	       0.0009
+Mover2:ScheduledUtil                                                   	           30 	       0.3563 	       0.0009
+Mover2:FracTimeMoving                                                  	           30 	       0.3563 	       0.0009
+Mover2:FracTimeTransporting                                            	           30 	       0.1782 	       0.0005
+Mover2:FracTimeMovingEmpty                                             	           30 	       0.1782 	       0.0005
+Mover2:Q:NumInQ                                                        	           30 	       0.0848 	       0.0011
+Mover2:Q:TimeInQ                                                       	           30 	       0.0849 	       0.0010
+Mover2:WIP                                                             	           30 	       0.4411 	       0.0018
+Mover3:InstantaneousUtil                                               	           30 	       0.7123 	       0.0019
+Mover3:NumBusyUnits                                                    	           30 	       0.7123 	       0.0019
+Mover3:ScheduledUtil                                                   	           30 	       0.7123 	       0.0019
+Mover3:FracTimeMoving                                                  	           30 	       0.7123 	       0.0019
+Mover3:FracTimeTransporting                                            	           30 	       0.3562 	       0.0009
+Mover3:FracTimeMovingEmpty                                             	           30 	       0.3560 	       0.0010
+Mover3:Q:NumInQ                                                        	           30 	       0.8988 	       0.0146
+Mover3:Q:TimeInQ                                                       	           30 	       0.8999 	       0.0129
+Mover3:WIP                                                             	           30 	       1.6111 	       0.0162
+worker1:InstantaneousUtil                                              	           30 	       0.6983 	       0.0023
+worker1:NumBusyUnits                                                   	           30 	       0.6983 	       0.0023
+worker1:ScheduledUtil                                                  	           30 	       0.6983 	       0.0023
+worker1:Q:NumInQ                                                       	           30 	       1.1753 	       0.0343
+worker1:Q:TimeInQ                                                      	           30 	       1.1767 	       0.0333
+worker1:WIP                                                            	           30 	       1.8736 	       0.0361
+worker2:InstantaneousUtil                                              	           30 	       0.9013 	       0.0035
+worker2:NumBusyUnits                                                   	           30 	       0.9013 	       0.0035
+worker2:ScheduledUtil                                                  	           30 	       0.9013 	       0.0035
+worker2:Q:NumInQ                                                       	           30 	       7.5763 	       0.4513
+worker2:Q:TimeInQ                                                      	           30 	       7.5792 	       0.4379
+worker2:WIP                                                            	           30 	       8.4776 	       0.4543
+TandemQueueWithConstrainedMovement:NumInSystem                         	           30 	      14.0210 	       0.4803
+TandemQueueWithConstrainedMovement:TimeInSystem                        	           30 	      14.0319 	       0.4550
+Mover1:SeizeCount                                                      	           30 	   14982.3000 	      40.8957
+Mover2:SeizeCount                                                      	           30 	   14982.1333 	      40.4624
+Mover3:SeizeCount                                                      	           30 	   14977.3000 	      39.9604
+worker1:SeizeCount                                                     	           30 	   14982.1333 	      40.5092
+worker2:SeizeCount                                                     	           30 	   14977.8667 	      39.8763
+------------------------------------------------------------------------------------------------------------------------

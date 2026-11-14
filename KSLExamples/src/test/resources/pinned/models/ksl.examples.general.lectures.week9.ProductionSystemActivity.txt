@@ -1,0 +1,48 @@
+reps=5 length=2000.0 warmup=0.0
+R ProductionSystemActivity_1:Build1Workers:InstantaneousUtil n=5.0 avg=0.1564826856119518 sd=0.011423070948173523 min=0.14552178246555167 max=0.1740817155259569
+R ProductionSystemActivity_1:Build1Workers:NumActiveUnits n=5.0 avg=2.0 sd=0.0 min=2.0 max=2.0
+R ProductionSystemActivity_1:Build1Workers:NumBusyUnits n=5.0 avg=0.3129653712239036 sd=0.022846141896347046 min=0.29104356493110334 max=0.3481634310519138
+R ProductionSystemActivity_1:Build1Workers:PTimeBusy n=5.0 avg=0.27293996540113774 sd=0.013522004186209554 min=0.2627069601862604 max=0.2941323417729063
+R ProductionSystemActivity_1:Build1Workers:PTimeIdle n=5.0 avg=0.7270600345988624 sd=0.013522004186209618 min=0.7058676582270936 max=0.7372930398137396
+R ProductionSystemActivity_1:Build1Workers:PTimeInactive n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R ProductionSystemActivity_1:Build1Workers:Q:NumInQ n=5.0 avg=0.0031349423288787406 sd=0.0034338920897580747 min=4.4427581555100916E-4 max=0.00889551379229971
+R ProductionSystemActivity_1:Build1Workers:Q:TimeInQ n=5.0 avg=0.05079790444149711 sd=0.0529135421757348 min=0.00822732991761128 max=0.13791494251627456
+R ProductionSystemActivity_1:Build1Workers:ScheduledUtil n=5.0 avg=0.1564826856119518 sd=0.011423070948173523 min=0.14552178246555167 max=0.1740817155259569
+R ProductionSystemActivity_1:Build1Workers:WIP n=5.0 avg=0.31610031355278234 sd=0.02592532553138683 min=0.29148784074665435 max=0.3570589448442136
+R ProductionSystemActivity_1:Build2Workers:InstantaneousUtil n=5.0 avg=0.24822912351951354 sd=0.0077187826138298814 min=0.23526598593676226 max=0.2548219490456125
+R ProductionSystemActivity_1:Build2Workers:NumActiveUnits n=5.0 avg=3.0 sd=0.0 min=3.0 max=3.0
+R ProductionSystemActivity_1:Build2Workers:NumBusyUnits n=5.0 avg=0.7446873705585404 sd=0.023156347841489417 min=0.7057979578102871 max=0.7644658471368372
+R ProductionSystemActivity_1:Build2Workers:PTimeBusy n=5.0 avg=0.5257804174165138 sd=0.021663216051327164 min=0.48973520982112295 max=0.5470408234686658
+R ProductionSystemActivity_1:Build2Workers:PTimeIdle n=5.0 avg=0.4742195825834862 sd=0.02166321605132712 min=0.4529591765313343 max=0.5102647901788769
+R ProductionSystemActivity_1:Build2Workers:PTimeInactive n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R ProductionSystemActivity_1:Build2Workers:Q:NumInQ n=5.0 avg=0.00933418305616351 sd=0.004221183106688227 min=0.0037240182747181193 max=0.01420064177415702
+R ProductionSystemActivity_1:Build2Workers:Q:TimeInQ n=5.0 avg=0.066821694755426 sd=0.03022463156837623 min=0.02613346157696926 max=0.10143315552969301
+R ProductionSystemActivity_1:Build2Workers:ScheduledUtil n=5.0 avg=0.2482291235195135 sd=0.00771878261382982 min=0.23526598593676237 max=0.2548219490456124
+R ProductionSystemActivity_1:Build2Workers:WIP n=5.0 avg=0.754021553614704 sd=0.023576807523044124 min=0.7146318126840385 max=0.7723350054974055
+R ProductionSystemActivity_1:PackagingWorkers:InstantaneousUtil n=5.0 avg=0.35693194216025226 sd=0.022459382538470338 min=0.33034609429103495 max=0.38623938241566724
+R ProductionSystemActivity_1:PackagingWorkers:NumActiveUnits n=5.0 avg=2.0 sd=0.0 min=2.0 max=2.0
+R ProductionSystemActivity_1:PackagingWorkers:NumBusyUnits n=5.0 avg=0.7138638843205045 sd=0.044918765076940675 min=0.6606921885820699 max=0.7724787648313345
+R ProductionSystemActivity_1:PackagingWorkers:PTimeBusy n=5.0 avg=0.5256400758288047 sd=0.0253479919240544 min=0.502593927600555 max=0.562182669784373
+R ProductionSystemActivity_1:PackagingWorkers:PTimeIdle n=5.0 avg=0.47435992417119544 sd=0.02534799192405436 min=0.4378173302156271 max=0.497406072399445
+R ProductionSystemActivity_1:PackagingWorkers:PTimeInactive n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R ProductionSystemActivity_1:PackagingWorkers:Q:NumInQ n=5.0 avg=0.0719911329209166 sd=0.030132739550235627 min=0.043202796258409136 max=0.11472911456753741
+R ProductionSystemActivity_1:PackagingWorkers:Q:TimeInQ n=5.0 avg=0.363191272051698 sd=0.15380479080116924 min=0.2226948260742739 max=0.5838631784607502
+R ProductionSystemActivity_1:PackagingWorkers:ScheduledUtil n=5.0 avg=0.35693194216025226 sd=0.022459382538470338 min=0.33034609429103495 max=0.38623938241566724
+R ProductionSystemActivity_1:PackagingWorkers:WIP n=5.0 avg=0.785855017241421 sd=0.07190569761995114 min=0.703894984840479 max=0.8872078793988719
+R ProductionSystemActivity_1:PrepWorkers:InstantaneousUtil n=5.0 avg=0.8269366781677348 sd=0.024558773695604785 min=0.7903724378340473 max=0.850520288915149
+R ProductionSystemActivity_1:PrepWorkers:NumActiveUnits n=5.0 avg=2.0 sd=0.0 min=2.0 max=2.0
+R ProductionSystemActivity_1:PrepWorkers:NumBusyUnits n=5.0 avg=1.6538733563354695 sd=0.04911754739120957 min=1.5807448756680946 max=1.701040577830298
+R ProductionSystemActivity_1:PrepWorkers:PTimeBusy n=5.0 avg=0.9003784761481948 sd=0.015916125589165595 min=0.888055116970659 max=0.9271949336642245
+R ProductionSystemActivity_1:PrepWorkers:PTimeIdle n=5.0 avg=0.09962152385180525 sd=0.015916125589165612 min=0.07280506633577548 max=0.11194488302934104
+R ProductionSystemActivity_1:PrepWorkers:PTimeInactive n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R ProductionSystemActivity_1:PrepWorkers:Q:NumInQ n=5.0 avg=2.928285851520904 sd=0.5624075697445294 min=1.9904053032879303 max=3.4098326516559063
+R ProductionSystemActivity_1:PrepWorkers:Q:TimeInQ n=5.0 avg=14.381007568572203 sd=2.5705266329624448 min=10.0780015356351 max=16.304143686805862
+R ProductionSystemActivity_1:PrepWorkers:ScheduledUtil n=5.0 avg=0.8269366781677348 sd=0.024558773695604785 min=0.7903724378340473 max=0.850520288915149
+R ProductionSystemActivity_1:PrepWorkers:WIP n=5.0 avg=4.5821592078563755 sd=0.6098046950003637 min=3.571150178956032 max=5.106585258654903
+R ProductionSystemActivity_1:SysTime n=5.0 avg=31.904834279660083 sd=2.386477295002662 min=28.08239783484817 max=33.91911614116882
+R ProductionSystemActivity_1:SysTime <= 60 n=5.0 avg=0.9016191353927739 sd=0.03536466407214502 min=0.8690176322418136 max=0.9618320610687023
+C ProductionSystemActivity_1:Build1Workers:SeizeCount n=5.0 avg=118.2 sd=11.541230437002808
+C ProductionSystemActivity_1:Build2Workers:SeizeCount n=5.0 avg=280.0 sd=6.442049363362563
+C ProductionSystemActivity_1:PackagingWorkers:SeizeCount n=5.0 avg=397.0 sd=9.772410142846033
+C ProductionSystemActivity_1:PartsCompleted n=5.0 avg=396.2 sd=10.059821071967443
+C ProductionSystemActivity_1:PrepWorkers:SeizeCount n=5.0 avg=400.0 sd=9.874208829065742

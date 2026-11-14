@@ -1,0 +1,52 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 480.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 30
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 480.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 30
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+System Time                                                            	           30 	      69.9237 	       8.1833
+Num in System                                                          	           30 	       1.2040 	       0.2395
+ShirtMakers_R:InstantaneousUtil                                        	           30 	       0.5578 	       0.0713
+ShirtMakers_R:NumBusyUnits                                             	           30 	       1.1156 	       0.1427
+ShirtMakers_R:ScheduledUtil                                            	           30 	       0.5578 	       0.0713
+ShirtMakers_R:Q:NumInQ                                                 	           30 	       1.8824 	       0.6407
+ShirtMakers_R:Q:TimeInQ                                                	           30 	      26.9951 	       7.4232
+ShirtMakers_R:WIP                                                      	           30 	       2.9980 	       0.7570
+OrderQ:NumInQ                                                          	           30 	       0.0354 	       0.0102
+OrderQ:TimeInQ                                                         	           30 	       1.8121 	       0.4476
+Packager_R:InstantaneousUtil                                           	           30 	       0.3038 	       0.0366
+Packager_R:NumBusyUnits                                                	           30 	       0.3038 	       0.0366
+Packager_R:ScheduledUtil                                               	           30 	       0.3038 	       0.0366
+Packager_R:Q:NumInQ                                                    	           30 	       0.0104 	       0.0040
+Packager_R:Q:TimeInQ                                                   	           30 	       0.5975 	       0.2438
+Packager_R:WIP                                                         	           30 	       0.3142 	       0.0391
+Completed Shirt Q:RequestQ:NumInQ                                      	           30 	       0.8544 	       0.2034
+Completed Shirt Q:RequestQ:TimeInQ                                     	           30 	      49.4049 	       7.7277
+Completed Shirt Q:ChannelQ:NumInQ                                      	           30 	       0.7806 	       0.1202
+Completed Shirt Q:ChannelQ:TimeInQ                                     	           30 	      14.1351 	       0.7906
+ShirtMakers_R:SeizeCount                                               	           30 	      27.4333 	       3.4022
+Packager_R:SeizeCount                                                  	           30 	      15.6000 	       1.7640
+------------------------------------------------------------------------------------------------------------------------

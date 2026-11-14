@@ -1,0 +1,72 @@
+Name: TieDyeStation
+Last Executive stopping message:
+	Scheduled end event occurred at time 480.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 30
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 480.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 30
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+TieDye:Net:NumInSystem                                                 	           30 	       1.0287 	       0.2382
+TieDye:Net:SystemTime                                                  	           30 	      63.8312 	       8.6747
+TieDye:Net:HoldingsAtRunEnd                                            	           30 	       0.3667 	       0.1830
+TieDye:Net:ShirtMakers:NumBusy                                         	           30 	       1.0269 	       0.1341
+TieDye:Net:ShirtMakers:Util                                            	           30 	       0.5134 	       0.0670
+TieDye:Net:Packager:NumBusy                                            	           30 	       0.2887 	       0.0398
+TieDye:Net:Packager:Capacity                                           	           30 	       1.0000 	       0.0000
+TieDye:Net:Packager:FailedState                                        	           30 	       0.0000 	       0.0000
+TieDye:Net:Packager:IdleState                                          	           30 	       0.7113 	       0.0398
+TieDye:Net:Packager:BusyState                                          	           30 	       0.2887 	       0.0398
+TieDye:Net:Packager:InactiveState                                      	           30 	       0.0000 	       0.0000
+TieDye:Net:Packager:Util                                               	           30 	       0.2887 	       0.0398
+TieDye:Net:Packaging:NS                                                	           30 	       0.1416 	       0.0209
+TieDye:Net:Packaging:StationTime                                       	           30 	      10.0004 	       0.2668
+TieDye:Net:SeizePackager2:Q:NumInQ                                     	           30 	       0.0108 	       0.0043
+TieDye:Net:SeizePackager2:Q:TimeInQ                                    	           21 	       4.6491 	       1.2202
+TieDye:Net:Join:NumWaitingParents                                      	           30 	       0.6970 	       0.1942
+TieDye:Net:ShirtMaking:NS                                              	           30 	       2.3778 	       0.7200
+TieDye:Net:ShirtMaking:StationTime                                     	           30 	      40.3046 	       8.2187
+TieDye:Net:ShirtMaking:Q:NumInQ                                        	           30 	       1.3509 	       0.6395
+TieDye:Net:ShirtMaking:Q:TimeInQ                                       	           30 	      20.3788 	       7.7189
+TieDye:Net:Paperwork:NS                                                	           30 	       0.1471 	       0.0197
+TieDye:Net:Paperwork:StationTime                                       	           30 	       8.9539 	       0.0970
+TieDye:Net:SeizePackager1:Q:NumInQ                                     	           30 	       0.0322 	       0.0168
+TieDye:Net:SeizePackager1:Q:TimeInQ                                    	           21 	       6.0436 	       1.5080
+TieDye:Net:NumCompleted                                                	           30 	       6.6667 	       0.9474
+TieDye:Net:Packager:SeizeCount                                         	           30 	      14.8333 	       1.9930
+TieDye:Net:Packager:NumFailures                                        	           30 	       0.0000 	       0.0000
+TieDye:Net:ReleasePackager2:NumReleased                                	           30 	       6.6667 	       0.9474
+TieDye:Net:Packaging:NumProcessed                                      	           30 	       6.6667 	       0.9474
+TieDye:Net:SeizePackager2:NumSeized                                    	           30 	       6.9000 	       0.9525
+TieDye:Net:Join:NumJoined                                              	           30 	       6.9333 	       0.9605
+TieDye:Net:ShirtMaking:NumProcessed                                    	           30 	      24.1333 	       3.1696
+TieDye:Net:ReleasePackager1:NumReleased                                	           30 	       7.8000 	       1.0257
+TieDye:Net:Paperwork:NumProcessed                                      	           30 	       7.8000 	       1.0257
+TieDye:Net:SeizePackager1:NumSeized                                    	           30 	       7.9333 	       1.0873
+TieDye:Net:Fork:NumForked                                              	           30 	       8.0667 	       1.1306
+TieDye:Net:Fork:NumChildrenCreated                                     	           30 	      27.5333 	       3.9344
+TieDye:Net:Orders:NumCreated                                           	           30 	       8.0667 	       1.1306
+------------------------------------------------------------------------------------------------------------------------
+Orders in system  = 1.0286997263955744
+Order system time = 63.83124478345474
+Orders completed  = 6.666666666666668

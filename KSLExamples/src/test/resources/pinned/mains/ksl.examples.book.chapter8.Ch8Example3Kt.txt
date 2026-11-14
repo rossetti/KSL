@@ -1,0 +1,128 @@
+KSL ADVISORY: Model: Preparing to run replications for model = Simulation1, experiment Experiment_1:
+The experiment has an infinite horizon for each replication.
+There was no maximum real-clock execution time specified.
+The user is responsible for ensuring that the replications are stopped.
+Name: Simulation1
+Last Executive stopping message:
+	Completed all steps.
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 400
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: Infinity
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 400
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+OverallSystemTime                                                      	          400 	      65.4637 	       1.5869
+RecruitingOnlySystemTime                                               	          400 	      57.7013 	       1.5753
+P(Recruiting Only < 30 minutes)                                        	          400 	       0.3476 	       0.0109
+MixingStudentSystemTime                                                	          400 	      77.0839 	       1.6698
+MixingStudentThatLeavesSystemTime                                      	          400 	      19.7856 	       0.1747
+NumInSystem                                                            	          400 	      26.8967 	       0.6080
+NumInConversationArea                                                  	          400 	       3.0302 	       0.0350
+NumAtJHBuntAtClosing                                                   	          400 	      35.1475 	       1.2781
+NumAtMalWartAtClosing                                                  	          400 	       8.3775 	       0.8870
+NumAtConversationAtClosing                                             	          400 	       0.6025 	       0.0743
+NumInSystemAtClosing                                                   	          400 	      44.4675 	       1.7363
+JHBuntR:InstantaneousUtil                                              	          400 	       0.7839 	       0.0037
+JHBuntR:NumBusyUnits                                                   	          400 	       2.3517 	       0.0110
+JHBuntR:ScheduledUtil                                                  	          400 	       0.7839 	       0.0037
+JHBuntR:Q:NumInQ                                                       	          400 	      13.2569 	       0.4312
+JHBuntR:Q:TimeInQ                                                      	          400 	      33.8850 	       1.1915
+JHBuntR:WIP                                                            	          400 	      15.6085 	       0.4375
+MalWartR:InstantaneousUtil                                             	          400 	       0.5948 	       0.0056
+MalWartR:NumBusyUnits                                                  	          400 	       1.1895 	       0.0112
+MalWartR:ScheduledUtil                                                 	          400 	       0.5948 	       0.0056
+MalWartR:Q:NumInQ                                                      	          400 	       6.4689 	       0.2683
+MalWartR:Q:TimeInQ                                                     	          400 	      16.3365 	       0.6658
+MalWartR:WIP                                                           	          400 	       7.6584 	       0.2742
+StudentsAtRecruiters                                                   	          400 	      23.2670 	       0.6071
+JHBuntR:NumBusyUnits:IntervalAvg:Hourly:01:[0_0,60_0]                  	          400 	       0.4607 	       0.0269
+JHBuntR:NumBusyUnits:ValueAtStart:Hourly:01:[0_0,60_0]                 	          400 	       0.0000 	       0.0000
+JHBuntR:NumBusyUnits:IntervalAvg:Hourly:02:[60_0,120_0]                	          400 	       1.4812 	       0.0441
+JHBuntR:NumBusyUnits:ValueAtStart:Hourly:02:[60_0,120_0]               	          400 	       0.8775 	       0.0882
+JHBuntR:NumBusyUnits:IntervalAvg:Hourly:03:[120_0,180_0]               	          400 	       2.7308 	       0.0264
+JHBuntR:NumBusyUnits:ValueAtStart:Hourly:03:[120_0,180_0]              	          400 	       2.0850 	       0.0935
+JHBuntR:NumBusyUnits:IntervalAvg:Hourly:04:[180_0,240_0]               	          400 	       2.9917 	       0.0041
+JHBuntR:NumBusyUnits:ValueAtStart:Hourly:04:[180_0,240_0]              	          400 	       2.9575 	       0.0242
+JHBuntR:NumBusyUnits:IntervalAvg:Hourly:05:[240_0,300_0]               	          400 	       3.0000 	       0.0000
+JHBuntR:NumBusyUnits:ValueAtStart:Hourly:05:[240_0,300_0]              	          400 	       3.0000 	       0.0000
+JHBuntR:NumBusyUnits:IntervalAvg:Hourly:06:[300_0,360_0]               	          400 	       2.9928 	       0.0073
+JHBuntR:NumBusyUnits:ValueAtStart:Hourly:06:[300_0,360_0]              	          400 	       3.0000 	       0.0000
+MalWartR:NumBusyUnits:IntervalAvg:Hourly:01:[0_0,60_0]                 	          400 	       0.2481 	       0.0144
+MalWartR:NumBusyUnits:ValueAtStart:Hourly:01:[0_0,60_0]                	          400 	       0.0000 	       0.0000
+MalWartR:NumBusyUnits:IntervalAvg:Hourly:02:[60_0,120_0]               	          400 	       0.8081 	       0.0251
+MalWartR:NumBusyUnits:ValueAtStart:Hourly:02:[60_0,120_0]              	          400 	       0.4600 	       0.0605
+MalWartR:NumBusyUnits:IntervalAvg:Hourly:03:[120_0,180_0]              	          400 	       1.6496 	       0.0238
+MalWartR:NumBusyUnits:ValueAtStart:Hourly:03:[120_0,180_0]             	          400 	       1.1575 	       0.0783
+MalWartR:NumBusyUnits:IntervalAvg:Hourly:04:[180_0,240_0]              	          400 	       1.9722 	       0.0080
+MalWartR:NumBusyUnits:ValueAtStart:Hourly:04:[180_0,240_0]             	          400 	       1.9150 	       0.0338
+MalWartR:NumBusyUnits:IntervalAvg:Hourly:05:[240_0,300_0]              	          400 	       1.9967 	       0.0031
+MalWartR:NumBusyUnits:ValueAtStart:Hourly:05:[240_0,300_0]             	          400 	       1.9975 	       0.0049
+MalWartR:NumBusyUnits:IntervalAvg:Hourly:06:[300_0,360_0]              	          400 	       1.5946 	       0.0463
+MalWartR:NumBusyUnits:ValueAtStart:Hourly:06:[300_0,360_0]             	          400 	       1.9900 	       0.0098
+JHBuntR:Q:TimeInQ:IntervalAvg:Hourly:01:[0_0,60_0]                     	          399 	       0.0308 	       0.0166
+JHBuntR:Q:TimeInQ:IntervalAvg:Hourly:02:[60_0,120_0]                   	          400 	       0.5703 	       0.0952
+JHBuntR:Q:TimeInQ:IntervalAvg:Hourly:03:[120_0,180_0]                  	          400 	       5.6225 	       0.3913
+JHBuntR:Q:TimeInQ:IntervalAvg:Hourly:04:[180_0,240_0]                  	          400 	      20.0948 	       0.7762
+JHBuntR:Q:TimeInQ:IntervalAvg:Hourly:05:[240_0,300_0]                  	          400 	      38.2613 	       1.0184
+JHBuntR:Q:TimeInQ:IntervalAvg:Hourly:06:[300_0,360_0]                  	          400 	      56.0084 	       1.3804
+MalWartR:Q:TimeInQ:IntervalAvg:Hourly:01:[0_0,60_0]                    	          398 	       0.0266 	       0.0113
+MalWartR:Q:TimeInQ:IntervalAvg:Hourly:02:[60_0,120_0]                  	          400 	       0.3337 	       0.0488
+MalWartR:Q:TimeInQ:IntervalAvg:Hourly:03:[120_0,180_0]                 	          400 	       3.3037 	       0.2375
+MalWartR:Q:TimeInQ:IntervalAvg:Hourly:04:[180_0,240_0]                 	          400 	      12.4015 	       0.5668
+MalWartR:Q:TimeInQ:IntervalAvg:Hourly:05:[240_0,300_0]                 	          400 	      25.9470 	       0.8999
+MalWartR:Q:TimeInQ:IntervalAvg:Hourly:06:[300_0,360_0]                 	          400 	      31.5291 	       1.4447
+JHBuntR:InstantaneousUtil:IntervalAvg:Hourly:01:[0_0,60_0]             	          400 	       0.1536 	       0.0090
+JHBuntR:InstantaneousUtil:ValueAtStart:Hourly:01:[0_0,60_0]            	          400 	       0.0000 	       0.0000
+JHBuntR:InstantaneousUtil:IntervalAvg:Hourly:02:[60_0,120_0]           	          400 	       0.4937 	       0.0147
+JHBuntR:InstantaneousUtil:ValueAtStart:Hourly:02:[60_0,120_0]          	          400 	       0.2925 	       0.0294
+JHBuntR:InstantaneousUtil:IntervalAvg:Hourly:03:[120_0,180_0]          	          400 	       0.9103 	       0.0088
+JHBuntR:InstantaneousUtil:ValueAtStart:Hourly:03:[120_0,180_0]         	          400 	       0.6950 	       0.0312
+JHBuntR:InstantaneousUtil:IntervalAvg:Hourly:04:[180_0,240_0]          	          400 	       0.9972 	       0.0014
+JHBuntR:InstantaneousUtil:ValueAtStart:Hourly:04:[180_0,240_0]         	          400 	       0.9858 	       0.0081
+JHBuntR:InstantaneousUtil:IntervalAvg:Hourly:05:[240_0,300_0]          	          400 	       1.0000 	       0.0000
+JHBuntR:InstantaneousUtil:ValueAtStart:Hourly:05:[240_0,300_0]         	          400 	       1.0000 	       0.0000
+JHBuntR:InstantaneousUtil:IntervalAvg:Hourly:06:[300_0,360_0]          	          400 	       0.9976 	       0.0024
+JHBuntR:InstantaneousUtil:ValueAtStart:Hourly:06:[300_0,360_0]         	          400 	       1.0000 	       0.0000
+MalWartR:InstantaneousUtil:IntervalAvg:Hourly:01:[0_0,60_0]            	          400 	       0.1241 	       0.0072
+MalWartR:InstantaneousUtil:ValueAtStart:Hourly:01:[0_0,60_0]           	          400 	       0.0000 	       0.0000
+MalWartR:InstantaneousUtil:IntervalAvg:Hourly:02:[60_0,120_0]          	          400 	       0.4040 	       0.0126
+MalWartR:InstantaneousUtil:ValueAtStart:Hourly:02:[60_0,120_0]         	          400 	       0.2300 	       0.0303
+MalWartR:InstantaneousUtil:IntervalAvg:Hourly:03:[120_0,180_0]         	          400 	       0.8248 	       0.0119
+MalWartR:InstantaneousUtil:ValueAtStart:Hourly:03:[120_0,180_0]        	          400 	       0.5788 	       0.0391
+MalWartR:InstantaneousUtil:IntervalAvg:Hourly:04:[180_0,240_0]         	          400 	       0.9861 	       0.0040
+MalWartR:InstantaneousUtil:ValueAtStart:Hourly:04:[180_0,240_0]        	          400 	       0.9575 	       0.0169
+MalWartR:InstantaneousUtil:IntervalAvg:Hourly:05:[240_0,300_0]         	          400 	       0.9984 	       0.0015
+MalWartR:InstantaneousUtil:ValueAtStart:Hourly:05:[240_0,300_0]        	          400 	       0.9987 	       0.0025
+MalWartR:InstantaneousUtil:IntervalAvg:Hourly:06:[300_0,360_0]         	          400 	       0.7973 	       0.0231
+MalWartR:InstantaneousUtil:ValueAtStart:Hourly:06:[300_0,360_0]        	          400 	       0.9950 	       0.0049
+StudentsAtRecruiters:IntervalAvg:PeakPeriod:[150_0,270_0]              	          400 	      30.6476 	       0.8252
+StudentsAtRecruiters:ValueAtStart:PeakPeriod:[150_0,270_0]             	          400 	       9.4400 	       0.4816
+JHBuntR:InstantaneousUtil:IntervalAvg:PeakPeriod:[150_0,270_0]         	          400 	       0.9910 	       0.0020
+JHBuntR:InstantaneousUtil:ValueAtStart:PeakPeriod:[150_0,270_0]        	          400 	       0.9267 	       0.0196
+MalWartR:InstantaneousUtil:IntervalAvg:PeakPeriod:[150_0,270_0]        	          400 	       0.9709 	       0.0041
+MalWartR:InstantaneousUtil:ValueAtStart:PeakPeriod:[150_0,270_0]       	          400 	       0.8238 	       0.0322
+Mixer Ending Time                                                      	          400 	     429.6310 	       3.3911
+Prob(EndTime>360_0)                                                    	          400 	       0.9925 	       0.0085
+JHBuntR:SeizeCount                                                     	          400 	     169.4350 	       1.2817
+MalWartR:SeizeCount                                                    	          400 	     169.4350 	       1.2817
+------------------------------------------------------------------------------------------------------------------------

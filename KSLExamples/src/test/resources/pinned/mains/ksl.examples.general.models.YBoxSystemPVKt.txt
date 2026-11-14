@@ -1,0 +1,46 @@
+Name: YBox System
+Last Executive stopping message:
+	Scheduled end event occurred at time 30000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 5
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 30000.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 5
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Inspectors:InstantaneousUtil                                           	            5 	       0.4101 	       0.0102
+Inspectors:NumBusyUnits                                                	            5 	       0.8202 	       0.0204
+Inspectors:ScheduledUtil                                               	            5 	       0.4101 	       0.0102
+Inspectors:Q:NumInQ                                                    	            5 	       0.1505 	       0.0149
+Inspectors:Q:TimeInQ                                                   	            5 	       1.8450 	       0.1700
+Inspectors:WIP                                                         	            5 	       0.9707 	       0.0320
+Adjustor:InstantaneousUtil                                             	            5 	       0.1588 	       0.0095
+Adjustor:NumBusyUnits                                                  	            5 	       0.1588 	       0.0095
+Adjustor:ScheduledUtil                                                 	            5 	       0.1588 	       0.0095
+Adjustor:Q:NumInQ                                                      	            5 	       0.0152 	       0.0037
+Adjustor:Q:TimeInQ                                                     	            5 	       1.0066 	       0.1967
+Adjustor:WIP                                                           	            5 	       0.1740 	       0.0127
+System Time                                                            	            5 	      15.9502 	       0.6543
+Inspectors:SeizeCount                                                  	            5 	    2447.0000 	      38.3009
+Adjustor:SeizeCount                                                    	            5 	     452.4000 	      24.4674
+Count Scrapped                                                         	            5 	      57.0000 	       6.8573
+------------------------------------------------------------------------------------------------------------------------

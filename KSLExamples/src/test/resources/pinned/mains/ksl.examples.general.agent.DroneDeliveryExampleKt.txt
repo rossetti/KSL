@@ -1,0 +1,36 @@
+Name: DroneDeliveryExample
+Last Executive stopping message:
+	Scheduled end event occurred at time 1000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 1
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 1000.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 1
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+DeliveryTime                                                           	            1 	     177.1378 	          NaN
+NumIdleDrones                                                          	            1 	       2.1678 	          NaN
+NumDeliveries                                                          	            1 	      16.0000 	          NaN
+NumCharges                                                             	            1 	       7.0000 	          NaN
+------------------------------------------------------------------------------------------------------------------------
+Deliveries: 16.0
+Recharges: 7.0

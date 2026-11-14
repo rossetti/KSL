@@ -1,0 +1,61 @@
+Name: AgentPerformanceExample
+Last Executive stopping message:
+	Scheduled end event occurred at time 2000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 10
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 2000.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 10
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+specialist-1:Performance:NumMessagesReceived                           	           10 	     334.5000 	       4.7720
+specialist-1:Performance:NumMessagesConsumed                           	           10 	     334.5000 	       4.7720
+specialist-1:Performance:NumInMailbox                                  	           10 	       0.0025 	       0.0006
+specialist-1:Performance:NumPendingAtEndOfReplication                  	           10 	       0.0000 	       0.0000
+specialist-1:Performance:TimeInState_Idle                              	           10 	       0.7492 	       0.0035
+specialist-1:Performance:TimeInState_Working                           	           10 	       0.2508 	       0.0035
+specialist-1:Performance:NumTimesEntered_Idle                          	           10 	     335.3000 	       4.6976
+specialist-1:Performance:NumTimesEntered_Working                       	           10 	     334.5000 	       4.7720
+specialist-1:Performance:NumTransitions                                	           10 	     668.8000 	       9.4651
+specialist-2:Performance:NumMessagesReceived                           	           10 	     334.1000 	       4.8687
+specialist-2:Performance:NumMessagesConsumed                           	           10 	     334.0000 	       4.8635
+specialist-2:Performance:NumInMailbox                                  	           10 	       0.0408 	       0.0045
+specialist-2:Performance:NumPendingAtEndOfReplication                  	           10 	       0.1000 	       0.2262
+specialist-2:Performance:TimeInState_Idle                              	           10 	       0.4996 	       0.0072
+specialist-2:Performance:TimeInState_Working                           	           10 	       0.5004 	       0.0072
+specialist-2:Performance:NumTimesEntered_Idle                          	           10 	     334.4000 	       4.7833
+specialist-2:Performance:NumTimesEntered_Working                       	           10 	     334.0000 	       4.8635
+specialist-2:Performance:NumTransitions                                	           10 	     667.4000 	       9.6401
+specialist-3:Performance:NumMessagesReceived                           	           10 	     333.8000 	       4.6824
+specialist-3:Performance:NumMessagesConsumed                           	           10 	     333.2000 	       4.7667
+specialist-3:Performance:NumInMailbox                                  	           10 	       0.2775 	       0.0393
+specialist-3:Performance:NumPendingAtEndOfReplication                  	           10 	       0.6000 	       0.6911
+specialist-3:Performance:TimeInState_Idle                              	           10 	       0.2508 	       0.0107
+specialist-3:Performance:TimeInState_Working                           	           10 	       0.7492 	       0.0107
+specialist-3:Performance:NumTimesEntered_Idle                          	           10 	     333.5000 	       4.6268
+specialist-3:Performance:NumTimesEntered_Working                       	           10 	     333.2000 	       4.7667
+specialist-3:Performance:NumTransitions                                	           10 	     665.7000 	       9.3882
+------------------------------------------------------------------------------------------------------------------------
+Per-specialist results (expected utilisation = arrivalRate/3 * serviceTime):
+  specialist-1   service=1.5  busy=0.251 (expected 0.250)  meanQueue=0.002
+  specialist-2   service=3.0  busy=0.500 (expected 0.500)  meanQueue=0.041
+  specialist-3   service=4.5  busy=0.749 (expected 0.750)  meanQueue=0.277

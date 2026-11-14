@@ -1,0 +1,7 @@
+One crossing, four disciplines, over 120 minutes
+A walker every 1.5 minutes, a cart dispatched every 4.0, and a zone is a minute.
+  discipline            cart trips     walkers frac barred   mean wait    turns
+  PedestrianPriority             0          78       0.988        0.00        1
+  VehiclePriority               15           0       0.000          --        0
+  Alternating                   14          76       0.554        1.99        9
+  BoundedBatch                  15          77       0.708        1.12       37

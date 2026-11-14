@@ -1,0 +1,9 @@
+time = 0.0 : before being held customer = ID_1
+time = 1.0 : before being held customer = ID_2
+Removing and resuming held entities at time : 5.0
+time = 5.0 : after being held customer = ID_1
+time = 5.0 : after being held customer = ID_2
+time = 15.0 after the first delay for customer = ID_1
+time = 15.0 after the first delay for customer = ID_2
+time = 35.0 after the second delay for customer = ID_1
+time = 35.0 after the second delay for customer = ID_2

@@ -1,0 +1,36 @@
+0.0> starting mom = ID_1
+0.0> mom = ID_1 driving to game
+30.0> mom = ID_1 arrived at game
+30.0> mom = ID_1 suspending for daughter to exit van
+30.0> starting daughter ID_2
+30.0> daughter, ID_2, exiting the van
+32.0> daughter, ID_2, exited the van
+32.0> daughter, ID_2, resuming mom
+32.0> daughter, ID_2, starting playing
+32.0> mom = ID_1 running errands...
+77.0> mom = ID_1 completed errands
+77.0> mom, ID_1, mom suspending because daughter is still playing
+92.0> daughter, ID_2, finished playing
+92.0> daughter, ID_2, entering van
+94.0> daughter, ID_2, entered van
+94.0> daughter, ID_2, entered van, resuming mom
+94.0> mom = ID_1 driving home
+124.0> mom = ID_1 arrived home
+0.0> starting mom = ID_3
+0.0> mom = ID_3 driving to game
+30.0> mom = ID_3 arrived at game
+30.0> mom = ID_3 suspending for daughter to exit van
+30.0> starting daughter ID_4
+30.0> daughter, ID_4, exiting the van
+32.0> daughter, ID_4, exited the van
+32.0> daughter, ID_4, resuming mom
+32.0> daughter, ID_4, starting playing
+32.0> mom = ID_3 running errands...
+77.0> mom = ID_3 completed errands
+77.0> mom, ID_3, mom suspending because daughter is still playing
+92.0> daughter, ID_4, finished playing
+92.0> daughter, ID_4, entering van
+94.0> daughter, ID_4, entered van
+94.0> daughter, ID_4, entered van, resuming mom
+94.0> mom = ID_3 driving home
+124.0> mom = ID_3 arrived home

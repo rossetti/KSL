@@ -1,0 +1,86 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 249600.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 10
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 249600.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 10
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+DiagnosticsWorker1:InstantaneousUtil                                   	           10 	       0.8706 	       0.0056
+DiagnosticsWorker1:NumBusyUnits                                        	           10 	       0.8706 	       0.0056
+DiagnosticsWorker1:ScheduledUtil                                       	           10 	       0.8706 	       0.0056
+DiagnosticsWorker2:InstantaneousUtil                                   	           10 	       0.8161 	       0.0079
+DiagnosticsWorker2:NumBusyUnits                                        	           10 	       0.8161 	       0.0079
+DiagnosticsWorker2:ScheduledUtil                                       	           10 	       0.8161 	       0.0079
+DiagnosticWorkersPool:NumBusy                                          	           10 	       1.6867 	       0.0135
+DiagnosticWorkersPool:FractionBusy                                     	           10 	       0.8434 	       0.0067
+DiagnosticWorkersPool:Q:NumInQ                                         	           10 	       2.1752 	       0.1437
+DiagnosticWorkersPool:Q:TimeInQ                                        	           10 	      43.2796 	       2.7368
+TestWorker1:InstantaneousUtil                                          	           10 	       0.9433 	       0.0045
+TestWorker1:NumBusyUnits                                               	           10 	       0.9433 	       0.0045
+TestWorker1:ScheduledUtil                                              	           10 	       0.9433 	       0.0045
+TestWorker1:Q:NumInQ                                                   	           10 	       3.3269 	       0.2403
+TestWorker1:Q:TimeInQ                                                  	           10 	      59.0146 	       3.8324
+TestWorker1:WIP                                                        	           10 	       4.2703 	       0.2445
+TestWorker2:InstantaneousUtil                                          	           10 	       0.8961 	       0.0046
+TestWorker2:NumBusyUnits                                               	           10 	       0.8961 	       0.0046
+TestWorker2:ScheduledUtil                                              	           10 	       0.8961 	       0.0046
+TestWorker2:Q:NumInQ                                                   	           10 	       1.7984 	       0.0759
+TestWorker2:Q:TimeInQ                                                  	           10 	      47.5132 	       1.7714
+TestWorker2:WIP                                                        	           10 	       2.6945 	       0.0794
+TestWorker3:InstantaneousUtil                                          	           10 	       0.9314 	       0.0043
+TestWorker3:NumBusyUnits                                               	           10 	       0.9314 	       0.0043
+TestWorker3:ScheduledUtil                                              	           10 	       0.9314 	       0.0043
+TestWorker3:Q:NumInQ                                                   	           10 	       2.8378 	       0.1888
+TestWorker3:Q:TimeInQ                                                  	           10 	      56.4835 	       3.5036
+TestWorker3:WIP                                                        	           10 	       3.7692 	       0.1920
+RepairWorker1:InstantaneousUtil                                        	           10 	       0.9432 	       0.0028
+RepairWorker1:NumBusyUnits                                             	           10 	       0.9432 	       0.0028
+RepairWorker1:ScheduledUtil                                            	           10 	       0.9432 	       0.0028
+RepairWorker2:InstantaneousUtil                                        	           10 	       0.9216 	       0.0045
+RepairWorker2:NumBusyUnits                                             	           10 	       0.9216 	       0.0045
+RepairWorker2:ScheduledUtil                                            	           10 	       0.9216 	       0.0045
+RepairWorker3:InstantaneousUtil                                        	           10 	       0.8884 	       0.0059
+RepairWorker3:NumBusyUnits                                             	           10 	       0.8884 	       0.0059
+RepairWorker3:ScheduledUtil                                            	           10 	       0.8884 	       0.0059
+RepairWorkersPool:NumBusy                                              	           10 	       2.7532 	       0.0129
+RepairWorkersPool:FractionBusy                                         	           10 	       0.9177 	       0.0043
+RepairWorkersPool:Q:NumInQ                                             	           10 	       1.5275 	       0.1258
+RepairWorkersPool:Q:TimeInQ                                            	           10 	      30.4204 	       2.3764
+TransportWorkersPool:NumBusy                                           	           10 	       7.2107 	       0.0367
+TransportWorkersPool:FractionBusy                                      	           10 	       0.9013 	       0.0046
+TransportWorkersPool:Q:NumInQ                                          	           10 	       1.6801 	       0.1840
+TransportWorkersPool:Q:TimeInQ                                         	           10 	       8.6292 	       0.9156
+ResourceConstrainedTestAndRepair:NumInSystem                           	           10 	      20.5567 	       0.8457
+ResourceConstrainedTestAndRepair:TimeInSystem                          	           10 	     409.2692 	      14.8985
+ProbWithinLimit                                                        	           10 	       0.7131 	       0.0285
+DiagnosticsWorker1:SeizeCount                                          	           10 	   14733.6000 	     237.4257
+DiagnosticsWorker2:SeizeCount                                          	           10 	   12835.7000 	     281.6700
+TestWorker1:SeizeCount                                                 	           10 	   21136.9000 	     225.0008
+TestWorker2:SeizeCount                                                 	           10 	   19014.8000 	     283.1213
+TestWorker3:SeizeCount                                                 	           10 	   17946.8000 	     142.6191
+RepairWorker1:SeizeCount                                               	           10 	    8052.8000 	      79.2407
+RepairWorker2:SeizeCount                                               	           10 	    8007.5000 	      82.5798
+RepairWorker3:SeizeCount                                               	           10 	    7928.6000 	      66.0493
+------------------------------------------------------------------------------------------------------------------------

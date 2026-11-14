@@ -1,0 +1,53 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 110000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 40
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 110000.0
+Warm up time period for replication: 10000.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 40
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+RQ Inventory Model:Item:OnHand                                         	           40 	       0.9933 	       0.0006
+RQ Inventory Model:Item:PTimeWithStockOnHand                           	           40 	       0.5967 	       0.0003
+RQ Inventory Model:Item:AmountBackOrdered                              	           40 	       0.2936 	       0.0005
+RQ Inventory Model:Item:OnOrder                                        	           40 	       1.8003 	       0.0010
+RQ Inventory Model:Item:BackOrderQ:NumInQ                              	           40 	       0.2936 	       0.0005
+RQ Inventory Model:Item:BackOrderQ:TimeInQ                             	           40 	       0.2021 	       0.0001
+RQ Inventory Model:Item:FillRate                                       	           40 	       0.5965 	       0.0004
+RQ Inventory Model:Item:OrderingFrequency                              	           40 	       1.8003 	       0.0010
+RQ Inventory Model:Item:TotalCost                                      	           40 	       1.0322 	       0.0008
+RQ Inventory Model:Item:OrderingCost                                   	           40 	       0.2700 	       0.0001
+RQ Inventory Model:Item:HoldingCost                                    	           40 	       0.2483 	       0.0002
+RQ Inventory Model:Item:BackorderCost                                  	           40 	       0.5139 	       0.0008
+RQ Inventory Model:Item:OrderingAndHoldingCost                         	           40 	       0.5184 	       0.0001
+RQ Inventory Model:Item:NumReplenishmentOrders                         	           40 	  180032.1500 	      97.6159
+------------------------------------------------------------------------------------------------------------------------
+EventGenerator_4.initialEndingTime  = Infinity
+EventGenerator_4.initialMaximumNumberOfEvents  = 9.223372036854776E18
+EventGenerator_4.startOnInitializeOption  = 1.0
+RQ Inventory Model:Item.costPerOrder  = 0.15
+RQ Inventory Model:Item.initialReorderPoint  = 1.0
+RQ Inventory Model:Item.initialReorderQty  = 2.0
+RQ Inventory Model:Item.unitBackOrderCost  = 1.75
+RQ Inventory Model:Item.unitHoldingCost  = 0.25
+RQ Inventory Model:Item.initialOnHand  = 0.0

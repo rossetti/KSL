@@ -1,0 +1,131 @@
+Conveyor : Conveyor_2
+type = NON_ACCUMULATING
+is circular = true
+velocity = 1.0
+cellSize = 1
+max number cells allowed to occupy = 2
+cell Travel Time = 1.0
+Segments:
+first location = A
+last location = A
+Segment: 1 = (start = A --> end = B : length = 10)
+Segment: 2 = (start = B --> end = C : length = 20)
+Segment: 3 = (start = C --> end = A : length = 5)
+total length = 35
+Downstream locations:
+A : [B -> C -> A]
+B : [C -> A]
+C : [A]
+Segment Cells:
+Locations[A->B] = Cells[1..10]
+Locations[B->C] = Cells[11..30]
+Locations[C->A] = Cells[31..35]
+Cells:
+Cell(segment=A-B, cell=1, location=A, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=A-B, cell=2, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=A-B, cell=3, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=A-B, cell=4, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=A-B, cell=5, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=A-B, cell=6, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=A-B, cell=7, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=A-B, cell=8, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=A-B, cell=9, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=A-B, cell=10, location=B, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=11, location=B, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=12, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=13, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=14, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=15, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=16, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=17, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=18, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=19, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=20, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=21, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=22, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=23, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=24, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=25, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=26, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=27, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=28, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=29, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=B-C, cell=30, location=C, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=C-A, cell=31, location=C, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=C-A, cell=32, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=C-A, cell=33, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=C-A, cell=34, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=C-A, cell=35, location=A, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Part1: time = 0.1 before access at A
+Part1: time = 0.1 after access
+Part1: time = 0.1 before ride to B
+Part2: time = 0.1 before access at A
+Part3: time = 0.1 before access at A
+Part4: time = 0.1 before access at A
+Part5: time = 0.1 before access at A
+Part2: time = 2.1 after access
+Part2: time = 2.1 before ride to B
+Part3: time = 4.1 after access
+Part3: time = 4.1 before ride to B
+Part4: time = 6.1 after access
+Part4: time = 6.1 before ride to B
+Part5: time = 8.1 after access
+Part5: time = 8.1 before ride to B
+Part1: time = 10.1 after ride to B
+Part1: The riding time was 10.0
+Part1: time = 10.1 before exit
+Part1: time = 12.1 after exit
+Part2: time = 12.1 after ride to B
+Part2: The riding time was 10.0
+Part2: time = 12.1 before exit
+Part2: time = 14.1 after exit
+Part3: time = 14.1 after ride to B
+Part3: The riding time was 10.0
+Part3: time = 14.1 before exit
+Part3: time = 16.1 after exit
+Part4: time = 16.1 after ride to B
+Part4: The riding time was 10.000000000000002
+Part4: time = 16.1 before exit
+Part4: time = 18.1 after exit
+Part5: time = 18.1 after ride to B
+Part5: The riding time was 10.000000000000002
+Part5: time = 18.1 before exit
+Part5: time = 20.1 after exit
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 100.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 1
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 100.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 1
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Conveyor_2:A:AccessQ:NumInQ                                            	            1 	       0.2000 	          NaN
+Conveyor_2:A:AccessQ:TimeInQ                                           	            1 	       4.0000 	          NaN
+Conveyor_2:B:AccessQ:NumInQ                                            	            1 	       0.0000 	          NaN
+Conveyor_2:B:AccessQ:TimeInQ                                           	            0 	          NaN 	          NaN
+Conveyor_2:C:AccessQ:NumInQ                                            	            1 	       0.0000 	          NaN
+Conveyor_2:C:AccessQ:TimeInQ                                           	            0 	          NaN 	          NaN
+Conveyor_2:NumOccupiedCells                                            	            1 	       1.0000 	          NaN
+Conveyor_2:CellUtilization                                             	            1 	       0.0286 	          NaN
+------------------------------------------------------------------------------------------------------------------------

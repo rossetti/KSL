@@ -1,0 +1,9 @@
+0.0 > order ID_1 arrives with 3 parts
+0.0 > order ID_1 blocks until all of its parts are completed
+0.0 > part ID_2 of order ID_1 waits for a machine
+0.0 > part ID_3 of order ID_1 waits for a machine
+0.0 > part ID_4 of order ID_1 waits for a machine
+10.0 > part ID_2 of order ID_1 is completed
+15.0 > part ID_3 of order ID_1 is completed
+30.0 > part ID_4 of order ID_1 is completed
+30.0 > order ID_1 is completed, time in system = 30.0

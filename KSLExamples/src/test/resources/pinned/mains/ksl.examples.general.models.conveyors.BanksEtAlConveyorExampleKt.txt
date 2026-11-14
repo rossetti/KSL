@@ -1,0 +1,233 @@
+Conveyor : ArrivalConveyor
+type = ACCUMULATING
+is circular = false
+velocity = 25.0
+cellSize = 10
+max number cells allowed to occupy = 2
+cell Travel Time = 0.4
+Segments:
+first location = ArrivalArea
+last location = Drills
+Segment: 1 = (start = ArrivalArea --> end = Drills : length = 60)
+total length = 60
+Downstream locations:
+ArrivalArea : [Drills]
+Segment Cells:
+Locations[ArrivalArea->Drills] = Cells[1..6]
+Cells:
+Cell(segment=ArrivalArea-Drills, cell=1, location=ArrivalArea, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=ArrivalArea-Drills, cell=2, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=ArrivalArea-Drills, cell=3, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=ArrivalArea-Drills, cell=4, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=ArrivalArea-Drills, cell=5, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=ArrivalArea-Drills, cell=6, location=Drills, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Conveyor : LoopConveyor
+type = NON_ACCUMULATING
+is circular = true
+velocity = 30.0
+cellSize = 10
+max number cells allowed to occupy = 2
+cell Travel Time = 0.3333333333333333
+Segments:
+first location = Drills
+last location = Drills
+Segment: 1 = (start = Drills --> end = Mills : length = 70)
+Segment: 2 = (start = Mills --> end = Planers : length = 90)
+Segment: 3 = (start = Planers --> end = Grinders : length = 50)
+Segment: 4 = (start = Grinders --> end = Inspectors : length = 180)
+Segment: 5 = (start = Inspectors --> end = Drills : length = 250)
+total length = 640
+Downstream locations:
+Drills : [Mills -> Planers -> Grinders -> Inspectors -> Drills]
+Mills : [Planers -> Grinders -> Inspectors -> Drills]
+Planers : [Grinders -> Inspectors -> Drills]
+Grinders : [Inspectors -> Drills]
+Inspectors : [Drills]
+Segment Cells:
+Locations[Drills->Mills] = Cells[1..7]
+Locations[Mills->Planers] = Cells[8..16]
+Locations[Planers->Grinders] = Cells[17..21]
+Locations[Grinders->Inspectors] = Cells[22..39]
+Locations[Inspectors->Drills] = Cells[40..64]
+Cells:
+Cell(segment=Drills-Mills, cell=1, location=Drills, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Drills-Mills, cell=2, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Drills-Mills, cell=3, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Drills-Mills, cell=4, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Drills-Mills, cell=5, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Drills-Mills, cell=6, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Drills-Mills, cell=7, location=Mills, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Mills-Planers, cell=8, location=Mills, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Mills-Planers, cell=9, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Mills-Planers, cell=10, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Mills-Planers, cell=11, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Mills-Planers, cell=12, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Mills-Planers, cell=13, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Mills-Planers, cell=14, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Mills-Planers, cell=15, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Mills-Planers, cell=16, location=Planers, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Planers-Grinders, cell=17, location=Planers, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Planers-Grinders, cell=18, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Planers-Grinders, cell=19, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Planers-Grinders, cell=20, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Planers-Grinders, cell=21, location=Grinders, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=22, location=Grinders, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=23, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=24, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=25, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=26, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=27, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=28, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=29, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=30, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=31, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=32, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=33, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=34, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=35, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=36, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=37, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=38, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Grinders-Inspectors, cell=39, location=Inspectors, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=40, location=Inspectors, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=41, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=42, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=43, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=44, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=45, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=46, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=47, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=48, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=49, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=50, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=51, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=52, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=53, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=54, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=55, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=56, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=57, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=58, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=59, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=60, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=61, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=62, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=63, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-Drills, cell=64, location=Drills, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Conveyor : ExitConveyor
+type = NON_ACCUMULATING
+is circular = false
+velocity = 45.0
+cellSize = 10
+max number cells allowed to occupy = 2
+cell Travel Time = 0.2222222222222222
+Segments:
+first location = Inspectors
+last location = ExitArea
+Segment: 1 = (start = Inspectors --> end = ExitArea : length = 100)
+total length = 100
+Downstream locations:
+Inspectors : [ExitArea]
+Segment Cells:
+Locations[Inspectors->ExitArea] = Cells[1..10]
+Cells:
+Cell(segment=Inspectors-ExitArea, cell=1, location=Inspectors, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-ExitArea, cell=2, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-ExitArea, cell=3, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-ExitArea, cell=4, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-ExitArea, cell=5, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-ExitArea, cell=6, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-ExitArea, cell=7, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-ExitArea, cell=8, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-ExitArea, cell=9, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Inspectors-ExitArea, cell=10, location=ExitArea, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 2400.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 20
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 2400.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 20
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Drills:InstantaneousUtil                                               	           20 	       0.7100 	       0.0102
+Drills:NumBusyUnits                                                    	           20 	       1.4200 	       0.0203
+Drills:ScheduledUtil                                                   	           20 	       0.7100 	       0.0102
+Drills:Q:NumInQ                                                        	           20 	       0.3691 	       0.0194
+Drills:Q:TimeInQ                                                       	           20 	       1.9459 	       0.0779
+Drills:WIP                                                             	           20 	       1.7891 	       0.0382
+Mills:InstantaneousUtil                                                	           20 	       0.6956 	       0.0175
+Mills:NumBusyUnits                                                     	           20 	       2.0869 	       0.0524
+Mills:ScheduledUtil                                                    	           20 	       0.6956 	       0.0175
+Mills:Q:NumInQ                                                         	           20 	       0.2357 	       0.0394
+Mills:Q:TimeInQ                                                        	           20 	       1.7789 	       0.2631
+Mills:WIP                                                              	           20 	       2.3226 	       0.0862
+Planers:InstantaneousUtil                                              	           20 	       0.4908 	       0.0157
+Planers:NumBusyUnits                                                   	           20 	       1.4725 	       0.0472
+Planers:ScheduledUtil                                                  	           20 	       0.4908 	       0.0157
+Planers:Q:NumInQ                                                       	           20 	       0.0834 	       0.0149
+Planers:Q:TimeInQ                                                      	           20 	       1.4460 	       0.2335
+Planers:WIP                                                            	           20 	       1.5559 	       0.0585
+Grinders:InstantaneousUtil                                             	           20 	       0.6714 	       0.0093
+Grinders:NumBusyUnits                                                  	           20 	       1.3428 	       0.0186
+Grinders:ScheduledUtil                                                 	           20 	       0.6714 	       0.0093
+Grinders:Q:NumInQ                                                      	           20 	       0.1866 	       0.0147
+Grinders:Q:TimeInQ                                                     	           20 	       1.0110 	       0.0720
+Grinders:WIP                                                           	           20 	       1.5294 	       0.0307
+Inspectors:InstantaneousUtil                                           	           20 	       0.6605 	       0.0094
+Inspectors:NumBusyUnits                                                	           20 	       0.6605 	       0.0094
+Inspectors:ScheduledUtil                                               	           20 	       0.6605 	       0.0094
+Inspectors:Q:NumInQ                                                    	           20 	       0.1553 	       0.0076
+Inspectors:Q:TimeInQ                                                   	           20 	       0.8486 	       0.0383
+Inspectors:WIP                                                         	           20 	       0.8158 	       0.0149
+OverallSystemTime                                                      	           20 	      67.2624 	       0.3174
+ArrivalConveyor:ArrivalArea:AccessQ:NumInQ                             	           20 	       0.0130 	       0.0011
+ArrivalConveyor:ArrivalArea:AccessQ:TimeInQ                            	           20 	       0.0651 	       0.0050
+ArrivalConveyor:NumOccupiedCells                                       	           20 	       0.9530 	       0.0192
+ArrivalConveyor:CellUtilization                                        	           20 	       0.1588 	       0.0032
+LoopConveyor:Drills:AccessQ:NumInQ                                     	           20 	       0.0041 	       0.0004
+LoopConveyor:Drills:AccessQ:TimeInQ                                    	           20 	       0.0219 	       0.0019
+LoopConveyor:Mills:AccessQ:NumInQ                                      	           20 	       0.0111 	       0.0008
+LoopConveyor:Mills:AccessQ:TimeInQ                                     	           20 	       0.0851 	       0.0059
+LoopConveyor:Planers:AccessQ:NumInQ                                    	           20 	       0.0036 	       0.0006
+LoopConveyor:Planers:AccessQ:TimeInQ                                   	           20 	       0.0639 	       0.0092
+LoopConveyor:Grinders:AccessQ:NumInQ                                   	           20 	       0.0135 	       0.0010
+LoopConveyor:Grinders:AccessQ:TimeInQ                                  	           20 	       0.0735 	       0.0050
+LoopConveyor:Inspectors:AccessQ:NumInQ                                 	           20 	       0.0003 	       0.0001
+LoopConveyor:Inspectors:AccessQ:TimeInQ                                	           20 	       0.0414 	       0.0133
+LoopConveyor:NumOccupiedCells                                          	           20 	       5.2256 	       0.0808
+LoopConveyor:CellUtilization                                           	           20 	       0.0816 	       0.0013
+ExitConveyor:Inspectors:AccessQ:NumInQ                                 	           20 	       0.0000 	       0.0000
+ExitConveyor:Inspectors:AccessQ:TimeInQ                                	           20 	       0.0000 	       0.0000
+ExitConveyor:NumOccupiedCells                                          	           20 	       0.7335 	       0.0122
+ExitConveyor:CellUtilization                                           	           20 	       0.0734 	       0.0012
+Drills:SeizeCount                                                      	           20 	     454.0000 	       6.7464
+Mills:SeizeCount                                                       	           20 	     313.8500 	       8.0538
+Planers:SeizeCount                                                     	           20 	     136.7000 	       4.2735
+Grinders:SeizeCount                                                    	           20 	     441.9000 	       6.2752
+Inspectors:SeizeCount                                                  	           20 	     438.9500 	       6.2228
+OverFlowCount                                                          	           20 	      47.7000 	       4.4635
+ScrapCount                                                             	           20 	      21.0000 	       1.6212
+ReworkCount                                                            	           20 	      20.7000 	       1.8101
+CompletedCount                                                         	           20 	     396.3500 	       6.6053
+------------------------------------------------------------------------------------------------------------------------

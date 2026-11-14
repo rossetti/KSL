@@ -1,0 +1,68 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 249600.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 10
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 249600.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 10
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Diagnostics:InstantaneousUtil                                          	           10 	       0.7531 	       0.0070
+Diagnostics:NumBusyUnits                                               	           10 	       1.5062 	       0.0139
+Diagnostics:ScheduledUtil                                              	           10 	       0.7531 	       0.0070
+Diagnostics:Q:NumInQ                                                   	           10 	       2.0063 	       0.1291
+Diagnostics:Q:TimeInQ                                                  	           10 	      39.9203 	       2.4748
+Diagnostics:WIP                                                        	           10 	       3.5125 	       0.1425
+Test1:InstantaneousUtil                                                	           10 	       0.8583 	       0.0073
+Test1:NumBusyUnits                                                     	           10 	       0.8583 	       0.0073
+Test1:ScheduledUtil                                                    	           10 	       0.8583 	       0.0073
+Test1:Q:NumInQ                                                         	           10 	       2.9982 	       0.2687
+Test1:Q:TimeInQ                                                        	           10 	      53.1655 	       4.3695
+Test1:WIP                                                              	           10 	       3.8565 	       0.2756
+Test2:InstantaneousUtil                                                	           10 	       0.7811 	       0.0061
+Test2:NumBusyUnits                                                     	           10 	       0.7811 	       0.0061
+Test2:ScheduledUtil                                                    	           10 	       0.7811 	       0.0061
+Test2:Q:NumInQ                                                         	           10 	       1.6482 	       0.0727
+Test2:Q:TimeInQ                                                        	           10 	      43.5340 	       1.7003
+Test2:WIP                                                              	           10 	       2.4293 	       0.0772
+Test3:InstantaneousUtil                                                	           10 	       0.8664 	       0.0056
+Test3:NumBusyUnits                                                     	           10 	       0.8664 	       0.0056
+Test3:ScheduledUtil                                                    	           10 	       0.8664 	       0.0056
+Test3:Q:NumInQ                                                         	           10 	       2.6213 	       0.1947
+Test3:Q:TimeInQ                                                        	           10 	      52.1631 	       3.6481
+Test3:WIP                                                              	           10 	       3.4877 	       0.1991
+Repair:InstantaneousUtil                                               	           10 	       0.8720 	       0.0040
+Repair:NumBusyUnits                                                    	           10 	       2.6160 	       0.0120
+Repair:ScheduledUtil                                                   	           10 	       0.8720 	       0.0040
+Repair:Q:NumInQ                                                        	           10 	       1.2920 	       0.0870
+Repair:Q:TimeInQ                                                       	           10 	      25.7292 	       1.6267
+Repair:WIP                                                             	           10 	       3.9080 	       0.0972
+TestAndRepair:NumInSystem                                              	           10 	      17.7776 	       0.5397
+TestAndRepair:TimeInSystem                                             	           10 	     353.9412 	       9.0023
+ProbWithinLimit                                                        	           10 	       0.8147 	       0.0175
+Diagnostics:SeizeCount                                                 	           10 	   12540.1000 	      71.4653
+Test1:SeizeCount                                                       	           10 	   14058.5000 	     116.7458
+Test2:SeizeCount                                                       	           10 	    9442.8000 	      63.1388
+Test3:SeizeCount                                                       	           10 	   12532.6000 	      70.2987
+Repair:SeizeCount                                                      	           10 	   12527.1000 	      69.3666
+------------------------------------------------------------------------------------------------------------------------

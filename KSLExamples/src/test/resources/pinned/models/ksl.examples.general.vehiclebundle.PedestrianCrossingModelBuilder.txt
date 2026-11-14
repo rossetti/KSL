@@ -1,0 +1,53 @@
+reps=1 length=120.0 warmup=0.0
+R Cart:FracTimeBlocked n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Cart:FracTimeMoving n=1.0 avg=0.75 sd=NaN min=0.75 max=0.75
+R Cart:FracTimeMovingEmpty n=1.0 avg=0.75 sd=NaN min=0.75 max=0.75
+R Cart:FracTimeTransporting n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Cart:InstantaneousUtil n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Cart:NumActiveUnits n=1.0 avg=1.0 sd=NaN min=1.0 max=1.0
+R Cart:NumBusyUnits n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Cart:PTimeBusy n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Cart:PTimeIdle n=1.0 avg=1.0 sd=NaN min=1.0 max=1.0
+R Cart:PTimeInactive n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Cart:ScheduledUtil n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Sys:ApproachTime n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Sys:AwaitingPickupHoldQ:NumInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Sys:AwaitingPickupHoldQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Sys:DrivingHoldQ:NumInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Sys:DrivingHoldQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Sys:EventsPerZoneTraversal n=1.0 avg=1.0761904761904761 sd=NaN min=1.0761904761904761 max=1.0761904761904761
+R Sys:NumBlockedByIdleVehicle n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Sys:NumBlockedByOccupier n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Sys:NumBlockedByPopulation n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Sys:NumBlockedByVehicle n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Sys:NumHoldersAwaitingSpace n=1.0 avg=0.09583333333333334 sd=NaN min=0.09583333333333334 max=0.09583333333333334
+R Sys:NumTransportersBlocked n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Sys:NumTransportersIdle n=1.0 avg=0.25 sd=NaN min=0.25 max=0.25
+R Sys:NumTransportersMoving n=1.0 avg=0.75 sd=NaN min=0.75 max=0.75
+R Sys:NumTransportsNeverStarted n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Sys:NumTransportsUnfinished n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Sys:NumZonesClosed n=1.0 avg=0.6125 sd=NaN min=0.6125 max=0.6125
+R Sys:RideTime n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Sys:RidingHoldQ:NumInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Sys:RidingHoldQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Sys:RouteLengthPerTransport n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Sys:TimeToCloseZones n=1.0 avg=0.3108108108108108 sd=NaN min=0.3108108108108108 max=0.3108108108108108
+R Sys:TransportBlockedTime n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Sys:TransportTime n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Sys:ZoneUtilization n=1.0 avg=0.07142857142857142 sd=NaN min=0.07142857142857142 max=0.07142857142857142
+R Sys:ZonesTraversedPerTransport n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R WalkQ:NumInQ n=1.0 avg=0.7375 sd=NaN min=0.7375 max=0.7375
+R WalkQ:TimeInQ n=1.0 avg=1.77 sd=NaN min=1.77 max=1.77
+R Walkway:FracTimeBarred n=1.0 avg=0.7083333333333334 sd=NaN min=0.7083333333333334 max=0.7083333333333334
+R Walkway:NumWaitingToCross n=1.0 avg=0.7375 sd=NaN min=0.7375 max=0.7375
+R Walkway:WaitToCross n=1.0 avg=1.120253164556962 sd=NaN min=1.120253164556962 max=1.120253164556962
+C Cart:NumTimesBlocked n=1.0 avg=0.0 sd=NaN
+C Cart:SeizeCount n=1.0 avg=0.0 sd=NaN
+C Sys:NumDeadlocksDetected n=1.0 avg=0.0 sd=NaN
+C Sys:NumEventsScheduled n=1.0 avg=113.0 sd=NaN
+C Sys:NumObstructionsDetected n=1.0 avg=0.0 sd=NaN
+C Sys:NumRequestsUnfilled n=1.0 avg=0.0 sd=NaN
+C Sys:NumZoneEngagements n=1.0 avg=37.0 sd=NaN
+C Sys:NumZoneTraversals n=1.0 avg=105.0 sd=NaN
+C Walkway:CrossingsMade n=1.0 avg=77.0 sd=NaN
+C Walkway:TurnsTaken n=1.0 avg=37.0 sd=NaN

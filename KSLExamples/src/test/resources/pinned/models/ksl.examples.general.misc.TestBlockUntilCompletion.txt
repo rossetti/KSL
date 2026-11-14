@@ -1,0 +1,12 @@
+reps=5 length=2000.0 warmup=0.0
+R R1:InstantaneousUtil n=5.0 avg=0.025 sd=0.0 min=0.025 max=0.025
+R R1:NumActiveUnits n=5.0 avg=1.0 sd=0.0 min=1.0 max=1.0
+R R1:NumBusyUnits n=5.0 avg=0.025 sd=0.0 min=0.025 max=0.025
+R R1:PTimeBusy n=5.0 avg=0.025 sd=0.0 min=0.025 max=0.025
+R R1:PTimeIdle n=5.0 avg=0.975 sd=0.0 min=0.975 max=0.975
+R R1:PTimeInactive n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R R1:Q:NumInQ n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R R1:Q:TimeInQ n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R R1:ScheduledUtil n=5.0 avg=0.025 sd=0.0 min=0.025 max=0.025
+R R1:WIP n=5.0 avg=0.025 sd=0.0 min=0.025 max=0.025
+C R1:SeizeCount n=5.0 avg=1.0 sd=0.0

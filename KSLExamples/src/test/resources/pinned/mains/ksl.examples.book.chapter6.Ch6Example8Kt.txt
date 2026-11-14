@@ -1,0 +1,49 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 360.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 400
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 360.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 400
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+OverallSystemTime                                                      	          400 	      34.3985 	       0.8019
+NonWanderSystemTime                                                    	          400 	      22.3367 	       0.8123
+WanderSystemTime                                                       	          400 	      47.1614 	       0.7897
+LeaverSystemTime                                                       	          400 	      27.0096 	       0.2321
+NumInSystem                                                            	          400 	      16.9105 	       0.4610
+JHBuntR:InstantaneousUtil                                              	          400 	       0.8411 	       0.0065
+JHBuntR:NumBusyUnits                                                   	          400 	       2.5232 	       0.0195
+JHBuntR:ScheduledUtil                                                  	          400 	       0.8411 	       0.0065
+JHBuntR:Q:NumInQ                                                       	          400 	       4.9783 	       0.3648
+JHBuntR:Q:TimeInQ                                                      	          400 	      10.6658 	       0.7411
+JHBuntR:WIP                                                            	          400 	       7.5014 	       0.3772
+MalWartR:InstantaneousUtil                                             	          400 	       0.6766 	       0.0071
+MalWartR:NumBusyUnits                                                  	          400 	       1.3531 	       0.0142
+MalWartR:ScheduledUtil                                                 	          400 	       0.6766 	       0.0071
+MalWartR:Q:NumInQ                                                      	          400 	       1.3226 	       0.1105
+MalWartR:Q:TimeInQ                                                     	          400 	       2.7871 	       0.2147
+MalWartR:WIP                                                           	          400 	       2.6757 	       0.1209
+JHBuntR:SeizeCount                                                     	          400 	     154.4125 	       1.0191
+MalWartR:SeizeCount                                                    	          400 	     164.1375 	       1.2031
+------------------------------------------------------------------------------------------------------------------------

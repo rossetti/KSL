@@ -1,0 +1,57 @@
+0.0> starting mom = ID_1
+0.0> mom = ID_1 driving to game
+30.0> mom = ID_1 arrived at game
+30.0> mom = ID_1 suspending for daughter to exit van
+30.0> starting daughter ID_2
+30.0> daughter, ID_2, exiting the van
+32.0> daughter, ID_2, exited the van
+32.0> daughter, ID_2, resuming mom
+32.0> daughter, ID_2, starting playing
+32.0> mom = ID_1 running errands...
+62.0> daughter, ID_2, finished playing
+62.0> daughter, ID_2, mom errands not completed suspending
+77.0> mom = ID_1 completed errands
+77.0> mom, ID_1, mom resuming daughter done playing after errands
+77.0> daughter, ID_2, entering van
+79.0> daughter, ID_2, entered van
+79.0> daughter, ID_2, entered van, resuming mom
+79.0> mom = ID_1 driving home
+109.0> mom = ID_1 arrived home
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 150.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 1
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 150.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 1
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+WaitForDaughterToExitQ:NumInQ                                          	            1 	       0.0133 	          NaN
+WaitForDaughterToExitQ:TimeInQ                                         	            1 	       2.0000 	          NaN
+WaitForDaughterToPlayQ:NumInQ                                          	            1 	       0.0000 	          NaN
+WaitForDaughterToPlayQ:TimeInQ                                         	            0 	          NaN 	          NaN
+WaitForDaughterToLoadQ:NumInQ                                          	            1 	       0.0133 	          NaN
+WaitForDaughterToLoadQ:TimeInQ                                         	            1 	       2.0000 	          NaN
+WaitForMomToShopQ:NumInQ                                               	            1 	       0.1000 	          NaN
+WaitForMomToShopQ:TimeInQ                                              	            1 	      15.0000 	          NaN
+------------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,33 @@
+Name: BuildingEvacuationExample
+Last Executive stopping message:
+	Scheduled end event occurred at time 100.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 1
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 100.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 1
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+EvacuationTime                                                         	            1 	       7.3200 	          NaN
+PopulationInBuilding                                                   	            1 	       3.6600 	          NaN
+------------------------------------------------------------------------------------------------------------------------
+Pedestrians still in building at end: 0

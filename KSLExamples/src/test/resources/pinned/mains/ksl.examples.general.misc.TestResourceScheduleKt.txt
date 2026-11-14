@@ -1,0 +1,43 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 1000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 2
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 1000.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 2
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Resource:NumActiveUnits                                                	            2 	       1.8950 	       0.0000
+Resource:PTimeInactive                                                 	            2 	       0.0317 	       0.0417
+Resource:PTimeIdle                                                     	            2 	       0.5648 	       0.0454
+Resource:PTimeBusy                                                     	            2 	       0.4035 	       0.0871
+Resource:InstantaneousUtil                                             	            2 	       0.2654 	       0.1134
+Resource:NumBusyUnits                                                  	            2 	       0.4940 	       0.1669
+Resource:ScheduledUtil                                                 	            2 	       0.2607 	       0.0881
+Resource:Q:NumInQ                                                      	            2 	       0.2073 	       0.9207
+Resource:Q:TimeInQ                                                     	            2 	       1.2717 	       5.5165
+Resource:WIP                                                           	            2 	       0.7013 	       1.0876
+TestResourceSchedule_1:WIP                                             	            2 	       0.7013 	       1.0876
+TestResourceSchedule_1:TimeInSystem                                    	            2 	       4.3210 	       6.3090
+Resource:SeizeCount                                                    	            2 	     162.5000 	      19.0593
+------------------------------------------------------------------------------------------------------------------------

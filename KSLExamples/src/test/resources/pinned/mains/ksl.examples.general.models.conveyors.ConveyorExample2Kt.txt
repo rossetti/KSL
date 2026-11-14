@@ -1,0 +1,137 @@
+Conveyor : Conveyor
+type = ACCUMULATING
+is circular = false
+velocity = 1.0
+cellSize = 1
+max number cells allowed to occupy = 1
+cell Travel Time = 1.0
+Segments:
+first location = Station1
+last location = ExitArea
+Segment: 1 = (start = Station1 --> end = Station2 : length = 10)
+Segment: 2 = (start = Station2 --> end = Station3 : length = 10)
+Segment: 3 = (start = Station3 --> end = Station4 : length = 10)
+Segment: 4 = (start = Station4 --> end = ExitArea : length = 10)
+total length = 40
+Downstream locations:
+Station1 : [Station2 -> Station3 -> Station4 -> ExitArea]
+Station2 : [Station3 -> Station4 -> ExitArea]
+Station3 : [Station4 -> ExitArea]
+Station4 : [ExitArea]
+Segment Cells:
+Locations[Station1->Station2] = Cells[1..10]
+Locations[Station2->Station3] = Cells[11..20]
+Locations[Station3->Station4] = Cells[21..30]
+Locations[Station4->ExitArea] = Cells[31..40]
+Cells:
+Cell(segment=Station1-Station2, cell=1, location=Station1, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station1-Station2, cell=2, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station1-Station2, cell=3, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station1-Station2, cell=4, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station1-Station2, cell=5, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station1-Station2, cell=6, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station1-Station2, cell=7, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station1-Station2, cell=8, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station1-Station2, cell=9, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station1-Station2, cell=10, location=Station2, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station2-Station3, cell=11, location=Station2, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station2-Station3, cell=12, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station2-Station3, cell=13, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station2-Station3, cell=14, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station2-Station3, cell=15, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station2-Station3, cell=16, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station2-Station3, cell=17, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station2-Station3, cell=18, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station2-Station3, cell=19, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station2-Station3, cell=20, location=Station3, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station3-Station4, cell=21, location=Station3, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station3-Station4, cell=22, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station3-Station4, cell=23, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station3-Station4, cell=24, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station3-Station4, cell=25, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station3-Station4, cell=26, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station3-Station4, cell=27, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station3-Station4, cell=28, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station3-Station4, cell=29, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station3-Station4, cell=30, location=Station4, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station4-ExitArea, cell=31, location=Station4, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station4-ExitArea, cell=32, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station4-ExitArea, cell=33, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station4-ExitArea, cell=34, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station4-ExitArea, cell=35, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station4-ExitArea, cell=36, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station4-ExitArea, cell=37, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station4-ExitArea, cell=38, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station4-ExitArea, cell=39, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Station4-ExitArea, cell=40, location=ExitArea, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 960.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 20
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 960.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 20
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+NumInSystem                                                            	           20 	       6.7288 	       0.2577
+Conveyor:Station1:AccessQ:NumInQ                                       	           20 	       0.0208 	       0.0046
+Conveyor:Station1:AccessQ:TimeInQ                                      	           20 	       0.5038 	       0.1002
+Conveyor:Station2:AccessQ:NumInQ                                       	           20 	       0.0554 	       0.0124
+Conveyor:Station2:AccessQ:TimeInQ                                      	           20 	       1.3111 	       0.2373
+Conveyor:Station3:AccessQ:NumInQ                                       	           20 	       0.1038 	       0.0209
+Conveyor:Station3:AccessQ:TimeInQ                                      	           20 	       1.7654 	       0.3479
+Conveyor:Station4:AccessQ:NumInQ                                       	           20 	       0.0244 	       0.0075
+Conveyor:Station4:AccessQ:TimeInQ                                      	           20 	       0.3914 	       0.1055
+Conveyor:NumOccupiedCells                                              	           20 	       5.6170 	       0.2157
+Conveyor:CellUtilization                                               	           20 	       0.1404 	       0.0054
+Station1R:InstantaneousUtil                                            	           20 	       0.1617 	       0.0110
+Station1R:NumBusyUnits                                                 	           20 	       0.1617 	       0.0110
+Station1R:ScheduledUtil                                                	           20 	       0.1617 	       0.0110
+Station1R:Q:NumInQ                                                     	           20 	       0.0000 	       0.0000
+Station1R:Q:TimeInQ                                                    	           20 	       0.0000 	       0.0000
+Station1R:WIP                                                          	           20 	       0.1617 	       0.0110
+Station2R:InstantaneousUtil                                            	           20 	       0.4059 	       0.0172
+Station2R:NumBusyUnits                                                 	           20 	       0.4059 	       0.0172
+Station2R:ScheduledUtil                                                	           20 	       0.4059 	       0.0172
+Station2R:Q:NumInQ                                                     	           20 	       0.0476 	       0.0073
+Station2R:Q:TimeInQ                                                    	           20 	       0.5780 	       0.0704
+Station2R:WIP                                                          	           20 	       0.4536 	       0.0232
+Station3R:InstantaneousUtil                                            	           20 	       0.5502 	       0.0173
+Station3R:NumBusyUnits                                                 	           20 	       0.5502 	       0.0173
+Station3R:ScheduledUtil                                                	           20 	       0.5502 	       0.0173
+Station3R:Q:NumInQ                                                     	           20 	       0.0867 	       0.0104
+Station3R:Q:TimeInQ                                                    	           20 	       0.6256 	       0.0691
+Station3R:WIP                                                          	           20 	       0.6369 	       0.0237
+Station4R:InstantaneousUtil                                            	           20 	       0.3910 	       0.0095
+Station4R:NumBusyUnits                                                 	           20 	       0.3910 	       0.0095
+Station4R:ScheduledUtil                                                	           20 	       0.3910 	       0.0095
+Station4R:Q:NumInQ                                                     	           20 	       0.0347 	       0.0037
+Station4R:Q:TimeInQ                                                    	           20 	       0.1764 	       0.0166
+Station4R:WIP                                                          	           20 	       0.4256 	       0.0120
+OverallSystemTime                                                      	           20 	      33.9004 	       0.8698
+Station1R:SeizeCount                                                   	           20 	      38.9000 	       2.6208
+Station2R:SeizeCount                                                   	           20 	      78.0500 	       3.2795
+Station3R:SeizeCount                                                   	           20 	     132.4000 	       4.1233
+Station4R:SeizeCount                                                   	           20 	     187.9000 	       4.5449
+CompletedCount                                                         	           20 	     185.5000 	       4.5793
+------------------------------------------------------------------------------------------------------------------------

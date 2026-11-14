@@ -1,0 +1,58 @@
+0.0 > before waiting for the signal: ID_1
+0.0 > before waiting for the signal: ID_2
+0.0 > before waiting for the signal: ID_3
+0.0 > before waiting for the signal: ID_4
+0.0 > before waiting for the signal: ID_5
+0.0 > before waiting for the signal: ID_6
+0.0 > before waiting for the signal: ID_7
+0.0 > before waiting for the signal: ID_8
+0.0 > before waiting for the signal: ID_9
+0.0 > before waiting for the signal: ID_10
+3.0 > signaling the entities in range 0..4
+3.0 > after getting the signal: ID_1
+3.0 > after getting the signal: ID_2
+3.0 > after getting the signal: ID_3
+3.0 > after getting the signal: ID_4
+3.0 > after getting the signal: ID_5
+8.0 > after the second delay for entity: ID_1
+8.0 > exiting the process of entity: ID_1
+8.0 > after the second delay for entity: ID_2
+8.0 > exiting the process of entity: ID_2
+8.0 > after the second delay for entity: ID_3
+8.0 > exiting the process of entity: ID_3
+8.0 > after the second delay for entity: ID_4
+8.0 > exiting the process of entity: ID_4
+8.0 > after the second delay for entity: ID_5
+8.0 > exiting the process of entity: ID_5
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 50.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 1
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 50.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 1
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+SignalExample:HoldQ:NumInQ                                             	            1 	       5.3000 	          NaN
+SignalExample:HoldQ:TimeInQ                                            	            1 	       3.0000 	          NaN
+------------------------------------------------------------------------------------------------------------------------

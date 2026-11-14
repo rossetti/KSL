@@ -1,0 +1,113 @@
+Name: WarehouseAGVExample
+Last Executive stopping message:
+	Scheduled end event occurred at time 1000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 1
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 1000.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 1
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+TaskCompletionTime                                                     	            1 	      23.5114 	          NaN
+agv-1:InstantaneousUtil                                                	            1 	       0.5537 	          NaN
+agv-1:NumBusyUnits                                                     	            1 	       0.5537 	          NaN
+agv-1:ScheduledUtil                                                    	            1 	       0.7052 	          NaN
+agv-1:Q:NumInQ                                                         	            1 	       0.0000 	          NaN
+agv-1:Q:TimeInQ                                                        	            1 	       0.0000 	          NaN
+agv-1:WIP                                                              	            1 	       0.5537 	          NaN
+agv-2:InstantaneousUtil                                                	            1 	       0.5792 	          NaN
+agv-2:NumBusyUnits                                                     	            1 	       0.5792 	          NaN
+agv-2:ScheduledUtil                                                    	            1 	       0.7395 	          NaN
+agv-2:Q:NumInQ                                                         	            1 	       0.0000 	          NaN
+agv-2:Q:TimeInQ                                                        	            1 	       0.0000 	          NaN
+agv-2:WIP                                                              	            1 	       0.5792 	          NaN
+agv-3:InstantaneousUtil                                                	            1 	       0.5736 	          NaN
+agv-3:NumBusyUnits                                                     	            1 	       0.5736 	          NaN
+agv-3:ScheduledUtil                                                    	            1 	       0.7311 	          NaN
+agv-3:Q:NumInQ                                                         	            1 	       0.0000 	          NaN
+agv-3:Q:TimeInQ                                                        	            1 	       0.0000 	          NaN
+agv-3:WIP                                                              	            1 	       0.5736 	          NaN
+agv-4:InstantaneousUtil                                                	            1 	       0.6003 	          NaN
+agv-4:NumBusyUnits                                                     	            1 	       0.6003 	          NaN
+agv-4:ScheduledUtil                                                    	            1 	       0.7477 	          NaN
+agv-4:Q:NumInQ                                                         	            1 	       0.0000 	          NaN
+agv-4:Q:TimeInQ                                                        	            1 	       0.0000 	          NaN
+agv-4:WIP                                                              	            1 	       0.6003 	          NaN
+agv-1:Performance:NumMessagesReceived                                  	            1 	       0.0000 	          NaN
+agv-1:Performance:NumMessagesConsumed                                  	            1 	       0.0000 	          NaN
+agv-1:Performance:NumInMailbox                                         	            1 	       0.0000 	          NaN
+agv-1:Performance:TimeInState_Idle                                     	            1 	       0.4215 	          NaN
+agv-1:Performance:TimeInState_Bidding                                  	            1 	       0.0273 	          NaN
+agv-1:Performance:TimeInState_Working                                  	            1 	       0.4744 	          NaN
+agv-1:Performance:TimeInState_Charging                                 	            1 	       0.0769 	          NaN
+agv-1:Performance:NumTimesEntered_Idle                                 	            1 	      31.0000 	          NaN
+agv-1:Performance:NumTimesEntered_Bidding                              	            1 	      28.0000 	          NaN
+agv-1:Performance:NumTimesEntered_Working                              	            1 	      22.0000 	          NaN
+agv-1:Performance:NumTimesEntered_Charging                             	            1 	       3.0000 	          NaN
+agv-1:Performance:NumTransitions                                       	            1 	      83.0000 	          NaN
+agv-2:Performance:NumMessagesReceived                                  	            1 	       0.0000 	          NaN
+agv-2:Performance:NumMessagesConsumed                                  	            1 	       0.0000 	          NaN
+agv-2:Performance:NumInMailbox                                         	            1 	       0.0000 	          NaN
+agv-2:Performance:TimeInState_Idle                                     	            1 	       0.3842 	          NaN
+agv-2:Performance:TimeInState_Bidding                                  	            1 	       0.0305 	          NaN
+agv-2:Performance:TimeInState_Working                                  	            1 	       0.5510 	          NaN
+agv-2:Performance:TimeInState_Charging                                 	            1 	       0.0343 	          NaN
+agv-2:Performance:NumTimesEntered_Idle                                 	            1 	      33.0000 	          NaN
+agv-2:Performance:NumTimesEntered_Bidding                              	            1 	      32.0000 	          NaN
+agv-2:Performance:NumTimesEntered_Working                              	            1 	      24.0000 	          NaN
+agv-2:Performance:NumTimesEntered_Charging                             	            1 	       1.0000 	          NaN
+agv-2:Performance:NumTransitions                                       	            1 	      89.0000 	          NaN
+agv-3:Performance:NumMessagesReceived                                  	            1 	       0.0000 	          NaN
+agv-3:Performance:NumMessagesConsumed                                  	            1 	       0.0000 	          NaN
+agv-3:Performance:NumInMailbox                                         	            1 	       0.0000 	          NaN
+agv-3:Performance:TimeInState_Idle                                     	            1 	       0.4386 	          NaN
+agv-3:Performance:TimeInState_Bidding                                  	            1 	       0.0269 	          NaN
+agv-3:Performance:TimeInState_Working                                  	            1 	       0.4242 	          NaN
+agv-3:Performance:TimeInState_Charging                                 	            1 	       0.1104 	          NaN
+agv-3:Performance:NumTimesEntered_Idle                                 	            1 	      32.0000 	          NaN
+agv-3:Performance:NumTimesEntered_Bidding                              	            1 	      27.0000 	          NaN
+agv-3:Performance:NumTimesEntered_Working                              	            1 	      20.0000 	          NaN
+agv-3:Performance:NumTimesEntered_Charging                             	            1 	       4.0000 	          NaN
+agv-3:Performance:NumTransitions                                       	            1 	      82.0000 	          NaN
+agv-4:Performance:NumMessagesReceived                                  	            1 	       0.0000 	          NaN
+agv-4:Performance:NumMessagesConsumed                                  	            1 	       0.0000 	          NaN
+agv-4:Performance:NumInMailbox                                         	            1 	       0.0000 	          NaN
+agv-4:Performance:TimeInState_Idle                                     	            1 	       0.4320 	          NaN
+agv-4:Performance:TimeInState_Bidding                                  	            1 	       0.0301 	          NaN
+agv-4:Performance:TimeInState_Working                                  	            1 	       0.5053 	          NaN
+agv-4:Performance:TimeInState_Charging                                 	            1 	       0.0326 	          NaN
+agv-4:Performance:NumTimesEntered_Idle                                 	            1 	      33.0000 	          NaN
+agv-4:Performance:NumTimesEntered_Bidding                              	            1 	      31.0000 	          NaN
+agv-4:Performance:NumTimesEntered_Working                              	            1 	      21.0000 	          NaN
+agv-4:Performance:NumTimesEntered_Charging                             	            1 	       1.0000 	          NaN
+agv-4:Performance:NumTransitions                                       	            1 	      85.0000 	          NaN
+NumTasksCompleted                                                      	            1 	     101.0000 	          NaN
+NumChargingEvents                                                      	            1 	      43.0000 	          NaN
+NumCFPsBroadcast                                                       	            1 	     334.0000 	          NaN
+NumCFPsUnassigned                                                      	            1 	     230.0000 	          NaN
+agv-1:SeizeCount                                                       	            1 	      26.0000 	          NaN
+agv-2:SeizeCount                                                       	            1 	      26.0000 	          NaN
+agv-3:SeizeCount                                                       	            1 	      26.0000 	          NaN
+agv-4:SeizeCount                                                       	            1 	      26.0000 	          NaN
+------------------------------------------------------------------------------------------------------------------------
+Tasks completed: 101.0
+Charging events: 43.0

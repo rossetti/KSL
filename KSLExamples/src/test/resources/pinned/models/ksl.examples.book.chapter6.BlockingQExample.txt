@@ -1,0 +1,7 @@
+reps=5 length=2000.0 warmup=0.0
+R BlockingQueue_2:ChannelQ:NumInQ n=5.0 avg=0.0525 sd=0.0 min=0.0525 max=0.0525
+R BlockingQueue_2:ChannelQ:TimeInQ n=5.0 avg=7.0 sd=0.0 min=7.0 max=7.0
+R BlockingQueue_2:RequestQ:NumInQ n=5.0 avg=0.002 sd=0.0 min=0.002 max=0.002
+R BlockingQueue_2:RequestQ:TimeInQ n=5.0 avg=0.26666666666666666 sd=0.0 min=0.26666666666666666 max=0.26666666666666666
+R BlockingQueue_2:SenderQ:NumInQ n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R BlockingQueue_2:SenderQ:TimeInQ n=5.0 avg=0.0 sd=0.0 min=0.0 max=0.0

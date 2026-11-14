@@ -1,0 +1,25 @@
+Full half-width summary reports for all six rules: <work>/kslOutput
+Paired differences in loads delivered, NearestVehicle minus each rule
+(common random numbers, 15 replications, 95% intervals)
+  rule                     difference   half-width  detectable?
+  FurthestVehicle              -0.133        0.548           no
+  LeastUsed                    -0.333        0.540           no
+  BatchedWindow30              39.800        7.302          yes
+  ContractNetInstant            0.000        0.000           no
+  ContractNetDeadline5         -0.467        0.412          yes
+Paired differences in time in system, NearestVehicle minus each rule
+(common random numbers, 15 replications, 95% intervals)
+  rule                     difference   half-width  detectable?
+  FurthestVehicle             -15.311        0.481          yes
+  LeastUsed                    -9.180        0.528          yes
+  BatchedWindow30            -829.573      112.995          yes
+  ContractNetInstant            0.000        0.000           no
+  ContractNetDeadline5         -9.471        0.517          yes
+Paired differences in fleet imbalance, NearestVehicle minus each rule
+(common random numbers, 15 replications, 95% intervals)
+  rule                     difference   half-width  detectable?
+  FurthestVehicle              24.600        3.261          yes
+  LeastUsed                    59.467        4.430          yes
+  BatchedWindow30              59.333        4.488          yes
+  ContractNetInstant            0.000        0.000           no
+  ContractNetDeadline5         12.333        3.475          yes

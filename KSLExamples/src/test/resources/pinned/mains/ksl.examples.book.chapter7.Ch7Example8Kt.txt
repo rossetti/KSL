@@ -1,0 +1,53 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 600.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 30
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 600.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 30
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+DoctorQ:NumInQ                                                         	           30 	       0.9304 	       0.2321
+DoctorQ:TimeInQ                                                        	           30 	       4.7896 	       1.0783
+Doctors:InstantaneousUtil                                              	           30 	       0.7794 	       0.0258
+Doctors:NumBusyUnits                                                   	           30 	       3.8971 	       0.1291
+Doctors:ScheduledUtil                                                  	           30 	       0.7794 	       0.0258
+Doctors:WIP                                                            	           30 	       4.8276 	       0.3390
+TriageNurse:InstantaneousUtil                                          	           30 	       0.4209 	       0.0162
+TriageNurse:NumBusyUnits                                               	           30 	       0.4209 	       0.0162
+TriageNurse:ScheduledUtil                                              	           30 	       0.4209 	       0.0162
+TriageNurse:Q:NumInQ                                                   	           30 	       0.1544 	       0.0224
+TriageNurse:Q:TimeInQ                                                  	           30 	       0.8892 	       0.1065
+TriageNurse:WIP                                                        	           30 	       0.5753 	       0.0365
+Walk-In Clinic:TimeInSystem                                            	           30 	      33.1647 	       1.4455
+Walk-In Clinic:TimeInSystemHigh                                        	           30 	      43.7704 	       0.8512
+Walk-In Clinic:TimeInSystemMedium                                      	           30 	      31.4701 	       1.6258
+Walk-In Clinic:TimeInSystemLow                                         	           30 	      17.1881 	       0.6534
+Walk-In Clinic:ProbBalking                                             	           30 	       0.0000 	       0.0000
+Walk-In Clinic:ProbReneging                                            	           30 	       0.2934 	       0.0747
+Doctors:SeizeCount                                                     	           30 	      94.7333 	       2.4416
+TriageNurse:SeizeCount                                                 	           30 	     101.2333 	       3.7912
+Walk-In Clinic:NumServed                                               	           30 	      90.6333 	       2.2734
+Walk-In Clinic:NumBalked                                               	           30 	       0.0000 	       0.0000
+Walk-In Clinic:NumReneged                                              	           30 	       4.3667 	       1.3247
+------------------------------------------------------------------------------------------------------------------------

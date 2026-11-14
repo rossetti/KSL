@@ -1,0 +1,84 @@
+replication: 1
+0.2716649265082664 >  customer ID_1 arrived for batching
+0.29233819274891815 >  customer ID_2 arrived for batching
+0.5011063625025575 >  customer ID_3 arrived for batching
+0.5011063625025575 > customer ID_1 is in batch, completed process
+0.5011063625025575 > customer ID_2 is in batch, completed process
+0.5011063625025575 > customer ID_3 has batch
+batch name BatchQueue_2: elements : [ID_1, ID_2, ID_3]
+0.5011063625025575 >  customer ID_3 completed batching routine
+0.7397693782299306 >  customer ID_4 arrived for batching
+0.7669989535760411 >  customer ID_5 arrived for batching
+0.8787467385586178 >  customer ID_6 arrived for batching
+0.8787467385586178 > customer ID_4 is in batch, completed process
+0.8787467385586178 > customer ID_5 is in batch, completed process
+0.8787467385586178 > customer ID_6 has batch
+batch name BatchQueue_2: elements : [ID_4, ID_5, ID_6]
+0.8787467385586178 >  customer ID_6 completed batching routine
+1.310832858757922 >  customer ID_7 arrived for batching
+1.5245460699986702 >  customer ID_8 arrived for batching
+2.81996330315654 >  customer ID_9 arrived for batching
+2.81996330315654 > customer ID_7 is in batch, completed process
+2.81996330315654 > customer ID_8 is in batch, completed process
+2.81996330315654 > customer ID_9 has batch
+batch name BatchQueue_2: elements : [ID_7, ID_8, ID_9]
+2.81996330315654 >  customer ID_9 completed batching routine
+3.495640537413677 >  customer ID_10 arrived for batching
+replication: 2
+0.16545710053774623 >  customer ID_11 arrived for batching
+0.3718044292281551 >  customer ID_12 arrived for batching
+0.50216789920205 >  customer ID_13 arrived for batching
+0.50216789920205 > customer ID_11 is in batch, completed process
+0.50216789920205 > customer ID_12 is in batch, completed process
+0.50216789920205 > customer ID_13 has batch
+batch name BatchQueue_2: elements : [ID_11, ID_12, ID_13]
+0.50216789920205 >  customer ID_13 completed batching routine
+0.6854063054910071 >  customer ID_14 arrived for batching
+1.0206561803844552 >  customer ID_15 arrived for batching
+1.0971356888441355 >  customer ID_16 arrived for batching
+1.0971356888441355 > customer ID_14 is in batch, completed process
+1.0971356888441355 > customer ID_15 is in batch, completed process
+1.0971356888441355 > customer ID_16 has batch
+batch name BatchQueue_2: elements : [ID_14, ID_15, ID_16]
+1.0971356888441355 >  customer ID_16 completed batching routine
+1.3091591487983572 >  customer ID_17 arrived for batching
+1.6017176727947668 >  customer ID_18 arrived for batching
+2.52327732584607 >  customer ID_19 arrived for batching
+2.52327732584607 > customer ID_17 is in batch, completed process
+2.52327732584607 > customer ID_18 is in batch, completed process
+2.52327732584607 > customer ID_19 has batch
+batch name BatchQueue_2: elements : [ID_17, ID_18, ID_19]
+2.52327732584607 >  customer ID_19 completed batching routine
+3.9084002914125238 >  customer ID_20 arrived for batching
+Name: Test Batching
+Last Executive stopping message:
+	Scheduled end event occurred at time 20.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 2
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 20.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 2
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+BatchQueue_2:NumInQ                                                    	            2 	       0.9795 	       0.2590
+BatchQueue_2:TimeInQ                                                   	            2 	       0.3658 	       0.2841
+------------------------------------------------------------------------------------------------------------------------

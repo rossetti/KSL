@@ -1,0 +1,42 @@
+Name: Active Resource Example
+Last Executive stopping message:
+	Scheduled end event occurred at time 20000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 30
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 20000.0
+Warm up time period for replication: 5000.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 30
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+ActiveResourceViaBQ:NumInSystem                                        	           30 	       2.2960 	       0.0387
+ActiveResourceViaBQ:TimeInSystem                                       	           30 	       2.2986 	       0.0366
+NumBusy                                                                	           30 	       0.6983 	       0.0023
+ServerInputQ:RequestQ:NumInQ                                           	           30 	       0.3017 	       0.0023
+ServerInputQ:RequestQ:TimeInQ                                          	           30 	       0.3022 	       0.0029
+ServerInputQ:ChannelQ:NumInQ                                           	           30 	       1.5977 	       0.0369
+ServerInputQ:ChannelQ:TimeInQ                                          	           30 	       1.5995 	       0.0355
+ServerOutputQ:RequestQ:NumInQ                                          	           30 	       2.2960 	       0.0387
+ServerOutputQ:RequestQ:TimeInQ                                         	           30 	       2.2986 	       0.0366
+ServerOutputQ:ChannelQ:NumInQ                                          	           30 	       0.0000 	       0.0000
+ServerOutputQ:ChannelQ:TimeInQ                                         	           30 	       0.0000 	       0.0000
+ActiveResourceViaBQ:NumServed                                          	           30 	   14981.8333 	      40.6399
+------------------------------------------------------------------------------------------------------------------------

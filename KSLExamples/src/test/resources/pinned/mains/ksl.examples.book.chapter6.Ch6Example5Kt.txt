@@ -1,0 +1,143 @@
+0.0 > before the first delay for receiving entity: ID_1
+1.0 > trying to get item for receiving entity: ID_1
+5.0 > after the first delay for sender ID_2
+5.0 > before sending an item from sender ID_2
+5.0 > after sending an item from sender ID_2
+5.0 > after getting item for receiving entity: ID_1
+10.0 > after the first delay for sender ID_2
+10.0 > before sending an item from sender ID_2
+10.0 > after sending an item from sender ID_2
+10.0 > after the second delay for receiving entity: ID_1
+10.0 > before the first delay for receiving entity: ID_1
+11.0 > trying to get item for receiving entity: ID_1
+11.0 > after getting item for receiving entity: ID_1
+15.0 > after the first delay for sender ID_2
+15.0 > before sending an item from sender ID_2
+15.0 > after sending an item from sender ID_2
+16.0 > after the second delay for receiving entity: ID_1
+16.0 > before the first delay for receiving entity: ID_1
+17.0 > trying to get item for receiving entity: ID_1
+17.0 > after getting item for receiving entity: ID_1
+20.0 > after the first delay for sender ID_2
+20.0 > before sending an item from sender ID_2
+20.0 > after sending an item from sender ID_2
+22.0 > after the second delay for receiving entity: ID_1
+22.0 > before the first delay for receiving entity: ID_1
+23.0 > trying to get item for receiving entity: ID_1
+23.0 > after getting item for receiving entity: ID_1
+25.0 > after the first delay for sender ID_2
+25.0 > before sending an item from sender ID_2
+25.0 > after sending an item from sender ID_2
+28.0 > after the second delay for receiving entity: ID_1
+28.0 > before the first delay for receiving entity: ID_1
+29.0 > trying to get item for receiving entity: ID_1
+29.0 > after getting item for receiving entity: ID_1
+30.0 > after the first delay for sender ID_2
+30.0 > before sending an item from sender ID_2
+30.0 > after sending an item from sender ID_2
+34.0 > after the second delay for receiving entity: ID_1
+34.0 > before the first delay for receiving entity: ID_1
+35.0 > after the first delay for sender ID_2
+35.0 > before sending an item from sender ID_2
+35.0 > after sending an item from sender ID_2
+35.0 > trying to get item for receiving entity: ID_1
+35.0 > after getting item for receiving entity: ID_1
+40.0 > after the first delay for sender ID_2
+40.0 > before sending an item from sender ID_2
+40.0 > after sending an item from sender ID_2
+40.0 > after the second delay for receiving entity: ID_1
+40.0 > before the first delay for receiving entity: ID_1
+41.0 > trying to get item for receiving entity: ID_1
+41.0 > after getting item for receiving entity: ID_1
+45.0 > after the first delay for sender ID_2
+45.0 > before sending an item from sender ID_2
+45.0 > after sending an item from sender ID_2
+46.0 > after the second delay for receiving entity: ID_1
+46.0 > before the first delay for receiving entity: ID_1
+47.0 > trying to get item for receiving entity: ID_1
+47.0 > after getting item for receiving entity: ID_1
+50.0 > after the first delay for sender ID_2
+50.0 > before sending an item from sender ID_2
+50.0 > after sending an item from sender ID_2
+52.0 > after the second delay for receiving entity: ID_1
+52.0 > before the first delay for receiving entity: ID_1
+53.0 > trying to get item for receiving entity: ID_1
+53.0 > after getting item for receiving entity: ID_1
+55.0 > after the first delay for sender ID_2
+55.0 > before sending an item from sender ID_2
+55.0 > after sending an item from sender ID_2
+58.0 > after the second delay for receiving entity: ID_1
+58.0 > before the first delay for receiving entity: ID_1
+59.0 > trying to get item for receiving entity: ID_1
+59.0 > after getting item for receiving entity: ID_1
+60.0 > after the first delay for sender ID_2
+60.0 > before sending an item from sender ID_2
+60.0 > after sending an item from sender ID_2
+64.0 > after the second delay for receiving entity: ID_1
+64.0 > before the first delay for receiving entity: ID_1
+65.0 > after the first delay for sender ID_2
+65.0 > before sending an item from sender ID_2
+65.0 > after sending an item from sender ID_2
+65.0 > trying to get item for receiving entity: ID_1
+65.0 > after getting item for receiving entity: ID_1
+70.0 > after the first delay for sender ID_2
+70.0 > before sending an item from sender ID_2
+70.0 > after sending an item from sender ID_2
+70.0 > after the second delay for receiving entity: ID_1
+70.0 > before the first delay for receiving entity: ID_1
+71.0 > trying to get item for receiving entity: ID_1
+71.0 > after getting item for receiving entity: ID_1
+75.0 > after the first delay for sender ID_2
+75.0 > before sending an item from sender ID_2
+75.0 > after sending an item from sender ID_2
+75.0 > exiting the process for sender ID_2
+76.0 > after the second delay for receiving entity: ID_1
+76.0 > before the first delay for receiving entity: ID_1
+77.0 > trying to get item for receiving entity: ID_1
+77.0 > after getting item for receiving entity: ID_1
+82.0 > after the second delay for receiving entity: ID_1
+82.0 > before the first delay for receiving entity: ID_1
+83.0 > trying to get item for receiving entity: ID_1
+83.0 > after getting item for receiving entity: ID_1
+88.0 > after the second delay for receiving entity: ID_1
+88.0 > before the first delay for receiving entity: ID_1
+89.0 > trying to get item for receiving entity: ID_1
+89.0 > after getting item for receiving entity: ID_1
+94.0 > after the second delay for receiving entity: ID_1
+94.0 > exiting the process of receiving entity: ID_1
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 100.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 1
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 100.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 1
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+BlockingQueue_2:SenderQ:NumInQ                                         	            1 	       0.0000 	          NaN
+BlockingQueue_2:SenderQ:TimeInQ                                        	            1 	       0.0000 	          NaN
+BlockingQueue_2:RequestQ:NumInQ                                        	            1 	       0.0400 	          NaN
+BlockingQueue_2:RequestQ:TimeInQ                                       	            1 	       0.2667 	          NaN
+BlockingQueue_2:ChannelQ:NumInQ                                        	            1 	       1.0500 	          NaN
+BlockingQueue_2:ChannelQ:TimeInQ                                       	            1 	       7.0000 	          NaN
+------------------------------------------------------------------------------------------------------------------------

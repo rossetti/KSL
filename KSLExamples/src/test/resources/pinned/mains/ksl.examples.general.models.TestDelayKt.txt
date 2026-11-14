@@ -1,0 +1,38 @@
+time = 0.0 before the first delay in ID= 1, name= ID_1 isQueued = false
+time = 10.0 after the first delay in ID= 1, name= ID_1 isQueued = false
+time = 10.0 before the second delay in ID= 1, name= ID_1 isQueued = false
+time = 30.0 after the second delay in ID= 1, name= ID_1 isQueued = false
+time = 0.0 before the first delay in ID= 2, name= ID_2 isQueued = false
+time = 10.0 after the first delay in ID= 2, name= ID_2 isQueued = false
+time = 10.0 before the second delay in ID= 2, name= ID_2 isQueued = false
+time = 30.0 after the second delay in ID= 2, name= ID_2 isQueued = false
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 50.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 2
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 50.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 2
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------

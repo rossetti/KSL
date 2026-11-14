@@ -1,0 +1,106 @@
+reps=1 length=300.0 warmup=0.0
+R TaskCompletionTime n=1.0 avg=21.92606392874058 sd=NaN min=21.92606392874058 max=21.92606392874058
+R agv-1:InstantaneousUtil n=1.0 avg=0.5895903884568108 sd=NaN min=0.5895903884568108 max=0.5895903884568108
+R agv-1:Movement:TravelQ:NumInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-1:Movement:TravelQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R agv-1:NumActiveUnits n=1.0 avg=0.8082666666666666 sd=NaN min=0.8082666666666666 max=0.8082666666666666
+R agv-1:NumBusyUnits n=1.0 avg=0.5895903884568108 sd=NaN min=0.5895903884568108 max=0.5895903884568108
+R agv-1:PTimeBusy n=1.0 avg=0.5895903884568108 sd=NaN min=0.5895903884568108 max=0.5895903884568108
+R agv-1:PTimeIdle n=1.0 avg=0.21867627820985588 sd=NaN min=0.21867627820985588 max=0.21867627820985588
+R agv-1:PTimeInactive n=1.0 avg=0.19173333333333337 sd=NaN min=0.19173333333333337 max=0.19173333333333337
+R agv-1:Performance:NumInMailbox n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-1:Performance:NumMessagesConsumed n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-1:Performance:NumMessagesReceived n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-1:Performance:NumTimesEntered_Bidding n=1.0 avg=8.0 sd=NaN min=8.0 max=8.0
+R agv-1:Performance:NumTimesEntered_Charging n=1.0 avg=1.0 sd=NaN min=1.0 max=1.0
+R agv-1:Performance:NumTimesEntered_Idle n=1.0 avg=9.0 sd=NaN min=9.0 max=9.0
+R agv-1:Performance:NumTimesEntered_Working n=1.0 avg=8.0 sd=NaN min=8.0 max=8.0
+R agv-1:Performance:NumTransitions n=1.0 avg=25.0 sd=NaN min=25.0 max=25.0
+R agv-1:Performance:TimeInState_Bidding n=1.0 avg=0.02666666666666667 sd=NaN min=0.02666666666666667 max=0.02666666666666667
+R agv-1:Performance:TimeInState_Charging n=1.0 avg=0.06840000000000003 sd=NaN min=0.06840000000000003 max=0.06840000000000003
+R agv-1:Performance:TimeInState_Idle n=1.0 avg=0.37350876977087616 sd=NaN min=0.37350876977087616 max=0.37350876977087616
+R agv-1:Performance:TimeInState_Working n=1.0 avg=0.5314245635624573 sd=NaN min=0.5314245635624573 max=0.5314245635624573
+R agv-1:Q:NumInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-1:Q:TimeInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-1:ScheduledUtil n=1.0 avg=0.7294503321389114 sd=NaN min=0.7294503321389114 max=0.7294503321389114
+R agv-1:WIP n=1.0 avg=0.5895903884568108 sd=NaN min=0.5895903884568108 max=0.5895903884568108
+R agv-2:InstantaneousUtil n=1.0 avg=0.5926806764997493 sd=NaN min=0.5926806764997493 max=0.5926806764997493
+R agv-2:Movement:TravelQ:NumInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-2:Movement:TravelQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R agv-2:NumActiveUnits n=1.0 avg=0.8109333333333333 sd=NaN min=0.8109333333333333 max=0.8109333333333333
+R agv-2:NumBusyUnits n=1.0 avg=0.5926806764997493 sd=NaN min=0.5926806764997493 max=0.5926806764997493
+R agv-2:PTimeBusy n=1.0 avg=0.5926806764997493 sd=NaN min=0.5926806764997493 max=0.5926806764997493
+R agv-2:PTimeIdle n=1.0 avg=0.2182526568335841 sd=NaN min=0.2182526568335841 max=0.2182526568335841
+R agv-2:PTimeInactive n=1.0 avg=0.18906666666666666 sd=NaN min=0.18906666666666666 max=0.18906666666666666
+R agv-2:Performance:NumInMailbox n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-2:Performance:NumMessagesConsumed n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-2:Performance:NumMessagesReceived n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-2:Performance:NumTimesEntered_Bidding n=1.0 avg=13.0 sd=NaN min=13.0 max=13.0
+R agv-2:Performance:NumTimesEntered_Charging n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-2:Performance:NumTimesEntered_Idle n=1.0 avg=13.0 sd=NaN min=13.0 max=13.0
+R agv-2:Performance:NumTimesEntered_Working n=1.0 avg=8.0 sd=NaN min=8.0 max=8.0
+R agv-2:Performance:NumTransitions n=1.0 avg=33.0 sd=NaN min=33.0 max=33.0
+R agv-2:Performance:TimeInState_Bidding n=1.0 avg=0.04248646797123268 sd=NaN min=0.04248646797123268 max=0.04248646797123268
+R agv-2:Performance:TimeInState_Charging n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-2:Performance:TimeInState_Idle n=1.0 avg=0.3648328555290181 sd=NaN min=0.3648328555290181 max=0.3648328555290181
+R agv-2:Performance:TimeInState_Working n=1.0 avg=0.5926806764997493 sd=NaN min=0.5926806764997493 max=0.5926806764997493
+R agv-2:Q:NumInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-2:Q:TimeInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-2:ScheduledUtil n=1.0 avg=0.7308623929214272 sd=NaN min=0.7308623929214272 max=0.7308623929214272
+R agv-2:WIP n=1.0 avg=0.5926806764997493 sd=NaN min=0.5926806764997493 max=0.5926806764997493
+R agv-3:InstantaneousUtil n=1.0 avg=0.5568748194683812 sd=NaN min=0.5568748194683812 max=0.5568748194683812
+R agv-3:Movement:TravelQ:NumInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-3:Movement:TravelQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R agv-3:NumActiveUnits n=1.0 avg=0.8666666666666667 sd=NaN min=0.8666666666666667 max=0.8666666666666667
+R agv-3:NumBusyUnits n=1.0 avg=0.5568748194683812 sd=NaN min=0.5568748194683812 max=0.5568748194683812
+R agv-3:PTimeBusy n=1.0 avg=0.5568748194683812 sd=NaN min=0.5568748194683812 max=0.5568748194683812
+R agv-3:PTimeIdle n=1.0 avg=0.30979184719828534 sd=NaN min=0.30979184719828534 max=0.30979184719828534
+R agv-3:PTimeInactive n=1.0 avg=0.13333333333333333 sd=NaN min=0.13333333333333333 max=0.13333333333333333
+R agv-3:Performance:NumInMailbox n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-3:Performance:NumMessagesConsumed n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-3:Performance:NumMessagesReceived n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-3:Performance:NumTimesEntered_Bidding n=1.0 avg=11.0 sd=NaN min=11.0 max=11.0
+R agv-3:Performance:NumTimesEntered_Charging n=1.0 avg=1.0 sd=NaN min=1.0 max=1.0
+R agv-3:Performance:NumTimesEntered_Idle n=1.0 avg=13.0 sd=NaN min=13.0 max=13.0
+R agv-3:Performance:NumTimesEntered_Working n=1.0 avg=6.0 sd=NaN min=6.0 max=6.0
+R agv-3:Performance:NumTransitions n=1.0 avg=30.0 sd=NaN min=30.0 max=30.0
+R agv-3:Performance:TimeInState_Bidding n=1.0 avg=0.036229107195545694 sd=NaN min=0.036229107195545694 max=0.036229107195545694
+R agv-3:Performance:TimeInState_Charging n=1.0 avg=0.09442809041582052 sd=NaN min=0.09442809041582052 max=0.09442809041582052
+R agv-3:Performance:TimeInState_Idle n=1.0 avg=0.48087070052082426 sd=NaN min=0.48087070052082426 max=0.48087070052082426
+R agv-3:Performance:TimeInState_Working n=1.0 avg=0.3884721018678095 sd=NaN min=0.3884721018678095 max=0.3884721018678095
+R agv-3:Q:NumInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-3:Q:TimeInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-3:ScheduledUtil n=1.0 avg=0.6425478686173629 sd=NaN min=0.6425478686173629 max=0.6425478686173629
+R agv-3:WIP n=1.0 avg=0.5568748194683812 sd=NaN min=0.5568748194683812 max=0.5568748194683812
+R agv-4:InstantaneousUtil n=1.0 avg=0.576138608770368 sd=NaN min=0.576138608770368 max=0.576138608770368
+R agv-4:Movement:TravelQ:NumInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-4:Movement:TravelQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R agv-4:NumActiveUnits n=1.0 avg=0.8058666666666667 sd=NaN min=0.8058666666666667 max=0.8058666666666667
+R agv-4:NumBusyUnits n=1.0 avg=0.576138608770368 sd=NaN min=0.576138608770368 max=0.576138608770368
+R agv-4:PTimeBusy n=1.0 avg=0.576138608770368 sd=NaN min=0.576138608770368 max=0.576138608770368
+R agv-4:PTimeIdle n=1.0 avg=0.2297280578962987 sd=NaN min=0.2297280578962987 max=0.2297280578962987
+R agv-4:PTimeInactive n=1.0 avg=0.19413333333333327 sd=NaN min=0.19413333333333327 max=0.19413333333333327
+R agv-4:Performance:NumInMailbox n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-4:Performance:NumMessagesConsumed n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-4:Performance:NumMessagesReceived n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-4:Performance:NumTimesEntered_Bidding n=1.0 avg=14.0 sd=NaN min=14.0 max=14.0
+R agv-4:Performance:NumTimesEntered_Charging n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-4:Performance:NumTimesEntered_Idle n=1.0 avg=14.0 sd=NaN min=14.0 max=14.0
+R agv-4:Performance:NumTimesEntered_Working n=1.0 avg=7.0 sd=NaN min=7.0 max=7.0
+R agv-4:Performance:NumTransitions n=1.0 avg=34.0 sd=NaN min=34.0 max=34.0
+R agv-4:Performance:TimeInState_Bidding n=1.0 avg=0.046666666666666676 sd=NaN min=0.046666666666666676 max=0.046666666666666676
+R agv-4:Performance:TimeInState_Charging n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-4:Performance:TimeInState_Idle n=1.0 avg=0.5299070862262478 sd=NaN min=0.5299070862262478 max=0.5299070862262478
+R agv-4:Performance:TimeInState_Working n=1.0 avg=0.42342624710708543 sd=NaN min=0.42342624710708543 max=0.42342624710708543
+R agv-4:Q:NumInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-4:Q:TimeInQ n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R agv-4:ScheduledUtil n=1.0 avg=0.714930437752773 sd=NaN min=0.714930437752773 max=0.714930437752773
+R agv-4:WIP n=1.0 avg=0.576138608770368 sd=NaN min=0.576138608770368 max=0.576138608770368
+C NumCFPsBroadcast n=1.0 avg=102.0 sd=NaN
+C NumCFPsUnassigned n=1.0 avg=67.0 sd=NaN
+C NumChargingEvents n=1.0 avg=11.0 sd=NaN
+C NumTasksCompleted n=1.0 avg=32.0 sd=NaN
+C agv-1:SeizeCount n=1.0 avg=9.0 sd=NaN
+C agv-2:SeizeCount n=1.0 avg=8.0 sd=NaN
+C agv-3:SeizeCount n=1.0 avg=8.0 sd=NaN
+C agv-4:SeizeCount n=1.0 avg=10.0 sd=NaN

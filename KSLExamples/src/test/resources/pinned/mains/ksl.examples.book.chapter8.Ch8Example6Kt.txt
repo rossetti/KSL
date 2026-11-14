@@ -1,0 +1,128 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 249600.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 10
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 249600.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 10
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+ShopTransport:EventsPerZoneTraversal                                   	           10 	       1.0415 	       0.0003
+ShopTransport:NumTransportersMoving                                    	           10 	       1.5429 	       0.0079
+ShopTransport:NumTransportersBlocked                                   	           10 	       0.0210 	       0.0003
+ShopTransport:NumTransportersIdle                                      	           10 	       1.4361 	       0.0081
+ShopTransport:ZoneUtilization                                          	           10 	       0.0492 	       0.0000
+ShopTransport:NumTransportsNeverStarted                                	           10 	       0.0000 	       0.0000
+ShopTransport:NumTransportsUnfinished                                  	           10 	       0.6000 	       0.3694
+ShopTransport:ApproachTime                                             	           10 	       1.5837 	       0.0053
+ShopTransport:RideTime                                                 	           10 	       2.5981 	       0.0048
+ShopTransport:TransportBlockedTime                                     	           10 	       0.0500 	       0.0009
+ShopTransport:ZonesTraversedPerTransport                               	           10 	      22.4642 	       0.0391
+ShopTransport:RouteLengthPerTransport                                  	           10 	     100.7023 	       0.1785
+ShopTransport:NumBlockedByVehicle                                      	           10 	       0.0210 	       0.0003
+ShopTransport:NumBlockedByOccupier                                     	           10 	       0.0000 	       0.0000
+ShopTransport:NumBlockedByPopulation                                   	           10 	       0.0000 	       0.0000
+ShopTransport:NumBlockedByIdleVehicle                                  	           10 	       0.0000 	       0.0000
+ShopTransport:NumZonesClosed                                           	           10 	       0.0000 	       0.0000
+ShopTransport:NumHoldersAwaitingSpace                                  	           10 	       0.0000 	       0.0000
+ShopTransport:TimeToCloseZones                                         	            0 	          NaN 	          NaN
+ShopTransport:TransportTime                                            	           10 	       4.1982 	       0.0060
+Worker1:InstantaneousUtil                                              	           10 	       0.3624 	       0.0010
+Worker1:NumBusyUnits                                                   	           10 	       0.3624 	       0.0010
+Worker1:ScheduledUtil                                                  	           10 	       0.3624 	       0.0010
+Worker1:FracTimeMoving                                                 	           10 	       0.6840 	       0.0017
+Worker1:FracTimeTransporting                                           	           10 	       0.2223 	       0.0006
+Worker1:FracTimeMovingEmpty                                            	           10 	       0.4618 	       0.0014
+Worker1:FracTimeBlocked                                                	           10 	       0.0046 	       0.0001
+Worker2:InstantaneousUtil                                              	           10 	       0.2824 	       0.0022
+Worker2:NumBusyUnits                                                   	           10 	       0.2824 	       0.0022
+Worker2:ScheduledUtil                                                  	           10 	       0.2824 	       0.0022
+Worker2:FracTimeMoving                                                 	           10 	       0.5346 	       0.0034
+Worker2:FracTimeTransporting                                           	           10 	       0.1730 	       0.0013
+Worker2:FracTimeMovingEmpty                                            	           10 	       0.3615 	       0.0022
+Worker2:FracTimeBlocked                                                	           10 	       0.0084 	       0.0001
+Worker3:InstantaneousUtil                                              	           10 	       0.1689 	       0.0020
+Worker3:NumBusyUnits                                                   	           10 	       0.1689 	       0.0020
+Worker3:ScheduledUtil                                                  	           10 	       0.1689 	       0.0020
+Worker3:FracTimeMoving                                                 	           10 	       0.3243 	       0.0036
+Worker3:FracTimeTransporting                                           	           10 	       0.1041 	       0.0013
+Worker3:FracTimeMovingEmpty                                            	           10 	       0.2201 	       0.0024
+Worker3:FracTimeBlocked                                                	           10 	       0.0080 	       0.0002
+TransportWorkerPool:NumBusy                                            	           10 	       0.8137 	       0.0047
+TransportWorkerPool:FractionBusy                                       	           10 	       0.2712 	       0.0016
+TransportWorkerPool:Q:NumInQ                                           	           10 	       0.0032 	       0.0003
+TransportWorkerPool:Q:TimeInQ                                          	           10 	       0.0165 	       0.0013
+DiagnosticWorkers:InstantaneousUtil                                    	           10 	       0.7531 	       0.0070
+DiagnosticWorkers:NumBusyUnits                                         	           10 	       1.5062 	       0.0139
+DiagnosticWorkers:ScheduledUtil                                        	           10 	       0.7531 	       0.0070
+DiagnosticWorkers:Q:NumInQ                                             	           10 	       2.0063 	       0.1291
+DiagnosticWorkers:Q:TimeInQ                                            	           10 	      39.9203 	       2.4748
+DiagnosticWorkers:WIP                                                  	           10 	       3.5125 	       0.1425
+Test1:InstantaneousUtil                                                	           10 	       0.8583 	       0.0073
+Test1:NumBusyUnits                                                     	           10 	       0.8583 	       0.0073
+Test1:ScheduledUtil                                                    	           10 	       0.8583 	       0.0073
+Test1:Q:NumInQ                                                         	           10 	       2.9678 	       0.2757
+Test1:Q:TimeInQ                                                        	           10 	      52.6261 	       4.4956
+Test1:WIP                                                              	           10 	       3.8261 	       0.2826
+Test2:InstantaneousUtil                                                	           10 	       0.7811 	       0.0061
+Test2:NumBusyUnits                                                     	           10 	       0.7811 	       0.0061
+Test2:ScheduledUtil                                                    	           10 	       0.7811 	       0.0061
+Test2:Q:NumInQ                                                         	           10 	       1.6307 	       0.0696
+Test2:Q:TimeInQ                                                        	           10 	      43.0731 	       1.5895
+Test2:WIP                                                              	           10 	       2.4118 	       0.0746
+Test3:InstantaneousUtil                                                	           10 	       0.8664 	       0.0056
+Test3:NumBusyUnits                                                     	           10 	       0.8664 	       0.0056
+Test3:ScheduledUtil                                                    	           10 	       0.8664 	       0.0056
+Test3:Q:NumInQ                                                         	           10 	       2.6169 	       0.1886
+Test3:Q:TimeInQ                                                        	           10 	      52.0797 	       3.5392
+Test3:WIP                                                              	           10 	       3.4832 	       0.1928
+RepairWorkers:InstantaneousUtil                                        	           10 	       0.8720 	       0.0040
+RepairWorkers:NumBusyUnits                                             	           10 	       2.6159 	       0.0119
+RepairWorkers:ScheduledUtil                                            	           10 	       0.8720 	       0.0040
+RepairWorkers:Q:NumInQ                                                 	           10 	       1.3016 	       0.0901
+RepairWorkers:Q:TimeInQ                                                	           10 	      25.9191 	       1.6838
+RepairWorkers:WIP                                                      	           10 	       3.9175 	       0.1006
+NumInSystem                                                            	           10 	      17.9681 	       0.5396
+TimeInSystem                                                           	           10 	     357.7283 	       8.9157
+ProbWithinLimit                                                        	           10 	       0.8104 	       0.0182
+TransferTime                                                           	           10 	      16.2056 	       0.0250
+ShopTransport:NumZoneTraversals                                        	           10 	 3404271.1000 	   17012.5235
+ShopTransport:NumEventsScheduled                                       	           10 	 3545639.2000 	   18061.5556
+ShopTransport:NumDeadlocksDetected                                     	           10 	       0.0000 	       0.0000
+ShopTransport:NumObstructionsDetected                                  	           10 	       0.0000 	       0.0000
+ShopTransport:NumZoneEngagements                                       	           10 	       0.0000 	       0.0000
+ShopTransport:NumRequestsUnfilled                                      	           10 	       0.0000 	       0.0000
+Worker1:SeizeCount                                                     	           10 	   21321.4000 	      74.4439
+Worker1:NumTimesBlocked                                                	           10 	   30487.2000 	     437.2684
+Worker2:SeizeCount                                                     	           10 	   16877.5000 	      91.2978
+Worker2:NumTimesBlocked                                                	           10 	   56619.2000 	     748.9915
+Worker3:SeizeCount                                                     	           10 	   10370.2000 	     112.4083
+Worker3:NumTimesBlocked                                                	           10 	   54354.7000 	    1124.8757
+DiagnosticWorkers:SeizeCount                                           	           10 	   12540.1000 	      71.4653
+Test1:SeizeCount                                                       	           10 	   14057.7000 	     116.4385
+Test2:SeizeCount                                                       	           10 	    9442.7000 	      63.4310
+Test3:SeizeCount                                                       	           10 	   12532.4000 	      70.6569
+RepairWorkers:SeizeCount                                               	           10 	   12526.9000 	      68.9993
+NumberIn                                                               	           10 	   12541.6000 	      71.8491
+NumberOut                                                              	           10 	   12524.2000 	      68.9385
+------------------------------------------------------------------------------------------------------------------------

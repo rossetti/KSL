@@ -1,0 +1,16 @@
+reps=1 length=240.0 warmup=0.0
+R DriveThrough:NumInSystem n=1.0 avg=0.5090194413193306 sd=NaN min=0.5090194413193306 max=0.5090194413193306
+R DriveThrough:TimeInSystem n=1.0 avg=0.5334701568412199 sd=NaN min=0.5334701568412199 max=0.5334701568412199
+R Pharmacists:InstantaneousUtil n=1.0 avg=0.2451358424957194 sd=NaN min=0.2451358424957194 max=0.2451358424957194
+R Pharmacists:NumActiveUnits n=1.0 avg=2.0 sd=NaN min=2.0 max=2.0
+R Pharmacists:NumBusyUnits n=1.0 avg=0.4902716849914388 sd=NaN min=0.4902716849914388 max=0.4902716849914388
+R Pharmacists:PTimeBusy n=1.0 avg=0.4022102945778387 sd=NaN min=0.4022102945778387 max=0.4022102945778387
+R Pharmacists:PTimeIdle n=1.0 avg=0.5977897054221614 sd=NaN min=0.5977897054221614 max=0.5977897054221614
+R Pharmacists:PTimeInactive n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+R Pharmacists:Q:NumInQ n=1.0 avg=0.01874775632789175 sd=NaN min=0.01874775632789175 max=0.01874775632789175
+R Pharmacists:Q:TimeInQ n=1.0 avg=0.019648303575083053 sd=NaN min=0.019648303575083053 max=0.019648303575083053
+R Pharmacists:ScheduledUtil n=1.0 avg=0.2451358424957194 sd=NaN min=0.2451358424957194 max=0.2451358424957194
+R Pharmacists:WIP n=1.0 avg=0.5090194413193306 sd=NaN min=0.5090194413193306 max=0.5090194413193306
+R SysTime > 4_0 minutes n=1.0 avg=0.0 sd=NaN min=0.0 max=0.0
+C DriveThrough:NumServed n=1.0 avg=229.0 sd=NaN
+C Pharmacists:SeizeCount n=1.0 avg=229.0 sd=NaN

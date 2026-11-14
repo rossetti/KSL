@@ -1,0 +1,61 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 43200.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 100
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 43200.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 100
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+ProductionSystem:PrepWorkers:InstantaneousUtil                         	          100 	       0.8019 	       0.0022
+ProductionSystem:PrepWorkers:NumBusyUnits                              	          100 	       1.6037 	       0.0045
+ProductionSystem:PrepWorkers:ScheduledUtil                             	          100 	       0.8019 	       0.0022
+ProductionSystem:PrepWorkers:Q:NumInQ                                  	          100 	       2.8838 	       0.0808
+ProductionSystem:PrepWorkers:Q:TimeInQ                                 	          100 	      14.3941 	       0.3918
+ProductionSystem:PrepWorkers:WIP                                       	          100 	       4.4875 	       0.0840
+ProductionSystem:Build1Workers:InstantaneousUtil                       	          100 	       0.1601 	       0.0006
+ProductionSystem:Build1Workers:NumBusyUnits                            	          100 	       0.3201 	       0.0013
+ProductionSystem:Build1Workers:ScheduledUtil                           	          100 	       0.1601 	       0.0006
+ProductionSystem:Build1Workers:Q:NumInQ                                	          100 	       0.0051 	       0.0002
+ProductionSystem:Build1Workers:Q:TimeInQ                               	          100 	       0.0856 	       0.0025
+ProductionSystem:Build1Workers:WIP                                     	          100 	       0.3253 	       0.0013
+ProductionSystem:Build2Workers:InstantaneousUtil                       	          100 	       0.2491 	       0.0006
+ProductionSystem:Build2Workers:NumBusyUnits                            	          100 	       0.7474 	       0.0018
+ProductionSystem:Build2Workers:ScheduledUtil                           	          100 	       0.2491 	       0.0006
+ProductionSystem:Build2Workers:Q:NumInQ                                	          100 	       0.0092 	       0.0002
+ProductionSystem:Build2Workers:Q:TimeInQ                               	          100 	       0.0657 	       0.0015
+ProductionSystem:Build2Workers:WIP                                     	          100 	       0.7566 	       0.0019
+ProductionSystem:PackagingWorkers:InstantaneousUtil                    	          100 	       0.3501 	       0.0008
+ProductionSystem:PackagingWorkers:NumBusyUnits                         	          100 	       0.7002 	       0.0016
+ProductionSystem:PackagingWorkers:ScheduledUtil                        	          100 	       0.3501 	       0.0008
+ProductionSystem:PackagingWorkers:Q:NumInQ                             	          100 	       0.0605 	       0.0009
+ProductionSystem:PackagingWorkers:Q:TimeInQ                            	          100 	       0.3022 	       0.0041
+ProductionSystem:PackagingWorkers:WIP                                  	          100 	       0.7607 	       0.0022
+ProductionSystem:SysTime                                               	          100 	      31.6153 	       0.4032
+ProductionSystem:SysTime <= 60                                         	          100 	       0.9035 	       0.0046
+ProductionSystem:PrepWorkers:SeizeCount                                	          100 	    8647.2000 	      17.2821
+ProductionSystem:Build1Workers:SeizeCount                              	          100 	    2591.8000 	      10.0970
+ProductionSystem:Build2Workers:SeizeCount                              	          100 	    6053.7900 	      14.8642
+ProductionSystem:PackagingWorkers:SeizeCount                           	          100 	    8644.4900 	      17.2832
+ProductionSystem:PartsCompleted                                        	          100 	    8643.8400 	      17.3028
+------------------------------------------------------------------------------------------------------------------------

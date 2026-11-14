@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Used by the pinned-results test: no logging at all, so an example's pinned output never depends on how logging is set up. -->
+<configuration>
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
+    <root level="OFF"/>
+</configuration>

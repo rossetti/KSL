@@ -1,0 +1,44 @@
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 600.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 30
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 600.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 30
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Security Inspectors:InstantaneousUtil                                  	           30 	       0.8671 	       0.0163
+Security Inspectors:NumBusyUnits                                       	           30 	       0.8671 	       0.0163
+Security Inspectors:ScheduledUtil                                      	           30 	       0.8671 	       0.0163
+Security Inspectors:Q:NumInQ                                           	           30 	       2.8620 	       0.5231
+Security Inspectors:Q:TimeInQ                                          	           30 	       5.6465 	       0.9525
+Security Inspectors:WIP                                                	           30 	       3.7291 	       0.5347
+Num in System                                                          	           30 	       3.7291 	       0.5347
+System Time                                                            	           30 	       7.4009 	       0.9543
+Wait Time                                                              	           30 	       5.6465 	       0.9525
+WaitTime >= 5 minutes                                                  	           30 	       0.4006 	       0.0548
+WT >= 5 minutes                                                        	           30 	       0.4006 	       0.0548
+Security Inspectors:SeizeCount                                         	           30 	     296.6000 	       5.3796
+Num Cleared                                                            	           30 	     274.1667 	       5.1593
+Num Denied                                                             	           30 	      21.5667 	       1.5833
+------------------------------------------------------------------------------------------------------------------------

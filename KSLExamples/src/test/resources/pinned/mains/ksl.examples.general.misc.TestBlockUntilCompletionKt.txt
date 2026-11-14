@@ -1,0 +1,8 @@
+time = 0.0 before the first delay in ID= 1, name= ID_1 isQueued = false
+time = 10.0 after the first delay in ID= 1, name= ID_1 isQueued = false
+time = 10.0 ID_1 before blocking for process process2
+time = 10.0 starting process 2 ID_2
+time = 60.0 ended process 2 ID_2
+time = 60.0 ID_2 afterRunningProcess: completed process = Process(id=1, name='process2', state = Completed)
+time = 60.0 ID_1 after blocking for process process2
+time = 60.0 ID_1 afterRunningProcess: completed process = Process(id=1, name='process1', state = Completed)

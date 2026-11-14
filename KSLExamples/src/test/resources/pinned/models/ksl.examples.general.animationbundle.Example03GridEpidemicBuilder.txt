@@ -1,0 +1,4 @@
+reps=1 length=50.0 warmup=0.0
+R NumInfected n=1.0 avg=5.32 sd=NaN min=5.32 max=5.32
+R NumRecovered n=1.0 avg=10.24 sd=NaN min=10.24 max=10.24
+R NumSusceptible n=1.0 avg=34.44 sd=NaN min=34.44 max=34.44

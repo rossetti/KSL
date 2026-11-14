@@ -1,0 +1,34 @@
+Name: AgentArrivalsExample
+Last Executive stopping message:
+	Scheduled end event occurred at time 500.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 5
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 500.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 5
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+NumInSystem                                                            	            5 	       9.3155 	       0.5811
+TimeInSystem                                                           	            5 	      20.0000 	       0.0000
+NumExited                                                              	            5 	     229.4000 	      13.6187
+------------------------------------------------------------------------------------------------------------------------
+Little's law check: L = 9.316, lambda*W = 10.000

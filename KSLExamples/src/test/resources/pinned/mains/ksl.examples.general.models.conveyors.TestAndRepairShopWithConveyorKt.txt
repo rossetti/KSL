@@ -1,0 +1,237 @@
+Conveyor : LoopConveyor
+type = ACCUMULATING
+is circular = true
+velocity = 10.0
+cellSize = 1
+max number cells allowed to occupy = 2
+cell Travel Time = 0.1
+Segments:
+first location = Diagnostics
+last location = Diagnostics
+Segment: 1 = (start = Diagnostics --> end = Test1 : length = 20)
+Segment: 2 = (start = Test1 --> end = Test2 : length = 20)
+Segment: 3 = (start = Test2 --> end = Repair : length = 15)
+Segment: 4 = (start = Repair --> end = Test3 : length = 45)
+Segment: 5 = (start = Test3 --> end = Diagnostics : length = 30)
+total length = 130
+Downstream locations:
+Diagnostics : [Test1 -> Test2 -> Repair -> Test3 -> Diagnostics]
+Test1 : [Test2 -> Repair -> Test3 -> Diagnostics]
+Test2 : [Repair -> Test3 -> Diagnostics]
+Repair : [Test3 -> Diagnostics]
+Test3 : [Diagnostics]
+Segment Cells:
+Locations[Diagnostics->Test1] = Cells[1..20]
+Locations[Test1->Test2] = Cells[21..40]
+Locations[Test2->Repair] = Cells[41..55]
+Locations[Repair->Test3] = Cells[56..100]
+Locations[Test3->Diagnostics] = Cells[101..130]
+Cells:
+Cell(segment=Diagnostics-Test1, cell=1, location=Diagnostics, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=2, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=3, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=4, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=5, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=6, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=7, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=8, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=9, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=10, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=11, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=12, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=13, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=14, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=15, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=16, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=17, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=18, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=19, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Diagnostics-Test1, cell=20, location=Test1, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=21, location=Test1, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=22, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=23, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=24, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=25, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=26, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=27, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=28, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=29, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=30, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=31, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=32, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=33, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=34, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=35, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=36, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=37, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=38, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=39, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test1-Test2, cell=40, location=Test2, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=41, location=Test2, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=42, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=43, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=44, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=45, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=46, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=47, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=48, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=49, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=50, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=51, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=52, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=53, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=54, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test2-Repair, cell=55, location=Repair, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=56, location=Repair, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=57, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=58, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=59, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=60, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=61, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=62, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=63, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=64, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=65, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=66, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=67, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=68, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=69, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=70, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=71, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=72, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=73, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=74, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=75, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=76, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=77, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=78, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=79, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=80, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=81, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=82, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=83, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=84, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=85, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=86, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=87, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=88, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=89, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=90, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=91, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=92, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=93, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=94, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=95, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=96, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=97, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=98, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=99, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Repair-Test3, cell=100, location=Test3, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=101, location=Test3, type=ENTRY, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=102, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=103, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=104, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=105, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=106, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=107, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=108, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=109, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=110, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=111, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=112, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=113, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=114, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=115, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=116, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=117, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=118, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=119, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=120, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=121, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=122, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=123, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=124, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=125, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=126, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=127, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=128, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=129, location=null, type=INNER, isOccupied=false, isBlocked=false, item=null, item status = null)
+Cell(segment=Test3-Diagnostics, cell=130, location=Diagnostics, type=EXIT, isOccupied=false, isBlocked=false, item=null, item status = null)
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 249600.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 10
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 249600.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 10
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Diagnostics:InstantaneousUtil                                          	           10 	       0.7531 	       0.0070
+Diagnostics:NumBusyUnits                                               	           10 	       1.5062 	       0.0139
+Diagnostics:ScheduledUtil                                              	           10 	       0.7531 	       0.0070
+Diagnostics:Q:NumInQ                                                   	           10 	       2.0063 	       0.1291
+Diagnostics:Q:TimeInQ                                                  	           10 	      39.9203 	       2.4748
+Diagnostics:WIP                                                        	           10 	       3.5125 	       0.1425
+Test1:InstantaneousUtil                                                	           10 	       0.8583 	       0.0072
+Test1:NumBusyUnits                                                     	           10 	       0.8583 	       0.0072
+Test1:ScheduledUtil                                                    	           10 	       0.8583 	       0.0072
+Test1:Q:NumInQ                                                         	           10 	       2.9834 	       0.2720
+Test1:Q:TimeInQ                                                        	           10 	      52.9037 	       4.4297
+Test1:WIP                                                              	           10 	       3.8417 	       0.2790
+Test2:InstantaneousUtil                                                	           10 	       0.7811 	       0.0061
+Test2:NumBusyUnits                                                     	           10 	       0.7811 	       0.0061
+Test2:ScheduledUtil                                                    	           10 	       0.7811 	       0.0061
+Test2:Q:NumInQ                                                         	           10 	       1.6358 	       0.0695
+Test2:Q:TimeInQ                                                        	           10 	      43.2083 	       1.5868
+Test2:WIP                                                              	           10 	       2.4169 	       0.0744
+Test3:InstantaneousUtil                                                	           10 	       0.8664 	       0.0056
+Test3:NumBusyUnits                                                     	           10 	       0.8664 	       0.0056
+Test3:ScheduledUtil                                                    	           10 	       0.8664 	       0.0056
+Test3:Q:NumInQ                                                         	           10 	       2.6111 	       0.1898
+Test3:Q:TimeInQ                                                        	           10 	      51.9647 	       3.5587
+Test3:WIP                                                              	           10 	       3.4774 	       0.1941
+Repair:InstantaneousUtil                                               	           10 	       0.8719 	       0.0040
+Repair:NumBusyUnits                                                    	           10 	       2.6158 	       0.0120
+Repair:ScheduledUtil                                                   	           10 	       0.8719 	       0.0040
+Repair:Q:NumInQ                                                        	           10 	       1.2817 	       0.0905
+Repair:Q:TimeInQ                                                       	           10 	      25.5240 	       1.6952
+Repair:WIP                                                             	           10 	       3.8975 	       0.1011
+TestAndRepairWithConveyor:NumInSystem                                  	           10 	      18.2610 	       0.5403
+TestAndRepairWithConveyor:TimeInSystem                                 	           10 	     363.5707 	       8.9018
+ProbWithinLimit                                                        	           10 	       0.8025 	       0.0182
+LoopConveyor:Diagnostics:AccessQ:NumInQ                                	           10 	       0.0001 	       0.0000
+LoopConveyor:Diagnostics:AccessQ:TimeInQ                               	           10 	       0.0011 	       0.0001
+LoopConveyor:Test1:AccessQ:NumInQ                                      	           10 	       0.0001 	       0.0000
+LoopConveyor:Test1:AccessQ:TimeInQ                                     	           10 	       0.0012 	       0.0001
+LoopConveyor:Test2:AccessQ:NumInQ                                      	           10 	       0.0000 	       0.0000
+LoopConveyor:Test2:AccessQ:TimeInQ                                     	           10 	       0.0012 	       0.0001
+LoopConveyor:Test3:AccessQ:NumInQ                                      	           10 	       0.0000 	       0.0000
+LoopConveyor:Test3:AccessQ:TimeInQ                                     	           10 	       0.0005 	       0.0001
+LoopConveyor:NumOccupiedCells                                          	           10 	       1.6672 	       0.0101
+LoopConveyor:CellUtilization                                           	           10 	       0.0128 	       0.0001
+Diagnostics:SeizeCount                                                 	           10 	   12540.1000 	      71.4653
+Test1:SeizeCount                                                       	           10 	   14057.6000 	     116.5586
+Test2:SeizeCount                                                       	           10 	    9442.7000 	      63.4310
+Test3:SeizeCount                                                       	           10 	   12532.4000 	      70.6883
+Repair:SeizeCount                                                      	           10 	   12526.6000 	      69.0781
+------------------------------------------------------------------------------------------------------------------------

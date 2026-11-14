@@ -1,0 +1,5 @@
+reps=1 length=400.0 warmup=0.0
+R DeliveryTime n=1.0 avg=115.1857592121488 sd=NaN min=115.1857592121488 max=115.1857592121488
+R NumIdleDrones n=1.0 avg=1.5508409772523137 sd=NaN min=1.5508409772523137 max=1.5508409772523137
+C NumCharges n=1.0 avg=5.0 sd=NaN
+C NumDeliveries n=1.0 avg=11.0 sd=NaN

@@ -1,0 +1,71 @@
+ModelElement{Class Name=SeizeTesting, Id=1, Name='SeizeTesting_1', Parent Name='Simulation1, Parent ID=0, Model=Simulation1}
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 2400.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 20
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 2400.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 20
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Drills:InstantaneousUtil                                               	           20 	       0.7105 	       0.0107
+Drills:NumBusyUnits                                                    	           20 	       1.4210 	       0.0215
+Drills:ScheduledUtil                                                   	           20 	       0.7105 	       0.0107
+Drills:Q:NumInQ                                                        	           20 	       0.3644 	       0.0190
+Drills:Q:TimeInQ                                                       	           20 	       1.9188 	       0.0742
+Drills:WIP                                                             	           20 	       1.7854 	       0.0391
+Mills:InstantaneousUtil                                                	           20 	       0.7081 	       0.0160
+Mills:NumBusyUnits                                                     	           20 	       2.1242 	       0.0479
+Mills:ScheduledUtil                                                    	           20 	       0.7081 	       0.0160
+Mills:Q:NumInQ                                                         	           20 	       0.2587 	       0.0336
+Mills:Q:TimeInQ                                                        	           20 	       1.9239 	       0.2086
+Mills:WIP                                                              	           20 	       2.3829 	       0.0789
+Planers:InstantaneousUtil                                              	           20 	       0.4738 	       0.0196
+Planers:NumBusyUnits                                                   	           20 	       1.4215 	       0.0588
+Planers:ScheduledUtil                                                  	           20 	       0.4738 	       0.0196
+Planers:Q:NumInQ                                                       	           20 	       0.0555 	       0.0135
+Planers:Q:TimeInQ                                                      	           20 	       0.9810 	       0.1949
+Planers:WIP                                                            	           20 	       1.4770 	       0.0710
+Grinders:InstantaneousUtil                                             	           20 	       0.6711 	       0.0101
+Grinders:NumBusyUnits                                                  	           20 	       1.3422 	       0.0202
+Grinders:ScheduledUtil                                                 	           20 	       0.6711 	       0.0101
+Grinders:Q:NumInQ                                                      	           20 	       0.1926 	       0.0121
+Grinders:Q:TimeInQ                                                     	           20 	       1.0435 	       0.0589
+Grinders:WIP                                                           	           20 	       1.5348 	       0.0287
+Inspectors:InstantaneousUtil                                           	           20 	       0.6618 	       0.0101
+Inspectors:NumBusyUnits                                                	           20 	       0.6618 	       0.0101
+Inspectors:ScheduledUtil                                               	           20 	       0.6618 	       0.0101
+Inspectors:Q:NumInQ                                                    	           20 	       0.1617 	       0.0112
+Inspectors:Q:TimeInQ                                                   	           20 	       0.8817 	       0.0573
+Inspectors:WIP                                                         	           20 	       0.8235 	       0.0182
+OverallSystemTime                                                      	           20 	      63.2924 	       0.4412
+Drills:SeizeCount                                                      	           20 	     454.3500 	       7.0526
+Mills:SeizeCount                                                       	           20 	     319.4000 	       7.4765
+Planers:SeizeCount                                                     	           20 	     131.8500 	       5.3216
+Grinders:SeizeCount                                                    	           20 	     442.4000 	       6.6229
+Inspectors:SeizeCount                                                  	           20 	     439.7500 	       6.5818
+OverFlowCount                                                          	           20 	      48.0500 	       3.9842
+ScrapCount                                                             	           20 	      21.4500 	       2.0342
+ReworkCount                                                            	           20 	      20.9000 	       2.2156
+CompletedCount                                                         	           20 	     396.7000 	       5.7743
+------------------------------------------------------------------------------------------------------------------------

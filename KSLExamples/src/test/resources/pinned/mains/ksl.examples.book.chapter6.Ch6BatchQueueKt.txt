@@ -1,0 +1,88 @@
+0.2716649265082664 > part ID_1 arrives to the batch queue
+1.0386638800843075 > part ID_2 arrives to the batch queue
+1.7784332583142382 > part ID_3 arrives to the batch queue
+1.7784332583142382 > part ID_1 was placed in a batch and ends its baking process
+1.7784332583142382 > part ID_2 was placed in a batch and ends its baking process
+1.7784332583142382 > part ID_3 formed the batch [ID_1, ID_2, ID_3]
+5.274073795727915 > part ID_5 arrives to the batch queue
+5.775180158230473 > part ID_6 arrives to the batch queue
+6.778433258314238 > part ID_3 unloads the batch from the oven
+7.299726228229143 > part ID_10 arrives to the batch queue
+7.299726228229143 > part ID_5 was placed in a batch and ends its baking process
+7.299726228229143 > part ID_6 was placed in a batch and ends its baking process
+7.299726228229143 > part ID_10 formed the batch [ID_5, ID_6, ID_10]
+7.778433258314238 > part ID_3 completed inspection
+8.610559086987065 > part ID_12 arrives to the batch queue
+8.778433258314237 > part ID_1 completed inspection
+9.489305825545683 > part ID_13 arrives to the batch queue
+9.778433258314237 > part ID_2 completed inspection
+9.781644018294601 > part ID_14 arrives to the batch queue
+9.781644018294601 > part ID_12 was placed in a batch and ends its baking process
+9.781644018294601 > part ID_13 was placed in a batch and ends its baking process
+9.781644018294601 > part ID_14 formed the batch [ID_12, ID_13, ID_14]
+12.299726228229144 > part ID_10 unloads the batch from the oven
+12.60160732145114 > part ID_19 arrives to the batch queue
+13.299726228229144 > part ID_10 completed inspection
+14.299726228229144 > part ID_5 completed inspection
+14.3155545157573 > part ID_20 arrives to the batch queue
+15.299726228229144 > part ID_6 completed inspection
+15.371037278178527 > part ID_21 arrives to the batch queue
+15.371037278178527 > part ID_19 was placed in a batch and ends its baking process
+15.371037278178527 > part ID_20 was placed in a batch and ends its baking process
+15.371037278178527 > part ID_21 formed the batch [ID_19, ID_20, ID_21]
+16.16106613090048 > part ID_23 arrives to the batch queue
+16.71093495024614 > part ID_24 arrives to the batch queue
+17.299726228229144 > part ID_14 unloads the batch from the oven
+18.299726228229144 > part ID_14 completed inspection
+18.594475042694544 > part ID_28 arrives to the batch queue
+18.594475042694544 > part ID_23 was placed in a batch and ends its baking process
+18.594475042694544 > part ID_24 was placed in a batch and ends its baking process
+18.594475042694544 > part ID_28 formed the batch [ID_23, ID_24, ID_28]
+19.299726228229144 > part ID_12 completed inspection
+Name: Simulation1
+Last Executive stopping message:
+	Scheduled end event occurred at time 20.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 1
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 20.0
+Warm up time period for replication: 0.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 1
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+OvenBatchQ:NumInQ                                                      	            1 	       0.7701 	          NaN
+OvenBatchQ:TimeInQ                                                     	            1 	       1.0268 	          NaN
+Oven:InstantaneousUtil                                                 	            1 	       0.8850 	          NaN
+Oven:NumBusyUnits                                                      	            1 	       0.8850 	          NaN
+Oven:ScheduledUtil                                                     	            1 	       0.8850 	          NaN
+Oven:Q:NumInQ                                                          	            1 	       0.2926 	          NaN
+Oven:Q:TimeInQ                                                         	            1 	       1.1117 	          NaN
+Oven:WIP                                                               	            1 	       1.1776 	          NaN
+Inspector:InstantaneousUtil                                            	            1 	       0.4350 	          NaN
+Inspector:NumBusyUnits                                                 	            1 	       0.4350 	          NaN
+Inspector:ScheduledUtil                                                	            1 	       0.4350 	          NaN
+Inspector:Q:NumInQ                                                     	            1 	       0.4500 	          NaN
+Inspector:Q:TimeInQ                                                    	            1 	       1.0000 	          NaN
+Inspector:WIP                                                          	            1 	       0.8850 	          NaN
+PartTimeInSystem                                                       	            1 	       8.3755 	          NaN
+Oven:SeizeCount                                                        	            1 	       4.0000 	          NaN
+Inspector:SeizeCount                                                   	            1 	       9.0000 	          NaN
+------------------------------------------------------------------------------------------------------------------------

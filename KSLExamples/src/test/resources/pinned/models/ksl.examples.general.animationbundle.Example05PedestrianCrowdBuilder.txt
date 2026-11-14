@@ -1,0 +1,4 @@
+reps=1 length=20.0 warmup=0.0
+R EvacuationTime n=1.0 avg=9.277500000000009 sd=NaN min=9.277500000000009 max=9.277500000000009
+R PopulationInRoom n=1.0 avg=18.555000000000025 sd=NaN min=18.555000000000025 max=18.555000000000025
+C NumEvacuated n=1.0 avg=40.0 sd=NaN

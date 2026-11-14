@@ -1,0 +1,71 @@
+Name: TransporterExample
+Last Executive stopping message:
+	Scheduled end event occurred at time 20000.0
+Replication Process Information:
+-------------------------------
+Iterative Process Name: Model: Replication Process
+Done Flag: true
+Has Next: false
+Current State: EndedState
+Ending Status Indicator: COMPLETED_ALL_STEPS
+Stopping Message: Completed all steps.
+-------------------------------
+Experiment Name: Experiment_1
+Experiment ID: 1
+Planned number of replications: 30
+Number of chunks: 1
+Replication initialization option: true
+Antithetic option: false
+Reset start stream option: false
+Reset next sub-stream option: true
+Number of stream advancements: 0
+Planned time horizon for replication: 20000.0
+Warm up time period for replication: 5000.0
+Maximum allowed replication execution time not specified.
+Current Replication Number: 30
+-------------------------------
+Half-Width Statistical Summary Report - Confidence Level (95.000)%
+Name                                                                   	        Count 	      Average 	   Half-Width
+------------------------------------------------------------------------------------------------------------------------
+Truck1:InstantaneousUtil                                               	           30 	       0.8570 	       0.0018
+Truck1:NumBusyUnits                                                    	           30 	       0.8570 	       0.0018
+Truck1:ScheduledUtil                                                   	           30 	       0.8570 	       0.0018
+Truck1:FracTimeMoving                                                  	           30 	       0.3249 	       0.0007
+Truck1:FracTimeTransporting                                            	           30 	       0.1544 	       0.0003
+Truck1:FracTimeMovingEmpty                                             	           30 	       0.1705 	       0.0005
+Truck2:InstantaneousUtil                                               	           30 	       0.8283 	       0.0025
+Truck2:NumBusyUnits                                                    	           30 	       0.8283 	       0.0025
+Truck2:ScheduledUtil                                                   	           30 	       0.8283 	       0.0025
+Truck2:FracTimeMoving                                                  	           30 	       0.3141 	       0.0009
+Truck2:FracTimeTransporting                                            	           30 	       0.1492 	       0.0004
+Truck2:FracTimeMovingEmpty                                             	           30 	       0.1649 	       0.0006
+Truck3:InstantaneousUtil                                               	           30 	       0.7901 	       0.0027
+Truck3:NumBusyUnits                                                    	           30 	       0.7901 	       0.0027
+Truck3:ScheduledUtil                                                   	           30 	       0.7901 	       0.0027
+Truck3:FracTimeMoving                                                  	           30 	       0.2999 	       0.0012
+Truck3:FracTimeTransporting                                            	           30 	       0.1422 	       0.0006
+Truck3:FracTimeMovingEmpty                                             	           30 	       0.1577 	       0.0007
+ForkTrucks:NumBusy                                                     	           30 	       2.4754 	       0.0068
+ForkTrucks:FractionBusy                                                	           30 	       0.8251 	       0.0023
+ForkTrucks:Q:NumInQ                                                    	           30 	       2.4406 	       0.0803
+ForkTrucks:Q:TimeInQ                                                   	           30 	       1.6276 	       0.0521
+worker1:InstantaneousUtil                                              	           30 	       0.3508 	       0.0020
+worker1:NumBusyUnits                                                   	           30 	       0.3508 	       0.0020
+worker1:ScheduledUtil                                                  	           30 	       0.3508 	       0.0020
+worker1:Q:NumInQ                                                       	           30 	       0.1411 	       0.0027
+worker1:Q:TimeInQ                                                      	           30 	       0.2823 	       0.0050
+worker1:WIP                                                            	           30 	       0.4919 	       0.0042
+worker2:InstantaneousUtil                                              	           30 	       0.4502 	       0.0022
+worker2:NumBusyUnits                                                   	           30 	       0.4502 	       0.0022
+worker2:ScheduledUtil                                                  	           30 	       0.4502 	       0.0022
+worker2:Q:NumInQ                                                       	           30 	       0.3000 	       0.0059
+worker2:Q:TimeInQ                                                      	           30 	       0.6003 	       0.0111
+worker2:WIP                                                            	           30 	       0.7502 	       0.0076
+SmallTransporterModel_1:NumInSystem                                    	           30 	       6.1580 	       0.0884
+SmallTransporterModel_1:TimeInSystem                                   	           30 	      12.3208 	       0.1624
+Truck1:SeizeCount                                                      	           30 	    7789.0000 	      17.7556
+Truck2:SeizeCount                                                      	           30 	    7524.0000 	      23.0496
+Truck3:SeizeCount                                                      	           30 	    7173.5667 	      23.7947
+worker1:SeizeCount                                                     	           30 	    7496.1000 	      20.3607
+worker2:SeizeCount                                                     	           30 	    7495.6000 	      20.4299
+------------------------------------------------------------------------------------------------------------------------
