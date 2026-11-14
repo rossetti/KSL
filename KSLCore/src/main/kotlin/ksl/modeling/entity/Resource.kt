@@ -802,7 +802,11 @@ open class Resource @JvmOverloads constructor(
      */
     fun fail(rule: InterruptRule = interruptRule) {
         check(!isFailed) { "$name is already failed; check isFailed before calling fail()." }
+        // nothing was available while inactive and nothing is while failed: no change to tell of
+        myInactiveAtFailure = isInactive
+        myQuietAvailabilityHooks = true
         myState = myFailedState
+        myQuietAvailabilityHooks = false
         myFailureRule = rule
         if (rule != InterruptRule.FINISH) {
             // units already missing (lent to a preemptor) go missing through the borrower's allocation
@@ -829,7 +833,14 @@ open class Resource @JvmOverloads constructor(
         }
         myFailureRule = null
         myDeclaredFailureInProgress = false
-        myState = stateFromUnits()
+        // tell of a change of availability only against the state before the failure: inactive then and now
+        // is no change, and inactive then but not now is the resource becoming active
+        val next = stateFromUnits()
+        myQuietAvailabilityHooks = myInactiveAtFailure
+        myState = next
+        myQuietAvailabilityHooks = false
+        if (myInactiveAtFailure && next !== myInactiveState) resourceBecameActive()
+        myInactiveAtFailure = false
         offerFreedUnits(ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "repaired_resource=$name")
         failureNotification()
         myFailureClock?.update()
@@ -837,6 +848,12 @@ open class Resource @JvmOverloads constructor(
         if (failures != null && failures.repaired.isSuspended) failures.repaired.resume()
         afterUnitsRestored()
     }
+
+    /** Whether the resource was inactive when the failure in progress began. */
+    private var myInactiveAtFailure: Boolean = false
+
+    /** True while a change into or out of the failed state is being made, when the availability hooks keep quiet. */
+    private var myQuietAvailabilityHooks: Boolean = false
 
     /** True while the failure in progress is one the declared failures started. */
     private var myDeclaredFailureInProgress: Boolean = false
@@ -926,6 +943,7 @@ open class Resource @JvmOverloads constructor(
     private var myUsesLeft: Int = 0
 
     private fun resetFailures() {
+        myInactiveAtFailure = false
         myFailureRule = null
         myDeclaredFailureInProgress = false
         myFailureClock?.disarm()
@@ -1416,11 +1434,11 @@ open class Resource @JvmOverloads constructor(
     protected inner class InactiveState(aName: String, stateStatistics: Boolean = false) :
         ResourceState(aName, stateStatistics) {
         override fun onEnter() {
-            resourceBecameInactive()
+            if (!myQuietAvailabilityHooks) resourceBecameInactive()
         }
 
         override fun onExit() {
-            resourceBecameActive()
+            if (!myQuietAvailabilityHooks) resourceBecameActive()
         }
     }
 

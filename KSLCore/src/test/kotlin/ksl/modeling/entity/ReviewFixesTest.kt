@@ -384,4 +384,81 @@ class ReviewFixesTest {
         }
         assertEquals(listOf("fail@10.0", "repair@12.0", "fail@22.0", "repair@27.0", "fail@37.0"), m.log)
     }
+
+    // ---------- the inactive and active hooks around a failure ----------
+
+    private class CountingResource(parent: ModelElement, name: String) : ResourceWithQ(parent, name) {
+        var becameActive = 0
+        override fun resourceBecameActive() {
+            becameActive++
+        }
+    }
+
+    private class HookModel(parent: ModelElement) : ProcessModel(parent, "hooks") {
+        val res = CountingResource(this, "Counted")
+        var toldInactive = 0
+        val log = mutableListOf<String>()
+        var plan: HookModel.() -> Unit = {}
+
+        inner class Waiter : Entity("waiter") {
+            val run: KSLProcess = process("waiter") { delay(1.0); val a = seize(res); log.add("served@$time"); release(a) }
+            override fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(queue: RequestQ, resource: Resource, request: Request) {
+                toldInactive++
+            }
+        }
+
+        inner class Holder : Entity("holder") {
+            val run: KSLProcess = process("holder") { val a = seize(res); delay(2.0); release(a) }
+        }
+
+        fun at(t: Double, action: () -> Unit) = schedule({ _: ksl.simulation.KSLEvent<Nothing> -> action() }, t)
+
+        override fun initialize() {
+            log.clear()
+            toldInactive = 0
+            res.becameActive = 0
+            activate(Waiter().run)
+            plan()
+        }
+    }
+
+    private fun hooks(plan: HookModel.() -> Unit): HookModel {
+        val model = Model("Hooks${System.nanoTime()}", autoCSVReports = false)
+        val m = HookModel(model)
+        m.plan = plan
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 50.0
+        model.simulate()
+        return m
+    }
+
+    @Test
+    @DisplayName("off shift, fail, repair, back on shift: the waiting entity is told once that the resource became inactive, and it becomes active once")
+    fun hooksAroundAFailureWhileOffShift() {
+        val m = hooks {
+            // the holder keeps the unit until 2, so the waiter, from 1, is queued when the shift takes it
+            activate(Holder().run)
+            at(1.5) { res.goOffShift() }
+            at(3.0) { res.fail() }
+            at(5.0) { res.repair() }
+            at(8.0) { res.goOnShift() }
+        }
+        assertEquals(1, m.toldInactive, "told inactive")
+        assertEquals(1, m.res.becameActive, "became active")
+        assertEquals(listOf("served@8.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("fail, then off shift, then repair: the resource becomes inactive at the repair, and the waiter is told then")
+    fun inactiveFirstAtTheRepair() {
+        val m = hooks {
+            at(0.5) { res.fail() }
+            at(2.0) { res.goOffShift() }
+            at(5.0) { log.add("before repair told=$toldInactive"); res.repair(); log.add("after repair told=$toldInactive") }
+            at(8.0) { res.goOnShift() }
+        }
+        assertEquals(listOf("before repair told=0", "after repair told=1", "served@8.0"), m.log)
+        assertEquals(1, m.res.becameActive)
+    }
+
 }
