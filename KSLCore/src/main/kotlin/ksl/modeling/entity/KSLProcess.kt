@@ -221,7 +221,9 @@ interface KSLProcessBuilder {
      *  A trigger is obtained from the thing waited on, for example a signal's trigger() or a blocking
      *  queue's itemsTrigger(). If a trigger can fire at once, the wait ends without suspending; when
      *  several can, the first in argument order wins. Otherwise the first to fire in time order wins,
-     *  and the others are withdrawn at that instant.
+     *  and the others are withdrawn at that instant. A seize trigger that wins, but finds when the
+     *  entity resumes that the units promised to it went away in the same instant, waits again with
+     *  all the triggers, for the time left; any of them can then end the wait.
      *
      *  @param triggers the things to wait for; at least one, each at most once
      *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY (the

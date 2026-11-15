@@ -205,6 +205,9 @@ class WaitForFirstResult internal constructor(
 internal sealed class AfterResume {
     class Value(val value: Any?) : AfterResume()
     object TimedOut : AfterResume()
+
+    /** A seize trigger's re-wait was ended by [winner], another trigger of the same wait, with [value]. */
+    class Other(val winner: WaitTrigger<*>, val value: Any?) : AfterResume()
 }
 
 /**
@@ -715,7 +718,8 @@ internal class MovableResourcePoolSeizeTrigger(
 /**
  *  A seize trigger's request in one wait. The winner takes its units after the resume, as `seize`
  *  does; if what it was promised went away in the instant between its wake and its resume, it waits
- *  again in a wait of its own with the time left. A loser leaves the queue at the claim, its wait
+ *  again, with the same request, for every trigger of its wait and for the time left; another trigger
+ *  that ends the re-wait ends the whole wait. A loser leaves the queue at the claim, its wait
  *  recorded unless the trigger says not to, and the free units of what it asked for are offered on
  *  once the claim is over; termination removes the request as termination removes any waiting request.
  */
@@ -752,21 +756,54 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
         leftQueue?.offerFreeUnitsOf(request.resource, "request_id=${request.id} left without service")
     }
 
+    /** Set when another trigger of the wait ended a re-wait: what the wait ends with instead. */
+    private var otherWinner: AfterResume.Other? = null
+
     override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
         markReleased()
-        val value = with(seizeTrigger) { take(request, group.suspensionName, rewait = { rewaitAlone() }) }
-        return if (value == null) AfterResume.TimedOut else AfterResume.Value(value)
+        otherWinner = null
+        val value = with(seizeTrigger) { take(request, group.suspensionName, rewait = { rewait() }) }
+        return if (value != null) AfterResume.Value(value) else otherWinner ?: AfterResume.TimedOut
     }
 
-    /** Waits again, alone, for the time left to the original deadline, with the same request. */
-    private suspend fun ProcessModel.Entity.ProcessCoroutine.rewaitAlone(): Boolean {
-        val again = WaitGroup(group.entity, group.processId, listOf(seizeTrigger), entity.processModel.time, group.suspensionName)
+    /**
+     *  Waits again, with the same request, for every trigger of the wait, in their order, for the time left to
+     *  the original deadline. The other triggers register afresh; one that can fire at once ends the wait as
+     *  the fast path of `waitForFirst` does.
+     *
+     *  @return true when this seize trigger claimed the re-wait; false when the timer did, or another trigger,
+     *  whose result is then kept for [afterWinningResume]
+     */
+    private suspend fun ProcessModel.Entity.ProcessCoroutine.rewait(): Boolean {
+        val again = WaitGroup(group.entity, group.processId, group.triggers, entity.processModel.time, group.suspensionName)
         again.deadline = group.deadline
         again.timeoutPriority = group.timeoutPriority
-        val registration = SeizeRegistration(seizeTrigger, again)
-        registration.attach(request)
-        again.registrations.add(registration)
-        return waitAlone(again, AloneState.WAITING_FOR_RESOURCE)
+        val seizeAgain = SeizeRegistration(seizeTrigger, again)
+        seizeAgain.attach(request)
+        for (trigger in group.triggers) {
+            if (trigger !== seizeTrigger && trigger.canFireNow(entity)) {
+                val value = trigger.fireNow(this)
+                // the request loses, as at any claim: it leaves its queue and its units are offered on
+                again.registrations.add(seizeAgain)
+                again.claim(null, null, ResumeSource.UNKNOWN_INTERNAL, ProcessModel.RESUME_PRIORITY)
+                otherWinner = AfterResume.Other(trigger, value)
+                return false
+            }
+        }
+        for (trigger in group.triggers) {
+            again.registrations.add(if (trigger === seizeTrigger) seizeAgain else trigger.register(again))
+            if (again.claimed) break
+        }
+        if (!again.claimed) waitAgain(again)
+        if (again.timedOut) return false
+        val winner = again.winnerRegistration ?: return false
+        if (winner === seizeAgain) return true
+        otherWinner = when (val after = with(winner) { afterWinningResume() }) {
+            is AfterResume.Value -> AfterResume.Other(winner.trigger, after.value)
+            is AfterResume.Other -> after
+            AfterResume.TimedOut -> null
+        }
+        return false
     }
 }
 

@@ -2506,6 +2506,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     if (registration != null) {
                         when (val after = with(registration) { afterWinningResume() }) {
                             is AfterResume.Value -> value = after.value
+                            is AfterResume.Other -> {
+                                winner = after.winner
+                                value = after.value
+                            }
                             AfterResume.TimedOut -> {
                                 winner = null
                                 value = null
@@ -3070,21 +3074,27 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             /**
-             *  Waits in a wait group that has one registration, outside `waitForFirst`: the re-wait of a seize
+             *  Waits in a wait group whose registrations are made, outside `waitForFirst`: the re-wait of a seize
              *  trigger whose promise broke between its wake and its resume. The group's timer runs for the time
-             *  left to its deadline, the entity takes the state of [alone], and the group's claims come from the
-             *  same places as any. On termination the registration is released as `waitForFirst` releases one.
+             *  left to its deadline, the entity takes the state `waitForFirst` gives a wait of the group's
+             *  triggers, and the group's claims come from the same places as any. On termination the
+             *  registrations are released as `waitForFirst` releases them.
              *
              *  @return true when a trigger claimed the group; false when its timer did
              */
-            internal suspend fun waitAlone(group: WaitGroup, alone: AloneState): Boolean {
+            internal suspend fun waitAgain(group: WaitGroup): Boolean {
                 val previous = myWaitGroup
                 val left = group.deadline - time
                 if (left.isFinite()) {
                     group.timerEvent = myTimeoutAction.schedule(maxOf(0.0, left), group, group.timeoutPriority)
                 }
                 myWaitGroup = group
-                val stateChanged = enterAloneState(alone)
+                val stateChanged = if (group.triggers.size > 1) {
+                    entity.state.waitForFirst()
+                    true
+                } else {
+                    enterAloneState(group.triggers[0].aloneState)
+                }
                 group.isSuspending = true
                 try {
                     suspend()
