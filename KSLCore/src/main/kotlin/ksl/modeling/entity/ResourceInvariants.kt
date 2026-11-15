@@ -30,8 +30,10 @@ import ksl.utilities.observers.ObserverIfc
  *  not something a model relies on.
  *
  *  For each resource it checks:
- *  - the units busy are the units allocated less those lent to a borrower, within the capacity unless a
- *    capacity decrease waits for busy units;
+ *  - the units busy are the units allocated less those lent to a borrower, and never more than the highest
+ *    capacity the resource has had in the replication. A capacity decrease under the IGNORE rule leaves work
+ *    in service running above the new capacity, with or without a change still pending, so the current
+ *    capacity is not a bound, but units are allocated only when available, so the highest one is;
  *  - each allocation's units missing by loan are its loans out, and never exceed its amount;
  *  - no loan outlives its borrower, and a lender, if any, still holds its allocation;
  *  - the units promised to woken requests are the promises the requests in its queues hold;
@@ -56,6 +58,18 @@ internal object ResourceInvariants {
         })
     }
 
+    /** The highest capacity each resource has had in its current replication, as the checks have seen it. */
+    private val myHighestCapacity: MutableMap<Resource, Pair<Int, Int>> =
+        java.util.Collections.synchronizedMap(java.util.WeakHashMap())
+
+    private fun highestCapacity(resource: Resource): Int {
+        val replication = resource.model.currentReplicationNumber
+        val seen = myHighestCapacity[resource]
+        val highest = if (seen == null || seen.first != replication) resource.capacity else maxOf(seen.second, resource.capacity)
+        myHighestCapacity[resource] = replication to highest
+        return highest
+    }
+
     private fun violation(resource: Resource, message: String): Nothing =
         throw IllegalStateException("Invariant broken at time ${resource.time} on resource ${resource.name}: $message")
 
@@ -74,8 +88,9 @@ internal object ResourceInvariants {
         if (resource.numBusy != allocated - lent) {
             violation(resource, "${resource.numBusy} units busy, but $allocated are allocated and $lent lent")
         }
-        if (resource.numBusy > resource.capacity && !resource.isPendingCapacityChange) {
-            violation(resource, "${resource.numBusy} units busy exceeds the capacity ${resource.capacity}")
+        val highest = highestCapacity(resource)
+        if (resource.numBusy > highest) {
+            violation(resource, "${resource.numBusy} units busy exceeds the highest capacity $highest of the replication")
         }
         for (a in allocations) {
             val out = resource.loans.filter { it.lender === a }.sumOf { it.amount }
