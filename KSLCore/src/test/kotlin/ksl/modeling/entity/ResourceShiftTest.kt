@@ -124,6 +124,39 @@ class ResourceShiftTest {
     }
 
     @Test
+    @DisplayName("off shift under WAIT with a unit idle: the idle unit goes at once, the busy one at its release, and no one is served off shift")
+    fun offShiftWaitTakesIdleUnitsAtOnce() {
+        val seen = mutableListOf<String>()
+        val m = run(capacity = 2) {
+            r.capacityChangeRule = CapacityChangeRule.WAIT
+            customer("C1", 0.0, hold = 10.0)
+            customer("C2", 3.0, hold = 1.0)
+            at(2.0) { r.goOffShift(); seen.add("at 2 " + state()) }
+            at(11.0) { seen.add("at 11 " + state()) }
+            at(20.0) { r.goOnShift() }
+        }
+        assertEquals(listOf("C1:served@0.0", "C2:served@20.0"), m.log)
+        assertEquals(listOf("at 2 off=true cap=1", "at 11 off=true cap=0"), seen)
+    }
+
+    @Test
+    @DisplayName("off shift under WAIT with a unit idle, back on before the release: the capacity is restored in full")
+    fun offShiftWaitBackOnBeforeTheRelease() {
+        val seen = mutableListOf<String>()
+        val m = run(capacity = 2) {
+            r.capacityChangeRule = CapacityChangeRule.WAIT
+            customer("C1", 0.0, hold = 10.0)
+            customer("C2", 3.0, hold = 1.0)
+            customer("C3", 6.0, hold = 1.0)
+            at(2.0) { r.goOffShift() }
+            at(5.0) { r.goOnShift(); seen.add("at 5 " + state()) }
+            at(12.0) { seen.add("at 12 " + state()) }
+        }
+        assertEquals(listOf("C1:served@0.0", "C2:served@5.0", "C3:served@6.0"), m.log)
+        assertEquals(listOf("at 5 off=false cap=2", "at 12 off=false cap=2"), seen)
+    }
+
+    @Test
     @DisplayName("a replication that ends off shift is followed by one that starts on shift at the initial capacity")
     fun startsOnShift() {
         val seen = mutableListOf<String>()

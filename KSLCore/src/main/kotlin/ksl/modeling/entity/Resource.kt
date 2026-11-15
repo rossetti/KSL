@@ -1957,12 +1957,12 @@ open class Resource @JvmOverloads constructor(
             // change stays until next change arrives
             logger.trace { "$time > Resource: $name, enough units idle to immediately reduce capacity by $decrease." }
         } else {
-            // not enough available, this means that at least part of the change will need to wait
-            // must decrease capacity, but all required units are busy
-            // must wait for all needed units to be released
-            // don't schedule its ending until all needed units are released
+            // not enough idle: the idle units go now, so none can be allocated against the decrease, and the
+            // rest waits for busy units to be released. Its duration starts once it has all its units.
             logger.trace { "$time > Resource: $name, not enough units idle to reduce capacity by $decrease." }
-            notice.amountNeeded = decrease
+            val idle = numIdleUnits.coerceAtLeast(0)
+            capacity = capacity - idle
+            notice.amountNeeded = decrease - idle
             // there is no current pending change, make this incoming change be the one to process
             // it does not schedule its duration until it gets all the needed change
             myCurrentChangeNotice = notice
@@ -2006,11 +2006,12 @@ open class Resource @JvmOverloads constructor(
                 myCurrentChangeNotice = null
             }
         } else {
-            // not enough available, this means that at least part of the change will need to be in process
-            // must decrease capacity, but required units are busy, must wait for needed units to be released
-            // don't schedule its duration until all needed units are released
+            // not enough idle: the idle units go now, and the rest waits for busy units to be released. Its
+            // duration starts once it has all its units.
             logger.trace { "$time > Resource: $name, not enough units idle to reduce capacity by $decrease." }
-            notice.amountNeeded = decrease
+            val idle = numIdleUnits.coerceAtLeast(0)
+            capacity = capacity - idle
+            notice.amountNeeded = decrease - idle
             logger.trace { "$time > Resource: $name, notice $notice is now being processed when releases occur." }
         }
     }

@@ -29,8 +29,9 @@ import ksl.simulation.ModelElement
  */
 enum class CapacityChangeRule {
     /**
-     * The change is delayed until the busy units are released, and then lasts its full duration, so
-     * later changes shift in time.
+     * The idle units are taken at once; the rest of the decrease waits for busy units to be released,
+     * which go to the change rather than to waiting requests. The change lasts its full duration from
+     * when it has all its units, so later changes shift in time.
      */
     WAIT,
 

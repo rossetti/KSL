@@ -370,8 +370,9 @@ there is none), and `timeoutPriority` and `recordRenegedWait`.
 ### ...add a shift / capacity schedule
 
 A resource can follow a repeating `CapacitySchedule`. Items run in
-order from the schedule's start time; under `CapacityChangeRule.WAIT`,
-in-service jobs finish before the resource drops to zero:
+order from the schedule's start time; under `CapacityChangeRule.WAIT`, a
+decrease takes the idle units at once and the busy ones as their jobs
+finish, and the item lasts its full duration from when it has all of them:
 
 ```kotlin
 class ShiftedModel(parent: ModelElement) : ProcessModel(parent) {
@@ -411,8 +412,9 @@ capacity to zero, `goOnShift` restores the replication's `initialCapacity`,
 with a capacity schedule takes its capacity only from the schedule, so it
 refuses `goOffShift`: use one or the other. A notice with the default, infinite
 duration lasts until another change supersedes it, so going back on shift
-works whatever is busy, under either rule; under WAIT, going back on shift
-before the busy unit was released withdraws the off-shift change.
+works whatever is busy, under either rule; under WAIT, going off shift takes
+the idle units at once, and going back on shift before the busy units were
+released withdraws the rest of the off-shift change.
 `pendingCapacityChangeEndTime` says when a pending change ends (`NaN` when
 none is pending, infinity when it lasts until superseded). A member of a
 pool that comes back on shift is offered to the pool's waiters at once.

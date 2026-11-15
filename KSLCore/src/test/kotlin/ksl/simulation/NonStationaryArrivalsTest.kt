@@ -39,12 +39,12 @@ class NonStationaryArrivalsTest {
         private const val WARNING_TIME = 30.0   // door closes at 360 - 30 = 330
 
         // Golden values — 10 reps × natural termination | default KSL seed
-        private const val OVERALL_SYS_TIME_AVG       = 19.409317079180152
-        private const val RECRUITING_SYS_TIME_AVG    = 12.892114402576118
-        private const val MIXING_SYS_TIME_AVG        = 29.61820360919292
-        private const val NUM_IN_SYSTEM_AVG          = 9.170733674554826
+        private const val OVERALL_SYS_TIME_AVG       = 19.414006570855186
+        private const val RECRUITING_SYS_TIME_AVG    = 12.896962138358006
+        private const val MIXING_SYS_TIME_AVG        = 29.622780494282374
+        private const val NUM_IN_SYSTEM_AVG          = 9.184751527010688
         private const val NUM_AT_JHBUNT_CLOSING_AVG  = 1.0
-        private const val MIXER_ENDING_TIME_AVG      = 361.85807222905447
+        private const val MIXER_ENDING_TIME_AVG      = 361.4191038818179
     }
 
     // ── Shared state ──────────────────────────────────────────────────────────
