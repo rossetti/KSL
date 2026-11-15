@@ -219,9 +219,12 @@ interface KSLProcessBuilder {
     /**
      *  Waits until the first of the triggers fires, or until the time limit runs out, and reports which.
      *  A trigger is obtained from the thing waited on, for example a signal's trigger() or a blocking
-     *  queue's itemsTrigger(). If a trigger can fire at once, the wait ends without suspending; when
-     *  several can, the first in argument order wins. Otherwise the first to fire in time order wins,
-     *  and the others are withdrawn at that instant. A seize trigger that wins, but finds when the
+     *  queue's itemsTrigger(). A trigger can fire at once when nothing is waiting ahead of it for the
+     *  same thing and what it needs is there now; if any can, the wait ends without suspending, and
+     *  the first of them in argument order wins. Otherwise the triggers register in argument order,
+     *  and one that is then served at once, ahead of requests already waiting because of its priority,
+     *  ends the wait without suspending. Otherwise the first to fire in time order wins, and the others
+     *  are withdrawn at that instant. A seize trigger that wins, but finds when the
      *  entity resumes that the units promised to it went away in the same instant, waits again with
      *  all the triggers, for the time left; any of them can then end the wait.
      *
