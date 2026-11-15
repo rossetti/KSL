@@ -641,7 +641,7 @@ open class Resource @JvmOverloads constructor(
         if (!shift.isOffShift) return
         shift.goOnShift()
         myFailureClock?.update()
-        afterUnitsRestored()
+        if (!isRunEnded) afterUnitsRestored()
     }
 
     /**
@@ -864,8 +864,8 @@ open class Resource @JvmOverloads constructor(
         failureNotification()
         myFailureClock?.update()
         val failures = myFailuresEntity
-        if (failures != null && failures.repaired.isSuspended) failures.repaired.resume()
-        afterUnitsRestored()
+        if (failures != null && failures.repaired.isSuspended && !isRunEnded) failures.repaired.resume()
+        if (!isRunEnded) afterUnitsRestored()
     }
 
     /** Whether the resource was inactive when the failure in progress began. */
@@ -1026,7 +1026,8 @@ open class Resource @JvmOverloads constructor(
         }
 
         fun update() {
-            if (!armed) return
+            // once the run has ended, a shift's end or a repair in a finally block starts no clock
+            if (!armed || isRunEnded) return
             val shouldRun = numBusy > 0 && !isFailed && !isOffShift
             if (shouldRun && !running) {
                 running = true
@@ -1847,7 +1848,9 @@ open class Resource @JvmOverloads constructor(
         detail: String?,
         alsoQueue: RequestQ? = null
     ) {
-        if (isInactive || numAvailableUnits <= 0) return
+        // once the run has ended, units restored by the termination of the entities, as a shift's end in a
+        // finally block, are offered to no one: nothing can be resumed
+        if (isInactive || numAvailableUnits <= 0 || isRunEnded) return
         // a preemption waiting for units its victims used takes them ahead of the queue
         serveReservations(priority, source, detail)
         if (numAvailableUnits <= 0) return

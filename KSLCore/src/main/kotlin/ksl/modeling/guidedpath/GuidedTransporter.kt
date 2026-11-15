@@ -1081,7 +1081,8 @@ class GuidedTransporter @JvmOverloads constructor(
      * entity waits for a transporter that is standing free in front of it.
      */
     private fun announceDispatchable() {
-        if (!isDispatchable) return
+        // nothing can be dispatched once the run has ended
+        if (!isDispatchable || isRunEnded) return
         for (pool in myPools) pool.transporterBecameDispatchable()
     }
 

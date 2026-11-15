@@ -662,8 +662,9 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     }
 
     private fun notifyWaitingRequests() {
-        // a request already told to resume will look again when it has taken its items
-        if (myRequestBeingResumed != null || myRequestQ.isEmpty) {
+        // a request already told to resume will look again when it has taken its items; once the run has
+        // ended, the removals come from terminating the waiting entities, and nothing can be resumed
+        if (myRequestBeingResumed != null || myRequestQ.isEmpty || executive.isEnded) {
             return
         }
         // with one request waiting there is no decision to make
@@ -864,8 +865,8 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     }
 
     private fun notifyWaitingSender() {
-        // a sender already told to resume will look again when it has sent
-        if (mySenderBeingResumed == null && mySenderQ.isNotEmpty) {
+        // a sender already told to resume will look again when it has sent; nothing is resumed once the run has ended
+        if (mySenderBeingResumed == null && mySenderQ.isNotEmpty && !executive.isEnded) {
             // select an entity waiting to send elements into the channel
             val entity = senderSelector.selectEntity(mySenderQ)
             // if there is an entity selected, tell it to resume
