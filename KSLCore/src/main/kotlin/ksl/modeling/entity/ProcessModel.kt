@@ -2401,24 +2401,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) for suspension named: $currentSuspendName, with timeout $timeout" }
                 suspension.suspending(this@Entity)
                 val group = WaitGroup(this@Entity, id, emptyList(), time, suspension.name)
+                group.timeoutPriority = timeoutPriority
                 group.suspension = suspension
                 suspension.myTimedGroup = group
-                if (timeout.isFinite()) {
-                    group.timerEvent = myTimeoutAction.schedule(timeout, group, timeoutPriority)
-                }
-                myWaitGroup = group
-                group.isSuspending = true
-                try {
-                    suspend()
-                    group.resumedNormally = true
-                } finally {
-                    if (!group.resumedNormally) {
-                        // Abnormal exit only: as suspendFor, the suspension is abandoned, not resumed.
-                        group.cancelTimer()
-                        suspension.abandon()
-                    }
-                    myWaitGroup = null
-                }
+                // on termination, as suspendFor, the suspension is abandoned, not resumed
+                suspendInWait(group, timeout, afterWait = null) { suspension.abandon() }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} suspended process, ($this) resumed from suspension named: $currentSuspendName, timed out = ${group.timedOut}" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
@@ -2474,43 +2461,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     group.registrations.add(trigger.register(group))
                     if (group.claimed) break
                 }
-                var stateChanged = false
                 try {
                     if (!group.claimed) {
-                        if (timeout.isFinite()) {
-                            group.timerEvent = myTimeoutAction.schedule(timeout, group, timeoutPriority)
-                        }
-                        myWaitGroup = group
                         currentSuspendName = suspensionName
-                        if (triggers.size > 1) {
-                            currentSuspendType = SuspendType.WAIT_FOR_FIRST
-                            entity.state.waitForFirst()
-                            stateChanged = true
-                        } else {
-                            // One trigger: the state and suspend type of its untimed form.
-                            val alone = triggers[0].aloneState
-                            currentSuspendType = alone.suspendType
-                            stateChanged = enterAloneState(alone)
-                        }
-                        group.isSuspending = true
+                        // several triggers wait for the first; one takes the suspend type of its untimed form
+                        currentSuspendType = if (triggers.size > 1) SuspendType.WAIT_FOR_FIRST else triggers[0].aloneState.suspendType
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst of ${triggers.size} trigger(s), timeout $timeout, ($this)" }
-                        try {
-                            suspend()
-                            group.resumedNormally = true
-                        } finally {
-                            if (!group.resumedNormally) {
-                                // Abnormal exit: release every registration still held, recording nothing.
-                                for (registration in group.registrations) {
-                                    registration.releaseOnTermination()
-                                }
-                                group.cancelTimer()
-                            }
-                        }
+                        // the wait stays current until the winner has produced its value, below
+                        suspendInWait(group, timeout, afterWait = group)
                     } else {
                         group.resumedNormally = true
-                    }
-                    if (stateChanged) {
-                        entity.state.activate()
                     }
                     var winner = group.winner
                     var value = group.value
@@ -3097,17 +3057,45 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  @return true when a trigger claimed the group; false when its timer did
              */
             internal suspend fun waitAgain(group: WaitGroup): Boolean {
-                val previous = myWaitGroup
-                val left = group.deadline - time
-                if (left.isFinite()) {
-                    group.timerEvent = myTimeoutAction.schedule(maxOf(0.0, left), group, group.timeoutPriority)
+                // the wait being re-waited stays the entity's current one when this ends
+                suspendInWait(group, maxOf(0.0, group.deadline - time), afterWait = myWaitGroup)
+                return !group.timedOut
+            }
+
+            /**
+             *  Suspends the process in [group], a wait whose registrations, if it has any, are already made. The
+             *  one place a timed wait suspends: `waitForFirst`, `suspendForOrTimeout` and a seize trigger's
+             *  re-wait (`waitAgain`) all come here.
+             *
+             *  The group's timer is scheduled for [timeLeft] when it is finite, the group becomes the entity's
+             *  current wait, and the entity takes the state `waitForFirst` gives the group's triggers: waiting for
+             *  the first of several, the untimed form's state for one, unchanged for none. The claim that ends the
+             *  wait schedules the resume. On a normal resume the entity is active again. On termination, every
+             *  registration still held is released recording nothing, the timer is cancelled, and [onTermination]
+             *  runs. On every exit the entity's current wait becomes [afterWait].
+             *
+             *  @param group the wait, with its registrations made and not yet claimed
+             *  @param timeLeft the time until the timer runs out; infinite for no timer
+             *  @param afterWait the entity's current wait once this one ends
+             *  @param onTermination what else to undo when the process is terminated in the wait
+             */
+            private suspend fun suspendInWait(
+                group: WaitGroup,
+                timeLeft: Double,
+                afterWait: WaitGroup?,
+                onTermination: () -> Unit = {}
+            ) {
+                if (timeLeft.isFinite()) {
+                    group.timerEvent = myTimeoutAction.schedule(timeLeft, group, group.timeoutPriority)
                 }
                 myWaitGroup = group
-                val stateChanged = if (group.triggers.size > 1) {
-                    entity.state.waitForFirst()
-                    true
-                } else {
-                    enterAloneState(group.triggers[0].aloneState)
+                val stateChanged = when (group.triggers.size) {
+                    0 -> false
+                    1 -> enterAloneState(group.triggers[0].aloneState)
+                    else -> {
+                        entity.state.waitForFirst()
+                        true
+                    }
                 }
                 group.isSuspending = true
                 try {
@@ -3119,11 +3107,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             registration.releaseOnTermination()
                         }
                         group.cancelTimer()
+                        onTermination()
                     }
-                    myWaitGroup = previous
+                    myWaitGroup = afterWait
                 }
                 if (stateChanged) entity.state.activate()
-                return !group.timedOut
             }
 
             /** Puts the entity in the state of [alone]; true if that changed the state. */
