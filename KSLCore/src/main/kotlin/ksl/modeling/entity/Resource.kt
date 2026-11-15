@@ -639,16 +639,16 @@ open class Resource @JvmOverloads constructor(
     fun goOnShift() {
         val shift = myShift ?: return
         if (!shift.isOffShift) return
+        // the capacity increase back to the on-shift capacity runs afterUnitsRestored itself
         shift.goOnShift()
         myFailureClock?.update()
-        if (!isRunEnded) afterUnitsRestored()
     }
 
     /**
      *  Called when this resource's units come back by other than a release: at the end of a capacity
-     *  increase, of a [goOnShift] that put it back on shift, and of a [repair]. A subclass whose waiting
-     *  requests are not reached by the offer to the resource's own queues offers its units here. It can
-     *  be called more than once for one restoration, as a [goOnShift] that increases the capacity does.
+     *  increase, including the one a [goOnShift] makes, and of a [repair]. It is called once for each,
+     *  and not once the run has ended. A subclass whose waiting requests are not reached by the offer to
+     *  the resource's own queues offers its units here.
      */
     protected open fun afterUnitsRestored() {}
 
