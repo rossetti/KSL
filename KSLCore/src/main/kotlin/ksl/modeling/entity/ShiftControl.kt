@@ -67,10 +67,11 @@ class ShiftControl @JvmOverloads constructor(
      */
     fun goOffShift() {
         if (myOffShift) return
-        myOffShift = true
         resource.changeCapacity(
             resource.CapacityChangeNotice(capacity = 0, duration = Double.POSITIVE_INFINITY)
         )
+        // only once the change is accepted: a refused change leaves the resource on shift
+        myOffShift = true
     }
 
     /** Brings the resource back on shift, restoring [onShiftCapacity]. */

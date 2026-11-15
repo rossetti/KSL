@@ -228,19 +228,26 @@ class ResourceShiftTest {
     }
 
     @Test
-    @DisplayName("a resource with a capacity schedule: goOffShift is refused, as for any capacity change not from the schedule")
+    @DisplayName("a resource with a capacity schedule: goOffShift is refused, as for any capacity change not from the schedule, and the resource stays on shift")
     fun withCapacitySchedule() {
         var message: String? = null
+        var offShiftAfterRefusal: Boolean? = null
         val model = Model("Scheduled${System.nanoTime()}", autoCSVReports = false)
         val m = ShiftModel(model, 1)
         val schedule = CapacitySchedule(m, 0.0, repeatable = true, name = "S")
         schedule.addItem(capacity = 1, duration = 50.0)
         m.r.useSchedule(schedule, CapacityChangeRule.IGNORE)
-        m.setups.add { at(1.0) { message = runCatching { r.goOffShift() }.exceptionOrNull()?.message } }
+        m.setups.add {
+            at(1.0) {
+                message = runCatching { r.goOffShift() }.exceptionOrNull()?.message
+                offShiftAfterRefusal = r.isOffShift
+            }
+        }
         model.numberOfReplications = 1
         model.lengthOfReplication = 10.0
         model.simulate()
         val msg = assertNotNull(message)
         assertTrue(msg.contains("did not come from the attached schedule"), msg)
+        assertEquals(false, offShiftAfterRefusal)
     }
 }
