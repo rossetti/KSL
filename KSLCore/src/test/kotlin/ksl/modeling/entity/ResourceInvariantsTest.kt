@@ -68,6 +68,45 @@ class ResourceInvariantsTest {
         assertContains(messages, "1 units are promised, but the requests in its queues hold 0")
     }
 
+    /**
+     *  An IGNORE cut to 1 made while both units of R are promised to a woken request for 2: the cut waits
+     *  for a unit. The woken request's promise breaks at its resume, and nothing else wants R, so no release
+     *  follows. Only the withdrawn promise can give the cut its unit.
+     */
+    private class CutOverPromise(parent: ModelElement) : ProcessModel(parent, "cutOverPromise") {
+        val r = ResourceWithQ(this, "R", capacity = 2)
+
+        inner class Holder : Entity() {
+            val p: KSLProcess = process("holder") {
+                val a = seize(r, 2)
+                delay(5.0)
+                release(a)
+                r.changeCapacity(r.CapacityChangeNotice(capacity = 1, duration = Double.POSITIVE_INFINITY))
+            }
+        }
+
+        inner class Big : Entity() {
+            val p: KSLProcess = process("big") { delay(1.0); seizeOrTimeout(r, amountNeeded = 2, timeout = 10.0) }
+        }
+
+        override fun initialize() {
+            activate(Holder().p)
+            activate(Big().p)
+        }
+    }
+
+    @Test
+    @DisplayName("switched on, a pending capacity cut never waits for more units than are busy or promised")
+    fun pendingCutWaitsOnlyForUnitsThatCanCome() {
+        ResourceInvariants.enabled = true
+        val model = Model("CutOverPromise${System.nanoTime()}", autoCSVReports = false)
+        val m = CutOverPromise(model)
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 20.0
+        model.simulate()
+        kotlin.test.assertFalse(m.r.isPendingCapacityChange)
+    }
+
     @Test
     @DisplayName("switched off, nothing is checked")
     fun offChecksNothing() {

@@ -37,6 +37,8 @@ import ksl.utilities.observers.ObserverIfc
  *  - each allocation's units missing by loan are its loans out, and never exceed its amount;
  *  - no loan outlives its borrower, and a lender, if any, still holds its allocation;
  *  - the units promised to woken requests are the promises the requests in its queues hold;
+ *  - a pending capacity decrease never waits for more units than are busy or promised, the only ones that
+ *    can still come to it, by a release or a withdrawn promise;
  *  - each reservation's request waits in a queue, reserved, and holds what the reservation has promised;
  *  - every wait listed on an allocation's triggers is still open;
  *  - a holder's delay is held only by allocations with units missing, has no event on the calendar while
@@ -52,8 +54,16 @@ internal object ResourceInvariants {
     fun attachIfEnabled(model: Model, executive: Executive) {
         if (!enabled) return
         executive.attachObserver(object : ObserverIfc<KSLEvent<*>?> {
+            // no element can be added while the model runs, so the resources are found once per replication
+            // rather than by walking the model after every event
+            var resources: List<Resource> = emptyList()
+
             override fun onChange(newValue: KSLEvent<*>?) {
-                if (executive.status == Executive.Status.AFTER_EVENT) check(model)
+                when (executive.status) {
+                    Executive.Status.INITIALIZED -> resources = model.getModelElements().filterIsInstance<Resource>()
+                    Executive.Status.AFTER_EVENT -> for (resource in resources) check(resource)
+                    else -> {}
+                }
             }
         })
     }
@@ -115,6 +125,13 @@ internal object ResourceInvariants {
         }
         if (promised != resource.myPromisedUnits) {
             violation(resource, "${resource.myPromisedUnits} units are promised, but the requests in its queues hold $promised")
+        }
+        val need = resource.pendingChangeAmountNeeded
+        if (need > resource.numBusy + resource.myPromisedUnits) {
+            violation(
+                resource, "a pending capacity change needs $need units, but only ${resource.numBusy} are busy and " +
+                        "${resource.myPromisedUnits} promised"
+            )
         }
         for (reservation in resource.reservations) {
             val request = reservation.request

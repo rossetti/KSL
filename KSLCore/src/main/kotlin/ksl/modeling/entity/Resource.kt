@@ -1501,6 +1501,10 @@ open class Resource @JvmOverloads constructor(
     val isPendingCapacityChange : Boolean
         get() = myCurrentChangeNotice != null
 
+    /** The units the pending capacity decrease still waits for; 0 with no change pending. */
+    internal val pendingChangeAmountNeeded: Int
+        get() = myCurrentChangeNotice?.amountNeeded ?: 0
+
     /**
      * When the pending capacity change ends. `NaN` when no change is pending
      * (see [isPendingCapacityChange]). Positive infinity when the pending change lasts until another
