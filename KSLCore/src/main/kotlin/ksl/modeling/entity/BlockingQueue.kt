@@ -629,9 +629,7 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
      */
     internal fun claimSelected(request: ChannelRequest, registration: Registration) {
         myRequestBeingResumed = request
-        val claimed = registration.group.claim(
-            registration, null, ResumeSource.BLOCKING_QUEUE_RECEIVER, requestQResumptionPriority
-        )
+        val claimed = registration.claimWait(null, ResumeSource.BLOCKING_QUEUE_RECEIVER, requestQResumptionPriority)
         check(claimed) { "$name: the request ${request.id} was selected for a wait that had already ended." }
     }
 

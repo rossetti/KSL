@@ -148,7 +148,7 @@ class Signal @JvmOverloads constructor(
             // The entity waits for the first of several things, one of which is this signal. The
             // claim releases the wait's other registrations and schedules the resume; a wait
             // already claimed (a second signal at this instant) does nothing.
-            registration.group.claim(registration, Unit, ResumeSource.SIGNAL, resumePriority)
+            registration.claimWait(Unit, ResumeSource.SIGNAL, resumePriority)
             return
         }
         entity.scheduleResumeProcess(0.0, resumePriority, ResumeSource.SIGNAL, "signal=$name")

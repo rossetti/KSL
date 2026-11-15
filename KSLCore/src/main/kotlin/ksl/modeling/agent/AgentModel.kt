@@ -373,9 +373,7 @@ open class AgentModel(
                     // A message trigger's waiter. Claiming its wait releases the wait's other
                     // registrations, so it comes before the observers: a message an observer
                     // sends from here is offered only to waiters that are still waiting.
-                    val claimed = registration.group.claim(
-                        registration, message, ResumeSource.MAILBOX, ProcessModel.RESUME_PRIORITY
-                    )
+                    val claimed = registration.claimWait(message, ResumeSource.MAILBOX, ProcessModel.RESUME_PRIORITY)
                     check(claimed) { "A message trigger's waiter was still in the mailbox of $owner after its wait had ended." }
                     notifyDelivered(message)
                     notifyConsumed(message)

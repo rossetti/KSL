@@ -461,7 +461,7 @@ class RequestQ @JvmOverloads constructor(
             return
         }
         // A request whose wait has ended has already left the queue, so its wait is still open.
-        val claimed = registration.group.claim(registration, null, resumeSource, resumePriority)
+        val claimed = registration.claimWait(null, resumeSource, resumePriority)
         check(claimed) { "$name: request ${request.id} was woken for a wait that had already ended." }
     }
 

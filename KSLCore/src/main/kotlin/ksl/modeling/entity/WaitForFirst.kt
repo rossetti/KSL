@@ -214,8 +214,33 @@ internal sealed class AfterResume {
  *  Links one wait to one of its triggers while the wait is suspended: a waiter in a mailbox, an
  *  entity in a signal's hold queue, a request in a blocking queue. Both release functions do nothing
  *  when the registration has already been released.
+ *
+ *  **What a source must do to take part in waits.** A source keeps each registration with its own
+ *  record of the waiter (the entity in its hold queue, its request, its mailbox waiter), and:
+ *  - when that waiter is satisfied, ends the wait with [claimWait], never by resuming the entity itself;
+ *  - takes a false answer from [claimWait] to mean the wait had already ended, and moves on to its next waiter;
+ *  - claims nothing once the replication has ended, when the releases come from terminating the entities
+ *    (the blocking queue, the resource offers and an allocation's triggers check this before they look
+ *    at their waiters);
+ *  - if removing a waiter makes it look at its other waiters, defers that look to the end of the claim
+ *    ([deferredNotificationSource], [notifyDeferred]), as the blocking queue does;
+ *  - in [onReleaseOnTermination], removes the waiter recording nothing and hands on anything it held.
  */
 internal abstract class Registration(val trigger: WaitTrigger<*>, val group: WaitGroup) {
+
+    /**
+     *  Ends this registration's wait because its trigger fired: the one way a source ends a wait. The
+     *  wait's other registrations are released, its timer cancelled and its resume scheduled, as
+     *  `WaitGroup.claim` describes.
+     *
+     *  @param value the trigger's value when the source produces it now (a mailbox's message); null when
+     *  [afterWinningResume] produces it after the resume
+     *  @param source why the entity resumes
+     *  @param resumePriority the priority of the resume event
+     *  @return true if this ended the wait; false if the wait had already been ended
+     */
+    fun claimWait(value: Any?, source: ResumeSource, resumePriority: Int): Boolean =
+        group.claim(this, value, source, resumePriority)
 
     /** True once the registration no longer holds anything in the thing waited on. */
     var isReleased: Boolean = false
@@ -321,7 +346,8 @@ internal class WaitGroup(
 
     /**
      *  Claims the wait. The first claim wins and every later one does nothing, so a trigger, the
-     *  timer and a suspension's holder can all try at the same instant without coordinating.
+     *  timer and a suspension's holder can all try at the same instant without coordinating. A source
+     *  claims through its registration's `claimWait`; the timer and a suspension's holder call this.
      *
      *  On a successful claim, in one step: the winner and its value are recorded; every other
      *  registration is released, so a second occurrence at this instant goes elsewhere rather than

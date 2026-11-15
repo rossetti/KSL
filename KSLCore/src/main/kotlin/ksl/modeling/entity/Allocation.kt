@@ -317,7 +317,7 @@ class Allocation internal constructor(
         for (registration in myTriggerRegistrations.toList()) {
             if (registration.onRestore != onRestore || registration.isReleased) continue
             myTriggerRegistrations.remove(registration)
-            registration.group.claim(registration, value, ResumeSource.ALLOCATION, ProcessModel.RESUME_PRIORITY)
+            registration.claimWait(value, ResumeSource.ALLOCATION, ProcessModel.RESUME_PRIORITY)
         }
     }
 
