@@ -188,4 +188,47 @@ class BrokenPromiseTest {
         model.simulate()
         assertEquals(listOf("message@5.0 waited=4.0", "queue=0"), m.outcome)
     }
+
+    private class CutThenOffShift(parent: ModelElement) : ProcessModel(parent, "cutThenOff") {
+        val r = ResourceWithQ(this, "R", capacity = 2)
+        val seen = mutableListOf<String>()
+
+        inner class Holder : Entity() {
+            val p: KSLProcess = process("holder") {
+                val a = seize(r, 2)
+                delay(5.0)
+                release(a)
+                r.changeCapacity(r.CapacityChangeNotice(capacity = 1, duration = Double.POSITIVE_INFINITY))
+            }
+        }
+
+        inner class Big : Entity() {
+            val p: KSLProcess = process("big") { delay(1.0); seizeOrTimeout(r, amountNeeded = 2, timeout = 10.0) }
+        }
+
+        inner class Late : Entity() {
+            val p: KSLProcess = process("late") { delay(21.0); val a = seize(r); seen.add("served@$time"); release(a) }
+        }
+
+        override fun initialize() {
+            seen.clear()
+            activate(Holder().p)
+            activate(Big().p)
+            activate(Late().p)
+            schedule({ _: ksl.simulation.KSLEvent<Nothing> -> seen.add("pending=${r.isPendingCapacityChange}") }, 6.0)
+            schedule({ _: ksl.simulation.KSLEvent<Nothing> -> r.goOffShift(); seen.add("off cap=${r.capacity}") }, 20.0)
+        }
+    }
+
+    @Test
+    @DisplayName("an IGNORE cut over promised units: when the promise breaks, the withdrawn units complete the cut, and a later shift's end applies at once")
+    fun withdrawnUnitsCompleteAPendingCut() {
+        val model = Model("CutOff${System.nanoTime()}", autoCSVReports = false)
+        val m = CutThenOffShift(model)
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 40.0
+        model.simulate()
+        // nothing is served off shift
+        assertEquals(listOf("pending=false", "off cap=0"), m.seen)
+    }
 }

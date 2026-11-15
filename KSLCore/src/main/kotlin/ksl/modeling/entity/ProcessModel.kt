@@ -3046,18 +3046,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     }
                     if (honourable) return true
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: request_id = ${request.id} cannot take what it was promised; it waits again" }
-                    val withdrawn = promises.keys.toList()
+                    val withdrawn = promises.toMap()
                     request.clearPromises()
                     request.clearResumePending()
                     // a preemption's completed reservation collects its units again, still ahead of the queue
                     request.reservation?.reopen()
+                    // a capacity decrease that waits for units takes the withdrawn ones first, as from a release
+                    for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
                     // What was promised went away, but something else may be free now, such as another member of a
                     // pool. The release that freed it has already offered it, so waiting would strand the request
                     // beside it until the next release: take it now instead.
                     if (canAllocateNow()) return true
                     // The units it withdrew are free again, and the release that freed them offered them only to
                     // this request: offer them to the requests behind it, as when a waiting request leaves.
-                    for (member in withdrawn) {
+                    for (member in withdrawn.keys) {
                         member.offerFreedUnits(
                             RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
                             "promise_withdrawn_request_id=${request.id}"

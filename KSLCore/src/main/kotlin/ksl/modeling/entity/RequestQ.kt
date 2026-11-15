@@ -167,10 +167,12 @@ class RequestQ @JvmOverloads constructor(
         waitStats: Boolean = false,
         afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null
     ) {
-        val offerOn = LinkedHashSet<Resource>(request.promises.keys)
+        val withdrawn = request.promises.toMap()
+        val offerOn = LinkedHashSet<Resource>(withdrawn.keys)
         offerOn.addAll(membersOf(request.resource))
         remove(request, waitStats)
         request.entity.terminateProcess(afterTermination)
+        for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
         offerOnward(offerOn, "removed_and_terminated_request_id=${request.id}")
     }
 
@@ -399,9 +401,11 @@ class RequestQ @JvmOverloads constructor(
      *  chosen can let it choose another.
      */
     internal fun removeAbandoned(request: ProcessModel.Entity.Request) {
-        val offerOn = LinkedHashSet<Resource>(request.promises.keys)
+        val withdrawn = request.promises.toMap()
+        val offerOn = LinkedHashSet<Resource>(withdrawn.keys)
         offerOn.addAll(membersOf(request.resource))
         if (!remove(request, false)) return
+        for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
         offerOnward(offerOn, "request_abandoned_request_id=${request.id}")
     }
 

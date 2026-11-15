@@ -1689,6 +1689,22 @@ open class Resource @JvmOverloads constructor(
         }
     }
 
+    /**
+     *  Gives [amount] units withdrawn from a promise to the pending capacity change, if any, as a release gives
+     *  its units: the request they were promised to will not take them. Under IGNORE a decrease that arrived
+     *  while they were promised counted them as busy, and waits for them; under WAIT a decrease waits for
+     *  units to become idle. Without this the change would wait for the next release, and a later change,
+     *  such as a shift's end, would wait behind it. Nothing is done once the run has ended.
+     */
+    internal fun unitsWithdrawnFromPromise(amount: Int) {
+        if (amount <= 0 || !isPendingCapacityChange || isRunEnded) return
+        if (capacityChangeRule == CapacityChangeRule.IGNORE) {
+            handleIgnoreRuleRelease(amount)
+        } else if (capacityChangeRule == CapacityChangeRule.WAIT && myCurrentChangeNotice!!.changeEvent == null) {
+            handleWaitRuleRelease(amount)
+        }
+    }
+
     protected fun handleWaitRuleDeallocation(allocation: Allocation) {
         handleWaitRuleRelease(allocation.amountReleased)
     }
