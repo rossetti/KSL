@@ -410,6 +410,19 @@ class RequestQ @JvmOverloads constructor(
     }
 
     /**
+     *  After a request has been moved out of this queue to another target: the units it was promised by
+     *  [withdrawn] go first to a pending capacity change, and then the free units of what it left,
+     *  [oldTarget], are offered to the requests still waiting for them, as when a request leaves. The moved
+     *  request no longer asks for them, so it is not woken by them.
+     */
+    internal fun afterMovedAway(withdrawn: Map<Resource, Int>, oldTarget: ResourceIfc, detail: String) {
+        for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
+        val offerOn = LinkedHashSet<Resource>(withdrawn.keys)
+        offerOn.addAll(membersOf(oldTarget))
+        offerOnward(offerOn, detail)
+    }
+
+    /**
      *  Wakes [request]: promises it the units it will take and schedules its resumption.
      *
      *  @return false when the units could not be promised, in which case it is not woken

@@ -44,7 +44,7 @@ class WokenRequestMoveTest {
      *  at once moves the mover's woken request to the target. The target is free, or held until 8.
      *  The mover, when served, logs the time, waits 10, logs again and releases.
      */
-    private class WokenModel(parent: ModelElement, val kind: Kind, val targetFree: Boolean) : ProcessModel(parent, "woken") {
+    private class WokenModel(parent: ModelElement, val kind: Kind, val targetFree: Boolean, val behind: Boolean = false) : ProcessModel(parent, "woken") {
         private val speed = ConstantRV(10.0)
         private val dm = DistancesModel()
         val locA = dm.Location("A")
@@ -121,18 +121,32 @@ class WokenRequestMoveTest {
             }
         }
 
+        /** Waits for the source from time 2, behind the mover. */
+        inner class Behind : Entity("behind") {
+            val p: KSLProcess = process("behind") {
+                entity.currentLocation = locA
+                delay(2.0)
+                when (kind) {
+                    Kind.RESOURCE -> { val a = seize(r1); log.add("behind served@$time"); release(a) }
+                    Kind.POOL -> { val a = seize(p1); log.add("behind served@$time"); release(a) }
+                    Kind.MOVABLE_POOL -> { val a = seize(f1, requestLocation = locA); log.add("behind served@$time"); release(a) }
+                }
+            }
+        }
+
         override fun initialize() {
             log.clear()
             mover = Mover()
             activate(Holder(target = false, hold = 5.0) { mover.moveWoken() }.p)
             if (!targetFree) activate(Holder(target = true, hold = 8.0).p)
             activate(mover.p)
+            if (behind) activate(Behind().p)
         }
     }
 
-    private fun run(kind: Kind, targetFree: Boolean): List<String> {
+    private fun run(kind: Kind, targetFree: Boolean, behind: Boolean = false): List<String> {
         val model = Model("Woken${System.nanoTime()}", autoCSVReports = false)
-        val m = WokenModel(model, kind, targetFree)
+        val m = WokenModel(model, kind, targetFree, behind)
         model.numberOfReplications = 1
         model.lengthOfReplication = 50.0
         model.simulate()
@@ -152,6 +166,15 @@ class WokenRequestMoveTest {
     fun targetBusy() {
         for (kind in Kind.entries) {
             assertEquals(listOf("moving woken=true@5.0", "served from target@8.0", "after@18.0"), run(kind, targetFree = false), "$kind")
+        }
+    }
+
+    @Test
+    @DisplayName("a woken request moved away leaves its promised units to the request waiting behind it at the source")
+    fun sourceUnitsGoToTheNextWaiter() {
+        for (kind in Kind.entries) {
+            val log = run(kind, targetFree = true, behind = true)
+            assertEquals(listOf("moving woken=true@5.0", "served from target@5.0", "behind served@5.0"), log.filter { !it.startsWith("after") }, "$kind")
         }
     }
 }

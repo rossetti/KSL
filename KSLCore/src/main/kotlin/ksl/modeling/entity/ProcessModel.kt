@@ -1740,6 +1740,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             require(request.resource != resource) { "The supplied resource ${resource.name} must not be associated with the request." }
             // A woken request has a resume on the calendar already; remove() clears the mark, so read it first.
             val wasWoken = request.resumePending
+            // what it was promised and what it asked for, so the units it leaves can be offered on after the move
+            val withdrawn = request.promises.toMap()
+            val oldTarget = request.resource
             currentQueue.remove(request, waitStats)
             val newQ = resource.myWaitingQ
             newQ.enqueue(request, request.priority)
@@ -1759,6 +1762,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 request.promise(resource, request.amountRequested)
                 newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
             }
+            currentQueue.afterMovedAway(withdrawn, oldTarget, "request_moved_away_$detail")
         }
 
         /**
@@ -1798,6 +1802,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             require(request.myResourcePool != pool) { "The supplied resource pool ${pool.name} must not be associated with the request." }
             // A woken request has a resume on the calendar already; remove() clears the mark, so read it first.
             val wasWoken = request.resumePending
+            // what it was promised and what it asked for, so the units it leaves can be offered on after the move
+            val withdrawn = request.promises.toMap()
+            val oldTarget = request.resource
             currentQueue.remove(request, waitStats)
             val newQ = pool.myWaitingQ
             newQ.enqueue(request, request.priority)
@@ -1816,6 +1823,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             } else if (canServe) {
                 newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
             }
+            currentQueue.afterMovedAway(withdrawn, oldTarget, "request_moved_away_$detail")
         }
 
         /**
@@ -1855,6 +1863,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             require(request.myMovableResourcePool != pool) { "The supplied movable resource pool ${pool.name} must not be associated with the request." }
             // A woken request has a resume on the calendar already; remove() clears the mark, so read it first.
             val wasWoken = request.resumePending
+            // what it was promised and what it asked for, so the units it leaves can be offered on after the move
+            val withdrawn = request.promises.toMap()
+            val oldTarget = request.resource
             currentQueue.remove(request, waitStats)
             val newQ = pool.myWaitingQ
             newQ.enqueue(request, request.priority)
@@ -1873,6 +1884,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             } else if (canServe) {
                 newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
             }
+            currentQueue.afterMovedAway(withdrawn, oldTarget, "request_moved_away_$detail")
         }
 
         /**
