@@ -168,6 +168,18 @@ class CapacityChangeUntilSupersededTest {
     }
 
     @Test
+    @DisplayName("IGNORE: a decrease that finds units both idle and busy waits only for the busy ones")
+    fun ignoreDecreaseOverIdleAndBusyUnits() {
+        val m = simulate {
+            ShiftModel(it, CapacityChangeRule.IGNORE, capacity = 2, probeTimes = listOf(3.0, 11.0)) { s ->
+                delay(2.0); s.shift.goOffShift()
+            }
+        }
+        assertEquals(Snapshot(0, 1, true), m.seen[3.0], "off shift at once, the busy unit still owed")
+        assertEquals(Snapshot(0, 0, false), m.seen[11.0], "the busy unit's release completes the decrease")
+    }
+
+    @Test
     @DisplayName("pendingCapacityChangeEndTime: NaN with nothing pending, infinite for a change until superseded")
     fun pendingEndTime() {
         val ends = mutableListOf<Double>()

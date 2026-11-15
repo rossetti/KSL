@@ -1912,7 +1912,8 @@ open class Resource @JvmOverloads constructor(
             // not enough available, ignore rule causes entire change at the current time
             // some of the change will need to be supplied when the busy resources are released
             logger.trace { "$time > Resource: $name, not enough units idle to reduce capacity by $decrease." }
-            notice.amountNeeded = decrease
+            // the idle units go now with the rest of the change; it waits only for the busy and promised units
+            notice.amountNeeded = decrease - numIdleUnits
             // always schedule the end of the incoming change immediately, unless it waited behind another
             // change and its end was scheduled when it arrived
             if (notice.changeEvent == null) {
@@ -1921,7 +1922,7 @@ open class Resource @JvmOverloads constructor(
             // make the notice the current notice for processing
             myCurrentChangeNotice = notice
             logger.trace { "$time > Resource: $name, notice $notice is now being processed" }
-            capacity = capacity - notice.amountNeeded
+            capacity = capacity - decrease
             // ignore takes away all needed, immediately, by decreasing the capacity by the full amount of the change
             // capacity was decreased but change notice still needs those busy units to be released
             logger.trace { "$time > Resource: $name, reduced capacity to $capacity because of notice $notice" }
