@@ -35,7 +35,7 @@ import kotlin.test.assertEquals
  */
 class GuidedTransporterShiftCharacterizationTest {
 
-    private class Shop(parent: ModelElement) : ProcessModel(parent, "Shop") {
+    private class Shop(parent: ModelElement, val byCapacity: Boolean = false) : ProcessModel(parent, "Shop") {
         val network: GuidedPathNetwork = GuidedPathNetwork.builder("Loop")
             .link("AB", "A", "B", length = 100.0, zoneLength = 25.0, beginDirection = 0.0)
             .link("BP", "B", "P", length = 100.0, zoneLength = 25.0, beginDirection = 90.0)
@@ -69,10 +69,17 @@ class GuidedTransporterShiftCharacterizationTest {
         override fun initialize() {
             seen.clear()
             carriedAt = Double.NaN
-            schedule({ _: KSLEvent<Nothing> -> cart.goOffShift(); note("off") }, 0.0)
+            if (byCapacity) {
+                schedule({ _: KSLEvent<Nothing> ->
+                    cart.changeCapacity(cart.CapacityChangeNotice(0, Double.POSITIVE_INFINITY)); note("off")
+                }, 0.0)
+                schedule({ _: KSLEvent<Nothing> -> cart.changeCapacity(cart.CapacityChangeNotice(1, Double.POSITIVE_INFINITY)) }, 20.0)
+            } else {
+                schedule({ _: KSLEvent<Nothing> -> cart.goOffShift(); note("off") }, 0.0)
+                schedule({ _: KSLEvent<Nothing> -> cart.goOnShift() }, 20.0)
+            }
             schedule({ _: KSLEvent<Nothing> -> activate(Part().p) }, 1.0)
             schedule({ _: KSLEvent<Nothing> -> note("while off") }, 10.0)
-            schedule({ _: KSLEvent<Nothing> -> cart.goOnShift() }, 20.0)
             schedule({ _: KSLEvent<Nothing> -> note("back on") }, 20.5)
         }
     }
@@ -95,6 +102,26 @@ class GuidedTransporterShiftCharacterizationTest {
             shop.seen
         )
         // allocated at 20, it drives the 200 units from A to the pickup at P at speed 10
+        assertEquals(40.0, shop.carriedAt)
+    }
+
+    @Test
+    @DisplayName("capacity cut to zero and restored, not by a shift: the cart is not offered while it has no capacity, and is offered again when it has")
+    fun zeroCapacityThenBack() {
+        val m = Model("GuidedZero${System.nanoTime()}", autoCSVReports = false)
+        val shop = Shop(m, byCapacity = true)
+        m.numberOfReplications = 1
+        m.lengthOfReplication = 200.0
+        m.simulate()
+        val zone = shop.seen.first().substringAfter("zone=").substringBefore(" ")
+        assertEquals(
+            listOf(
+                "off off=false busy=0 zone=$zone waiting=0",
+                "while off off=false busy=0 zone=$zone waiting=1",
+                "back on off=false busy=1 zone=$zone waiting=0"
+            ),
+            shop.seen
+        )
         assertEquals(40.0, shop.carriedAt)
     }
 

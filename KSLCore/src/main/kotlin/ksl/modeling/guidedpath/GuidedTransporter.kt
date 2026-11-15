@@ -1055,14 +1055,14 @@ class GuidedTransporter @JvmOverloads constructor(
      * by its movement gate part way, or one that something else is towing: it belongs to nobody, and
      * it is going nowhere.
      *
-     * A transporter off shift or failed is not dispatchable either: it stands where it is and may not
-     * be allocated until it is back on shift and repaired.
+     * A transporter off shift, failed, or with no capacity is not dispatchable either: it stands where
+     * it is and may not be allocated until it is back on shift, repaired, and has its capacity again.
      *
      * A pool sends only dispatchable transporters, and an allocation rule is offered only these, so
      * a rule never has to know this property exists.
      */
     override val isDispatchable: Boolean
-        get() = numBusy == 0 && !isHalted && !isUnderTow && !isOffShift && !isFailed
+        get() = numBusy == 0 && capacity > 0 && !isHalted && !isUnderTow && !isOffShift && !isFailed
 
     private val myPools = mutableListOf<GuidedTransporterPoolWithQ>()
 

@@ -645,9 +645,10 @@ open class Resource @JvmOverloads constructor(
     }
 
     /**
-     *  Called when this resource's units come back by other than a release: at the end of a [goOnShift]
-     *  that put it back on shift, and of a [repair]. A subclass whose waiting requests are not reached by
-     *  a capacity increase offers its units here.
+     *  Called when this resource's units come back by other than a release: at the end of a capacity
+     *  increase, of a [goOnShift] that put it back on shift, and of a [repair]. A subclass whose waiting
+     *  requests are not reached by the offer to the resource's own queues offers its units here. It can
+     *  be called more than once for one restoration, as a [goOnShift] that increases the capacity does.
      */
     protected open fun afterUnitsRestored() {}
 
@@ -1828,16 +1829,16 @@ open class Resource @JvmOverloads constructor(
         logger.trace { "$time > Resource: $name, now has $available units." }
         if (available == 0) {
             logger.trace { "$time > Resource: $name, had 0 units available after the positive capacity change. No reason to notify entities." }
-            return
-        }
-        if (myCapacityChangeQSet.isEmpty()) {
+        } else if (myCapacityChangeQSet.isEmpty()) {
             // no queues are currently associated with this resource, no reason to notify
             logger.trace { "$time > Resource: $name, The resource is not associated with any capacity change queues. No queues were notified of the positive capacity change." }
-            return
+        } else {
+            // this causes the newly available capacity to be allocated to any waiting requests
+            // which may resume the entity processes at the current simulated time
+            notifyWaitingRequestsOfCapacityIncrease(available, notice.priority)
         }
-        // this causes the newly available capacity to be allocated to any waiting requests
-        // which may resume the entity processes at the current simulated time
-        notifyWaitingRequestsOfCapacityIncrease(available, notice.priority)
+        // a subclass whose waiting requests the queues above do not reach offers its units here
+        if (!isRunEnded) afterUnitsRestored()
     }
 
     protected fun notifyWaitingRequestsOfCapacityIncrease(available: Int, priority: Int) {
