@@ -106,6 +106,25 @@ listOf(
 val animationPlayerBundle: File =
     rootDir.resolve("KSLAnimationCore/build/kotlin-webpack/js/productionExecutable/ksl-animation.js")
 
+/**
+ * The sources the player is compiled from that changed after it was built. The player compiles KSLCore,
+ * KSLApp and KSLAppSwingAnimation sources by path (the shared list in KSLAnimationCore/build.gradle.kts)
+ * plus its own, so a change to any of them, such as a new trace event or a fix to the replay, reaches the
+ * player only when it is built again. Empty when the player is current, or has not been built.
+ */
+fun animationPlayerStaleSources(): List<File> {
+    if (!animationPlayerBundle.isFile) return emptyList()
+    val built = animationPlayerBundle.lastModified()
+    val webBuild = rootDir.resolve("KSLAnimationCore")
+    val buildScript = webBuild.resolve("build.gradle.kts")
+    val roots = listOf("KSLCore", "KSLApp", "KSLAppSwingAnimation").map { rootDir.resolve("$it/src/main/kotlin") }
+    val shared = Regex(""""(ksl/[^"]+\.kt)"""").findAll(buildScript.readText()).map { it.groupValues[1] }.toSet()
+    val sources = shared.flatMap { path -> roots.map { it.resolve(path) } }.filter { it.isFile } +
+        webBuild.resolve("src").walkTopDown().filter { it.isFile && !it.path.contains("Test") }.toList() +
+        buildScript
+    return sources.filter { it.lastModified() > built }.sortedBy { it.path }
+}
+
 val packageAnimationPlayer by tasks.registering(Copy::class) {
     description = "Package the animation web player into KSLApp resources, when it has been built."
     group = "build"
@@ -113,23 +132,47 @@ val packageAnimationPlayer by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("generated/animation-player/ksl/animation/web"))
     // Nothing to copy is a normal state, not a failure.
     onlyIf { animationPlayerBundle.isFile }
+    doFirst {
+        val stale = animationPlayerStaleSources()
+        if (stale.isNotEmpty()) {
+            logger.warn(
+                "The animation web player is older than ${stale.size} of the sources it is built from " +
+                    "(${stale.first().name}, ...). Rebuild it with: ./gradlew -p KSLAnimationCore jsBrowserProductionWebpack"
+            )
+        }
+    }
 }
 
 sourceSets["main"].resources.srcDir(layout.buildDirectory.dir("generated/animation-player"))
 tasks.named("processResources") { dependsOn(packageAnimationPlayer) }
 
-/** Reports whether this build carries the player, so a release can check before publishing. */
+/**
+ * Checks, before a release, that the player is built and current: it fails when the player is missing,
+ * when it is older than any source it is compiled from, or when the copy packaged into KSLApp is not the
+ * player as built. A suite cut with a stale player ships an animation export that reads today's traces
+ * with yesterday's replay.
+ */
 tasks.register("checkAnimationPlayerPackaged") {
     group = "verification"
-    description = "Report whether the animation web player is packaged into KSLApp."
+    description = "Fail unless the animation web player is built, current, and packaged into KSLApp."
+    dependsOn(packageAnimationPlayer)
     doLast {
-        if (animationPlayerBundle.isFile) {
-            logger.lifecycle("animation web player packaged (${animationPlayerBundle.length() / 1024} KB)")
-        } else {
-            logger.lifecycle(
-                "animation web player NOT packaged - HTML export will be unavailable.\n" +
-                    "  Build it with: ./gradlew -p KSLAnimationCore jsBrowserProductionWebpack"
+        val rebuild = "  Build it with: ./gradlew -p KSLAnimationCore jsBrowserProductionWebpack"
+        if (!animationPlayerBundle.isFile) {
+            throw GradleException("animation web player NOT built - HTML export would be unavailable.\n$rebuild")
+        }
+        val stale = animationPlayerStaleSources()
+        if (stale.isNotEmpty()) {
+            throw GradleException(
+                "animation web player is older than these sources it is built from:\n" +
+                    stale.joinToString("\n") { "  ${it.relativeTo(rootDir)}" } + "\n$rebuild"
             )
         }
+        val packaged = layout.buildDirectory.file("generated/animation-player/ksl/animation/web/ksl-animation.js")
+            .get().asFile
+        if (!packaged.isFile || !packaged.readBytes().contentEquals(animationPlayerBundle.readBytes())) {
+            throw GradleException("the player packaged into KSLApp is not the one built; run :KSLApp:processResources")
+        }
+        logger.lifecycle("animation web player built, current and packaged (${animationPlayerBundle.length() / 1024} KB)")
     }
 }

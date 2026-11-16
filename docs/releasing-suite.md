@@ -63,9 +63,35 @@ OS** produces the payload for macOS, Windows, and Linux — there are no per-OS 
   ./gradlew :KSLApp:checkAnimationPlayerPackaged
   ```
 
-  The second command prints whether the bundle was found. It needs Node.js, which Gradle
-  downloads on first use — so this step (unlike the rest of a release) needs network access the
-  first time it runs on a machine.
+  The second command fails unless the player is built, is newer than every source it is compiled
+  from, and is the copy packaged into KSLApp. The player compiles KSLCore's trace format and
+  KSLApp's replay by path, so a change to either (a new trace event, a replay fix) reaches the
+  exported animations only through a rebuild, and a stale player otherwise ships without a word.
+  The first command needs Node.js, which Gradle downloads on first use — so this step (unlike the
+  rest of a release) needs network access the first time it runs on a machine.
+
+- **Check what the KSLCore changes do to the apps, before cutting.** The apps are updated with
+  each release, and what a KSLCore change does to them is found either now or after the release,
+  by someone using them. From the commit to be released:
+
+  ```
+  ./gradlew assemble test --continue
+  ./gradlew -p KSLAnimationCore jsTest
+  python3 -I docs/release-tools/api_diff.py <KSLCore-<previous release>.jar> KSLCore/build/classes/kotlin/main
+  ```
+
+  1. **Every module builds and passes.** The KSLExamples suite takes the longest; add
+     `-Dksl.checkInvariants=true` when the release changes resources or the process view.
+  2. **The browser player's own tests pass.** Its build is outside the root build, so nothing
+     else compiles or tests it.
+  3. **Old bundles still load.** The script lists the public JVM API of the previous release that
+     the build no longer has; a bundle JAR compiled against that release calls those signatures.
+     The previous release's jar is in the Gradle cache
+     (`find ~/.gradle/caches -name 'KSLCore-<version>.jar'`) or on Maven Central.
+  4. **Read the change for what the apps show.** A new `@KSLControl` property appears in every
+     app's control list and in `describe_model`; a new trace event or resource state reaches the
+     animation renderers; a change of results reaches the release notes and the book. Find them
+     with `git diff <previous tag>..HEAD -- KSLCore/src/main`.
 
 ## Steps
 
@@ -272,7 +298,7 @@ it is not referenced by `manifest.json`, so nothing needs stamping and nothing b
 bundled animation. It is a *generated* site living in its own repository, so nothing about it is part of
 `ksl-suite.zip` and it is published by pushing, not by `gh release`.
 
-**Regenerate it whenever the shipped models change**, which a release is exactly the occasion for. The
+**Regenerate it whenever the shipped models or the player change**, which a release is exactly the occasion for. The
 pages, traces, layouts and posters are all derived from the animation bundle's manifest and the committed
 `.lay.toml` layouts, so a release that adds, removes or re-polishes a model leaves the site describing the
 previous one — and a stale generated site looks precisely like a current one.
