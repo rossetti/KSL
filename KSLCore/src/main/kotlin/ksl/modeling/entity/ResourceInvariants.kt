@@ -68,18 +68,6 @@ internal object ResourceInvariants {
         })
     }
 
-    /** The highest capacity each resource has had in its current replication, as the checks have seen it. */
-    private val myHighestCapacity: MutableMap<Resource, Pair<Int, Int>> =
-        java.util.Collections.synchronizedMap(java.util.WeakHashMap())
-
-    private fun highestCapacity(resource: Resource): Int {
-        val replication = resource.model.currentReplicationNumber
-        val seen = myHighestCapacity[resource]
-        val highest = if (seen == null || seen.first != replication) resource.capacity else maxOf(seen.second, resource.capacity)
-        myHighestCapacity[resource] = replication to highest
-        return highest
-    }
-
     private fun violation(resource: Resource, message: String): Nothing =
         throw IllegalStateException("Invariant broken at time ${resource.time} on resource ${resource.name}: $message")
 
@@ -98,7 +86,7 @@ internal object ResourceInvariants {
         if (resource.numBusy != allocated - lent) {
             violation(resource, "${resource.numBusy} units busy, but $allocated are allocated and $lent lent")
         }
-        val highest = highestCapacity(resource)
+        val highest = resource.highestCapacity
         if (resource.numBusy > highest) {
             violation(resource, "${resource.numBusy} units busy exceeds the highest capacity $highest of the replication")
         }

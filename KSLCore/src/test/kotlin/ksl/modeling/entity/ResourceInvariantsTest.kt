@@ -107,6 +107,41 @@ class ResourceInvariantsTest {
         kotlin.test.assertFalse(m.r.isPendingCapacityChange)
     }
 
+    /** In one event: capacity 1 to 2, both units allocated, and back to 1 under IGNORE; the work stays. */
+    private class PeakInOneEvent(parent: ModelElement) : ProcessModel(parent, "peak") {
+        val r = ResourceWithQ(this, "R")
+        val q = RequestQ(this, "PeakQ")
+        var done = false
+
+        inner class Controller : Entity() {
+            val p: KSLProcess = process("controller") {
+                delay(1.0)
+                r.changeCapacity(r.CapacityChangeNotice(2))
+                val a = r.allocate(entity, amountNeeded = 2, queue = q)
+                r.changeCapacity(r.CapacityChangeNotice(1))
+                delay(1.0)
+                release(a)
+                done = true
+            }
+        }
+
+        override fun initialize() {
+            activate(Controller().p)
+        }
+    }
+
+    @Test
+    @DisplayName("switched on, a capacity peak within one event is counted: the work it allowed is not a violation")
+    fun peakWithinOneEvent() {
+        ResourceInvariants.enabled = true
+        val model = Model("Peak${System.nanoTime()}", autoCSVReports = false)
+        val m = PeakInOneEvent(model)
+        model.numberOfReplications = 2
+        model.lengthOfReplication = 20.0
+        model.simulate()
+        kotlin.test.assertTrue(m.done)
+    }
+
     @Test
     @DisplayName("switched off, nothing is checked")
     fun offChecksNothing() {

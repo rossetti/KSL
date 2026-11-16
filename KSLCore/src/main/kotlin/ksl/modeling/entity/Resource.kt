@@ -275,10 +275,19 @@ open class Resource @JvmOverloads constructor(
         protected set(value) {
             require(value >= 0) { "The capacity must be >= 0" }
             field = value
+            if (value > highestCapacity) highestCapacity = value
             updateState()
             myCapacity.value = field.toDouble()
             instantUtilTW.value = instantaneousUtil
         }
+
+    /**
+     *  The highest capacity this resource has had in the current replication, counting every change, even one
+     *  undone within the same event. Work allocated at a peak may stay busy after the capacity falls under
+     *  `IGNORE`, so this, not the capacity now, bounds the busy units.
+     */
+    internal var highestCapacity: Int = capacity
+        private set
 
     protected val myNumBusy: TWResponse = TWResponse(this, "${this.name}:NumBusyUnits")
     override val numBusyUnits: TWResponseCIfc
@@ -593,6 +602,7 @@ open class Resource @JvmOverloads constructor(
         myState = myInactiveState // will cause previous state to be some arbitrary state from end of last replication
         // make previous state inactive and current state idle, for start of the replication
         myState = myIdleState
+        highestCapacity = 0
         capacity = initialCapacity
         requestQNotificationRule = initialRequestQueueNotificationRule
         // every replication starts on shift; the next goOffShift makes a control for this replication
@@ -732,6 +742,9 @@ open class Resource @JvmOverloads constructor(
         amountNeeded: Int,
         returning: Map<Allocation, Int> = emptyMap()
     ): PreemptionPlan? {
+        // off shift, or with the capacity cut below what is needed, nothing is taken: units above the capacity
+        // are only finishing the work they were allocated for
+        if (amountNeeded > capacity) return null
         val free = numAvailableUnits
         var short = amountNeeded - free
         if (short <= 0) return null
@@ -925,7 +938,8 @@ open class Resource @JvmOverloads constructor(
      *  On `BUSY_TIME`, the time counts only while at least one unit is busy and the resource is on shift
      *  and not failed, so a failure comes due at the exact instant that much busy time has passed. On
      *  `USES`, [timeBetween] is rounded to a whole number of releases (at least 1), and the resource fails at
-     *  the release that completes it.
+     *  the release that completes it, before the released units are offered to anyone waiting. On every
+     *  basis the resource fails at the instant the failure comes due, so nothing is allocated in between.
      *
      *  The two times become random variables of this resource, named `<name>:TimeBetweenFailuresRV` and
      *  `<name>:RepairTimeRV`, so their streams are reset and advanced with the model's other random
@@ -1007,9 +1021,31 @@ open class Resource @JvmOverloads constructor(
         if (myUsesLeft == 0) failureCameDue()
     }
 
+    /** True while [deallocate] runs: a failure coming due then is applied at the end of the release. */
+    private var myReleaseInProgress = false
+
+    /** A declared failure came due during the release in progress. */
+    private var myFailureDueAtRelease = false
+
+    /**
+     *  A declared failure is due: its basis has counted out. It is applied now, so that nothing can be allocated
+     *  between its coming due and the resource failing; during a release, at the end of the release, before
+     *  the freed units are offered. The failure entity is then woken only to time the repair.
+     */
     private fun failureCameDue() {
-        val due = myFailuresEntity?.due ?: return
-        if (due.isSuspended) due.resume()
+        if (myReleaseInProgress) myFailureDueAtRelease = true else applyDueFailure()
+    }
+
+    private fun applyDueFailure() {
+        val entity = myFailuresEntity ?: return
+        if (!entity.due.isSuspended || isRunEnded) return
+        // a resource failed by hand keeps that failure; the entity waits for its repair, as before
+        if (!isFailed) {
+            fail(myFailureSpec!!.rule)
+            myDeclaredFailureInProgress = true
+            entity.failedWhenDue = true
+        }
+        entity.due.resume()
     }
 
     private fun failureClockFired(event: KSLEvent<Nothing>) {
@@ -1056,6 +1092,9 @@ open class Resource @JvmOverloads constructor(
                 left = maxOf(0.0, left - (time - since))
                 cancelEvent()
                 event = null
+                // the busy time ran out as the clock stopped, ahead of its own event at this instant: the
+                // failure is due now, not at the next busy period
+                if (left <= 0.0) fired()
             }
         }
 
@@ -1078,6 +1117,9 @@ open class Resource @JvmOverloads constructor(
         val due: Suspension = Suspension("${this@Resource.name}:failure due")
         val repaired: Suspension = Suspension("${this@Resource.name}:repaired")
 
+        /** The failure was applied when it came due, before this entity was woken. */
+        var failedWhenDue: Boolean = false
+
         val run: KSLProcess = process("failures", isDefaultProcess = true) {
             val spec = myFailureSpec!!
             while (true) {
@@ -1092,13 +1134,19 @@ open class Resource @JvmOverloads constructor(
                         suspendFor(due)
                     }
                 }
-                if (isFailed) {
-                    // failed by a call of fail(): this failure waits for that repair and its clock starts again
-                    suspendFor(repaired)
-                    continue
+                if (failedWhenDue) {
+                    failedWhenDue = false
+                    // repaired by hand at the instant it failed: the time to the next failure counts from then
+                    if (!isFailed) continue
+                } else {
+                    if (isFailed) {
+                        // failed by a call of fail(): this failure waits for that repair and its clock starts again
+                        suspendFor(repaired)
+                        continue
+                    }
+                    fail(spec.rule)
+                    myDeclaredFailureInProgress = true
                 }
-                fail(spec.rule)
-                myDeclaredFailureInProgress = true
                 // the repair time, or a repair by hand before it ends, whichever comes first; a hand repair
                 // ends this failure early, and the time to the next one counts from it
                 suspendForOrTimeout(repaired, spec.repairTime.value)
@@ -1418,8 +1466,9 @@ open class Resource @JvmOverloads constructor(
         }
         // give back to the resource; only the units freed reach the queue or a pending capacity decrease, not
         // those that stay with a borrower or go back to a lender. Most resources have no loans to settle.
-        val notFreed = if (myLoans.isEmpty()) 0 else settleLoans(allocation)
-        val freed = allocation.amount - notFreed
+        myReleaseInProgress = true
+        val settlement = if (myLoans.isEmpty()) null else settleLoans(allocation)
+        val freed = allocation.amount - (settlement?.notFreed ?: 0)
         numBusy = numBusy - freed
         numTimesReleased++
         // need to also deallocate from the entity
@@ -1442,13 +1491,37 @@ open class Resource @JvmOverloads constructor(
             }
         }
         countUse()
+        myReleaseInProgress = false
+        val failing = myFailureDueAtRelease
+        myFailureDueAtRelease = false
+        // the units of ending loans pass on, counting the units this release freed, unless the resource fails
+        // at this release; then they go back to their lenders, and the failure takes them with the rest
+        if (settlement != null) returnLoans(settlement, passOn = !failing)
+        if (failing) applyDueFailure()
+    }
+
+    /** What settling a release's loans leaves to do: the units going back, by lender, and those of them down. */
+    private class Settlement(val notFreed: Int, val returning: MutableMap<Allocation, Int>, val down: Map<Allocation, Int>)
+
+    /**
+     *  Passes the units of ending loans on to the waiting preemptors that outrank their lenders, when [passOn],
+     *  and gives the rest back to the lenders. A failed or inactive resource lends nothing, as at a preemption's
+     *  arrival, and once the run has ended nothing is resumed.
+     */
+    private fun returnLoans(settlement: Settlement, passOn: Boolean) {
+        val returning = settlement.returning
+        if (passOn && returning.isNotEmpty() && !isFailed && !isInactive && !isRunEnded) passLoansOn(returning)
+        for ((lender, back) in returning) {
+            if (back > 0) lender.loanComesBack(back, minOf(back, settlement.down[lender] ?: 0), myFailureRule)
+        }
     }
 
     /**
      *  Settles the loans of [allocation] as it is released, and returns the units that are not freed: those
-     *  it lent out, which stay with their borrowers, and those it borrowed that go back to their lenders.
+     *  it lent out, which stay with their borrowers, and those it borrowed that go back to their lenders. The
+     *  units going back are passed on or returned by [returnLoans] once the release has freed its other units.
      */
-    private fun settleLoans(allocation: Allocation): Int {
+    private fun settleLoans(allocation: Allocation): Settlement {
         // Units this allocation lent out stay with their borrowers. Of the units it
         // still holds, those it borrowed go back to their lenders first, newest loan first, and stay busy for
         // them. Borrowed units it lent on are not here to give back: its borrowers now owe them to the
@@ -1489,13 +1562,7 @@ open class Resource @JvmOverloads constructor(
             }
             if (left > 0) myLoans.add(Loan(null, loan.borrower, left))
         }
-        // a waiting preemptor that outranks a lender takes the units before they go back; a failed or inactive
-        // resource lends nothing, as at a preemption's arrival, and once the run has ended nothing is resumed
-        if (returning.isNotEmpty() && !isFailed && !isInactive && !isRunEnded) passLoansOn(returning)
-        for ((lender, back) in returning) {
-            if (back > 0) lender.loanComesBack(back, minOf(back, down[lender] ?: 0), myFailureRule)
-        }
-        return returned + lentOut
+        return Settlement(returned + lentOut, returning, down)
     }
 
     /**
