@@ -473,7 +473,8 @@ To wait for whichever comes first, a message, a `Signal` or items from a
 `BlockingQueue`, make a trigger from the mailbox with `mailbox.trigger(predicate)`
 or `mailbox.triggerOfType<T>()`, and pass it to `waitForFirst` with the others.
 The entity guide covers both forms ("...wait with a deadline" and "...wait for
-whichever comes first"). A process's trigger and a statechart's `onMessage` are
+whichever comes first"), and [`ksl-waits-tutorial`](ksl-waits-tutorial.md) works
+through them by example. A process's trigger and a statechart's `onMessage` are
 two ways to react to one mailbox. A waiting process is offered a message before
 the statechart, and the earlier-registered of several waiting receivers is served
 first, whether its wait is timed or not.

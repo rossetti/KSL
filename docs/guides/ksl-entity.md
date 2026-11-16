@@ -5,6 +5,14 @@ of code that does it, and the gotchas that matter in practice.
 Reference detail (parameter lists, every overload) is on the Dokka API
 pages; this guide gets you productive.
 
+> **Worked examples.** Two tutorials teach the constructs new in R1.9 by
+> example, each case given in full and checked against an exact answer or
+> the same system written another way:
+> [`ksl-waits-tutorial`](ksl-waits-tutorial.md), for waits with a deadline
+> or for whichever comes first, and
+> [`ksl-resources-tutorial`](ksl-resources-tutorial.md), for a resource's own
+> behavior, its failures, preemption, and reacting to them.
+
 ## 1. What this package is for
 
 `ksl.modeling.entity` is KSL's **process view** — the modeling style
@@ -13,7 +21,8 @@ simulation runs by stepping these coroutines through their suspensions
 (`delay`, `seize`, `release`, `move`, `convey`). It is the long-standing,
 textbook-anchored core of KSL's process-style modeling (Rossetti, KSL
 Book, chapters 6–8) and is **not experimental** — the API here is
-stable.
+stable. The exception is the entries of §4 marked *experimental*: they are
+new in R1.9, and their API may change until the textbook covers them.
 
 Reach for it when the natural language of your model is *"a job
 arrives, queues for a server, is delayed for some service time, then
@@ -333,6 +342,8 @@ order the queues were registered, as before R1.8, set the resource's
 
 ### ...renege (give up waiting for a resource)
 
+*New in R1.9; experimental.* Worked examples: [`ksl-waits-tutorial`](ksl-waits-tutorial.md), cases 1 and 2.
+
 `seizeOrTimeout` seizes as `seize` does, but gives up when the time runs out:
 
 ```kotlin
@@ -403,8 +414,8 @@ The other change rule, `CapacityChangeRule.IGNORE`, lets the resource's
 capacity drop immediately; in-service jobs continue but the
 resource won't grant new units until the next on-shift block.
 
-For shifts decided by the model rather than a timetable, call
-`resource.goOffShift()` and `resource.goOnShift()` on any resource, or call
+*New in R1.9; experimental:* for shifts decided by the model rather than a
+timetable, call `resource.goOffShift()` and `resource.goOnShift()` on any resource, or call
 `changeCapacity` with a `CapacityChangeNotice`. `goOffShift` drops the
 capacity to zero, `goOnShift` restores the replication's `initialCapacity`,
 `isOffShift` says which, and every replication starts on shift. A resource
@@ -419,6 +430,8 @@ none is pending, infinity when it lasts until superseded). A member of a
 pool that comes back on shift is offered to the pool's waiters at once.
 
 ### ...give a resource its own behavior
+
+*New in R1.9; experimental.* Worked example: [`ksl-resources-tutorial`](ksl-resources-tutorial.md), case 1.
 
 A resource can run a process of its own every replication, such as taking
 a break. The usual form is `cyclicBehavior { }`, whose block is one cycle
@@ -486,6 +499,8 @@ doctor.cyclicBehavior {
 
 ### ...fail and repair a resource
 
+*New in R1.9; experimental.* Worked examples: [`ksl-resources-tutorial`](ksl-resources-tutorial.md), cases 2 and 4.
+
 Any resource can fail and be repaired, by a call or on a declared schedule:
 
 ```kotlin
@@ -547,6 +562,8 @@ not failed, throws).
 
 ### ...let urgent work take a resource (preemption)
 
+*New in R1.9; experimental.* Worked example: [`ksl-resources-tutorial`](ksl-resources-tutorial.md), case 3.
+
 `preempt` seizes like `seize`, but when too few units are free it takes them
 from holders of lower priority (a larger `priority` number):
 
@@ -595,6 +612,8 @@ private inner class Emergency : Entity() {
 
 ### ...hold a resource across work that does not use it
 
+*New in R1.9; experimental.* Used in [`ksl-resources-tutorial`](ksl-resources-tutorial.md), case 4.
+
 By default a delay depends on every resource its entity holds, so units of
 any of them going missing (a failure or a preemption under `RESUME` or
 `RESTART`) hold the delay. When an entity holds a resource across work that
@@ -617,6 +636,8 @@ records, `timesInterrupted` and `timeInterrupted`. To be told at the moment it
 happens, use `delayOrInterrupt` (next entry).
 
 ### ...react to a failure or preemption
+
+*New in R1.9; experimental.* Worked example: [`ksl-resources-tutorial`](ksl-resources-tutorial.md), case 4.
 
 A plain `delay` is held while units it depends on are missing, and its
 process is not told. `delayOrInterrupt` runs as a delay does, but ends at the
@@ -820,6 +841,8 @@ with a timeout: wait on a `Signal` with `waitForOrTimeout`, and release the enti
 
 ### ...wait with a deadline
 
+*New in R1.9; experimental.* Worked examples: [`ksl-waits-tutorial`](ksl-waits-tutorial.md), cases 1, 2 and 4.
+
 Each wait that ends when something else happens has a form with a time limit.
 It returns a `WaitResult`: either `Satisfied`, carrying the value, or `TimedOut`.
 
@@ -862,6 +885,8 @@ nothing is taken.
   it waits for. `canResumeProcess` tells you beforehand.
 
 ### ...wait for whichever comes first
+
+*New in R1.9; experimental.* Worked examples: [`ksl-waits-tutorial`](ksl-waits-tutorial.md), cases 3 and 5; with a resource's triggers, [`ksl-resources-tutorial`](ksl-resources-tutorial.md), case 4.
 
 To wait for the first of several things, get a *trigger* from each thing, and pass the
 triggers to `waitForFirst`:

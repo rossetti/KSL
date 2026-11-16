@@ -84,6 +84,29 @@ Cases 9 and 10 are **benchmarks rather than tests**: they measure wall-clock
 time, so their answers belong to the machine that ran them. Record the figure
 alongside the hardware and compare like with like.
 
+The process-view tutorials work the same way. Each example is given in full in
+its tutorial, and each is checked against an exact queueing result or the same
+system written another way.
+
+| # | Example, in `general.processview.waits` | Run it with |
+|---|---|---|
+| 1 | `ImpatientCallers` | `:KSLExamples:impatientCallers` |
+| 2 | `WalkInHealthClinicViaTimedSeize` | `:KSLExamples:walkInClinicTwoWays` |
+| 3 | `FirstFreeOfTwo` | `:KSLExamples:firstFreeOfTwo` |
+| 4 | `ShuttleStop` | `:KSLExamples:shuttleStop` |
+| 5 | `KittingWithExpediting` | `:KSLExamples:kittingWithExpediting` |
+
+These are the cases of [`ksl-waits-tutorial`](ksl-waits-tutorial.md).
+
+| # | Example, in `general.processview.resources` | Run it with |
+|---|---|---|
+| 1 | `ClinicBreaks` | `:KSLExamples:clinicBreaks` |
+| 2 | `MachineBreakdowns` | `:KSLExamples:machineBreakdowns` |
+| 3 | `RushOrders` | `:KSLExamples:rushOrders` |
+| 4 | `Rerouting` | `:KSLExamples:rerouting` |
+
+These are the cases of [`ksl-resources-tutorial`](ksl-resources-tutorial.md).
+
 ## Simulation optimization
 
 | Guide | What it covers |
