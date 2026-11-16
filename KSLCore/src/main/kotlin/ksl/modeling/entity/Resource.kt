@@ -1020,7 +1020,7 @@ open class Resource @JvmOverloads constructor(
         }
 
         fun disarm() {
-            event?.cancel = true
+            cancelEvent()
             event = null
             armed = false
             running = false
@@ -1037,9 +1037,15 @@ open class Resource @JvmOverloads constructor(
             } else if (!shouldRun && running) {
                 running = false
                 left = maxOf(0.0, left - (time - since))
-                event?.cancel = true
+                cancelEvent()
                 event = null
             }
+        }
+
+        /** A failure due after the run's end was never placed on the calendar, so there is nothing to cancel. */
+        private fun cancelEvent() {
+            val e = event ?: return
+            if (e.isScheduled) e.cancel = true
         }
 
         fun fired() {
