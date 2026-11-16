@@ -145,4 +145,30 @@ class EndOfRunTest {
         model.simulate()
         assertEquals(5, model.currentReplicationNumber)
     }
+
+    private class LateWorker(parent: ModelElement) : ProcessModel(parent, "lateWorker") {
+        val r = ResourceWithQ(this, "R")
+
+        init {
+            r.failures(ConstantRV(5.0), ConstantRV(1.0), ResourceFailureBasis.BUSY_TIME)
+        }
+
+        inner class Job : Entity() {
+            val p: KSLProcess = process("job") { delay(8.0); val a = seize(r); delay(1.0); release(a) }
+        }
+
+        override fun initialize() { activate(Job().p) }
+    }
+
+    @Test
+    @DisplayName("a busy-time failure due after the run's end: the clock stops at the release without cancelling it")
+    fun busyClockStopsWithItsFailureDueAfterTheEnd() {
+        val model = Model("EndClock${System.nanoTime()}", autoCSVReports = false)
+        // busy from 8 to 9, so the failure 5 busy minutes away falls at 13, after the end at 10
+        LateWorker(model)
+        model.numberOfReplications = 3
+        model.lengthOfReplication = 10.0
+        model.simulate()
+        assertEquals(3, model.currentReplicationNumber)
+    }
 }
