@@ -1,0 +1,6 @@
+The two-provider clinic against the M/M/2+M answers, 99% confidence intervals
+quantity                       estimate               interval      exact   inside
+probability of leaving           0.1909       [0.1864, 0.1954]     0.1907      yes
+mean number waiting              0.4756       [0.4628, 0.4884]     0.4768      yes
+Of the patients seen, 0.5406 were seen by the doctor.
+Read this alongside docs/guides/ksl-waits-tutorial.md, case 3.

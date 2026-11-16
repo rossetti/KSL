@@ -1,0 +1,29 @@
+A short run with constant times: kits every 20 minutes, assembly 8, recalls every 30, rework 10
+   15.00  the assembler has waited 15.00 and expedites a kit
+   20.00  a kit goes into the bin
+   20.00  the assembler takes a kit, after waiting 5.00
+   20.00  the expedited kit goes into the bin
+   28.00  the assembler takes an expedited kit, after waiting 0.00
+   30.00  the supervisor calls for rework
+   40.00  a kit goes into the bin
+   40.00  the assembler takes a kit, after waiting 4.00
+   60.00  the supervisor calls for rework
+   60.00  the assembler answers the recall
+   60.00  a kit goes into the bin
+   70.00  the assembler takes a kit, after waiting 0.00
+   80.00  a kit goes into the bin
+   80.00  the assembler takes a kit, after waiting 2.00
+   90.00  the supervisor calls for rework
+   90.00  the assembler answers the recall
+  100.00  a kit goes into the bin
+  100.00  the assembler takes a kit, after waiting 0.00
+A long run with random times
+per replication       average   half-width
+KitsMade               999.70        11.64
+KitsExpedited           41.65         2.88
+KitsAssembled         1038.75        10.00
+RecallsSent            166.55         5.46
+RecallsAnswered         31.50         2.86
+KitsUnaccounted          0.00         0.00
+Every kit is accounted for in every replication.
+Read this alongside docs/guides/ksl-waits-tutorial.md, case 5.

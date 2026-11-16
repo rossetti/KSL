@@ -403,6 +403,22 @@ tasks.register<JavaExec>("simpleAgvExample") {
     classpath = sourceSets["main"].runtimeClasspath
 }
 
+// The examples of the waits tutorial (docs/guides/ksl-waits-tutorial.md), one task per case.
+listOf(
+    "impatientCallers" to "ImpatientCallersKt",
+    "walkInClinicTwoWays" to "WalkInHealthClinicViaTimedSeizeKt",
+    "firstFreeOfTwo" to "FirstFreeOfTwoKt",
+    "shuttleStop" to "ShuttleStopKt",
+    "kittingWithExpediting" to "KittingWithExpeditingKt",
+).forEach { (taskName, mainName) ->
+    tasks.register<JavaExec>(taskName) {
+        group = "examples"
+        description = "Runs the waits tutorial's $taskName example."
+        mainClass.set("ksl.examples.general.processview.waits.$mainName")
+        classpath = sourceSets["main"].runtimeClasspath
+    }
+}
+
 tasks.register<JavaExec>("freePathFleetExample") {
     group = "examples"
     description = "Runs the free-path fleet example"

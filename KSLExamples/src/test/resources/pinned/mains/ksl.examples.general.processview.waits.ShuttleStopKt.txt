@@ -1,0 +1,9 @@
+response                 by processes      by events   half-width     same
+NumWaiting                     4.5340         4.5340       0.0292      yes
+WaitForShuttle                 9.9548         9.9548       0.0666      yes
+ProbTaxi                       0.3008         0.3008       0.0045      yes
+TripLoad                       8.4065         8.4065       0.0792      yes
+NumFullDepartures             78.1000        78.1000       4.8230      yes
+NumTimedDepartures           296.0000       296.0000       3.9567      yes
+The two models agree exactly.
+Read this alongside docs/guides/ksl-waits-tutorial.md, case 4.

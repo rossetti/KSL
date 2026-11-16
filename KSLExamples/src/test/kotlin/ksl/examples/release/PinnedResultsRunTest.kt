@@ -170,6 +170,11 @@ class PinnedResultsRunTest {
             "ksl.examples.general.models.wsc2025.ActiveResourceExampleSignalKt",
             "ksl.examples.general.models.wsc2025.SimpleServiceSystemKt",
             "ksl.examples.general.models.wsc2025.TestAndRepairSystemKt",
+            "ksl.examples.general.processview.waits.FirstFreeOfTwoKt",
+            "ksl.examples.general.processview.waits.ImpatientCallersKt",
+            "ksl.examples.general.processview.waits.KittingWithExpeditingKt",
+            "ksl.examples.general.processview.waits.ShuttleStopKt",
+            "ksl.examples.general.processview.waits.WalkInHealthClinicViaTimedSeizeKt",
             "ksl.examples.general.spatial.TransporterExampleKt"
         )
 

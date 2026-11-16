@@ -166,7 +166,7 @@ class ExampleFamiliesTest {
     @DisplayName("the walk-in health clinic gives the same results reneging by seizeOrTimeout as by an event and removeAndTerminate")
     fun clinicRenegingAgrees() {
         val original = quantities("ksl.examples.book.chapter7.WalkInHealthClinic")
-        val timed = quantities("ksl.examples.families.WalkInHealthClinicViaTimedSeize")
+        val timed = quantities("ksl.examples.general.processview.waits.WalkInHealthClinicViaTimedSeize")
         assertTrue(original.getValue("NumReneged").contains("avg=") && !original.getValue("NumReneged").contains("avg=0.0 "),
             "the clinic reneges: ${original.getValue("NumReneged")}")
         assertEquals(original, timed)

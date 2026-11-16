@@ -1,4 +1,22 @@
-package ksl.examples.families
+/*
+ *     The KSL provides a discrete-event simulation library for the Kotlin programming language.
+ *     Copyright (C) 2026  Manuel D. Rossetti, rossetti@uark.edu
+ *
+ *     This program is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     This program is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package ksl.examples.general.processview.waits
 
 import ksl.modeling.elements.REmpiricalList
 import ksl.modeling.entity.ProcessModel
@@ -12,6 +30,8 @@ import ksl.modeling.variable.RandomVariable
 import ksl.modeling.variable.Response
 import ksl.modeling.variable.ResponseCIfc
 import ksl.simulation.KSLEvent
+import ksl.examples.book.chapter7.WalkInHealthClinic
+import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.*
 
@@ -120,4 +140,42 @@ class WalkInHealthClinicViaTimedSeize(parent: ModelElement, name: String? = null
         }
 
     }
+}
+
+/**
+ *  Runs the book's walk-in clinic (`ksl.examples.book.chapter7.WalkInHealthClinic`, run by `Ch7Example8`)
+ *  and this one with the same settings, and compares every response and counter. The two must agree
+ *  exactly: the same patients arrive, triage and service take the same times, and each low-priority patient
+ *  gives up at the same moment, whether by a scheduled event that removes its request or by a seize whose
+ *  time limit runs out.
+ */
+fun main() {
+    fun run(build: (Model) -> Unit): Model {
+        val m = Model("WalkInClinic", autoCSVReports = false)
+        build(m)
+        m.lengthOfReplication = 10.0 * 60.0
+        m.numberOfReplications = 30
+        m.simulate()
+        return m
+    }
+    val byEvent = run { WalkInHealthClinic(it, "Walk-In Clinic") }
+    val byTimedSeize = run { WalkInHealthClinicViaTimedSeize(it, "Walk-In Clinic") }
+
+    fun statistics(m: Model) = m.responses.associate { it.name to it.acrossReplicationStatistic } +
+            m.counters.associate { it.name to it.acrossReplicationStatistic }
+    val event = statistics(byEvent)
+    val timed = statistics(byTimedSeize)
+    println(String.format("%-40s %14s %14s %8s", "response", "by an event", "by seizeOrTimeout", "same"))
+    var allSame = event.keys == timed.keys
+    for (name in event.keys.sorted()) {
+        val a = event.getValue(name)
+        val b = timed[name]
+        val same = b != null && a.average == b.average && a.variance == b.variance && a.count == b.count
+        allSame = allSame && same
+        println(String.format("%-40s %14.4f %14.4f %8s", name, a.average, b?.average ?: Double.NaN, if (same) "yes" else "NO"))
+    }
+    println()
+    println(if (allSame) "Every response and counter is identical." else "The two models DIFFER.")
+    println()
+    println("Read this alongside docs/guides/ksl-waits-tutorial.md, case 2.")
 }
