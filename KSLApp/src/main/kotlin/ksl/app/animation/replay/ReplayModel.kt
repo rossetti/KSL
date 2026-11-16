@@ -746,6 +746,16 @@ class ReplayModel(
                         val key = event.suspensionName
                             ?: entities[event.entityId]?.typeName
                             ?: "(delay)"
+                        // A delay held by an interrupt or by missing units starts again for its time left with
+                        // no DelayEnded between: it replaces the entity's open delay rather than adding to it.
+                        openDelay.remove(event.entityId)?.let { open ->
+                            runningStorage[open.key]?.let { list ->
+                                list.removeAll { it.entityId == event.entityId }
+                                if (open.key != key) {
+                                    storageMembers.getOrPut(open.key) { StepTimeline() }.add(event.simTime, list.toList())
+                                }
+                            }
+                        }
                         val member = StorageMember(event.entityId, event.simTime, event.arrivalTime)
                         openDelay[event.entityId] = OpenDelay(key, member)
                         runningStorage.getOrPut(key) { ArrayList() }.add(member)

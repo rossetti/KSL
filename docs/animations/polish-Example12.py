@@ -25,6 +25,7 @@ d = json.loads(SRC.read_text())
 CAPACITY = {}
 routes, seen = [], set()
 spans = collections.defaultdict(list)
+open_span = {}  # entity -> (stage, index of its latest span)
 for line in ATF.read_text().splitlines():
     if '"ResourceStateChanged"' in line:
         e = json.loads(line)
@@ -37,7 +38,13 @@ for line in ATF.read_text().splitlines():
     elif '"DelayStarted"' in line:
         e = json.loads(line)
         if e.get("suspensionName"):
+            # a held delay starts again for its time left with no DelayEnded between: end its earlier span
+            if (prev := open_span.get(e["entityId"])) is not None:
+                name, i = prev
+                start, end = spans[name][i]
+                spans[name][i] = (start, min(end, e["simTime"]))
             spans[e["suspensionName"]].append((e["simTime"], e["arrivalTime"]))
+            open_span[e["entityId"]] = (e["suspensionName"], len(spans[e["suspensionName"]]) - 1)
 
 def peak(key):
     """The most members a stage ever holds at once -- what its box has to be big enough to show."""

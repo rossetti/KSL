@@ -475,7 +475,8 @@ class StoragePeaks : TraceAccumulator<Map<String, Int>> {
                 // The same rule the storages themselves are keyed by: a named delay is its own storage, an
                 // unnamed one belongs to its entity's type.
                 val key = event.suspensionName ?: entityType[event.entityId] ?: return
-                keyOf[event.entityId] = key
+                // a held delay starts again for its time left with no DelayEnded between: it is still one entity
+                keyOf.put(event.entityId, key)?.let { previous -> current[previous] = (current[previous] ?: 1) - 1 }
                 val now = (current[key] ?: 0) + 1
                 current[key] = now
                 peak[key] = maxOf(peak[key] ?: 0, now)

@@ -51,6 +51,7 @@ class TraceFacts:
         self.states, self.agents, self.entity_types = set(), set(), set()
         self.t_max, self.conveyor = 0.0, None
         self._delays = defaultdict(list)
+        self._open = {}  # entity -> (storage, index of its latest span)
         for line in atf.read_text().splitlines():
             e = json.loads(line)
             kind = e.get("event")
@@ -68,7 +69,13 @@ class TraceFacts:
             elif kind == "EntityCreated":
                 self.entity_types.add(e["entityType"])
             elif kind == "DelayStarted" and e.get("suspensionName"):
+                # a held delay starts again for its time left with no DelayEnded between: end its earlier span
+                if (prev := self._open.get(e["entityId"])) is not None:
+                    name, i = prev
+                    start, end = self._delays[name][i]
+                    self._delays[name][i] = (start, min(end, e["simTime"]))
                 self._delays[e["suspensionName"]].append((e["simTime"], e["arrivalTime"]))
+                self._open[e["entityId"]] = (e["suspensionName"], len(self._delays[e["suspensionName"]]) - 1)
             elif kind == "ConveyorDefined" and self.conveyor is None:
                 self.conveyor = e
 

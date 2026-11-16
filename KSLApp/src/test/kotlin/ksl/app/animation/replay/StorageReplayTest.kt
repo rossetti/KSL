@@ -48,4 +48,34 @@ class StorageReplayTest {
         // Before the delay starts (t=0): not yet in a storage.
         assertTrue(r.storageMembersAt("inspect", 0.0).isEmpty())
     }
+
+    /**
+     *  A delay held while its units are missing emits no event at the hold, and a second DelayStarted, for
+     *  the time left, when it goes on; its one DelayEnded comes at the end.
+     */
+    private fun heldDelay(): List<AnimationEvent> = listOf(
+        AnimationEvent.EntityCreated(0.0, 1L, "Part"),
+        AnimationEvent.DelayStarted(1.0, 1L, duration = 10.0, arrivalTime = 11.0, suspensionName = "machine"),
+        // held from 3 to 7, then started again for the 8 left
+        AnimationEvent.DelayStarted(7.0, 1L, duration = 8.0, arrivalTime = 15.0, suspensionName = "machine"),
+        AnimationEvent.DelayEnded(15.0, 1L, suspensionName = "machine")
+    )
+
+    @Test
+    fun `a delay started again for its time left is in its storage once`() {
+        val r = ReplayModel.build(AnimationSource(layout = null, header = AnimationTraceHeader(), events = heldDelay()))
+        assertEquals(listOf(1L), r.storageMembersAt("machine", 5.0).map { it.entityId })
+        val after = r.storageMembersAt("machine", 10.0).single()
+        assertEquals(7.0, after.startTime, 1e-9)
+        assertEquals(15.0, after.arrivalTime, 1e-9)
+        assertTrue(r.storageMembersAt("machine", 16.0).isEmpty())
+        assertNull(r.entityStorageAt(1L, 16.0))
+    }
+
+    @Test
+    fun `a delay started again for its time left counts once toward its storage's peak`() {
+        val peaks = StoragePeaks()
+        heldDelay().forEach(peaks::accept)
+        assertEquals(mapOf("machine" to 1), peaks.result())
+    }
 }
