@@ -431,6 +431,17 @@ class ResourceBehaviorTest {
     }
 
     @Test
+    @DisplayName("behaviorActiveAtStart is a control only of a resource that has a behavior")
+    fun activeAtStartControlOnlyWithABehavior() {
+        val model = Model("ControlList${System.nanoTime()}", autoCSVReports = false)
+        val m = BModel(model)
+        m.doctor.behavior { delay(10.0) }
+        val controls = model.controls()
+        assertNotNull(controls.control("Doctor.behaviorActiveAtStart"))
+        assertNull(controls.control("Other.behaviorActiveAtStart"), "a resource without a behavior does not list it")
+    }
+
+    @Test
     @DisplayName("a stopped behavior's activated entities go on; the next replication starts by the setting, whatever happened before")
     fun stoppedBehaviorsEntitiesContinue() {
         val m = run(reps = 2, length = 30.0, declare = {

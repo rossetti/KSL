@@ -1123,6 +1123,9 @@ open class Resource @JvmOverloads constructor(
      *  Whether each replication starts the behavior. With false, a replication starts without it and
      *  [startBehavior] starts it when the model wants it, so an experiment can compare runs with and
      *  without the behavior. Set while the model is not running.
+     *
+     *  It is one of the model's controls only for a resource with a behavior, declared before the
+     *  model's controls are first read; a resource without one does not list it.
      */
     @set:KSLControl(controlType = ControlType.BOOLEAN)
     var behaviorActiveAtStart: Boolean = true
@@ -1130,6 +1133,11 @@ open class Resource @JvmOverloads constructor(
             require(model.isNotRunning) { "The behavior of $name cannot be switched on or off at start while the model is running." }
             field = value
         }
+
+    /** A resource without a behavior has nothing for [behaviorActiveAtStart] to switch, so it is not a control. */
+    override fun defaultExcludedControlNames(): Set<String> =
+        if (hasBehavior) super.defaultExcludedControlNames()
+        else super.defaultExcludedControlNames() + ::behaviorActiveAtStart.name
 
     /**
      *  The number of consecutive cycles of a cyclic behavior that may end at the simulated time they

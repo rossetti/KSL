@@ -466,7 +466,8 @@ doctor.cyclicBehavior {
   `startBehavior()` starts it again, fresh. `isBehaviorActive` and
   `isBehaviorStopRequested` are the checks. The control
   `behaviorActiveAtStart` decides whether each replication starts it, so an
-  experiment can compare runs with and without it.
+  experiment can compare runs with and without it. Only a resource with a
+  behavior lists it among the model's controls.
 - **The zero-time guard.** A cycle that ends at the time it began, more than
   `maxCyclesPerInstant` (10 000) times in a row, throws, naming the resource:
   a cycle such as `if (busy) delay(10.0)` with `busy` false never waits and
