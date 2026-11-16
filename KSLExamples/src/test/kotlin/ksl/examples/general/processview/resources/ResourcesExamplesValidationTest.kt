@@ -108,6 +108,16 @@ class ResourcesExamplesValidationTest {
     }
 
     @Test
+    @DisplayName("rush orders under RESUME: both classes agree with the preemptive-resume priority M/M/1")
+    fun rushOrdersResume() {
+        lateinit var shop: RushOrderShop
+        run(20, 50_000.0, 5_000.0) { shop = RushOrderShop(it, rule = InterruptRule.RESUME, name = "Shop") }
+        val exact = TwoClassPriorityQueue(shop.rushRate, shop.routineRate, 1.0 / shop.meanProcessingTime)
+        assertInside("rush time in shop", shop.rushTime.acrossReplicationStatistic, exact.preemptiveRush)
+        assertInside("routine time in shop", shop.routineTime.acrossReplicationStatistic, exact.preemptiveRoutine)
+    }
+
+    @Test
     @DisplayName("rush orders under FINISH: both classes agree with Cobham's non-preemptive priority M/M/1")
     fun rushOrdersFinish() {
         lateinit var shop: RushOrderShop

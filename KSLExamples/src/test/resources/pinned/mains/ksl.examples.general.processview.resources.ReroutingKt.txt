@@ -1,0 +1,8 @@
+Wait limits for the repair, on common random numbers, against waiting for it however long
+wait limit   TimeInShop half-width   difference half-width     rerouted
+none             58.961      6.367        0.000      0.000       0.0000
+30               52.788      5.046       -6.173      1.538       0.0123
+10               46.180      3.911      -12.781      2.569       0.0334
+5                44.197      3.822      -14.764      2.784       0.0423
+0                41.696      3.432      -17.265      3.217       0.0539
+Read this alongside docs/guides/ksl-resources-tutorial.md, case 4.

@@ -144,20 +144,28 @@ class TwoClassPriorityQueue(val lambda1: Double, val lambda2: Double, val mu: Do
 
 fun main() {
     for (rule in listOf(InterruptRule.RESUME, InterruptRule.FINISH)) {
-        val m = Model("RushOrders$rule", autoCSVReports = false)
+        val m = Model("RushOrders", autoCSVReports = false)
         val shop = RushOrderShop(m, rule = rule, name = "Shop")
         m.numberOfReplications = 20
         m.lengthOfReplication = 50_000.0
         m.lengthOfReplicationWarmUp = 5_000.0
         m.simulate()
         val exact = TwoClassPriorityQueue(shop.rushRate, shop.routineRate, 1.0 / shop.meanProcessingTime)
-        val rush = shop.rushTime.acrossReplicationStatistic
-        val routine = shop.routineTime.acrossReplicationStatistic
-        val (er, eo) = if (rule == InterruptRule.RESUME) exact.preemptiveRush to exact.preemptiveRoutine
-        else exact.nonPreemptiveRush to exact.nonPreemptiveRoutine
-        println("$rule")
-        println(String.format("  rush    %8.3f [%8.3f, %8.3f]  exact %8.3f", rush.average, rush.confidenceInterval(0.99).lowerLimit, rush.confidenceInterval(0.99).upperLimit, er))
-        println(String.format("  routine %8.3f [%8.3f, %8.3f]  exact %8.3f", routine.average, routine.confidenceInterval(0.99).lowerLimit, routine.confidenceInterval(0.99).upperLimit, eo))
-        println(String.format("  preemptions %8.1f, routine job preempted %6.4f times", shop.numPreemptions.acrossReplicationStatistic.average, shop.routineTimesPreempted.acrossReplicationStatistic.average))
+        val against = if (rule == InterruptRule.RESUME) "preemptive resume" else "non-preemptive (Cobham)"
+        println("Rush jobs take the machine under $rule, against the exact $against priority queue")
+        println(String.format("%-18s %10s %22s %10s", "", "estimate", "99% interval", "exact"))
+        for ((label, stat, value) in listOf(
+            Triple("RushTimeInShop", shop.rushTime.acrossReplicationStatistic,
+                if (rule == InterruptRule.RESUME) exact.preemptiveRush else exact.nonPreemptiveRush),
+            Triple("RoutineTimeInShop", shop.routineTime.acrossReplicationStatistic,
+                if (rule == InterruptRule.RESUME) exact.preemptiveRoutine else exact.nonPreemptiveRoutine)
+        )) {
+            val ci = stat.confidenceInterval(0.99)
+            println(String.format("%-18s %10.4f   [%8.4f, %8.4f] %10.4f", label, stat.average, ci.lowerLimit, ci.upperLimit, value))
+        }
+        println(String.format("preemptions per replication %.1f; times a routine job is preempted %.4f",
+            shop.numPreemptions.acrossReplicationStatistic.average, shop.routineTimesPreempted.acrossReplicationStatistic.average))
+        println()
     }
+    println("Read this alongside docs/guides/ksl-resources-tutorial.md, case 3.")
 }

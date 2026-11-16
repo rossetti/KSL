@@ -1,0 +1,14 @@
+Failures every 60 busy minutes on average, the job going on where it left off, against M/G/1
+                         estimate           99% interval      exact
+CompletionTime             8.6602   [  8.6264,   8.6941]     8.6667
+Machine:Q:TimeInQ         12.3055   [ 11.6755,  12.9354]    12.7948
+TimeInShop                20.9648   [ 20.3193,  21.6102]    21.4615
+Machine:PTimeFailed        0.0548   [  0.0529,   0.0566]     0.0556
+Other rules and bases, on common random numbers, against the first
+                       TimeInShop half-width   difference half-width   failures
+RESUME, busy time          20.965      0.472        0.000      0.000      492.8
+RESTART, busy time         28.922      1.061        7.957      0.736      529.0
+FINISH, busy time          17.993      0.355       -2.972      0.287      472.5
+RESUME, calendar time      21.431      0.578        0.467      0.397      685.9
+every 8 jobs               19.836      0.445       -1.129      0.236      469.7
+Read this alongside docs/guides/ksl-resources-tutorial.md, case 2.

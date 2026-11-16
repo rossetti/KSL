@@ -1,0 +1,12 @@
+No breaks, against the exact M/M/1 answers
+                     estimate           99% interval      exact
+PatientWait            8.0122   [  7.5234,   8.5010]     8.0000
+Doctor:Q:NumInQ        1.3358   [  1.2487,   1.4228]     1.3333
+Doctor:NumBusyUnits     0.6675   [  0.6595,   0.6755]     0.6667
+A 15-minute break every 120 minutes, on common random numbers, against no breaks
+                           wait half-width   difference half-width       busy
+no breaks                 8.012      0.358        0.000      0.000     0.6675
+at once                  12.547      0.600        4.535      0.275     0.6675
+at once, scheduled       12.547      0.600        4.535      0.275     0.6675
+in turn                  13.067      0.613        5.054      0.272     0.7717
+Read this alongside docs/guides/ksl-resources-tutorial.md, case 1.
