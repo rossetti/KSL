@@ -856,6 +856,26 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /** When the current delayOrInterrupt began. */
         private var myDelayStartTime: Double = Double.NaN
 
+        /** When the current delay's event was scheduled, and for how long; NaN when it has no event. */
+        private var mySegmentStart: Double = Double.NaN
+        private var mySegmentLength: Double = Double.NaN
+
+        /** Records that the current delay's event was just scheduled for [length]. */
+        private fun startSegment(length: Double) {
+            mySegmentStart = processModel.time
+            mySegmentLength = length
+        }
+
+        /**
+         *  The time left before [event], the current delay's event. At the instant the event was scheduled it is
+         *  the length it was scheduled for, exactly: recovering that from the event's time by a subtraction can
+         *  round, and a delay held, or reported, and then restarted at one instant would drift from one that was
+         *  not.
+         */
+        private fun timeLeftOn(event: KSLEvent<*>): Double =
+            if (processModel.time == mySegmentStart && event.time == mySegmentStart + mySegmentLength) mySegmentLength
+            else maxOf(0.0, event.time - processModel.time)
+
         /**
          *  True while the end of the current delay is on the calendar and will happen; read by the invariant
          *  checks. A cancelled event stays on the calendar, marked scheduled, until the executive discards it.
@@ -925,7 +945,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             if (freezeCount == 0) {
                 val event = myDelayEvent
                 if (event != null) {
-                    myFrozenRemaining = maxOf(0.0, event.time - processModel.time)
+                    myFrozenRemaining = timeLeftOn(event)
                     // a delay ending after the run's end was never placed on the calendar, so there is nothing to cancel
                     if (event.isScheduled) event.cancel = true
                 }
@@ -961,6 +981,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             val delayEvent = process.scheduleDelayEnd(duration, myDelayPriority, eName)
             delayEvent.entity = this
             myDelayEvent = delayEvent
+            startSegment(duration)
             emitAnimation { AnimationEvent.DelayStarted(processModel.time, id, duration, delayEvent.time, currentSuspendName) }
         }
 
@@ -998,7 +1019,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         /** The time left in the current delay: banked when frozen, else to its event. */
         internal val delayTimeLeft: Double
-            get() = if (isDelayFrozen) myFrozenRemaining else maxOf(0.0, (myDelayEvent?.time ?: processModel.time) - processModel.time)
+            get() = if (isDelayFrozen) myFrozenRemaining else myDelayEvent?.let { timeLeftOn(it) } ?: 0.0
 
         private val myResumeAction = ResumeAction()
 
@@ -1153,8 +1174,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal var reservation: Resource.Reservation? = null
 
             /**
-             *  For a `preempt` under `RESUME` or `RESTART` that found nothing to take and waits: its rule, under
-             *  which it takes units when a loan of a holder of lower priority ends. Null for any other request.
+             *  For a `preempt` that found nothing to take and waits: its rule, under which it plans again when
+             *  units come free or come back. Null for any other request.
              */
             internal var waitingPreemptRule: InterruptRule? = null
 
@@ -2938,11 +2959,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             logger.trace { "r = ${model.currentReplicationNumber} : $time > END: PREEMPT: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: allocation_id = ${a.id}" }
                             a
                         } else {
-                            // under FINISH the victims' units are reserved as they release them. With no plan
-                            // it waits as a seize waits; under RESUME or RESTART it can still take units when a
-                            // loan of a lower-priority holder ends, and is then resumed with them allocated
+                            // under FINISH the victims' units are reserved as they release them. With no plan it
+                            // waits as a seize waits, and plans again whenever units come free or come back; it is
+                            // then resumed with its allocation made, or, under FINISH, reserves
                             if (plan != null) resource.reserve(request, plan.free)
-                            else if (rule != InterruptRule.FINISH) request.waitingPreemptRule = rule
+                            else resource.waitAsPreemptor(request, rule)
                             waitForResource(request, resource, queue)
                             val passed = request.passedAllocation
                             if (passed != null) {
@@ -3533,6 +3554,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 myDelayEvent = delayAction.schedule(delayDuration, priority = delayPriority, name = eName)
                 myDelayEvent!!.entity = entity
+                startSegment(delayDuration)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: SCHEDULED end of delay: event_id = ${myDelayEvent!!.id}, time = ${myDelayEvent!!.time} : DELAY for ($delayDuration) STARTED" }
                 if (!inMoveDelay && !inYieldDelay) emitAnimation { AnimationEvent.DelayStarted(time, entity.id, delayDuration, myDelayEvent!!.time, suspensionName) }
             }

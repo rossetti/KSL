@@ -570,12 +570,13 @@ private inner class Emergency : Entity() {
   priority is never preempted. When the free units and all the lower-priority
   holders' units together are too few, the capacity is less than the amount
   needed (as off shift), or the resource is failed or inactive, nothing is
-  taken: `preempt` waits like `seize`. Under `RESUME` and
-  `RESTART` it can still preempt when a loan of a lower-priority holder
-  ends: the units going back pass to the most urgent such waiting
-  preemptor that can now take enough, and the holder stays held. So a
-  holder whose loan ends never resumes ahead of a waiting preemptor that
-  outranks it.
+  taken: `preempt` waits like `seize`. It plans again whenever units come
+  free or come back: at a release, at the end of a loan, at a repair, on a
+  return to shift and at a capacity increase. The most urgent waiting
+  preemptor plans first, as on arrival; one that can now take enough takes
+  its units (under `FINISH`, reserves them), and the holders stay held. So a
+  holder never resumes, and freed units never go to the queue, ahead of a
+  waiting preemptor that outranks it.
 - **The rule** is the resource's `interruptRule` unless the call names one.
   Under `RESUME` and `RESTART` the units are taken now and the holder's delay
   is held. Under `FINISH` nothing is taken in service: the preemptor is

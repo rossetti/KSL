@@ -585,6 +585,7 @@ open class Resource @JvmOverloads constructor(
         entityAllocations.clear()
         myLoans.clear()
         myReservations.clear()
+        myWaitingPreemptors.clear()
         numTimesPreempted = 0
         myPromisedUnits = 0
         startStateTime = 0.0
@@ -1578,7 +1579,8 @@ open class Resource @JvmOverloads constructor(
             val waiting = myCapacityChangeQSet.asSequence()
                 .flatMap { q -> q.asSequence() }
                 .filterIsInstance<ProcessModel.Entity.ResourceRequest>()
-                .filter { it.myResource === this && it.waitingPreemptRule != null && it.passedAllocation == null }
+                .filter { it.myResource === this && it.passedAllocation == null }
+                .filter { it.waitingPreemptRule.let { rule -> rule != null && rule != InterruptRule.FINISH } }
                 .filter { !it.resumePending && !it.isReserved && it.promises.isEmpty() }
                 .filter { req -> returning.any { (lender, k) -> k > 0 && lender.myEntity.priority > req.entity.priority } }
                 .sortedWith(compareBy<ProcessModel.Entity.ResourceRequest> { it.entity.priority }.thenBy { it.timeEnteredQueue })
@@ -1592,31 +1594,80 @@ open class Resource @JvmOverloads constructor(
                 }
             }
             val request = chosen ?: return
-            val takes = plan!!
-            val rule = request.waitingPreemptRule!!
-            val queue = request.queue as RequestQ
-            val allocation = Allocation(request.entity, this, request.amountRequested, queue, null)
-            entityAllocations.getOrPut(request.entity) { mutableListOf() }.add(allocation)
-            numBusy = numBusy + takes.free
-            numTimesSeized++
-            mySeizeCounter.increment()
-            request.entity.allocate(allocation)
-            for ((victim, k) in takes.takes) {
-                myLoans.add(Loan(victim, allocation, k))
-                val passed = minOf(k, returning[victim] ?: 0)
-                if (passed > 0) {
-                    returning[victim] = returning.getValue(victim) - passed
-                    victim.loanPassesOn(rule)
-                }
-                if (k > passed) victim.unitsGoMissing(byFailure = 0, byLoan = k - passed, rule = rule)
+            giveToWaitingPreemptor(request, plan!!, returning, ProcessModel.RELEASE_PRIORITY,
+                ResumeSource.REQUEST_Q_RESOURCE_RELEASE, "loan_passed_on_resource=$name, request_id=${request.id}")
+        }
+    }
+
+    /**
+     *  Allocates to the waiting preemptor [request] under [plan], and resumes it with the allocation made. Of
+     *  each victim's units, those in [returning] pass to it from an ending loan, and the rest are taken as at
+     *  any preemption.
+     */
+    private fun giveToWaitingPreemptor(
+        request: ProcessModel.Entity.ResourceRequest,
+        plan: PreemptionPlan,
+        returning: MutableMap<Allocation, Int>,
+        priority: Int,
+        source: ResumeSource,
+        detail: String
+    ) {
+        val rule = request.waitingPreemptRule!!
+        val queue = request.queue as RequestQ
+        val allocation = Allocation(request.entity, this, request.amountRequested, queue, null)
+        entityAllocations.getOrPut(request.entity) { mutableListOf() }.add(allocation)
+        numBusy = numBusy + plan.free
+        numTimesSeized++
+        mySeizeCounter.increment()
+        request.entity.allocate(allocation)
+        for ((victim, k) in plan.takes) {
+            myLoans.add(Loan(victim, allocation, k))
+            val passed = minOf(k, returning[victim] ?: 0)
+            if (passed > 0) {
+                returning[victim] = returning.getValue(victim) - passed
+                victim.loanPassesOn(rule)
             }
-            numTimesPreempted++
-            allocationNotification(allocation)
-            request.passedAllocation = allocation
-            queue.resumeWoken(
-                request, ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
-                "loan_passed_on_resource=$name, request_id=${request.id}"
-            )
+            if (k > passed) victim.unitsGoMissing(byFailure = 0, byLoan = k - passed, rule = rule)
+        }
+        if (plan.takes.isNotEmpty()) numTimesPreempted++
+        allocationNotification(allocation)
+        request.passedAllocation = allocation
+        queue.resumeWoken(request, priority, source, detail)
+    }
+
+    /** The preemptors waiting for this resource, in the order they began to wait; some may have left since. */
+    private val myWaitingPreemptors: MutableSet<ProcessModel.Entity.ResourceRequest> = LinkedHashSet()
+
+    /** Records that [request], a `preempt` under [rule] that found nothing to take, waits for this resource. */
+    internal fun waitAsPreemptor(request: ProcessModel.Entity.ResourceRequest, rule: InterruptRule) {
+        request.waitingPreemptRule = rule
+        myWaitingPreemptors.add(request)
+    }
+
+    /**
+     *  Units have come free or come back: the waiting preemptors plan again, most urgent first and, among
+     *  equals, the one waiting longest, each as it would on arrival. One that can now take enough is given
+     *  its units, or, under `FINISH`, reserves them; then the next plans. So a holder never resumes, and
+     *  freed units never go to the queue, ahead of a waiting preemptor that outranks the holders it can
+     *  take from.
+     */
+    private fun replanWaitingPreemptors(priority: Int, source: ResumeSource, detail: String?) {
+        if (myWaitingPreemptors.isEmpty() || isFailed || isInactive || isRunEnded) return
+        myWaitingPreemptors.removeAll { r -> r.passedAllocation != null || (r.queue as? RequestQ)?.contains(r) != true }
+        val candidates = myWaitingPreemptors
+            .filter { !it.resumePending && !it.isReserved && it.promises.isEmpty() }
+            .sortedWith(compareBy<ProcessModel.Entity.ResourceRequest> { it.entity.priority }.thenBy { it.timeEnteredQueue })
+        for (request in candidates) {
+            val amount = request.amountRequested
+            val plan = if (amount <= numAvailableUnits) PreemptionPlan(amount, emptyList())
+                else planPreemption(request.entity, amount) ?: continue
+            myWaitingPreemptors.remove(request)
+            val why = "preemptor_replanned_resource=$name, request_id=${request.id}, ${detail ?: ""}"
+            if (request.waitingPreemptRule == InterruptRule.FINISH && plan.takes.isNotEmpty()) {
+                reserve(request, plan.free)
+            } else {
+                giveToWaitingPreemptor(request, plan, mutableMapOf(), priority, source, why)
+            }
         }
     }
 
@@ -1994,8 +2045,10 @@ open class Resource @JvmOverloads constructor(
         val available = capacity - numBusy
         logger.trace { "$time > Resource: $this" }
         logger.trace { "$time > Resource: $name, now has $available units." }
-        if (available == 0) {
+        if (available <= 0) {
             logger.trace { "$time > Resource: $name, had 0 units available after the positive capacity change. No reason to notify entities." }
+            // none is free, but a waiting preemptor may now take what it needs from lower-priority holders
+            if (!isRunEnded) replanWaitingPreemptors(notice.priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "capacity_increase_resource=$name")
         } else if (myCapacityChangeQSet.isEmpty()) {
             // no queues are currently associated with this resource, no reason to notify
             logger.trace { "$time > Resource: $name, The resource is not associated with any capacity change queues. No queues were notified of the positive capacity change." }
@@ -2034,7 +2087,11 @@ open class Resource @JvmOverloads constructor(
     ) {
         // once the run has ended, units restored by the termination of the entities, as a shift's end in a
         // finally block, are offered to no one: nothing can be resumed
-        if (isInactive || numAvailableUnits <= 0 || isRunEnded) return
+        if (isInactive || isRunEnded) return
+        // a waiting preemptor plans again first, even when no unit is free: units that came back to their
+        // holders, at a repair or a return to shift, can be taken from them
+        replanWaitingPreemptors(priority, source, detail)
+        if (numAvailableUnits <= 0) return
         // a preemption waiting for units its victims used takes them ahead of the queue
         serveReservations(priority, source, detail)
         if (numAvailableUnits <= 0) return

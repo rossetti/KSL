@@ -351,8 +351,10 @@ class PreemptionTest {
             urgent("P", r, 2.0, 1.0)
             at(5.0) { r.repair() }
         }
-        assertEquals(listOf("L got@0.0", "L done@10.0", "P got@10.0", "P done@11.0"), m.log)
-        assertEquals(0, m.r.numTimesPreempted)
+        // failed at 2, P waits; at the repair it plans again and takes L's unit: L, with 9 left at 1 under
+        // FINISH, has worked on through the failure and goes on at 6 with 6 left
+        assertEquals(listOf("L got@0.0", "P got@5.0", "P done@6.0", "L done@11.0"), m.log)
+        assertEquals(1, m.r.numTimesPreempted)
     }
 
     @Test
@@ -400,8 +402,8 @@ class PreemptionTest {
             urgent("P", r2, 2.0, 1.0, rule = InterruptRule.FINISH)
             at(4.0) { r2.repair() }
         }
-        // failed: nothing is planned, so P waits like a seize behind N
-        assertEquals(listOf("L got@0.0", "L done@10.0", "N got@10.0", "P got@10.0", "N done@11.0", "P done@11.0"), m2.log)
+        // failed at 2: nothing is planned and P waits; at the repair it reserves L's unit, ahead of N
+        assertEquals(listOf("L got@0.0", "L done@10.0", "P got@10.0", "N got@10.0", "P done@11.0", "N done@11.0"), m2.log)
     }
 
     @Test
@@ -447,9 +449,9 @@ class PreemptionTest {
             urgent("middle", r2, 2.0, 1.0, priority = 3, n = 2)
         }
         // high's release at 4 is the first use: the resource fails, middle is passed nothing, and low's unit
-        // comes back down; repaired at 6, low goes on with 9 left
-        assertTrue(m.log.none { it == "middle got@4.0" }, m.log.toString())
-        assertTrue("low done@15.0" in m.log, m.log.toString())
+        // comes back down. At the repair at 6 middle takes it and the free unit; its release at 7 is the next
+        // use, repaired at 9, when low goes on with 9 left
+        assertEquals(listOf("low got@0.0", "high got@1.0", "high done@4.0", "middle got@6.0", "middle done@7.0", "low done@18.0"), m.log)
     }
 
     @Test
@@ -463,7 +465,6 @@ class PreemptionTest {
                 at(5.0) { r.goOnShift() }
             }
             assertTrue(m.log.none { it.startsWith("P got") && it.removePrefix("P got@").toDouble() < 5.0 }, "rule $rule: ${m.log}")
-            assertEquals(0, m.r.numTimesPreempted, "rule $rule")
         }
         val (_, m) = run {
             job("L", r, 0.0, 20.0, priority = 9)
@@ -474,6 +475,71 @@ class PreemptionTest {
         }
         // P1's loan ends at 6, off shift: it goes back to L, not to P2
         assertTrue(m.log.none { it == "P2 got@6.0" }, m.log.toString())
+    }
+
+    @Test
+    @DisplayName("back on shift, a waiting preemptor takes the unit from the lower-priority holder, which resumes after it")
+    fun waitingPreemptorBackOnShift() {
+        val (_, m) = run {
+            job("L", r, 0.0, 10.0, priority = 9)
+            at(1.0) { r.goOffShift() }
+            urgent("P", r, 2.0, 1.0)
+            at(5.0) { r.goOnShift() }
+        }
+        // L works on off shift under IGNORE, 5 done at 5; held 5 to 6; 5 left from 6
+        assertEquals(listOf("L got@0.0", "P got@5.0", "P done@6.0", "L done@11.0"), m.log)
+        assertEquals(1, m.r.numTimesPreempted)
+    }
+
+    @Test
+    @DisplayName("at a repair, a waiting preemptor takes the unit before its holder resumes")
+    fun waitingPreemptorAtARepair() {
+        val (_, m) = run {
+            job("L", r, 0.0, 10.0, priority = 9)
+            at(1.0) { r.fail(InterruptRule.RESUME) }
+            urgent("P", r, 2.0, 1.0)
+            at(4.0) { r.repair() }
+        }
+        // L held by the failure from 1 with 9 left, then by P from 4 to 5
+        assertEquals(listOf("L got@0.0", "P got@4.0", "P done@5.0", "L done@14.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("after a capacity increase, a preemptor that needed more than the capacity takes what it needs")
+    fun waitingPreemptorAfterACapacityIncrease() {
+        val (_, m) = run {
+            job("A", r2, 0.0, 10.0, priority = 9)
+            job("B", r2, 0.0, 10.0, priority = 9)
+            at(1.0) { r2.changeCapacity(r2.CapacityChangeNotice(capacity = 1)) }
+            urgent("P", r2, 2.0, 1.0, n = 2)
+            at(5.0) { r2.changeCapacity(r2.CapacityChangeNotice(capacity = 2)) }
+        }
+        assertTrue("P got@5.0" in m.log && "P done@6.0" in m.log, m.log.toString())
+    }
+
+    @Test
+    @DisplayName("a release that frees a unit lets a waiting preemptor take it with a lower-priority holder's")
+    fun waitingPreemptorAtARelease() {
+        val (_, m) = run {
+            job("E", r2, 0.0, 5.0, priority = 1)
+            job("L", r2, 0.0, 20.0, priority = 9)
+            urgent("P", r2, 1.0, 1.0, priority = 1, n = 2)
+        }
+        // at 1, E's unit cannot be taken (equal priority) and L's alone is too few; at 5 E's unit comes free
+        assertEquals(listOf("E got@0.0", "L got@0.0", "E done@5.0", "P got@5.0", "P done@6.0", "L done@21.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("under FINISH, a preemptor that waited through a failure reserves at the repair, ahead of earlier seizes")
+    fun waitingFinishPreemptorReservesAtARepair() {
+        val (_, m) = run {
+            job("L", r, 0.0, 10.0, priority = 9)
+            at(1.0) { r.fail(InterruptRule.FINISH) }
+            job("N", r, 1.5, 1.0, priority = 5)
+            urgent("P", r, 2.0, 1.0, rule = InterruptRule.FINISH)
+            at(4.0) { r.repair() }
+        }
+        assertEquals(listOf("L got@0.0", "L done@10.0", "P got@10.0", "P done@11.0", "N got@11.0", "N done@12.0"), m.log)
     }
 
     @Test
