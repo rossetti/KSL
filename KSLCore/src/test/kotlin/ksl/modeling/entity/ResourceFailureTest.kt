@@ -382,4 +382,30 @@ class ResourceFailureTest {
         assertNotNull(ci)
         assertTrue(expectedFailed in ci, "expected $expectedFailed in $ci")
     }
+
+    private class Breaking(parent: ModelElement) : ProcessModel(parent, "breaking") {
+        val r = ResourceWithQ(this, "R")
+
+        init {
+            r.failures(ksl.utilities.random.rvariable.ExponentialRV(10.0, 3), ksl.utilities.random.rvariable.ExponentialRV(1.0, 4))
+        }
+    }
+
+    @Test
+    @DisplayName("the declared failures' times are the model's random variables: a new model on the same streams repeats them")
+    fun declaredFailureTimesRepeat() {
+        fun failures(model: Model): List<Double> {
+            model.numberOfReplications = 3
+            model.lengthOfReplication = 200.0
+            model.simulate()
+            return listOf(model.counters.single { it.name == "R:NumFailures" }.acrossReplicationStatistic.sum,
+                model.responses.single { it.name == "R:PTimeFailed" }.acrossReplicationStatistic.average)
+        }
+        val first = Model("Repeat${System.nanoTime()}", autoCSVReports = false).also { Breaking(it) }
+        val a = failures(first)
+        val b = failures(Model("Repeat${System.nanoTime()}", autoCSVReports = false).also { Breaking(it) })
+        assertEquals(a, b, "a new model with the same streams")
+        assertNotNull(first.getModelElement("R:TimeBetweenFailuresRV"))
+        assertNotNull(first.getModelElement("R:RepairTimeRV"))
+    }
 }
