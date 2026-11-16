@@ -576,7 +576,8 @@ private inner class Emergency : Entity() {
   Under `RESUME` and `RESTART` the units are taken now and the holder's delay
   is held. Under `FINISH` nothing is taken in service: the preemptor is
   promised the free units and takes the rest as units are released, ahead of
-  everyone waiting in the queue.
+  everyone waiting in the queue; several such preemptors take them in order
+  of priority, the earliest first among equals.
 - **The units go back.** The holder keeps its allocation. When the preemptor
   releases, the units it took go back to their holders first, newest first,
   and only then to the queue, unless a waiting preemptor outranks the holder

@@ -1708,7 +1708,8 @@ interface KSLProcessBuilder {
      *  - `RESUME` and `RESTART`: the units are taken now. The holder's delay that depends on them is held,
      *    and goes on with the time left, or starts again, when the units come back.
      *  - `FINISH`: nothing is taken in service. The entity is promised the free units and takes the rest as
-     *    units of the resource are released, ahead of the requests waiting in the queue.
+     *    units of the resource are released, ahead of the requests waiting in the queue. Several such
+     *    entities take released units in order of priority, the earliest first among equals.
      *
      *  The holder keeps its allocation. When the entity releases its allocation, the units it took go back
      *  to their holders first, newest first, before the queue, unless a waiting entity outranks the holder
