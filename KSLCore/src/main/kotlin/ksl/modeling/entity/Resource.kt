@@ -676,7 +676,8 @@ open class Resource @JvmOverloads constructor(
 
     /**
      *  A preemption under `FINISH` waiting for the units its victims still use: [request] takes the units of
-     *  any release, capacity increase or repair of this resource ahead of the queue until [stillNeeded] is 0.
+     *  any release, capacity increase or repair of this resource ahead of the queue until [stillNeeded] is 0,
+     *  after any reservation of a more urgent entity.
      */
     internal class Reservation(val request: ProcessModel.Entity.Request, var stillNeeded: Int) {
         /**
@@ -795,11 +796,12 @@ open class Resource @JvmOverloads constructor(
     }
 
     /**
-     *  Gives the available units to the waiting reservations, oldest first, and resumes each one that has
-     *  all it needs.
+     *  Gives the available units to the waiting reservations, the most urgent first and the oldest first
+     *  among equals, and resumes each one that has all it needs.
      */
     private fun serveReservations(priority: Int, source: ResumeSource, detail: String?) {
-        for (reservation in myReservations.toList()) {
+        // a stable sort: the list is in the order the reservations were made
+        for (reservation in myReservations.sortedBy { it.request.entity.priority }) {
             if (numAvailableUnits <= 0) break
             // one already woken to take its units keeps its place until it takes them
             if (reservation.isComplete) continue

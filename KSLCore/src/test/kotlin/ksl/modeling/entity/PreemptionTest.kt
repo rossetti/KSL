@@ -405,6 +405,26 @@ class PreemptionTest {
     }
 
     @Test
+    @DisplayName("FINISH reservations are served most urgent first, oldest first among equals, on either queue")
+    fun reservationsByPriority() {
+        for (res in listOf("ranked", "fifo")) {
+            val (_, m) = run {
+                val q = if (res == "ranked") ranked else r
+                job("R", q, 0.0, 10.0, priority = 9)
+                urgent("A", q, 1.0, 5.0, priority = 2, rule = InterruptRule.FINISH)
+                urgent("U", q, 2.0, 5.0, priority = 1, rule = InterruptRule.FINISH)
+                urgent("A2", q, 2.5, 1.0, priority = 2, rule = InterruptRule.FINISH)
+                job("N", q, 3.0, 1.0, priority = 5)
+            }
+            // U reserved after A but outranks it, so R's release goes to U; A, reserved before A2, goes next
+            assertEquals(
+                listOf("R got@0.0", "R done@10.0", "U got@10.0", "U done@15.0", "A got@15.0", "A done@20.0",
+                    "A2 got@20.0", "A2 done@21.0", "N got@21.0", "N done@22.0"), m.log, res
+            )
+        }
+    }
+
+    @Test
     @DisplayName("a terminated FINISH preemptor drops its reservation and its promise goes to the queue")
     fun terminatedReservedPreemptor() {
         val (_, m) = run {
