@@ -287,6 +287,21 @@ class Allocation internal constructor(
         if (rule == InterruptRule.RESTART) myEntity.addFreezeReason(this, freezeRestart, InterruptCause.FAILURE)
     }
 
+    /**
+     *  Lent units of this allocation pass from their borrower to another, taking them under [rule]. They stay
+     *  missing, so the holder's delay stays held and nothing is told; a restart the new taking asks for
+     *  dominates, as when units go missing.
+     */
+    internal fun loanPassesOn(rule: InterruptRule) {
+        require(rule != InterruptRule.FINISH) { "Under FINISH nothing is taken from the holder of allocation $id." }
+        if (isDeallocated) return
+        check(missingByLoan > 0) { "Allocation $id has no units lent to pass on." }
+        if (rule == InterruptRule.RESTART) {
+            freezeRestart = true
+            myEntity.addFreezeReason(this, freezeRestart, InterruptCause.PREEMPTION)
+        }
+    }
+
     /** The waits on this allocation's triggers, in the order they registered. */
     internal val myTriggerRegistrations: MutableList<AllocationRegistration> = mutableListOf()
 

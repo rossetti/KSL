@@ -1151,6 +1151,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             /** A preemption's reservation of the units its victims still use; null for any other request. */
             internal var reservation: Resource.Reservation? = null
 
+            /**
+             *  For a `preempt` under `RESUME` or `RESTART` that found nothing to take and waits: its rule, under
+             *  which it takes units when a loan of a holder of lower priority ends. Null for any other request.
+             */
+            internal var waitingPreemptRule: InterruptRule? = null
+
+            /** The allocation a waiting preemptor was given when a loan ended, which it takes when it resumes. */
+            internal var passedAllocation: Allocation? = null
+
             /** True while this request waits on a reservation; the queue's selection passes over it. */
             internal val isReserved: Boolean
                 get() = reservation != null
@@ -2923,11 +2932,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             logger.trace { "r = ${model.currentReplicationNumber} : $time > END: PREEMPT: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: allocation_id = ${a.id}" }
                             a
                         } else {
-                            // under FINISH the victims' units are reserved as they release them; with no plan
-                            // it waits as a seize waits and does not preempt later
+                            // under FINISH the victims' units are reserved as they release them. With no plan
+                            // it waits as a seize waits; under RESUME or RESTART it can still take units when a
+                            // loan of a lower-priority holder ends, and is then resumed with them allocated
                             if (plan != null) resource.reserve(request, plan.free)
+                            else if (rule != InterruptRule.FINISH) request.waitingPreemptRule = rule
                             waitForResource(request, resource, queue)
-                            takeResource(request, resource, queue, suspensionName, rewait = null)!!
+                            val passed = request.passedAllocation
+                            if (passed != null) {
+                                (request.queue as? RequestQ ?: queue).remove(request)
+                                passed
+                            } else {
+                                takeResource(request, resource, queue, suspensionName, rewait = null)!!
+                            }
                         }
                     }
                 } finally {

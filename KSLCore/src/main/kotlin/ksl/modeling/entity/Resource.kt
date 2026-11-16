@@ -722,20 +722,26 @@ open class Resource @JvmOverloads constructor(
     /**
      *  What a preemption by [entity] for [amountNeeded] units would take: the free units, then units of the
      *  holders whose entity's priority is lower (a larger number) than [entity]'s, lowest priority first and,
-     *  among equals, the most recently allocated first, only as many as are still needed. Null when the free
-     *  units are already enough or when the free and lendable units together are too few.
+     *  among equals, the most recently allocated first, only as many as are still needed. Units [returning]
+     *  to a holder from a loan that is ending count as that holder's. Null when the free units are already
+     *  enough or when the free and lendable units together are too few.
      */
-    internal fun planPreemption(entity: ProcessModel.Entity, amountNeeded: Int): PreemptionPlan? {
+    internal fun planPreemption(
+        entity: ProcessModel.Entity,
+        amountNeeded: Int,
+        returning: Map<Allocation, Int> = emptyMap()
+    ): PreemptionPlan? {
         val free = numAvailableUnits
         var short = amountNeeded - free
         if (short <= 0) return null
+        fun lendable(a: Allocation) = a.amount - a.missingByLoan + (returning[a] ?: 0)
         val candidates = allocations()
-            .filter { it.myEntity.priority > entity.priority && it.amount - it.missingByLoan > 0 }
+            .filter { it.myEntity.priority > entity.priority && lendable(it) > 0 }
             .sortedWith(compareByDescending<Allocation> { it.myEntity.priority }.thenByDescending { it.timeAllocated })
         val takes = mutableListOf<Pair<Allocation, Int>>()
         for (victim in candidates) {
             if (short == 0) break
-            val k = minOf(short, victim.amount - victim.missingByLoan)
+            val k = minOf(short, lendable(victim))
             takes.add(victim to k)
             short -= k
         }
@@ -1452,14 +1458,18 @@ open class Resource @JvmOverloads constructor(
         // units of this allocation down in a failure stay down when they go back to a lender
         var downLeft = allocation.missingByFailure
         val stillOwed = ArrayDeque<Pair<Allocation, Int>>()
+        // the units going back, by lender, and how many of them are down in a failure
+        val returning = LinkedHashMap<Allocation, Int>()
+        val down = HashMap<Allocation, Int>()
         for (loan in myLoans.filter { it.borrower === allocation }.asReversed()) {
             myLoans.remove(loan)
             val lender = loan.lender ?: continue
             val back = minOf(loan.amount, held)
             if (back > 0) {
-                val down = minOf(back, downLeft)
-                downLeft -= down
-                lender.loanComesBack(back, down, myFailureRule)
+                val d = minOf(back, downLeft)
+                downLeft -= d
+                returning[lender] = (returning[lender] ?: 0) + back
+                down[lender] = (down[lender] ?: 0) + d
                 returned += back
                 held -= back
             }
@@ -1477,7 +1487,68 @@ open class Resource @JvmOverloads constructor(
             }
             if (left > 0) myLoans.add(Loan(null, loan.borrower, left))
         }
+        // a waiting preemptor that outranks a lender takes the units before they go back; a failed or inactive
+        // resource lends nothing, as at a preemption's arrival, and once the run has ended nothing is resumed
+        if (returning.isNotEmpty() && !isFailed && !isInactive && !isRunEnded) passLoansOn(returning)
+        for ((lender, back) in returning) {
+            if (back > 0) lender.loanComesBack(back, minOf(back, down[lender] ?: 0), myFailureRule)
+        }
         return returned + lentOut
+    }
+
+    /**
+     *  Gives units [returning] to their lenders from loans that are ending to the waiting preemptors that
+     *  outrank those lenders, most urgent first and, among equals, the one waiting longest. Each plans its
+     *  preemption as it would on arrival, counting the returning units as their lenders': the returning units
+     *  it takes pass to it as loans from the same lenders, who stay held and are not told; any other units it
+     *  takes are taken from their holders as at any preemption. It is resumed with its allocation made. The
+     *  units it does not take are left in [returning], to go back.
+     */
+    private fun passLoansOn(returning: MutableMap<Allocation, Int>) {
+        while (returning.values.any { it > 0 }) {
+            val waiting = myCapacityChangeQSet.asSequence()
+                .flatMap { q -> q.asSequence() }
+                .filterIsInstance<ProcessModel.Entity.ResourceRequest>()
+                .filter { it.myResource === this && it.waitingPreemptRule != null && it.passedAllocation == null }
+                .filter { !it.resumePending && !it.isReserved && it.promises.isEmpty() }
+                .filter { req -> returning.any { (lender, k) -> k > 0 && lender.myEntity.priority > req.entity.priority } }
+                .sortedWith(compareBy<ProcessModel.Entity.ResourceRequest> { it.entity.priority }.thenBy { it.timeEnteredQueue })
+            var chosen: ProcessModel.Entity.ResourceRequest? = null
+            var plan: PreemptionPlan? = null
+            for (request in waiting) {
+                plan = planPreemption(request.entity, request.amountRequested, returning)
+                if (plan != null) {
+                    chosen = request
+                    break
+                }
+            }
+            val request = chosen ?: return
+            val takes = plan!!
+            val rule = request.waitingPreemptRule!!
+            val queue = request.queue as RequestQ
+            val allocation = Allocation(request.entity, this, request.amountRequested, queue, null)
+            entityAllocations.getOrPut(request.entity) { mutableListOf() }.add(allocation)
+            numBusy = numBusy + takes.free
+            numTimesSeized++
+            mySeizeCounter.increment()
+            request.entity.allocate(allocation)
+            for ((victim, k) in takes.takes) {
+                myLoans.add(Loan(victim, allocation, k))
+                val passed = minOf(k, returning[victim] ?: 0)
+                if (passed > 0) {
+                    returning[victim] = returning.getValue(victim) - passed
+                    victim.loanPassesOn(rule)
+                }
+                if (k > passed) victim.unitsGoMissing(byFailure = 0, byLoan = k - passed, rule = rule)
+            }
+            numTimesPreempted++
+            allocationNotification(allocation)
+            request.passedAllocation = allocation
+            queue.resumeWoken(
+                request, ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
+                "loan_passed_on_resource=$name, request_id=${request.id}"
+            )
+        }
     }
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
