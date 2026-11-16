@@ -126,7 +126,6 @@ first process model. One server, exponential arrivals, exponential
 service. Drop into a `main()` and it runs:
 
 ```kotlin
-import ksl.modeling.entity.EntityGenerator     // (inner class — used inside ProcessModel)
 import ksl.modeling.entity.KSLProcess
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ResourceWithQ

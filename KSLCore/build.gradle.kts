@@ -130,6 +130,15 @@ tasks.test {
     System.getProperty("ksl.checkInvariants")?.let { systemProperty("ksl.checkInvariants", it) }
 }
 
+// The guide tests (the doc packages, and the guide example-table tests) read docs/guides, which is not
+// otherwise an input of any test task: a change to a guide alone left the task up to date, so the tests that
+// say its snippets and tables still match the code never ran. Declaring the folder an input makes them run.
+tasks.withType<Test>().configureEach {
+    inputs.dir(rootProject.file("docs/guides"))
+        .withPropertyName("guides")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
 /**
  * Everything except the long-running validation runs.
  *
