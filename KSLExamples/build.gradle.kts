@@ -419,6 +419,21 @@ listOf(
     }
 }
 
+// The examples of the resources tutorial (docs/guides/ksl-resources-tutorial.md), one task per case.
+listOf(
+    "clinicBreaks" to "ClinicBreaksKt",
+    "machineBreakdowns" to "MachineBreakdownsKt",
+    "rushOrders" to "RushOrdersKt",
+    "rerouting" to "ReroutingKt",
+).forEach { (taskName, mainName) ->
+    tasks.register<JavaExec>(taskName) {
+        group = "examples"
+        description = "Runs the resources tutorial's $taskName example."
+        mainClass.set("ksl.examples.general.processview.resources.$mainName")
+        classpath = sourceSets["main"].runtimeClasspath
+    }
+}
+
 tasks.register<JavaExec>("freePathFleetExample") {
     group = "examples"
     description = "Runs the free-path fleet example"
