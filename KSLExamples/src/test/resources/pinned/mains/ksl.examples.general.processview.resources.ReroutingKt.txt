@@ -1,8 +1,16 @@
+With no wait limit, a job that reacts to the failure against one that is simply held
+                           reacting         held   same
+TimeInShop                  58.9611      58.9611    yes
+Primary:Q:NumInQ             5.0909       5.0909    yes
+Primary:NumBusyUnits         0.8125       0.8125    yes
+Primary:PTimeFailed          0.1397       0.1397    yes
+Primary:NumFailures        314.1000     314.1000    yes
+JobsDone                  4502.0000    4502.0000    yes
 Wait limits for the repair, on common random numbers, against waiting for it however long
-wait limit   TimeInShop half-width   difference half-width     rerouted
-none             58.961      6.367        0.000      0.000       0.0000
-30               52.788      5.046       -6.173      1.538       0.0123
-10               46.180      3.911      -12.781      2.569       0.0334
-5                44.197      3.822      -14.764      2.784       0.0423
-0                41.696      3.432      -17.265      3.217       0.0539
+wait limit   TimeInShop half-width   difference half-width   rerouted  unaccounted
+none             58.961      6.367        0.000      0.000     0.0000            0
+30               52.788      5.046       -6.173      1.538     0.0123            0
+10               46.180      3.911      -12.781      2.569     0.0334            0
+5                44.197      3.822      -14.764      2.784     0.0423            0
+0                41.696      3.432      -17.265      3.217     0.0539            0
 Read this alongside docs/guides/ksl-resources-tutorial.md, case 4.

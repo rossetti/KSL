@@ -144,6 +144,25 @@ class ReroutingShop(
 }
 
 fun main() {
+    println("With no wait limit, a job that reacts to the failure against one that is simply held")
+    val twins = listOf(true, false).map { react ->
+        val m = Model("Rerouting", autoCSVReports = false)
+        ReroutingShop(m, waitLimit = Double.POSITIVE_INFINITY, react = react, name = "Shop")
+        m.numberOfReplications = 20
+        m.lengthOfReplication = 50_000.0
+        m.lengthOfReplicationWarmUp = 5_000.0
+        m.simulate()
+        m.responses.associate { it.name to it.acrossReplicationStatistic } +
+                m.counters.associate { it.name to it.acrossReplicationStatistic }
+    }
+    println(String.format("%-22s %12s %12s %6s", "", "reacting", "held", "same"))
+    for (name in listOf("TimeInShop", "Primary:Q:NumInQ", "Primary:NumBusyUnits", "Primary:PTimeFailed", "Primary:NumFailures", "JobsDone")) {
+        val (a, b) = twins.map { it.getValue(name) }
+        val same = a.count == b.count && a.average == b.average && a.variance == b.variance
+        println(String.format("%-22s %12.4f %12.4f %6s", name, a.average, b.average, if (same) "yes" else "NO"))
+    }
+
+    println()
     println("Wait limits for the repair, on common random numbers, against waiting for it however long")
     val limits = listOf(Double.POSITIVE_INFINITY, 30.0, 10.0, 5.0, 0.0)
     val results = limits.map { limit ->
@@ -155,18 +174,20 @@ fun main() {
         val collector = ReplicationDataCollector(m)
         collector.addResponse("TimeInShop")
         collector.addResponse("ProbRerouted")
+        collector.addResponse("JobsUnaccounted")
         m.simulate()
         limit to collector
     }
     val base = results.first().second.replicationData("TimeInShop")
-    println(String.format("%-12s %10s %10s %12s %10s %12s", "wait limit", "TimeInShop", "half-width", "difference", "half-width", "rerouted"))
+    println(String.format("%-12s %10s %10s %12s %10s %10s %12s", "wait limit", "TimeInShop", "half-width", "difference", "half-width", "rerouted", "unaccounted"))
     for ((limit, collector) in results) {
         val data = collector.replicationData("TimeInShop")
         val s = Statistic(data)
         val d = Statistic(DoubleArray(data.size) { data[it] - base[it] })
         val p = Statistic(collector.replicationData("ProbRerouted")).average
+        val unaccounted = collector.replicationData("JobsUnaccounted").maxOf { kotlin.math.abs(it) }
         val label = if (limit.isInfinite()) "none" else String.format("%.0f", limit)
-        println(String.format("%-12s %10.3f %10.3f %12.3f %10.3f %12.4f", label, s.average, s.halfWidth, d.average, d.halfWidth, p))
+        println(String.format("%-12s %10.3f %10.3f %12.3f %10.3f %10.4f %12.0f", label, s.average, s.halfWidth, d.average, d.halfWidth, p, unaccounted))
     }
     println()
     println("Read this alongside docs/guides/ksl-resources-tutorial.md, case 4.")
