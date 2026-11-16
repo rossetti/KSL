@@ -1012,11 +1012,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
         /**
          *  True when the entity's process is suspended and may be resumed with resumeProcess(): it is
-         *  not in a wait with a time limit or for the first of several things, which must be ended
-         *  through one of the things it waits for, and no resume is already scheduled for it.
+         *  not in a delay, which ends on its own (use `interruptDelay` to end one early), nor in a wait
+         *  with a time limit or for the first of several things, which must be ended through one of the
+         *  things it waits for, and no resume is already scheduled for it.
          */
         val canResumeProcess: Boolean
-            get() = isSuspended && myWaitGroup == null && myPendingResume == null
+            get() = isSuspended && currentSuspendType != SuspendType.DELAY && myWaitGroup == null && myPendingResume == null
 
         /**
          *  The resume scheduled for the entity's current suspension and not yet carried out; null when
@@ -1379,6 +1380,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 "Entity ${name} (id = $id) is in a wait with a time limit, or for the first of several things " +
                     "(suspension name = ${myWaitGroup?.suspensionName}). Such a wait cannot be ended by resumeProcess(); " +
                     "end it through one of the things it waits for, or let its time limit run out. " +
+                    "Check canResumeProcess before calling resumeProcess()."
+            }
+            check(currentSuspendType != SuspendType.DELAY) {
+                "Entity ${name} (id = $id) is in a DELAY (suspension name = $currentSuspendName), which ends on its own; " +
+                    "resumeProcess() cannot end it, at once or later. Use interruptDelay to end a delay early. " +
                     "Check canResumeProcess before calling resumeProcess()."
             }
             scheduleResumeProcess(

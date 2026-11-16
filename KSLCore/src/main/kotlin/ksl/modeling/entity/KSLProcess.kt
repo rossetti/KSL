@@ -1716,12 +1716,13 @@ interface KSLProcessBuilder {
      *  (below). A holder that releases while its units are
      *  taken ends that loan, and the units go to the queue when the entity releases them.
      *
-     *  When the free units and the units of all lower-priority holders together are still too few, or the
-     *  resource is failed or inactive, nothing is taken: the entity waits as a `seize` waits. Under `RESUME`
+     *  When the free units and the units of all lower-priority holders together are still too few, when the
+     *  resource's capacity is less than [amountNeeded] (as off shift), or when the resource is failed or
+     *  inactive, nothing is taken: the entity waits as a `seize` waits. Under `RESUME`
      *  and `RESTART` it can still preempt at one moment: when a loan of a holder of lower priority ends, the
      *  most urgent such waiting entity plans its preemption again, counting the units going back as the
      *  holder's. If it can now take enough, those units pass to it and the holder stays held, so a holder
-     *  never resumes ahead of a waiting entity that outranks it. A movable resource cannot be preempted; use
+     *  whose loan ends never resumes ahead of a waiting entity that outranks it. A movable resource cannot be preempted; use
      *  `seize` for it.
      *
      *  @param resource the resource to take units of

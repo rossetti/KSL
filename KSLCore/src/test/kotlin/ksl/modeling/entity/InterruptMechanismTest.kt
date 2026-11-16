@@ -28,6 +28,7 @@ import ksl.utilities.random.rvariable.ConstantRV
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -344,9 +345,26 @@ class InterruptMechanismTest {
         }
         val inDelay = attempt(false)
         val inFrozen = attempt(true)
-        assertTrue(inDelay.second.contains("attempted to resume a DELAY"), inDelay.second)
-        assertTrue(inFrozen.second.contains("attempted to resume a DELAY"), inFrozen.second)
-        assertEquals(inDelay.first, inFrozen.first, "canResumeProcess")
+        assertTrue(inDelay.second.contains("is in a DELAY"), inDelay.second)
+        assertTrue(inFrozen.second.contains("is in a DELAY"), inFrozen.second)
+        assertFalse(inDelay.first, "canResumeProcess in a delay")
+        assertFalse(inFrozen.first, "canResumeProcess in a frozen delay")
+    }
+
+    @Test
+    @DisplayName("resumeProcess during a delay is refused at the call, even for a resume due after the delay ends")
+    fun resumeProcessRefusedAtTheCall() {
+        val msg = try {
+            run {
+                lateinit var w: MModel.Actor
+                w = actor("W") { delay(10.0) }
+                at(3.0) { w.resumeProcess(timeUntilResumption = 20.0) }
+            }
+            "no error"
+        } catch (e: IllegalStateException) {
+            generateSequence<Throwable>(e) { it.cause }.joinToString(" | ") { it.message ?: "" }
+        }
+        assertTrue(msg.contains("DELAY") && msg.contains("canResumeProcess"), msg)
     }
 
     // ---------- what a delay uses ----------

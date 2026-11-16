@@ -542,7 +542,9 @@ not failed, throws).
 - **The bases** of `failures(…)`: `CALENDAR_TIME` counts simulated time;
   `BUSY_TIME` counts time with a unit busy, on shift and not failed, so the
   failure comes at the exact instant that much work has been done; `USES`
-  fails at the release that completes the given number of uses. A failure
+  fails at the release that completes the given number of uses, before the
+  released unit can go to anyone waiting. A failure fails the resource at the
+  instant it comes due, so nothing is allocated in between. A failure
   that comes due while the resource is failed by hand waits for that repair.
   A repair by hand during a declared failure ends it early, and the time to
   the next failure counts from that repair. The declared failures repair only
@@ -582,12 +584,14 @@ private inner class Emergency : Entity() {
   holders of lowest priority, the most recently allocated first among
   equals, only as many as are still needed. A holder of equal or higher
   priority is never preempted. When the free units and all the lower-priority
-  holders' units together are too few, or the resource is failed or inactive,
-  nothing is taken: `preempt` waits like `seize`. Under `RESUME` and
+  holders' units together are too few, the capacity is less than the amount
+  needed (as off shift), or the resource is failed or inactive, nothing is
+  taken: `preempt` waits like `seize`. Under `RESUME` and
   `RESTART` it can still preempt when a loan of a lower-priority holder
   ends: the units going back pass to the most urgent such waiting
   preemptor that can now take enough, and the holder stays held. So a
-  holder never resumes ahead of a waiting preemptor that outranks it.
+  holder whose loan ends never resumes ahead of a waiting preemptor that
+  outranks it.
 - **The rule** is the resource's `interruptRule` unless the call names one.
   Under `RESUME` and `RESTART` the units are taken now and the holder's delay
   is held. Under `FINISH` nothing is taken in service: the preemptor is
@@ -881,8 +885,9 @@ nothing is taken.
   deadline win instead.
 - After `suspendForOrTimeout` times out, the suspension's holder must not call
   `resume()`: it throws. Check `isSuspended` first.
-- `entity.resumeProcess()` refuses an entity in such a wait; end the wait through what
-  it waits for. `canResumeProcess` tells you beforehand.
+- `entity.resumeProcess()` refuses an entity in such a wait, as it refuses one in a
+  `delay`; end the wait through what it waits for. `canResumeProcess` tells you
+  beforehand.
 
 ### ...wait for whichever comes first
 

@@ -20,6 +20,7 @@ package ksl.modeling.entity
 
 import ksl.modeling.variable.Counter
 import ksl.modeling.variable.Response
+import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
@@ -324,6 +325,83 @@ class ResourceFailureTest {
         }
         val failures = m.log.filter { it.startsWith("R ") }
         assertEquals(listOf("R fail@5.0", "R repair@6.0", "R fail@11.0", "R repair@12.0"), failures)
+    }
+
+    @Test
+    @DisplayName("USES: the failure at the release that completes the count comes before the queue is offered the unit, under each rule")
+    fun usesFailureBeforeTheQueue() {
+        for (rule in listOf(InterruptRule.FINISH, InterruptRule.RESUME)) {
+            val (_, m) = run(length = 30.0, configure = {
+                r.interruptRule = rule
+                r.failures(ConstantRV(1.0), ConstantRV(2.0), ResourceFailureBasis.USES)
+            }) {
+                watch(r)
+                job("A", r, 0.0, 5.0)
+                job("B", r, 1.0, 1.0)
+            }
+            // A's release at 5 completes the one use: the resource fails then, and B waits for the repair at 7;
+            // B's release at 8 completes the next use
+            assertEquals(
+                listOf("A got@0.0", "R fail@5.0", "A done@5.0", "R repair@7.0", "B got@7.0", "R fail@8.0", "B done@8.0", "R repair@10.0"),
+                m.log, "rule $rule"
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("BUSY_TIME: a seize at the instant the failure comes due, after the clock's event, waits for the repair")
+    fun busyTimeSeizeJustAfterTheFailureIsDue() {
+        val (_, m) = run(length = 30.0, configure = {
+            r2.failures(ConstantRV(5.0), ConstantRV(2.0), ResourceFailureBasis.BUSY_TIME)
+        }) {
+            watch(r2)
+            job("A", r2, 0.0, 10.0)
+            actor("B") {
+                delay(5.0, delayPriority = KSLEvent.MEDIUM_PRIORITY + 1)
+                val a = seize(r2)
+                log.add("B got@$time")
+                delay(1.0)
+                release(a)
+            }
+        }
+        assertTrue("R2 fail@5.0" in m.log && "B got@7.0" in m.log, m.log.toString())
+    }
+
+    @Test
+    @DisplayName("USES: a count completed while failed by hand waits for that repair")
+    fun usesCountCompletedWhileFailedByHand() {
+        val (_, m) = run(length = 30.0, configure = {
+            r2.failures(ConstantRV(1.0), ConstantRV(2.0), ResourceFailureBasis.USES)
+        }) {
+            watch(r2)
+            job("A", r2, 0.0, 5.0)
+            at(3.0) { r2.fail(InterruptRule.FINISH) }
+            at(10.0) { r2.repair() }
+        }
+        // A finishes under FINISH at 5, completing the count while failed by hand: no second failure, no
+        // repair before 10; the next count starts from that repair
+        assertEquals(listOf("A got@0.0", "R2 fail@3.0", "A done@5.0", "R2 repair@10.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("BUSY_TIME: a release at the deadline at an earlier priority than the clock's event still fails the resource then")
+    fun busyTimeDeadlineReachedByAnEarlierRelease() {
+        for (again in listOf(true, false)) {
+            val (_, m) = run(length = 30.0, configure = {
+                r.failures(ConstantRV(5.0), ConstantRV(2.0), ResourceFailureBasis.BUSY_TIME)
+            }) {
+                watch(r)
+                actor("A") {
+                    val a = seize(r)
+                    delay(5.0, delayPriority = -20)
+                    release(a)
+                    log.add("A done@$time")
+                }
+                if (again) job("B", r, 10.0, 1.0)
+            }
+            assertTrue("R fail@5.0" in m.log, "with${if (again) "" else "out"} a later job: ${m.log}")
+            assertTrue("R repair@7.0" in m.log, m.log.toString())
+        }
     }
 
     @Test

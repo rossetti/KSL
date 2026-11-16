@@ -405,6 +405,90 @@ class PreemptionTest {
     }
 
     @Test
+    @DisplayName("a loan ending with a unit freed by the same release: a waiting preemptor needing both takes both")
+    fun loanReturnAndFreeUnitsTogether() {
+        val (_, m) = run {
+            job("low", r2, 0.0, 10.0, priority = 9)
+            urgent("high", r2, 1.0, 3.0, priority = 1, n = 2)
+            urgent("middle", r2, 2.0, 1.0, priority = 3, n = 2)
+        }
+        // high took the free unit and low's; at 4 the free unit and the loan pass to middle, low stays held
+        // with 9 left, and resumes at 5
+        assertEquals(
+            listOf("low got@0.0", "high got@1.0", "high done@4.0", "middle got@4.0", "middle done@5.0", "low done@14.0"),
+            m.log
+        )
+    }
+
+    @Test
+    @DisplayName("a loan ending into a pending WAIT decrease: the freed unit goes to the decrease, and the loan back to its holder")
+    fun loanReturnIntoAPendingDecrease() {
+        val (_, m) = run(configure = { r2.capacityChangeRule = CapacityChangeRule.WAIT }) {
+            job("low", r2, 0.0, 10.0, priority = 9)
+            urgent("high", r2, 1.0, 3.0, priority = 1, n = 2)
+            urgent("middle", r2, 2.0, 1.0, priority = 3, n = 2)
+            at(3.0) { r2.changeCapacity(r2.CapacityChangeNotice(capacity = 1)) }
+        }
+        // at 4 the freed unit completes the cut to 1, so middle cannot have two: low resumes with 9 left
+        assertTrue("low done@13.0" in m.log, m.log.toString())
+        assertTrue(m.log.none { it.startsWith("middle got") }, m.log.toString())
+        assertEquals(1, m.r2.capacity)
+    }
+
+    @Test
+    @DisplayName("a loan ending at the release that fails the resource on USES: nothing passes on, and the loan goes back down")
+    fun loanReturnAtAFailingRelease() {
+        val (_, m) = run(configure = {
+            r2.interruptRule = InterruptRule.RESUME
+            r2.failures(ksl.utilities.random.rvariable.ConstantRV(1.0), ksl.utilities.random.rvariable.ConstantRV(2.0), ResourceFailureBasis.USES)
+        }) {
+            job("low", r2, 0.0, 10.0, priority = 9)
+            urgent("high", r2, 1.0, 3.0, priority = 1, n = 2)
+            urgent("middle", r2, 2.0, 1.0, priority = 3, n = 2)
+        }
+        // high's release at 4 is the first use: the resource fails, middle is passed nothing, and low's unit
+        // comes back down; repaired at 6, low goes on with 9 left
+        assertTrue(m.log.none { it == "middle got@4.0" }, m.log.toString())
+        assertTrue("low done@15.0" in m.log, m.log.toString())
+    }
+
+    @Test
+    @DisplayName("off shift, a preemption takes nothing under any rule, and a loan ending passes to no one")
+    fun nothingTakenOffShift() {
+        for (rule in listOf(InterruptRule.RESUME, InterruptRule.RESTART, InterruptRule.FINISH)) {
+            val (_, m) = run {
+                job("L", r, 0.0, 10.0, priority = 9)
+                at(1.0) { r.goOffShift() }
+                urgent("P", r, 2.0, 1.0, rule = rule)
+                at(5.0) { r.goOnShift() }
+            }
+            assertTrue(m.log.none { it.startsWith("P got") && it.removePrefix("P got@").toDouble() < 5.0 }, "rule $rule: ${m.log}")
+            assertEquals(0, m.r.numTimesPreempted, "rule $rule")
+        }
+        val (_, m) = run {
+            job("L", r, 0.0, 20.0, priority = 9)
+            urgent("P1", r, 1.0, 5.0)
+            urgent("P2", r, 2.0, 5.0)
+            at(3.0) { r.goOffShift() }
+            at(8.0) { r.goOnShift() }
+        }
+        // P1's loan ends at 6, off shift: it goes back to L, not to P2
+        assertTrue(m.log.none { it == "P2 got@6.0" }, m.log.toString())
+    }
+
+    @Test
+    @DisplayName("an IGNORE decrease below the busy units: a preemption within the new capacity still takes a unit")
+    fun preemptionWithinAReducedCapacity() {
+        val (_, m) = run {
+            job("A", r2, 0.0, 10.0, priority = 9)
+            job("B", r2, 0.0, 10.0, priority = 9)
+            at(1.0) { r2.changeCapacity(r2.CapacityChangeNotice(capacity = 1)) }
+            urgent("P", r2, 2.0, 1.0)
+        }
+        assertTrue("P got@2.0" in m.log, m.log.toString())
+    }
+
+    @Test
     @DisplayName("FINISH reservations are served most urgent first, oldest first among equals, on either queue")
     fun reservationsByPriority() {
         for (res in listOf("ranked", "fifo")) {
