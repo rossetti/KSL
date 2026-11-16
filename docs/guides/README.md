@@ -43,6 +43,7 @@ model matches your problem.
 | Guide | When to use |
 |---|---|
 | [`ksl-entity`](ksl-entity.md) | **Process view** — each entity's life is written as a suspending coroutine (`delay`, `seize`, `release`, `move`) |
+| [`ksl-waits-tutorial`](ksl-waits-tutorial.md) *(experimental)* | **Waits with a deadline, or for whichever comes first, by worked example** — five process-view cases (impatient callers, the textbook's walk-in clinic rewritten, first free of two providers, a shuttle that leaves full or on time, kitting with expediting), each given in full and checked against an exact queueing result or the same system written another way |
 | [`ksl-transport`](ksl-transport.md) | **Start here for vehicles** — which of the four transport subsystems to use, and why; free path vs guide path, passive vs dispatcher-driven |
 | [`ksl-transport-tutorial`](ksl-transport-tutorial.md) | **Vehicles by worked example** — the ten runnable examples as cases: problem, model (with a figure of the network), the example's complete code explained part by part, measured result, and what each is evidence for. Self-contained: nothing has to be opened to follow it |
 | [`ksl-spatial`](ksl-spatial.md) | **Spatial substrate** — locations, distances, movable resources; the substrate that `move` operates on |
