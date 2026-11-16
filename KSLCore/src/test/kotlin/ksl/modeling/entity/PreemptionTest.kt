@@ -197,6 +197,86 @@ class PreemptionTest {
         assertEquals(2, m.r.numTimesPreempted)
     }
 
+    // ---------- a waiting preemptor and a loan that ends ----------
+
+    @Test
+    @DisplayName("a loan that ends passes to a waiting preemptor that outranks its holder; the holder resumes after it")
+    fun loanPassesToAWaitingPreemptor() {
+        for (res in listOf("ranked", "fifo")) {
+            val (_, m) = run {
+                val q = if (res == "ranked") ranked else r
+                job("R", q, 0.0, 10.0, priority = 9)
+                urgent("P1", q, 1.0, 5.0)
+                job("N", q, 1.5, 1.0, priority = 5)
+                urgent("P2", q, 2.0, 5.0)
+                at(7.0) { LoansAndFreezesCheck.check(q); log.add("at 7 busy=${q.numBusy} loans=${q.loans.size}") }
+            }
+            // P2 waits from 2: nothing it can take. At 6 P1's loan of R's unit ends and passes to P2; R, held
+            // from 1 with 9 left, resumes at 11 and ends at 20; N, a plain seize, waits for a release
+            assertEquals(
+                listOf("R got@0.0", "P1 got@1.0", "P1 done@6.0", "P2 got@6.0", "at 7 busy=1 loans=1", "P2 done@11.0",
+                    "R done@20.0", "N got@20.0", "N done@21.0"), m.log, res
+            )
+            assertEquals(2, (if (res == "ranked") m.ranked else m.r).numTimesPreempted, res)
+        }
+    }
+
+    @Test
+    @DisplayName("a passed loan under RESTART: the holder starts again in full after the second preemptor")
+    fun loanPassesUnderRestart() {
+        val (_, m) = run {
+            job("R", ranked, 0.0, 10.0, priority = 9)
+            urgent("P1", ranked, 1.0, 5.0, rule = InterruptRule.RESTART)
+            urgent("P2", ranked, 2.0, 5.0, rule = InterruptRule.RESTART)
+        }
+        assertEquals(listOf("R got@0.0", "P1 got@1.0", "P1 done@6.0", "P2 got@6.0", "P2 done@11.0", "R done@21.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("a loan that ends goes back to its holder when no waiting preemptor outranks it, or the waiter is a plain seize")
+    fun loanGoesBackWithoutAnOutrankingPreemptor() {
+        // a plain seize of the highest priority: a seize never takes units from a holder
+        val (_, plain) = run {
+            job("R", ranked, 0.0, 10.0, priority = 9)
+            urgent("P1", ranked, 1.0, 5.0)
+            job("S", ranked, 2.0, 1.0, priority = 1)
+        }
+        assertEquals(listOf("R got@0.0", "P1 got@1.0", "P1 done@6.0", "R done@15.0", "S got@15.0", "S done@16.0"), plain.log)
+        // a waiting preemptor of the holder's own priority cannot take its units
+        val (_, equal) = run {
+            job("R", ranked, 0.0, 10.0, priority = 9)
+            urgent("P1", ranked, 1.0, 5.0)
+            urgent("P2", ranked, 2.0, 1.0, priority = 9)
+        }
+        assertEquals(listOf("R got@0.0", "P1 got@1.0", "P1 done@6.0", "R done@15.0", "P2 got@15.0", "P2 done@16.0"), equal.log)
+    }
+
+    @Test
+    @DisplayName("a waiting preemptor that needs more than the loan returns takes the rest from the holder, as it would on arrival")
+    fun passedLoanAndMoreFromTheHolder() {
+        val (_, m) = run {
+            job("R", r2, 0.0, 10.0, priority = 9, n = 2)
+            urgent("P1", r2, 1.0, 5.0)
+            urgent("P2", r2, 2.0, 5.0, n = 2)
+            at(7.0) { LoansAndFreezesCheck.check(r2); log.add("at 7 busy=${r2.numBusy} loans=${r2.loans.size}") }
+        }
+        // at 2, P2 can take only R's one unit not lent: too few, so it waits. At 6 it takes both of R's units
+        assertEquals(listOf("R got@0.0", "P1 got@1.0", "P1 done@6.0", "P2 got@6.0", "at 7 busy=2 loans=1", "P2 done@11.0", "R done@20.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("a preemptor terminated after a loan passed to it: the units go back to their holder")
+    fun passedLoanBorrowerTerminated() {
+        val (_, m) = run {
+            job("R", ranked, 0.0, 10.0, priority = 9)
+            urgent("P1", ranked, 1.0, 5.0)
+            val p2 = urgent("P2", ranked, 2.0, 5.0)
+            at(8.0) { p2.terminateProcess(); LoansAndFreezesCheck.check(ranked); log.add("at 8 busy=${ranked.numBusy} loans=${ranked.loans.size}") }
+        }
+        // R, held from 1 with 9 left, resumes at 8 and ends at 17
+        assertEquals(listOf("R got@0.0", "P1 got@1.0", "P1 done@6.0", "P2 got@6.0", "at 8 busy=1 loans=0", "R done@17.0"), m.log)
+    }
+
     // ---------- lenders and borrowers that end ----------
 
     @Test

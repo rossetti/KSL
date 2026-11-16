@@ -567,7 +567,11 @@ private inner class Emergency : Entity() {
   equals, only as many as are still needed. A holder of equal or higher
   priority is never preempted. When the free units and all the lower-priority
   holders' units together are too few, or the resource is failed or inactive,
-  nothing is taken: `preempt` waits like `seize` and does not preempt later.
+  nothing is taken: `preempt` waits like `seize`. Under `RESUME` and
+  `RESTART` it can still preempt when a loan of a lower-priority holder
+  ends: the units going back pass to the most urgent such waiting
+  preemptor that can now take enough, and the holder stays held. So a
+  holder never resumes ahead of a waiting preemptor that outranks it.
 - **The rule** is the resource's `interruptRule` unless the call names one.
   Under `RESUME` and `RESTART` the units are taken now and the holder's delay
   is held. Under `FINISH` nothing is taken in service: the preemptor is
@@ -575,7 +579,8 @@ private inner class Emergency : Entity() {
   everyone waiting in the queue.
 - **The units go back.** The holder keeps its allocation. When the preemptor
   releases, the units it took go back to their holders first, newest first,
-  and only then to the queue. Preemptions can nest; the units go back along
+  and only then to the queue, unless a waiting preemptor outranks the holder
+  (above). Preemptions can nest; the units go back along
   the chain. A holder that releases or is terminated while its units are
   taken ends that loan, and the units go to the queue at the preemptor's
   release.
