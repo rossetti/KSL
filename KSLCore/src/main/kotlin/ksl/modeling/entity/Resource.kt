@@ -891,8 +891,8 @@ open class Resource @JvmOverloads constructor(
     private var myFailureSpec: FailureSpec? = null
 
     private class FailureSpec(
-        val timeBetween: RVariableIfc,
-        val repairTime: RVariableIfc,
+        val timeBetween: RandomVariable,
+        val repairTime: RandomVariable,
         val basis: ResourceFailureBasis,
         val rule: InterruptRule
     )
@@ -919,6 +919,10 @@ open class Resource @JvmOverloads constructor(
      *  `USES`, [timeBetween] is rounded to a whole number of releases (at least 1), and the resource fails at
      *  the release that completes it.
      *
+     *  The two times become random variables of this resource, named `<name>:TimeBetweenFailuresRV` and
+     *  `<name>:RepairTimeRV`, so their streams are reset and advanced with the model's other random
+     *  variables, and an experiment can change their parameters by those names.
+     *
      *  It also collects the failure statistics, as [collectFailureStatistics] does. Declared once, while
      *  the model is not running.
      *
@@ -935,7 +939,12 @@ open class Resource @JvmOverloads constructor(
     ) {
         check(model.isNotRunning) { "The failures of $name must be declared before the model runs." }
         check(myFailureSpec == null) { "$name already has its failures declared; they are declared once." }
-        myFailureSpec = FailureSpec(timeBetween, repairTime, basis, rule)
+        // the model's own random variables, so that its streams are reset, advanced and controlled as all others are
+        myFailureSpec = FailureSpec(
+            RandomVariable(this, timeBetween, "${this.name}:TimeBetweenFailuresRV"),
+            RandomVariable(this, repairTime, "${this.name}:RepairTimeRV"),
+            basis, rule
+        )
         if (basis == ResourceFailureBasis.BUSY_TIME) myFailureClock = BusyClock()
         collectFailureStatistics()
     }

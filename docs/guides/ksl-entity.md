@@ -533,7 +533,9 @@ not failed, throws).
   the next failure counts from that repair. The declared failures repair only
   a failure they started: one the model makes by hand lasts until the model
   repairs it. The failures are waited out by an entity of the resource's own,
-  started each replication, separate from a behavior.
+  started each replication, separate from a behavior. The two times become
+  random variables of the resource, `<name>:TimeBetweenFailuresRV` and
+  `<name>:RepairTimeRV`, with streams managed like any other.
 - **Statistics are added only when asked for.** `failures(…)` or
   `collectFailureStatistics()` adds `<name>:PTimeFailed` and
   `<name>:NumFailures`; without them no response is added and existing
