@@ -392,6 +392,77 @@ class FailureInteractionTest {
         assertEquals(5.0, n.average, 1e-12)
     }
 
+    // ---------- the state statistics, worked by hand ----------
+
+    private fun average(model: Model, name: String): Double =
+        (model.getModelElement(name) as Response).acrossReplicationStatistic.average
+
+    /** The proportions of time R was busy, idle, inactive and failed in the one replication of [model]. */
+    private fun proportions(model: Model): List<Double> =
+        listOf("R:PTimeBusy", "R:PTimeIdle", "R:PTimeInactive", "R:PTimeFailed").map { average(model, it) }
+
+    private fun assertProportions(busy: Double, idle: Double, inactive: Double, failed: Double, model: Model) {
+        val p = proportions(model)
+        assertEquals(busy, p[0], 1e-12, "busy")
+        assertEquals(idle, p[1], 1e-12, "idle")
+        assertEquals(inactive, p[2], 1e-12, "inactive")
+        assertEquals(failed, p[3], 1e-12, "failed")
+        assertEquals(1.0, p.sum(), 1e-12, "the proportions sum to 1")
+    }
+
+    @Test
+    @DisplayName("state statistics: a shift ends with a unit busy under IGNORE; the work is busy time and the rest of the shift's absence is inactive")
+    fun stateStatisticsOffShiftWithAUnitBusy() {
+        val (model, _) = run(configure = { r.collectFailureStatistics() }) {
+            job("A", r, 0.0, 10.0)
+            at(4.0) { r.goOffShift() }
+            at(20.0) { r.goOnShift() }
+            job("B", r, 30.0, 10.0)
+        }
+        // busy 0 to 10 and 30 to 40; inactive 10 to 20, off shift with nothing in service; idle the other 70
+        assertProportions(busy = 0.2, idle = 0.7, inactive = 0.1, failed = 0.0, model)
+        // a unit busy for 20 of 100; the capacity is 0 from 4 to 20, so 0.84 on average
+        assertEquals(0.2, average(model, "R:NumBusyUnits"), 1e-12)
+        assertEquals(0.84, average(model, "R:NumActiveUnits"), 1e-12)
+        assertEquals(0.2 / 0.84, average(model, "R:ScheduledUtil"), 1e-12)
+    }
+
+    @Test
+    @DisplayName("state statistics: a failure that spans a change of shift is failed time until the repair, whichever came first")
+    fun stateStatisticsFailureAcrossAShiftChange() {
+        val (failedFirst, _) = run(configure = { r.collectFailureStatistics() }) {
+            at(10.0) { r.fail() }
+            at(15.0) { r.goOffShift() }
+            at(30.0) { r.repair() }
+            at(40.0) { r.goOnShift() }
+        }
+        // idle 0 to 10; failed 10 to 30; repaired off shift, inactive 30 to 40; idle from 40
+        assertProportions(busy = 0.0, idle = 0.7, inactive = 0.1, failed = 0.2, failedFirst)
+
+        val (offShiftFirst, _) = run(configure = { r.collectFailureStatistics() }) {
+            at(10.0) { r.goOffShift() }
+            at(15.0) { r.fail() }
+            at(20.0) { r.goOnShift() }
+            at(30.0) { r.repair() }
+        }
+        // idle 0 to 10; inactive 10 to 15; failed 15 to 30, through the return to shift; idle from 30
+        assertProportions(busy = 0.0, idle = 0.8, inactive = 0.05, failed = 0.15, offShiftFirst)
+    }
+
+    @Test
+    @DisplayName("state statistics: a warm-up that falls while the resource is failed counts only the failed time after it")
+    fun stateStatisticsWarmUpWhileFailed() {
+        val (model, _) = run(warmUp = 20.0, configure = { r.collectFailureStatistics() }) {
+            at(10.0) { r.fail() }
+            at(30.0) { r.repair() }
+            job("A", r, 40.0, 20.0)
+        }
+        // of the 80 after the warm-up: failed 20 to 30, busy 40 to 60, idle the other 50
+        assertProportions(busy = 0.25, idle = 0.625, inactive = 0.0, failed = 0.125, model)
+        assertEquals(0.25, average(model, "R:NumBusyUnits"), 1e-12)
+        assertEquals(0.25, average(model, "R:ScheduledUtil"), 1e-12)
+    }
+
     // ---------- an allocation released while it holds its holder's delay ----------
 
     @Test

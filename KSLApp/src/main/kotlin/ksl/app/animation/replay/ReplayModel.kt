@@ -449,7 +449,18 @@ class ReplayModel(
             // Typed resource-queue members from the seize stream (8I.1b): entity ids, not Request ids.
             val resourceQueueMembers = LinkedHashMap<String, StepTimeline<List<Long>>>()
             val runningSeizeQueue = HashMap<String, MutableList<Long>>()
-            val entityWaitingQueue = HashMap<Long, String>() // entity -> the queue it is waiting in
+            // entity -> the queues it is waiting in: more than one in a wait for the first of several resources
+            val entityWaitingQueues = HashMap<Long, MutableList<String>>()
+            // The entity's wait for resources is over: it leaves every queue it was waiting in.
+            fun leaveSeizeQueues(entityId: Long, simTime: Double): Boolean {
+                val waitingIn = entityWaitingQueues.remove(entityId) ?: return false
+                for (qn in waitingIn) {
+                    val members = runningSeizeQueue[qn] ?: continue
+                    members.remove(entityId)
+                    resourceQueueMembers.getOrPut(qn) { StepTimeline() }.add(simTime, members.toList())
+                }
+                return true
+            }
             val resources = LinkedHashMap<String, StepTimeline<ResourceSnapshot>>()
             val resourceUnits = LinkedHashMap<String, StepTimeline<List<Long>>>()
             val runningResourceUnits = HashMap<String, MutableList<Long>>()
@@ -689,7 +700,7 @@ class ReplayModel(
                             .add(event.simTime, EntityActivity(EntityActivityKind.IN_QUEUE, event.resourceName, event.queueName))
                         // Typed resource-queue members (8I.1b): the seize stream carries the *entity* id,
                         // unlike QObjectEnqueued (which carries the RequestQ's Request id).
-                        entityWaitingQueue[event.entityId] = event.queueName
+                        entityWaitingQueues.getOrPut(event.entityId) { ArrayList() }.add(event.queueName)
                         val mem = runningSeizeQueue.getOrPut(event.queueName) { ArrayList() }
                         mem.add(event.entityId)
                         resourceQueueMembers.getOrPut(event.queueName) { StepTimeline() }.add(event.simTime, mem.toList())
@@ -697,10 +708,9 @@ class ReplayModel(
                     is AnimationEvent.SeizeAllocated -> {
                         entityActivity.getOrPut(event.entityId) { StepTimeline() }
                             .add(event.simTime, EntityActivity(EntityActivityKind.IN_SERVICE, event.resourceName))
-                        // The entity left its waiting queue when allocated (8I.1b).
-                        entityWaitingQueue.remove(event.entityId)?.let { qn ->
-                            runningSeizeQueue[qn]?.let { it.remove(event.entityId); resourceQueueMembers.getOrPut(qn) { StepTimeline() }.add(event.simTime, it.toList()) }
-                        }
+                        // The entity left its waiting queue when allocated (8I.1b), and with it the queues of
+                        // the other resources it was waiting for in the same wait.
+                        leaveSeizeQueues(event.entityId, event.simTime)
                         // Per-unit identity (8C.3): the entity occupies amountAllocated unit slots.
                         val units = runningResourceUnits.getOrPut(event.resourceName) { ArrayList() }
                         repeat(event.amountAllocated) { units.add(event.entityId) }
@@ -711,12 +721,19 @@ class ReplayModel(
                             .add(event.simTime, EntityActivity(EntityActivityKind.FREE))
                         // Defensive: if the entity somehow left without a SeizeAllocated (balk/cancel), drop
                         // it from any waiting queue too (8I.1b).
-                        entityWaitingQueue.remove(event.entityId)?.let { qn ->
-                            runningSeizeQueue[qn]?.let { it.remove(event.entityId); resourceQueueMembers.getOrPut(qn) { StepTimeline() }.add(event.simTime, it.toList()) }
-                        }
+                        leaveSeizeQueues(event.entityId, event.simTime)
                         val units = runningResourceUnits.getOrPut(event.resourceName) { ArrayList() }
                         repeat(event.amountReleased) { units.remove(event.entityId) }
                         resourceUnits.getOrPut(event.resourceName) { StepTimeline() }.add(event.simTime, units.toList())
+                    }
+                    is AnimationEvent.WaitTimedOut -> {
+                        // A seize with a time limit that ran out emits nothing else: the entity leaves the
+                        // queues it waited in and is no longer shown waiting. A timed wait for something
+                        // else changes nothing here.
+                        if (leaveSeizeQueues(event.entityId, event.simTime)) {
+                            entityActivity.getOrPut(event.entityId) { StepTimeline() }
+                                .add(event.simTime, EntityActivity(EntityActivityKind.FREE))
+                        }
                     }
                     is AnimationEvent.EnteredNetwork ->
                         networkEntities.getOrPut(event.entityId) { NetworkEntityTrack(event.entityId, event.simTime) }
