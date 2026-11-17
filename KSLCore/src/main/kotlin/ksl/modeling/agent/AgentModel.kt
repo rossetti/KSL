@@ -354,6 +354,21 @@ open class AgentModel(
          *  registered arrival listeners.
          */
         fun deliver(message: M) {
+            accept(message, atFront = false)
+        }
+
+        /**
+         *  Takes back [message], which was handed to a waiting receiver whose process was then terminated
+         *  before it resumed to take it. The message is delivered again as [deliver] delivers it, to a
+         *  reservation, to the next waiting receiver that accepts it, or to the mailbox, except that in the
+         *  mailbox it goes ahead of the messages already waiting, since it was handed over before them.
+         *  Observers see it delivered a second time.
+         */
+        internal fun handBack(message: M) {
+            accept(message, atFront = true)
+        }
+
+        private fun accept(message: M, atFront: Boolean) {
             // Reserved conversations capture matching messages first, in
             // isolation from every other consumer on this mailbox.
             val reservation = reservations.firstOrNull { it.predicate(message) }
@@ -385,7 +400,7 @@ open class AgentModel(
                 return
             }
             // No matching waiter — queue the message.
-            pending.addLast(message)
+            if (atFront) pending.addFirst(message) else pending.addLast(message)
             notifyDelivered(message)
             // Notify arrival listeners (statechart hooks etc.).
             if (arrivalListeners.isNotEmpty()) {

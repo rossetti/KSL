@@ -192,6 +192,57 @@ class TimedReceiveTest {
     }
 
     @Test
+    @DisplayName("a receiver terminated in the event that delivered its message hands the message back, in every form of receive")
+    fun terminatedBeforeItTakesItsMessage() {
+        for (form in listOf("timed", "untimed", "trigger")) {
+            var sizeAfter = -1
+            val m = run {
+                val r = receiver("r") {
+                    when (form) {
+                        "timed" -> receiveMessageOrTimeout(mailbox, 10.0)
+                        "untimed" -> receiveMessage(mailbox)
+                        else -> waitForFirst(mailbox.trigger(), timeout = 10.0)
+                    }
+                    log.add("r resumed")
+                }
+                at(3.0) {
+                    mailbox.deliver(msg("a"))
+                    r.terminateProcess()
+                    sizeAfter = mailbox.size
+                }
+                at(4.0) { receiver("next") { record("next", receiveMessageOrTimeout(mailbox, 10.0)) } }
+            }
+            assertEquals(1, sizeAfter, "$form: the message is back in the mailbox")
+            assertEquals(listOf("next:a waited=0.0@4.0"), m.log, form)
+        }
+    }
+
+    @Test
+    @DisplayName("a message handed back goes to the next waiting receiver, and ahead of the messages already waiting")
+    fun handedBackToTheNextReceiverAndToTheFront() {
+        val waiting = run {
+            val r = receiver("r") { receiveMessage(mailbox) }
+            receiver("second") { record("second", receiveMessageOrTimeout(mailbox, 10.0) { payload(it) == "a" }) }
+            at(3.0) {
+                mailbox.deliver(msg("a"))
+                r.terminateProcess()
+            }
+        }
+        assertEquals(listOf("second:a waited=3.0@3.0"), waiting.log)
+
+        val front = run {
+            val r = receiver("r") { receiveMessage(mailbox) { payload(it) == "a" } }
+            at(2.0) { mailbox.deliver(msg("b")) }
+            at(3.0) {
+                mailbox.deliver(msg("a"))
+                r.terminateProcess()
+                log.add(mailbox.snapshot().joinToString(",") { payload(it) })
+            }
+        }
+        assertEquals(listOf("a,b"), front.log)
+    }
+
+    @Test
     @DisplayName("two timed receivers on one mailbox: the earlier-registered is served; the other times out")
     fun twoTimedReceivers() {
         val m = run {

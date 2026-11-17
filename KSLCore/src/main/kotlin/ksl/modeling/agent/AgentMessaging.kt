@@ -63,6 +63,10 @@ suspend fun <M : AgentMessage> KSLProcessBuilder.sendMessage(
  *  calling entity is parked via a per-call
  *  [ksl.modeling.entity.ProcessModel.Entity.Suspension], and the
  *  matching [sendMessage] from another agent will resume it directly.
+ *
+ *  A receiver whose process is terminated after a message was handed to it, and before it resumed
+ *  to take it, hands the message back: it goes to the next waiting receiver that accepts it, or
+ *  waits in the mailbox ahead of the messages already there.
  */
 suspend fun <M : AgentMessage> KSLProcessBuilder.receiveMessage(
     mailbox: AgentModel.AgentMailbox<M>,
@@ -76,8 +80,10 @@ suspend fun <M : AgentMessage> KSLProcessBuilder.receiveMessage(
     // peer will resume us with the matched message.
     val suspension = entity.Suspension(name = suspensionName, type = SuspendType.WAIT_FOR_ITEMS)
     val waiter = mailbox.registerWaiter(predicate, suspension)
+    var resumed = false
     try {
         suspendFor(suspension)
+        resumed = true
     } finally {
         // Deregister on *every* exit path. A normal delivery has already removed
         // this waiter inside deliver(), so the call is a no-op there. What matters
@@ -87,6 +93,15 @@ suspend fun <M : AgentMessage> KSLProcessBuilder.receiveMessage(
         // message would be handed to it -- ahead of the pending queue and any live
         // receiver -- consuming the message and then resuming a terminated process.
         mailbox.removeWaiter(waiter)
+        // Terminated after a delivery handed it a message, and before it resumed to take it: the message
+        // goes back to the mailbox rather than being lost with the process.
+        if (!resumed) {
+            val handed = waiter.result
+            if (handed != null) {
+                waiter.result = null
+                mailbox.handBack(handed)
+            }
+        }
     }
     @Suppress("UNCHECKED_CAST")
     return waiter.result as M
@@ -99,7 +114,8 @@ suspend fun <M : AgentMessage> KSLProcessBuilder.receiveMessage(
  *  the mailbox (then the call returns at once). Otherwise, when the time runs out, the result is
  *  timed out, nothing is taken from the mailbox, and a matching message delivered later is kept
  *  in the mailbox as if nobody had waited. While it waits, the receiver takes its place among the
- *  mailbox's waiting receivers in the order it started waiting, as with [receiveMessage].
+ *  mailbox's waiting receivers in the order it started waiting, as with [receiveMessage], and a
+ *  receiver terminated before it takes a message handed to it hands the message back in the same way.
  *
  *  A message delivered at the very instant the time runs out wins at the default priorities:
  *  the timer runs late in the instant. Give an earlier [timeoutPriority] to let the time limit
@@ -176,7 +192,8 @@ internal class MessageTrigger<M : AgentMessage>(
 
 /**
  *  A message trigger's waiter in one wait. The delivery that matches it removes it from the
- *  mailbox and claims the wait with the message; a loser or a terminated wait removes it.
+ *  mailbox and claims the wait with the message; a loser or a terminated wait removes it. A wait
+ *  terminated after the claim, before its process resumed, hands the message back to the mailbox.
  */
 internal class MessageRegistration<M : AgentMessage>(
     private val messageTrigger: MessageTrigger<M>,
@@ -191,6 +208,13 @@ internal class MessageRegistration<M : AgentMessage>(
 
     override fun onReleaseOnTermination() {
         messageTrigger.mailbox.removeWaiter(waiter)
+        // terminated after a delivery claimed the wait with a message, and before the process resumed to
+        // take it: the message goes back to the mailbox
+        val handed = waiter.result
+        if (handed != null) {
+            waiter.result = null
+            messageTrigger.mailbox.handBack(handed)
+        }
     }
 
     override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
