@@ -1647,13 +1647,17 @@ open class Resource @JvmOverloads constructor(
     /**
      *  Units have come free or come back: the waiting preemptors plan again, most urgent first and, among
      *  equals, the one waiting longest, each as it would on arrival. One that can now take enough is given
-     *  its units, or, under `FINISH`, reserves them; then the next plans. So a holder never resumes, and
-     *  freed units never go to the queue, ahead of a waiting preemptor that outranks the holders it can
-     *  take from.
+     *  its units, or, under `FINISH`, reserves them; then the next plans. So a holder never resumes ahead
+     *  of a waiting preemptor that outranks it, and free units go to a waiting preemptor ahead of the
+     *  requests it outranks. It takes no free unit ahead of a request or a reservation as urgent as it is
+     *  (see [mayTakeFreeUnits]): it stays waiting, and the units go to the reservations and the queue.
      */
     private fun replanWaitingPreemptors(priority: Int, source: ResumeSource, detail: String?) {
         if (myWaitingPreemptors.isEmpty() || isFailed || isInactive || isRunEnded) return
-        myWaitingPreemptors.removeAll { r -> r.passedAllocation != null || (r.queue as? RequestQ)?.contains(r) != true }
+        // one that has its allocation, has left its queue, or has moved its request to another resource
+        myWaitingPreemptors.removeAll { r ->
+            r.passedAllocation != null || r.resource !== this || (r.queue as? RequestQ)?.contains(r) != true
+        }
         val candidates = myWaitingPreemptors
             .filter { !it.resumePending && !it.isReserved && it.promises.isEmpty() }
             .sortedWith(compareBy<ProcessModel.Entity.ResourceRequest> { it.entity.priority }.thenBy { it.timeEnteredQueue })
@@ -1661,6 +1665,7 @@ open class Resource @JvmOverloads constructor(
             val amount = request.amountRequested
             val plan = if (amount <= numAvailableUnits) PreemptionPlan(amount, emptyList())
                 else planPreemption(request.entity, amount) ?: continue
+            if (plan.free > 0 && !mayTakeFreeUnits(request)) continue
             myWaitingPreemptors.remove(request)
             val why = "preemptor_replanned_resource=$name, request_id=${request.id}, ${detail ?: ""}"
             if (request.waitingPreemptRule == InterruptRule.FINISH && plan.takes.isNotEmpty()) {
@@ -1669,6 +1674,28 @@ open class Resource @JvmOverloads constructor(
                 giveToWaitingPreemptor(request, plan, mutableMapOf(), priority, source, why)
             }
         }
+    }
+
+    /**
+     *  Whether the waiting preemptor [request] may take free units now. It may not while something as
+     *  urgent as it is comes before it: a reservation still collecting units whose entity is equally or
+     *  more urgent, or the request a queue would serve next from this resource when that request is more
+     *  urgent, or is equally urgent and ahead of it (in its own queue by the queue's discipline, in another
+     *  queue by the time it began to wait). Requests of lower priority do not hold it back.
+     */
+    private fun mayTakeFreeUnits(request: ProcessModel.Entity.ResourceRequest): Boolean {
+        val priority = request.entity.priority
+        if (myReservations.any { !it.isComplete && it.request.entity.priority <= priority }) return false
+        for (queue in myCapacityChangeQSet) {
+            val next = queue.nextRequestServableBy(this) ?: continue
+            if (next === request) continue
+            val nextPriority = next.entity.priority
+            if (nextPriority < priority) return false
+            if (nextPriority == priority &&
+                (queue === request.queue || next.timeEnteredQueue < request.timeEnteredQueue)
+            ) return false
+        }
+        return true
     }
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :

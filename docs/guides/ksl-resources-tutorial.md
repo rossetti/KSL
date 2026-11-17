@@ -885,7 +885,7 @@ RoutineTimeInShop     54.6893   [ 50.8540,  58.5246]    53.3333
 preemptions per replication 828.1; times a routine job is preempted 0.2493
 Rush jobs take the machine under FINISH, against the exact non-preemptive (Cobham) priority queue
                      estimate           99% interval      exact
-RushTimeInShop        19.9173   [ 19.3254,  20.5092]    20.0000
+RushTimeInShop        19.9243   [ 19.3353,  20.5132]    20.0000
 RoutineTimeInShop     51.3933   [ 47.5898,  55.1969]    50.0000
 preemptions per replication 622.4; times a routine job is preempted 0.0000
 ```

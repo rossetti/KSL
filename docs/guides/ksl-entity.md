@@ -591,8 +591,12 @@ private inner class Emergency : Entity() {
   return to shift and at a capacity increase. The most urgent waiting
   preemptor plans first, as on arrival; one that can now take enough takes
   its units (under `FINISH`, reserves them), and the holders stay held. So a
-  holder never resumes, and freed units never go to the queue, ahead of a
-  waiting preemptor that outranks it.
+  holder never resumes ahead of a waiting preemptor that outranks it, and
+  freed units go to a waiting preemptor ahead of the waiting requests it
+  outranks. It takes no freed unit ahead of a waiting request that is more
+  urgent, or equally urgent and ahead of it, nor ahead of a `FINISH`
+  preemptor, equally or more urgent, that is still taking its units: it goes
+  on waiting in its queue and is served in its turn.
 - **The rule** is the resource's `interruptRule` unless the call names one.
   Under `RESUME` and `RESTART` the units are taken now and the holder's delay
   is held. Under `FINISH` nothing is taken in service: the preemptor is

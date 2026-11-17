@@ -43,6 +43,7 @@ class PreemptionTest {
         val r2 = ResourceWithQ(this, "R2", capacity = 2)
         val r3 = ResourceWithQ(this, "R3", capacity = 3)
         val ranked = ResourceWithQ(this, "Ranked", queue = RequestQ(this, "RankedQ", Queue.Discipline.RANKED))
+        val backup = ResourceWithQ(this, "Backup")
 
         val log = mutableListOf<String>()
         val setups = mutableListOf<PModel.() -> Unit>()
@@ -53,6 +54,17 @@ class PreemptionTest {
             }
 
             val p: KSLProcess = process("p-$tag") { body() }
+
+            /** When set, the entity moves its waiting request there when the resource it waits for goes inactive. */
+            var movesTo: ResourceWithQ? = null
+
+            override fun resourceBecameInactiveWhileWaitingInQueueWithSeizeRequest(
+                queue: RequestQ, resource: Resource, request: Request
+            ) {
+                val target = movesTo ?: return
+                log.add("$tag moves to ${target.name}@$time")
+                moveRequestToResource(request as ResourceRequest, queue, target, RESUME_PRIORITY)
+            }
         }
 
         fun actor(tag: String, priority: Int = 5, body: suspend KSLProcessBuilder.() -> Unit) =
@@ -89,7 +101,7 @@ class PreemptionTest {
         }
 
         override fun replicationEnded() {
-            LoansAndFreezesCheck.check(r, r2, r3, ranked)
+            LoansAndFreezesCheck.check(r, r2, r3, ranked, backup)
         }
     }
 
@@ -602,6 +614,108 @@ class PreemptionTest {
             urgent("P", r, 2.0, 1.0, priority = 3)
         }
         assertEquals(listOf("L got@0.0", "T timed out@3.0", "L done@10.0", "P got@10.0", "P done@11.0"), m.log)
+    }
+
+    // ---------- a waiting preemptor's place among the others waiting ----------
+
+    @Test
+    @DisplayName("a waiting preemptor does not take a freed unit ahead of an equally urgent request that waited first")
+    fun waitingPreemptorBehindAnEqualRequest() {
+        val (_, m) = run {
+            job("L", r, 0.0, 10.0, priority = 5)
+            job("N", r, 1.0, 1.0, priority = 5)
+            urgent("P", r, 2.0, 1.0, priority = 5)
+        }
+        assertEquals(listOf("L got@0.0", "L done@10.0", "N got@10.0", "N done@11.0", "P got@11.0", "P done@12.0"), m.log)
+        assertEquals(0, m.r.numTimesPreempted)
+    }
+
+    @Test
+    @DisplayName("a waiting preemptor does not take a freed unit ahead of a more urgent request")
+    fun waitingPreemptorBehindAMoreUrgentRequest() {
+        val (_, m) = run {
+            job("L", r, 0.0, 10.0, priority = 1)
+            job("N", r, 1.0, 1.0, priority = 1)
+            urgent("P", r, 2.0, 1.0, priority = 5)
+        }
+        assertEquals(listOf("L got@0.0", "L done@10.0", "N got@10.0", "N done@11.0", "P got@11.0", "P done@12.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("a waiting preemptor does not take a freed unit ahead of a more urgent FINISH reservation")
+    fun waitingPreemptorBehindAReservation() {
+        val (_, m) = run {
+            job("L", r, 0.0, 10.0, priority = 5)
+            urgent("F", r, 1.0, 1.0, priority = 1, rule = InterruptRule.FINISH)
+            urgent("P", r, 2.0, 1.0, priority = 5)
+        }
+        assertEquals(listOf("L got@0.0", "L done@10.0", "F got@10.0", "F done@11.0", "P got@11.0", "P done@12.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("under FINISH, a preemptor that arrives during another's service waits behind an earlier, equally urgent reservation")
+    fun waitingFinishPreemptorBehindAnEqualReservation() {
+        val (_, m) = run {
+            job("R", r, 0.0, 10.0, priority = 2)
+            urgent("A", r, 1.0, 5.0, rule = InterruptRule.FINISH)
+            urgent("B", r, 2.0, 1.0, rule = InterruptRule.FINISH)
+            urgent("W", r, 11.0, 1.0, rule = InterruptRule.FINISH)
+        }
+        // A and B reserve R's unit; W finds A, its equal, in service and waits. At 15 the unit goes to B
+        assertEquals(
+            listOf("R got@0.0", "R done@10.0", "A got@10.0", "A done@15.0", "B got@15.0", "B done@16.0", "W got@16.0", "W done@17.0"),
+            m.log
+        )
+    }
+
+    @Test
+    @DisplayName("a waiting preemptor that needs a freed unit and a holder's leaves the freed unit to a more urgent request")
+    fun waitingPreemptorTakingFreeAndHeldUnitsBehindAMoreUrgentRequest() {
+        val (_, m) = run {
+            job("E", r2, 0.0, 5.0, priority = 1)
+            job("L", r2, 0.0, 20.0, priority = 9)
+            job("N", r2, 1.0, 1.0, priority = 1)
+            urgent("P", r2, 2.0, 1.0, priority = 3, n = 2)
+        }
+        // at 5 E's unit comes free: N, more urgent and waiting first, takes it; at 6 P takes it with L's
+        assertEquals(
+            listOf("E got@0.0", "L got@0.0", "E done@5.0", "N got@5.0", "N done@6.0", "P got@6.0", "P done@7.0", "L done@21.0"),
+            m.log
+        )
+    }
+
+    @Test
+    @DisplayName("a waiting preemptor still takes a freed unit ahead of a less urgent request that waited first")
+    fun waitingPreemptorAheadOfALessUrgentRequest() {
+        val (_, m) = run {
+            job("L", r, 0.0, 10.0, priority = 1)
+            job("N", r, 1.0, 1.0, priority = 5)
+            urgent("P", r, 2.0, 1.0, priority = 3)
+        }
+        assertEquals(listOf("L got@0.0", "L done@10.0", "P got@10.0", "P done@11.0", "N got@11.0", "N done@12.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("a waiting preemptor that moves its request is served by the resource it moved to, not the one it left")
+    fun movedWaitingPreemptor() {
+        val (_, m) = run(length = 200.0) {
+            job("B", backup, 0.0, 100.0, priority = 1)
+            job("H", r, 0.0, 3.0, priority = 1)
+            val p = actor("P", 5) {
+                delay(1.0)
+                val a = preempt(r)
+                log.add("P got ${a.resource.name}@$time")
+                delay(1.0)
+                release(a)
+            }
+            p.movesTo = backup
+            at(2.0) { r.goOffShift() }
+            at(5.0) { r.goOnShift() }
+            at(6.0) { log.add("at 6 R busy=${r.numBusy} Backup waiting=${backup.waitingQ.size}") }
+        }
+        assertTrue("at 6 R busy=0 Backup waiting=1" in m.log, m.log.toString())
+        assertTrue("P got Backup@100.0" in m.log, m.log.toString())
+        assertTrue(m.log.none { it.startsWith("P got R") }, m.log.toString())
     }
 
     // ---------- capacity changes ----------

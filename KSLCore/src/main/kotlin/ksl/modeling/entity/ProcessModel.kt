@@ -1784,6 +1784,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             newQ.enqueue(request, request.priority)
             // the request's original resource is replaced with the new resource
             request.myResource = resource
+            // a preempt that was waiting goes on waiting as one, for the new resource; the resource it left
+            // drops it when it next plans
+            request.waitingPreemptRule?.let { rule -> resource.waitAsPreemptor(request, rule) }
             val detail = "request_id=${request.id}, moved_to_resource=${resource.name}, amount=${request.amountRequested}"
             val canServe = newQ.size == 1 && resource.canAllocate(request.amountRequested)
             if (wasWoken) {

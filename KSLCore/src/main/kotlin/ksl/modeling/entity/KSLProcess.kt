@@ -1723,8 +1723,11 @@ interface KSLProcessBuilder {
      *  capacity increase. The waiting entities plan most urgent first, each as it would on arrival; at the
      *  end of a loan of a lower-priority holder, the units going back count as the holder's. One that can
      *  now take enough takes its units, and the holders stay held (under `FINISH`, it reserves them). So a
-     *  holder never resumes, and freed units never go to the queue, ahead of a waiting entity that outranks
-     *  it. A movable resource cannot be preempted; use `seize` for it.
+     *  holder never resumes ahead of a waiting entity that outranks it, and freed units go to such a waiting
+     *  entity ahead of the waiting requests it outranks. It takes no freed unit ahead of a waiting request
+     *  that is more urgent, or equally urgent and ahead of it, nor ahead of a `FINISH` entity, equally or
+     *  more urgent, that is still taking its units: it goes on waiting in its queue and is served in its
+     *  turn. A movable resource cannot be preempted; use `seize` for it.
      *
      *  @param resource the resource to take units of
      *  @param amountNeeded the number of units, at least 1
