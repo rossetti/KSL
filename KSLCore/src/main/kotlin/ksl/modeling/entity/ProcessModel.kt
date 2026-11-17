@@ -963,7 +963,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  Removes a reason; when the last ends, the delay is rescheduled for [postTime] when given (a process
          *  interrupt's explicit time, used only if it ends last), else in full after a restart, else for the
          *  time left. A process interrupt's removal reaches only the delay it froze ([token]). Nothing is
-         *  rescheduled once the run has ended.
+         *  rescheduled once the run has ended, or for a process that has been terminated: its resources are
+         *  released before its freeze state is cleared, and its delay is over.
          */
         internal fun removeFreezeReason(by: Allocation?, postTime: Double?, token: Long? = null) {
             if (by != null) {
@@ -976,7 +977,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             val duration = postTime ?: (if (myFreezeRestart) myDelayDuration else myFrozenRemaining)
             myFreezeRestart = false
             val process = myCurrentProcess ?: return
-            if (currentSuspendType != SuspendType.DELAY || processModel.executive.isEnded) return
+            if (currentSuspendType != SuspendType.DELAY || processModel.executive.isEnded || process.isTerminated) return
             val eName = "Delay Event: duration = $duration suspension name = $currentSuspendName (after an interrupt)"
             val delayEvent = process.scheduleDelayEnd(duration, myDelayPriority, eName)
             delayEvent.entity = this
@@ -3426,6 +3427,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         entity.state.activate()
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     }
+                    // A guided pool promises nothing at the wake, so the transporter that woke the request may
+                    // have gone off shift or failed before this resume: the request then waits again, in its
+                    // place in the queue, until a transporter is offered to the pool.
+                    waitUntilPromiseHonoured(request) { pool.hasIdleTransporter }
                     queue.remove(request) // take the request out of the queue after possible wait
                 } finally {
                     // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.

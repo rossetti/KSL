@@ -286,4 +286,66 @@ class WaitForFirstSeizeTest {
         assertEquals(listOf("SeizeQueued@0.0", "SeizeWaiting@0.0"), seize)
         assertTrue(sink.events.any { it is AnimationEvent.SignalReceived && it.entityId == w.id })
     }
+
+    // ---------- a broken promise, and another trigger that wins the wait again ----------
+
+    /**
+     *  T waits for an item or the unit of R. At 5 the unit is released to T and the capacity is cut to 0
+     *  in the same step, so T's promise is broken, and an item is sent. T waits again; the items trigger
+     *  wins while it registers, because the selector serves T past the request W that cannot be filled.
+     */
+    private class BrokenPromise(parent: ModelElement, val itemsFirst: Boolean) : ProcessModel(parent, "brokenPromise") {
+        val r = ResourceWithQ(this, "R")
+
+        inner class Item(tag: String) : QObject(tag)
+
+        val items = BlockingQueue<Item>(this, name = "Items")
+        val log = mutableListOf<String>()
+
+        init {
+            items.receiverRequestSelector = items.FirstFillableRequest()
+        }
+
+        inner class Actor(tag: String, val body: suspend KSLProcessBuilder.() -> Unit) : Entity(tag) {
+            val p: KSLProcess = process("p-$tag") { body() }
+        }
+
+        override fun initialize() {
+            log.clear()
+            activate(Actor("W") { waitForItems(items, 1, { false }) }.p)
+            activate(Actor("X") {
+                val a = seize(r)
+                delay(5.0)
+                release(a)
+                r.changeCapacity(r.CapacityChangeNotice(capacity = 0))
+                send(Item("i"), items)
+            }.p)
+            activate(Actor("T") {
+                delay(1.0)
+                val itemsTrigger = items.itemsTrigger()
+                val unit = r.seizeTrigger()
+                val result = if (itemsFirst) waitForFirst(itemsTrigger, unit, timeout = 20.0)
+                else waitForFirst(unit, itemsTrigger, timeout = 20.0)
+                log.add("T:${if (result.firedBy(itemsTrigger)) "items" else if (result.firedBy(unit)) "unit" else "timeout"}@$time waiting=${r.waitingQ.size}")
+            }.p)
+            schedule(EventActionIfc<Nothing> {
+                r.changeCapacity(r.CapacityChangeNotice(capacity = 1))
+                log.add("restored@$time waiting=${r.waitingQ.size} busy=${r.numBusy}")
+            }, 8.0)
+        }
+    }
+
+    @Test
+    @DisplayName("a seize trigger whose promise is broken, and whose wait another trigger then wins, leaves no request in the queue, in either argument order")
+    fun brokenPromiseThenAnotherTriggerWins() {
+        for (itemsFirst in listOf(true, false)) {
+            val model = Model("BrokenPromise${System.nanoTime()}", autoCSVReports = false)
+            val m = BrokenPromise(model, itemsFirst)
+            model.numberOfReplications = 1
+            model.lengthOfReplication = 20.0
+            model.simulate()
+            // the capacity comes back at 8: a request left in the queue would be woken for a wait that has ended
+            assertEquals(listOf("T:items@5.0 waiting=0", "restored@8.0 waiting=0 busy=0"), m.log, "items first = $itemsFirst")
+        }
+    }
 }

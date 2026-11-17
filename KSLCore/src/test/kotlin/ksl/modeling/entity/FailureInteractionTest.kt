@@ -392,6 +392,49 @@ class FailureInteractionTest {
         assertEquals(5.0, n.average, 1e-12)
     }
 
+    // ---------- an allocation released while it holds its holder's delay ----------
+
+    @Test
+    @DisplayName("another entity releases an allocation whose units are down: the holder's delay goes on with its time left")
+    fun allocationReleasedByAnotherWhileItHoldsADelay() {
+        val (_, m) = run {
+            var held: Allocation? = null
+            actor("H") {
+                held = seize(r)
+                delay(10.0)
+                log.add("H done@$time")
+            }
+            at(1.0) { r.fail(InterruptRule.RESUME) }
+            actor("O") {
+                delay(2.0)
+                release(held!!)
+                log.add("O released@$time")
+            }
+            at(3.0) { r.repair() }
+        }
+        // held from 1 with 9 left; the release at 2 ends the hold, so the delay ends at 11
+        assertEquals(listOf("O released@2.0", "H done@11.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("a holder terminated while its delay is held: its delay is not started again, and the next replication is clean")
+    fun holderTerminatedWhileItsDelayIsHeld() {
+        val (_, m) = run(reps = 2) {
+            val h = actor("H") {
+                val a = seize(r)
+                delay(10.0)
+                release(a)
+                log.add("H done@$time")
+            }
+            at(1.0) { r.fail(InterruptRule.RESUME) }
+            at(2.0) { h.terminateProcess() }
+            at(3.0) { r.repair() }
+            job("N", r, 4.0, 1.0)
+            at(50.0) { log.add("at 50 busy=${r.numBusy} failed=${r.isFailed}") }
+        }
+        assertEquals(listOf("N got@4.0", "N done@5.0", "at 50 busy=0 failed=false"), m.log)
+    }
+
     // ---------- the animation trace ----------
 
     @Test

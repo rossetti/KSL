@@ -1090,7 +1090,11 @@ open class Resource @JvmOverloads constructor(
                 event = schedule(::failureClockFired, left)
             } else if (!shouldRun && running) {
                 running = false
-                left = maxOf(0.0, left - (time - since))
+                // Whether the busy time has run out is read from the clock's own event: when it is due now,
+                // nothing is left. Subtracting the times can leave a small residue above zero, which would
+                // keep the failure for the next busy period.
+                val due = event?.let { it.time <= time } ?: false
+                left = if (due) 0.0 else maxOf(0.0, left - (time - since))
                 cancelEvent()
                 event = null
                 // the busy time ran out as the clock stopped, ahead of its own event at this instant: the

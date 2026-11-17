@@ -349,6 +349,30 @@ class ResourceFailureTest {
     }
 
     @Test
+    @DisplayName("BUSY_TIME: a release at the instant the failure comes due, ahead of the clock's event, fails the resource though the times do not subtract to zero")
+    fun busyTimeRunsOutAtAReleaseWithARoundingResidue() {
+        val (_, m) = run(length = 30.0, configure = {
+            r.failures(ConstantRV(0.6), ConstantRV(5.0), ResourceFailureBasis.BUSY_TIME, InterruptRule.FINISH)
+        }) {
+            actor("A") {
+                delay(0.3)
+                val a = seize(r)
+                // 0.3 + 0.6 is not 0.9 in floating point, and 0.6 less the busy time is a little above 0
+                delay(0.6, delayPriority = KSLEvent.HIGH_PRIORITY)
+                release(a)
+                log.add("A released, failed=${r.isFailed}")
+            }
+            actor("B") {
+                delay(0.5)
+                val a = seize(r)
+                log.add("B got after the repair=${time > 5.8}")
+                release(a)
+            }
+        }
+        assertEquals(listOf("A released, failed=true", "B got after the repair=true"), m.log)
+    }
+
+    @Test
     @DisplayName("BUSY_TIME: a seize at the instant the failure comes due, after the clock's event, waits for the repair")
     fun busyTimeSeizeJustAfterTheFailureIsDue() {
         val (_, m) = run(length = 30.0, configure = {

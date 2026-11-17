@@ -42,7 +42,10 @@ import ksl.utilities.observers.ObserverIfc
  *  - each reservation's request waits in a queue, reserved, and holds what the reservation has promised;
  *  - every wait listed on an allocation's triggers is still open;
  *  - a holder's delay is held only by allocations with units missing, has no event on the calendar while
- *    held, and is never held by one while it reports an interruption instead.
+ *    held, and is never held by one while it reports an interruption instead;
+ *  - no request waits, un-woken, in one of its queues beside units it could take. A woken request is
+ *    already on its way; a failed or inactive resource can serve no one; and a request that the queue's
+ *    selection rule holds back, or that does not fit in the units available, is not one it could serve.
  */
 internal object ResourceInvariants {
 
@@ -128,6 +131,16 @@ internal object ResourceInvariants {
             val held = request.promises[resource] ?: 0
             val expected = if (reservation.isComplete) request.amountRequested else request.amountRequested - reservation.stillNeeded
             if (held != expected) violation(resource, "the reservation of request ${request.id} holds $held units, not $expected")
+        }
+        // no request waits, un-woken, beside units it could take
+        if (!resource.isFailed && !resource.isInactive && resource.numAvailableUnits > 0) {
+            for (queue in resource.registeredQueues) {
+                val stranded = queue.nextRequestServableBy(resource) ?: continue
+                violation(
+                    resource, "request ${stranded.id} of entity ${stranded.entity.id} waits in ${queue.name} for " +
+                            "${stranded.amountRequested} units, un-woken, while ${resource.numAvailableUnits} are available"
+                )
+            }
         }
     }
 

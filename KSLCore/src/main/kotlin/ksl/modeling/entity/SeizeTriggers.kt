@@ -256,8 +256,9 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
     }
 
     /**
-     *  Waits again, with the same request, for every trigger of the wait, in their order, for the time left to
-     *  the original deadline. The other triggers register afresh; one that can fire at once ends the wait as
+     *  Waits again, with the same request, for every trigger of the wait, for the time left to the original
+     *  deadline. The request's registration joins the new wait first; the other triggers then register
+     *  afresh, in their order; one that can fire at once ends the wait as
      *  the fast path of `waitForFirst` does.
      *
      *  @return true when this seize trigger claimed the re-wait; false when the timer did, or another trigger,
@@ -269,18 +270,22 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
         again.timeoutPriority = group.timeoutPriority
         val seizeAgain = SeizeRegistration(seizeTrigger, again)
         seizeAgain.attach(request)
+        // In the group before any other trigger registers: one of them can claim the wait as it registers,
+        // and the claim releases only the registrations the group holds. Left out, the request would stay in
+        // its queue, to be woken later for a wait that has ended.
+        again.registrations.add(seizeAgain)
         for (trigger in group.triggers) {
             if (trigger !== seizeTrigger && trigger.canFireNow(entity)) {
                 val value = trigger.fireNow(this)
                 // the request loses, as at any claim: it leaves its queue and its units are offered on
-                again.registrations.add(seizeAgain)
                 again.claim(null, null, ResumeSource.UNKNOWN_INTERNAL, ProcessModel.RESUME_PRIORITY)
                 otherWinner = AfterResume.Other(trigger, value)
                 return false
             }
         }
         for (trigger in group.triggers) {
-            again.registrations.add(if (trigger === seizeTrigger) seizeAgain else trigger.register(again))
+            if (trigger === seizeTrigger) continue
+            again.registrations.add(trigger.register(again))
             if (again.claimed) break
         }
         if (!again.claimed) waitAgain(again)

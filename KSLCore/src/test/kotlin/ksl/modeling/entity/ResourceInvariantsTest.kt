@@ -142,6 +142,39 @@ class ResourceInvariantsTest {
         kotlin.test.assertTrue(m.done)
     }
 
+    /** A unit freed at 5 without being offered to the queue, so the request waiting for it is left beside it. */
+    private class Stranded(parent: ModelElement) : ProcessModel(parent, "stranded") {
+        val r = ResourceWithQ(this, "R")
+        var held: Allocation? = null
+
+        inner class Holder : Entity() {
+            val run: KSLProcess = process("holder") { held = seize(r); delay(10.0) }
+        }
+
+        inner class Waiter : Entity() {
+            val run: KSLProcess = process("waiter") { delay(1.0); val a = seize(r); release(a) }
+        }
+
+        override fun initialize() {
+            activate(Holder().run)
+            activate(Waiter().run)
+            schedule({ _: KSLEvent<Nothing> -> r.deallocate(held!!) }, 5.0)
+        }
+    }
+
+    @Test
+    @DisplayName("switched on, a request left waiting beside a unit it could take is caught")
+    fun onCatchesAStrandedRequest() {
+        ResourceInvariants.enabled = true
+        val model = Model("Stranded${System.nanoTime()}", autoCSVReports = false)
+        Stranded(model)
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 20.0
+        val error = assertFailsWith<RuntimeException> { model.simulate() }
+        val messages = generateSequence<Throwable>(error) { it.cause }.joinToString(" | ") { it.message ?: "" }
+        assertContains(messages, "for 1 units, un-woken, while 1 are available")
+    }
+
     @Test
     @DisplayName("switched off, nothing is checked")
     fun offChecksNothing() {

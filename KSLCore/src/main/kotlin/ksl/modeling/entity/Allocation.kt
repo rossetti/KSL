@@ -175,14 +175,18 @@ class Allocation internal constructor(
         private set
 
     internal fun deallocate(){
-        // an interruption still open at the release ends with it; nothing is rescheduled, and units
-        // coming back later have no holder to return to
+        // an interruption still open at the release ends with it, and units coming back later have no
+        // holder to return to
         if (missingUnits > 0) {
             timeInterrupted += myResource.time - myInterruptedSince
             myInterruptedSince = Double.NaN
             missingByFailure = 0
             missingByLoan = 0
             freezeRestart = false
+            // The allocation no longer holds its holder's delay. The holder cannot release while its delay
+            // is held, so this is a release by another entity, or the holder's termination: the delay goes
+            // on when nothing else holds it, except for a terminated process, whose delay is over.
+            myEntity.removeFreezeReason(this, null)
         }
         amountReleased = amount
         amount = 0

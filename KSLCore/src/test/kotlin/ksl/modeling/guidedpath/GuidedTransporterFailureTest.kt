@@ -52,7 +52,7 @@ class GuidedTransporterFailureTest {
         val carts = GuidedTransporterPoolWithQ(this, system, listOf(cart), allocationRule = ClosestByNetworkDistanceRule(), name = "Carts")
         val log = mutableListOf<String>()
 
-        inner class Part(val tag: String, val from: Double) : Entity(tag) {
+        inner class Part(val tag: String, val from: Double, val afterRelease: () -> Unit = {}) : Entity(tag) {
             val p = process(isDefaultProcess = true) {
                 delay(from)
                 currentLocation = network.requireLocation("P")
@@ -60,6 +60,7 @@ class GuidedTransporterFailureTest {
                 log.add("$tag:at pickup@$time")
                 transportBy(request, "B")
                 releaseGuidedTransporter(request, carts)
+                afterRelease()
                 log.add("$tag:done@$time")
             }
         }
@@ -114,5 +115,30 @@ class GuidedTransporterFailureTest {
         // repaired at 60 at B, it drives the 100 units to P
         assertEquals("second:at pickup@70.0", shop.log[3])
         assertFalse(shop.cart.isFailed)
+    }
+
+    @Test
+    @DisplayName("the cart goes off shift in the step that released it: the woken request waits again and is served back on shift")
+    fun offShiftBeforeAWokenRequestResumes() {
+        val shop = run {
+            activate(Part("first", 0.0) { cart.goOffShift() }.p)
+            activate(Part("second", 3.0).p)
+            at(100.0) { log.add("at 100 waiting=${carts.waitingQ.size}") }
+            at(150.0) { cart.goOnShift() }
+        }
+        // back on shift at 150 at B, the cart drives the 100 units to P
+        assertEquals(listOf("first:at pickup@20.0", "first:done@40.0", "at 100 waiting=1", "second:at pickup@160.0"), shop.log.take(4))
+    }
+
+    @Test
+    @DisplayName("the cart fails in the step that released it: the woken request waits again and is served at the repair")
+    fun failedBeforeAWokenRequestResumes() {
+        val shop = run {
+            activate(Part("first", 0.0) { cart.fail() }.p)
+            activate(Part("second", 3.0).p)
+            at(100.0) { log.add("at 100 waiting=${carts.waitingQ.size}") }
+            at(150.0) { cart.repair() }
+        }
+        assertEquals(listOf("first:at pickup@20.0", "first:done@40.0", "at 100 waiting=1", "second:at pickup@160.0"), shop.log.take(4))
     }
 }
