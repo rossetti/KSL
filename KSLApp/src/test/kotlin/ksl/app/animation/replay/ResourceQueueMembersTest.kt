@@ -77,4 +77,90 @@ class ResourceQueueMembersTest {
 
         assertEquals("R", r.entityServiceResourceAt(1L, 10.0))
     }
+
+    @Test
+    fun `a seize that loses its wait to a signal leaves the queue at the signal`() {
+        val events = listOf(
+            AnimationEvent.EntityCreated(0.0, 1L, "Part"),
+            AnimationEvent.SeizeQueued(1.0, 1L, "Bed", "Bed:Q", amountRequested = 1),
+            AnimationEvent.WaitingForSignal(1.0, 1L, "Alarm"),
+            AnimationEvent.SeizeWithdrawn(3.0, 1L, "Bed", "Bed:Q"),
+            AnimationEvent.SignalReceived(3.0, 1L, "Alarm")
+        )
+        val r = build(events)
+
+        assertEquals(listOf(1L), r.queueMembersAt("Bed:Q", 2.0))
+        assertEquals(emptyList(), r.queueMembersAt("Bed:Q", 10.0))
+        assertEquals(null, r.entityQueueAt(1L, 10.0))
+    }
+
+    @Test
+    fun `a withdrawn seize leaves only its own queue, and the entity is shown in the one it still waits in`() {
+        val events = listOf(
+            AnimationEvent.EntityCreated(0.0, 1L, "Part"),
+            AnimationEvent.SeizeQueued(1.0, 1L, "Bed", "Bed:Q", amountRequested = 1),
+            AnimationEvent.SeizeQueued(1.0, 1L, "Chair", "Chair:Q", amountRequested = 1),
+            AnimationEvent.SeizeWithdrawn(3.0, 1L, "Chair", "Chair:Q")
+        )
+        val r = build(events)
+
+        assertEquals(emptyList(), r.queueMembersAt("Chair:Q", 5.0))
+        assertEquals(listOf(1L), r.queueMembersAt("Bed:Q", 5.0))
+        assertEquals("Bed:Q", r.entityQueueAt(1L, 5.0))
+    }
+
+    @Test
+    fun `a moved request leaves the queue it was in and joins the one it was moved to`() {
+        val events = listOf(
+            AnimationEvent.EntityCreated(0.0, 1L, "Part"),
+            AnimationEvent.SeizeQueued(1.0, 1L, "Bed", "Bed:Q", amountRequested = 1),
+            AnimationEvent.SeizeWithdrawn(3.0, 1L, "Bed", "Bed:Q"),
+            AnimationEvent.SeizeQueued(3.0, 1L, "Chair", "Chair:Q", amountRequested = 1)
+        )
+        val r = build(events)
+
+        assertEquals(emptyList(), r.queueMembersAt("Bed:Q", 5.0))
+        assertEquals(listOf(1L), r.queueMembersAt("Chair:Q", 5.0))
+        assertEquals("Chair:Q", r.entityQueueAt(1L, 5.0))
+    }
+
+    @Test
+    fun `an entity holding one resource whose seize of another is withdrawn or times out is shown in service again`() {
+        for (ending in listOf(
+            AnimationEvent.SeizeWithdrawn(5.0, 1L, "Chair", "Chair:Q"),
+            AnimationEvent.WaitTimedOut(5.0, 1L, null)
+        )) {
+            val events = listOf(
+                AnimationEvent.EntityCreated(0.0, 1L, "Part"),
+                AnimationEvent.SeizeAllocated(1.0, 1L, "Bed", amountAllocated = 1),
+                AnimationEvent.SeizeQueued(2.0, 1L, "Chair", "Chair:Q", amountRequested = 1),
+                ending
+            )
+            val r = build(events)
+
+            assertEquals("Chair:Q", r.entityQueueAt(1L, 3.0))
+            assertEquals(emptyList(), r.queueMembersAt("Chair:Q", 10.0))
+            assertEquals("Bed", r.entityServiceResourceAt(1L, 10.0), "after $ending")
+        }
+    }
+
+    @Test
+    fun `an entity terminated or disposed while it waits leaves the queue`() {
+        for (ending in listOf(AnimationEvent.EntityTerminated(4.0, 1L), AnimationEvent.EntityDisposed(4.0, 1L))) {
+            val events = listOf(
+                AnimationEvent.EntityCreated(0.0, 1L, "Part"),
+                AnimationEvent.EntityCreated(0.0, 2L, "Part"),
+                AnimationEvent.SeizeQueued(1.0, 1L, "Bed", "Bed:Q", amountRequested = 1),
+                AnimationEvent.SeizeQueued(2.0, 2L, "Bed", "Bed:Q", amountRequested = 1),
+                ending
+            )
+            val r = build(events)
+
+            assertEquals(listOf(1L, 2L), r.queueMembersAt("Bed:Q", 3.0))
+            assertEquals(listOf(2L), r.queueMembersAt("Bed:Q", 10.0), "after $ending")
+        }
+    }
+
+    private fun build(events: List<AnimationEvent>): ReplayModel =
+        ReplayModel.build(AnimationSource(layout = null, header = AnimationTraceHeader(), events = events))
 }

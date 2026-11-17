@@ -1312,7 +1312,9 @@ causes arrive later, the one whose event runs first wins.
 - **Turn on the resource checks.** Run with `-Dksl.checkInvariants=true` and every resource checks its
   accounting after each event: units busy, units promised to waiting requests, and the waits registered on
   allocations. A timed seize that left a promise behind would be caught at the event that did it.
-- **Look at the animation.** A wait that times out appears in the animation trace as `WaitTimedOut`.
+- **Look at the animation.** A wait that times out appears in the animation trace as `WaitTimedOut`. A
+  seize request that leaves its queue without being served, because its time ran out or something else
+  the entity waited for came first, appears as `SeizeWithdrawn`.
 
 ## Pitfalls
 

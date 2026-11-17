@@ -209,7 +209,7 @@ internal class MovableResourcePoolSeizeTrigger(
  *  does; if what it was promised went away in the instant between its wake and its resume, it waits
  *  again, with the same request, for every trigger of its wait and for the time left; another trigger
  *  that ends the re-wait ends the whole wait. A loser leaves the queue at the claim, its wait
- *  recorded unless the trigger says not to, and the free units of what it asked for are offered on
+ *  recorded unless the trigger says not to and its leaving announced to the animation, and the free units of what it asked for are offered on
  *  once the claim is over; termination removes the request as termination removes any waiting request.
  */
 internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
@@ -231,7 +231,11 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
     override fun onReleaseAsLoser() {
         val queue = request.queue as? RequestQ ?: return
         leftQueue = queue
-        queue.removeLeaving(request, seizeTrigger.recordRenegedWait)
+        if (queue.removeLeaving(request, seizeTrigger.recordRenegedWait)) {
+            val entity = group.entity
+            // what the request asks for now, which is not what the trigger named if the request was moved
+            entity.emitAnimation { AnimationEvent.SeizeWithdrawn(queue.time, entity.id, request.resource.name, queue.name) }
+        }
     }
 
     override fun onReleaseOnTermination() {

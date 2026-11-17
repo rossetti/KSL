@@ -216,6 +216,22 @@ sealed class AnimationEvent {
         val resourceName: String
     ) : AnimationEvent()
 
+    /**
+     * An entity's seize request left the queue named [queueName] without being given units of
+     * [resourceName], and the entity goes on: the request was one of several things the entity waited
+     * for and another came first or the time ran out, or the request was moved to wait for something
+     * else. A request that leaves because its entity's process was terminated is not reported here;
+     * `EntityTerminated` reports that.
+     */
+    @Serializable
+    @SerialName("SeizeWithdrawn")
+    data class SeizeWithdrawn(
+        override val simTime: Double,
+        val entityId: Long,
+        val resourceName: String,
+        val queueName: String
+    ) : AnimationEvent()
+
     /** Units of a resource have been allocated to an entity. */
     @Serializable
     @SerialName("SeizeAllocated")
@@ -1116,6 +1132,7 @@ internal val AnimationEvent.entityIdOrNull: Long?
         is AnimationEvent.DelayInterrupted -> entityId
         is AnimationEvent.SeizeQueued -> entityId
         is AnimationEvent.SeizeWaiting -> entityId
+        is AnimationEvent.SeizeWithdrawn -> entityId
         is AnimationEvent.SeizeAllocated -> entityId
         is AnimationEvent.Released -> entityId
         is AnimationEvent.QObjectEnqueued -> entityId

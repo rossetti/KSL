@@ -266,7 +266,7 @@ class WaitForFirstSeizeTest {
     }
 
     @Test
-    @DisplayName("trace: a losing seize emits SeizeQueued and SeizeWaiting and nothing more")
+    @DisplayName("trace: a losing seize emits SeizeQueued and SeizeWaiting, and SeizeWithdrawn when it leaves its queue")
     fun losingSeizeTrace() {
         val sink = CollectingSink()
         lateinit var w: SeizeMix.Actor
@@ -279,11 +279,12 @@ class WaitForFirstSeizeTest {
             when (it) {
                 is AnimationEvent.SeizeQueued -> "SeizeQueued@${it.simTime}"
                 is AnimationEvent.SeizeWaiting -> "SeizeWaiting@${it.simTime}"
+                is AnimationEvent.SeizeWithdrawn -> "SeizeWithdrawn@${it.simTime}"
                 is AnimationEvent.WaitTimedOut -> "WaitTimedOut@${it.simTime}"
                 else -> null
             }
         }
-        assertEquals(listOf("SeizeQueued@0.0", "SeizeWaiting@0.0"), seize)
+        assertEquals(listOf("SeizeQueued@0.0", "SeizeWaiting@0.0", "SeizeWithdrawn@3.0"), seize)
         assertTrue(sink.events.any { it is AnimationEvent.SignalReceived && it.entityId == w.id })
     }
 

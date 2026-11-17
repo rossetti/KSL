@@ -658,6 +658,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         /**
+         *  Announces a request that was moved from one queue to another: withdrawn from the one it left,
+         *  and queued in the one it joined for what it now asks for.
+         */
+        private fun emitRequestMoved(request: Request, oldTarget: ResourceIfc, oldQueue: RequestQ, newQueue: RequestQ) {
+            emitAnimation { AnimationEvent.SeizeWithdrawn(time, id, oldTarget.name, oldQueue.name) }
+            emitAnimation { AnimationEvent.SeizeQueued(time, id, request.resource.name, newQueue.name, request.amountRequested) }
+        }
+
+        /**
          *  The first step of a seize of a resource: registers the queue on the resource, makes the request
          *  at this entity's priority, places it in the queue and announces it. Shared by `seize` and a
          *  resource's seize trigger.
@@ -1785,6 +1794,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             newQ.enqueue(request, request.priority)
             // the request's original resource is replaced with the new resource
             request.myResource = resource
+            emitRequestMoved(request, oldTarget, currentQueue, newQ)
             // a preempt that was waiting goes on waiting as one, for the new resource; the resource it left
             // drops it when it next plans
             request.waitingPreemptRule?.let { rule -> resource.waitAsPreemptor(request, rule) }
@@ -1850,6 +1860,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             newQ.enqueue(request, request.priority)
             // the request's original resource pool is replaced with the new resource pool
             request.myResourcePool = pool
+            emitRequestMoved(request, oldTarget, currentQueue, newQ)
             val detail = "request_id=${request.id}, moved_to_resource_pool=${pool.name}, amount=${request.amountRequested}"
             val canServe = newQ.size == 1 && pool.canAllocate(resourceSelectionRule, request.amountRequested)
             if (canServe) {
@@ -1911,6 +1922,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             newQ.enqueue(request, request.priority)
             // the request's original movable resource pool is replaced with the new movable resource pool
             request.myMovableResourcePool = pool
+            emitRequestMoved(request, oldTarget, currentQueue, newQ)
             val detail = "request_id=${request.id}, moved_to_movable_resource_pool=${pool.name}, amount=${request.amountRequested}"
             val canServe = newQ.size == 1 && pool.canAllocate(resourceSelectionRule)
             if (canServe) {
