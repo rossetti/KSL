@@ -155,6 +155,13 @@ class AnimationStateSnapshotter(
                         sink.emit(AnimationEvent.SeizeAllocated(now, id, element.name, allocation.amount))
                         placedIds += id
                     }
+                    // units now lent by preemption are drawn with their borrowers
+                    for (loan in element.loans) {
+                        val lender = loan.lender ?: continue
+                        sink.emit(
+                            AnimationEvent.ResourceUnitsLent(now, element.name, lender.myEntity.id, loan.borrower.myEntity.id, loan.amount)
+                        )
+                    }
                 }
                 is SResource -> {
                     if (!captureSpec.captures(ElementKind.RESOURCE, element.name)) continue

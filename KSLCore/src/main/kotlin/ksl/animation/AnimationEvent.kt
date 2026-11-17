@@ -252,6 +252,32 @@ sealed class AnimationEvent {
         val amountReleased: Int
     ) : AnimationEvent()
 
+    /**
+     * A preemption took [amount] units of a resource from the entity [lenderEntityId], which keeps its
+     * allocation but is held, and lent them to the entity [borrowerEntityId]. The units are drawn with the
+     * borrower, whose `SeizeAllocated` counts them, until an [AnimationEvent.ResourceUnitsReturned] gives them back. A reader
+     * that does not know this event skips it, and draws the lender at the units too.
+     */
+    @Serializable
+    @SerialName("ResourceUnitsLent")
+    data class ResourceUnitsLent(
+        override val simTime: Double,
+        val resourceName: String,
+        val lenderEntityId: Long,
+        val borrowerEntityId: Long,
+        val amount: Int
+    ) : AnimationEvent()
+
+    /** [amount] units lent from the entity [entityId] came back to it at the end of a loan. */
+    @Serializable
+    @SerialName("ResourceUnitsReturned")
+    data class ResourceUnitsReturned(
+        override val simTime: Double,
+        val resourceName: String,
+        val entityId: Long,
+        val amount: Int
+    ) : AnimationEvent()
+
     // ──────────────────────────────────────────────────────────────────────
     //  Resource and queue state
     // ──────────────────────────────────────────────────────────────────────
@@ -1135,6 +1161,8 @@ internal val AnimationEvent.entityIdOrNull: Long?
         is AnimationEvent.SeizeWithdrawn -> entityId
         is AnimationEvent.SeizeAllocated -> entityId
         is AnimationEvent.Released -> entityId
+        is AnimationEvent.ResourceUnitsLent -> lenderEntityId
+        is AnimationEvent.ResourceUnitsReturned -> entityId
         is AnimationEvent.QObjectEnqueued -> entityId
         is AnimationEvent.QObjectDequeued -> entityId
         is AnimationEvent.HoldEntered -> entityId

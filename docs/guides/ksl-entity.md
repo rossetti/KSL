@@ -582,7 +582,8 @@ private inner class Emergency : Entity() {
 
 - **Who is preempted.** Free units are taken first; then units of the
   holders of lowest priority, the most recently allocated first among
-  equals, only as many as are still needed. A holder of equal or higher
+  equals (of two allocated at the same instant, the later), only as many as
+  are still needed. A holder of equal or higher
   priority is never preempted. When the free units and all the lower-priority
   holders' units together are too few, the capacity is less than the amount
   needed (as off shift), or the resource is failed or inactive, nothing is
@@ -613,6 +614,11 @@ private inner class Emergency : Entity() {
 - **Counting.** A unit counts as busy once, for whoever is using it.
   `numTimesPreempted` counts the preemptions in a replication; a preemption
   counts one seize.
+- **In the animation trace** the units a preemption takes appear as
+  `ResourceUnitsLent`, from the holder to the preemptor, and as
+  `ResourceUnitsReturned` when they go back, so a replay draws a unit with
+  whoever is using it. An allocation listener is told of both
+  (`unitsLent`, `unitsReturned`).
 - **A waiting preemptor in a `RANKED` queue** is served ahead of waiting
   requests of lower priority, as any request of its priority is.
 - A movable resource cannot be preempted.

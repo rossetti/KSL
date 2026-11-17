@@ -27,6 +27,25 @@ interface AllocationListenerIfc {
      * @param resource the resource whose failed state changed
      */
     fun failureStateChanged(resource: Resource) {}
+
+    /**
+     * Called when a preemption takes [amount] units of [lender] and lends them to [borrower]; [lender] keeps
+     * its allocation, but the units are the borrower's to use until the loan ends. The default does nothing.
+     *
+     * @param lender the allocation the units are taken from
+     * @param borrower the allocation of the preemptor that takes them
+     * @param amount the number of units lent
+     */
+    fun unitsLent(lender: Allocation, borrower: Allocation, amount: Int) {}
+
+    /**
+     * Called when [amount] units lent from [lender] come back to it at the end of a loan. The default does
+     * nothing.
+     *
+     * @param lender the allocation the units come back to
+     * @param amount the number of units returned
+     */
+    fun unitsReturned(lender: Allocation, amount: Int) {}
 }
 
 /**

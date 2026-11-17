@@ -739,6 +739,18 @@ class ReplayModel(
                         repeat(event.amountReleased) { units.remove(event.entityId) }
                         resourceUnits.getOrPut(event.resourceName) { StepTimeline() }.add(event.simTime, units.toList())
                     }
+                    is AnimationEvent.ResourceUnitsLent -> {
+                        // the lender keeps its allocation, but the lent units are the borrower's to draw: its
+                        // SeizeAllocated counted them, so the lender gives up as many of its slots
+                        val units = runningResourceUnits.getOrPut(event.resourceName) { ArrayList() }
+                        repeat(event.amount) { units.remove(event.lenderEntityId) }
+                        resourceUnits.getOrPut(event.resourceName) { StepTimeline() }.add(event.simTime, units.toList())
+                    }
+                    is AnimationEvent.ResourceUnitsReturned -> {
+                        val units = runningResourceUnits.getOrPut(event.resourceName) { ArrayList() }
+                        repeat(event.amount) { units.add(event.entityId) }
+                        resourceUnits.getOrPut(event.resourceName) { StepTimeline() }.add(event.simTime, units.toList())
+                    }
                     is AnimationEvent.SeizeWithdrawn -> {
                         // The request left this one queue unserved. The entity may still wait in another: a
                         // request moved to another resource is queued there by the next event.

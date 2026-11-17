@@ -201,6 +201,16 @@ open class Resource @JvmOverloads constructor(
         }
     }
 
+    /** Notifies the attached listeners that [amount] units of [lender] were lent to [borrower]. */
+    private fun loanNotification(lender: Allocation, borrower: Allocation, amount: Int) {
+        for (listener in allocationListeners) listener.unitsLent(lender, borrower, amount)
+    }
+
+    /** Notifies the attached listeners that [amount] lent units came back to [lender]. */
+    private fun returnNotification(lender: Allocation, amount: Int) {
+        for (listener in allocationListeners) listener.unitsReturned(lender, amount)
+    }
+
     /**
      * Notifies any attached listeners when units are deallocated.
      */
@@ -752,7 +762,11 @@ open class Resource @JvmOverloads constructor(
         fun lendable(a: Allocation) = a.amount - a.missingByLoan + (returning[a] ?: 0)
         val candidates = allocations()
             .filter { it.myEntity.priority > entity.priority && lendable(it) > 0 }
-            .sortedWith(compareByDescending<Allocation> { it.myEntity.priority }.thenByDescending { it.timeAllocated })
+            .sortedWith(
+                compareByDescending<Allocation> { it.myEntity.priority }.thenByDescending { it.timeAllocated }
+                    // allocated at the same instant: the later allocation, with the larger id, is the more recent
+                    .thenByDescending { it.id }
+            )
         val takes = mutableListOf<Pair<Allocation, Int>>()
         for (victim in candidates) {
             if (short == 0) break
@@ -785,6 +799,7 @@ open class Resource @JvmOverloads constructor(
         for ((victim, k) in plan.takes) {
             myLoans.add(Loan(victim, allocation, k))
             victim.unitsGoMissing(byFailure = 0, byLoan = k, rule = rule)
+            loanNotification(victim, allocation, k)
         }
         numTimesPreempted++
         allocationNotification(allocation)
@@ -1516,8 +1531,15 @@ open class Resource @JvmOverloads constructor(
     private fun returnLoans(settlement: Settlement, passOn: Boolean) {
         val returning = settlement.returning
         if (passOn && returning.isNotEmpty() && !isFailed && !isInactive && !isRunEnded) passLoansOn(returning)
+        // a resource failed now, under RESUME or RESTART, has all its units down, however the failure began: one
+        // begun since the loans were settled, as by a listener told of this release, is not in the settlement
+        val allDown = isFailed && myFailureRule != null && myFailureRule != InterruptRule.FINISH
         for ((lender, back) in returning) {
-            if (back > 0) lender.loanComesBack(back, minOf(back, settlement.down[lender] ?: 0), myFailureRule)
+            if (back > 0) {
+                val down = if (allDown) back else minOf(back, settlement.down[lender] ?: 0)
+                lender.loanComesBack(back, down, myFailureRule)
+                if (!lender.isDeallocated) returnNotification(lender, back)
+            }
         }
     }
 
@@ -1592,6 +1614,8 @@ open class Resource @JvmOverloads constructor(
             var plan: PreemptionPlan? = null
             for (request in waiting) {
                 plan = planPreemption(request.entity, request.amountRequested, returning)
+                // units this release freed go to what is as urgent as it first, as at any re-planning
+                if (plan != null && plan.free > 0 && !mayTakeFreeUnits(request)) plan = null
                 if (plan != null) {
                     chosen = request
                     break
@@ -1631,7 +1655,11 @@ open class Resource @JvmOverloads constructor(
                 returning[victim] = returning.getValue(victim) - passed
                 victim.loanPassesOn(rule)
             }
-            if (k > passed) victim.unitsGoMissing(byFailure = 0, byLoan = k - passed, rule = rule)
+            if (k > passed) {
+                victim.unitsGoMissing(byFailure = 0, byLoan = k - passed, rule = rule)
+                // units passed on from an ending loan were lent already, and are still not the victim's
+                loanNotification(victim, allocation, k - passed)
+            }
         }
         if (plan.takes.isNotEmpty()) numTimesPreempted++
         allocationNotification(allocation)

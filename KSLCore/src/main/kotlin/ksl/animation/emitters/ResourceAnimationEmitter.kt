@@ -65,6 +65,20 @@ class ResourceAnimationEmitter(private val resource: Resource) : AllocationListe
         emitState(sink)
     }
 
+    override fun unitsLent(lender: Allocation, borrower: Allocation, amount: Int) {
+        val sink = resource.model.animationSink
+        if (!sink.isActive) return
+        sink.emit(
+            AnimationEvent.ResourceUnitsLent(resource.time, resource.name, lender.myEntity.id, borrower.myEntity.id, amount)
+        )
+    }
+
+    override fun unitsReturned(lender: Allocation, amount: Int) {
+        val sink = resource.model.animationSink
+        if (!sink.isActive) return
+        sink.emit(AnimationEvent.ResourceUnitsReturned(resource.time, resource.name, lender.myEntity.id, amount))
+    }
+
     override fun failureStateChanged(resource: Resource) {
         val sink = resource.model.animationSink
         if (!sink.isActive) return

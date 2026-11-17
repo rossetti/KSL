@@ -43,6 +43,7 @@ class PreemptionTest {
         val r2 = ResourceWithQ(this, "R2", capacity = 2)
         val r3 = ResourceWithQ(this, "R3", capacity = 3)
         val ranked = ResourceWithQ(this, "Ranked", queue = RequestQ(this, "RankedQ", Queue.Discipline.RANKED))
+        val ranked2 = ResourceWithQ(this, "Ranked2", capacity = 2, queue = RequestQ(this, "Ranked2Q", Queue.Discipline.RANKED))
         val backup = ResourceWithQ(this, "Backup")
 
         val log = mutableListOf<String>()
@@ -101,7 +102,7 @@ class PreemptionTest {
         }
 
         override fun replicationEnded() {
-            LoansAndFreezesCheck.check(r, r2, r3, ranked, backup)
+            LoansAndFreezesCheck.check(r, r2, r3, ranked, ranked2, backup)
         }
     }
 
@@ -464,6 +465,64 @@ class PreemptionTest {
         // comes back down. At the repair at 6 middle takes it and the free unit; its release at 7 is the next
         // use, repaired at 9, when low goes on with 9 left
         assertEquals(listOf("low got@0.0", "high got@1.0", "high done@4.0", "middle got@6.0", "middle done@7.0", "low done@18.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("a failure begun by a release listener as a loan ends: the units go back down, and the lender waits for the repair")
+    fun failureBegunByAReleaseListener() {
+        for ((rule, done) in listOf(InterruptRule.RESUME to "L done@29.0", InterruptRule.RESTART to "L done@30.0")) {
+            val (_, m) = run(configure = {
+                r.addAllocationListener(object : AllocationListenerIfc {
+                    override fun allocate(allocation: Allocation) {}
+                    override fun deallocate(allocation: Allocation) {
+                        if (time == 5.0 && !r.isFailed) r.fail(rule)
+                    }
+                })
+            }) {
+                job("L", r, 0.0, 10.0, priority = 9)
+                urgent("P", r, 1.0, 4.0)
+                at(20.0) { r.repair() }
+            }
+            // L, held by the loan from 1 with 9 left, is held by the failure from 5 until the repair at 20
+            assertTrue(done in m.log, "rule $rule: ${m.log}")
+        }
+    }
+
+    @Test
+    @DisplayName("a loan ending with a freed unit: a seize as urgent as the waiting preemptor, or more, takes the freed unit first")
+    fun passOnKeepsBehindAsUrgentRequests() {
+        for (res in listOf("ranked", "fifo")) for (seizePriority in listOf(1, 2, 5)) {
+            val (_, m) = run {
+                val q = if (res == "ranked") ranked2 else r2
+                job("lender", q, 0.0, 20.0, priority = 10)
+                urgent("borrower", q, 1.0, 4.0, priority = 0, n = 2)
+                job("seize", q, 2.0, 1.0, priority = seizePriority)
+                urgent("waiting", q, 3.0, 3.0, priority = 2, n = 2)
+            }
+            val expected = if (seizePriority <= 2) {
+                // the seize takes the freed unit at 5 and the loan goes back; at 6 the preemptor takes the freed
+                // unit and the lender's
+                listOf("lender got@0.0", "borrower got@1.0", "borrower done@5.0", "seize got@5.0", "seize done@6.0",
+                    "waiting got@6.0", "waiting done@9.0", "lender done@27.0")
+            } else {
+                // a less urgent seize does not hold the preemptor back: it takes the freed unit and the loan
+                listOf("lender got@0.0", "borrower got@1.0", "borrower done@5.0", "waiting got@5.0", "waiting done@8.0",
+                    "seize got@8.0", "seize done@9.0", "lender done@27.0")
+            }
+            assertEquals(expected, m.log, "$res, seize priority $seizePriority")
+        }
+    }
+
+    @Test
+    @DisplayName("holders allocated at the same instant: the later allocation is the more recent, and is taken from first")
+    fun victimAmongHoldersAllocatedAtOneInstant() {
+        val (_, m) = run {
+            job("first", r2, 0.0, 10.0, priority = 9)
+            job("second", r2, 0.0, 20.0, priority = 9)
+            urgent("P", r2, 1.0, 4.0)
+        }
+        // second, allocated after first at 0, is held 1 to 5 and ends at 24; first is not touched
+        assertEquals(listOf("first got@0.0", "second got@0.0", "P got@1.0", "P done@5.0", "first done@10.0", "second done@24.0"), m.log)
     }
 
     @Test

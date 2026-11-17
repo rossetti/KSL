@@ -362,9 +362,16 @@ open class AgentModel(
          *  before it resumed to take it. The message is delivered again as [deliver] delivers it, to a
          *  reservation, to the next waiting receiver that accepts it, or to the mailbox, except that in the
          *  mailbox it goes ahead of the messages already waiting, since it was handed over before them.
-         *  Observers see it delivered a second time.
+         *  Observers see it delivered a second time. Once the run has ended, as when the replication's entities
+         *  are terminated at its end, nothing can be resumed: the message goes back to the front of the mailbox,
+         *  and no waiting receiver or arrival listener is offered it.
          */
         internal fun handBack(message: M) {
+            if (executive.isEnded) {
+                pending.addFirst(message)
+                notifyDelivered(message)
+                return
+            }
             accept(message, atFront = true)
         }
 

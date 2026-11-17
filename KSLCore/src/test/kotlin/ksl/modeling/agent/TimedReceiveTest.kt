@@ -77,6 +77,9 @@ class TimedReceiveTest {
 
         fun msg(p: String): AgentMessage = AgentMessage.Inform(hub, p)
 
+        /** Ends the replication from within the current event. */
+        fun stop(why: String) = stopReplication(why)
+
         fun record(name: String, r: WaitResult<AgentMessage>) {
             log.add(if (r.timedOut) "$name:timedOut waited=${r.timeWaited}@$time" else "$name:${payload(r.value)} waited=${r.timeWaited}@$time")
         }
@@ -214,6 +217,34 @@ class TimedReceiveTest {
             }
             assertEquals(1, sizeAfter, "$form: the message is back in the mailbox")
             assertEquals(listOf("next:a waited=0.0@4.0"), m.log, form)
+        }
+    }
+
+    @Test
+    @DisplayName("a message handed back as the replication ends resumes no one, in every form of receive, and the next replication runs")
+    fun handedBackAtTheEndOfAReplication() {
+        for (withStatechart in listOf(false, true)) for (form in listOf("timed", "untimed", "trigger")) {
+            val model = Model("HandBackAtEnd${System.nanoTime()}", autoCSVReports = false)
+            val m = HubModel(model, withStatechart)
+            m.setups.add {
+                for (name in listOf("first", "second")) receiver(name) {
+                    when (form) {
+                        "timed" -> receiveMessageOrTimeout(mailbox, 100.0)
+                        "untimed" -> receiveMessage(mailbox)
+                        else -> waitForFirst(mailbox.trigger(), timeout = 100.0)
+                    }
+                    log.add("$name resumed@$time")
+                }
+                at(5.0) {
+                    mailbox.deliver(msg("m"))
+                    stop("ends in the delivering event")
+                }
+            }
+            model.numberOfReplications = 2
+            model.lengthOfReplication = 50.0
+            model.simulate()
+            assertEquals(2, model.currentReplicationNumber, "statechart=$withStatechart, $form")
+            assertTrue(m.log.none { it.contains("resumed") }, "statechart=$withStatechart, $form: ${m.log}")
         }
     }
 
