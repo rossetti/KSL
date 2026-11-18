@@ -2981,13 +2981,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             if (plan != null) resource.reserve(request, plan.free)
                             else resource.waitAsPreemptor(request, rule)
                             waitForResource(request, resource, queue)
-                            val passed = request.passedAllocation
-                            if (passed != null) {
-                                (request.queue as? RequestQ ?: queue).remove(request)
-                                passed
-                            } else {
-                                takeResource(request, resource, queue, suspensionName, rewait = null)!!
-                            }
+                            takeAsPreemptor(request, resource, queue, suspensionName)
                         }
                     }
                 } finally {
@@ -3020,6 +3014,35 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 return completeResourceSeize(request, resource, queue, suspensionName)
             }
 
+            /**
+             *  The last step of a preempt that waited. A waiting preemptor is resumed one of two ways: by its
+             *  queue, with a promise of free units, or by the resource, with its allocation already made and passed
+             *  to it. A promise can break between the wake and the resume, and the request then waits again; the
+             *  allocation can be passed during that second wait as during the first. So the passed allocation is
+             *  looked for after every wait: with one, the request leaves its queue and that allocation is the
+             *  result; without one, the seize is completed as for any request.
+             */
+            private suspend fun takeAsPreemptor(
+                request: ResourceRequest,
+                resource: Resource,
+                queue: RequestQ,
+                suspensionName: String?
+            ): Allocation {
+                val amountNeeded = request.amountRequested
+                if (request.passedAllocation == null) {
+                    // waits on while the promise cannot be taken, and stops as soon as an allocation is passed
+                    waitUntilPromiseHonoured(request) {
+                        request.passedAllocation != null || request.myResource.canAllocate(amountNeeded)
+                    }
+                }
+                val passed = request.passedAllocation
+                if (passed != null) {
+                    (request.queue as? RequestQ ?: queue).remove(request)
+                    return passed
+                }
+                return completeResourceSeize(request, resource, queue, suspensionName)
+            }
+
             /** Takes the request out of the queue it is in and allocates its units; they can be allocated now. */
             internal fun completeResourceSeize(
                 request: ResourceRequest,
@@ -3028,6 +3051,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ): Allocation {
                 val amountNeeded = request.amountRequested
+                check(request.passedAllocation == null) {
+                    "Request ${request.id} of entity ${entity.id} was given allocation ${request.passedAllocation?.id} of " +
+                        "${request.myResource.name} while it waited as a preemptor; it must take that allocation, not allocate again."
+                }
                 // entity has been told to resume or the request was selected for allocation
                 // out of the queue the request is in now: a moved request waits in its new queue, and must leave
                 // it here, keeping its promise, rather than be swept up as if its process had ended

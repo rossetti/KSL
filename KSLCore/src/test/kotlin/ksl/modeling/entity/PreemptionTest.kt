@@ -526,6 +526,39 @@ class PreemptionTest {
     }
 
     @Test
+    @DisplayName("a waiting preemptor whose promise breaks is given one allocation, and takes it, on one unit or two")
+    fun preemptorWhosePromiseBrokeTakesOneAllocation() {
+        for (two in listOf(true, false)) {
+            val (_, m) = run {
+                val q = if (two) r2 else r
+                val n = if (two) 2 else 1
+                actor("H") {
+                    val a = seize(q, n)
+                    delay(10.0)
+                    // the release wakes S with a promise, and the failure breaks it in the same step
+                    release(a)
+                    q.fail(InterruptRule.FINISH)
+                    delay(5.0)
+                    q.repair()
+                }
+                val s = actor("S") { delay(1.0); val a = seize(q); log.add("S got@$time"); delay(1.0); release(a) }
+                lateinit var p: PModel.Actor
+                p = actor("P") {
+                    delay(2.0)
+                    val a = preempt(q, rule = InterruptRule.RESUME)
+                    log.add("P got@$time")
+                    delay(1.0)
+                    release(a)
+                    log.add("P holds ${p.numberOfAllocations(q)}, busy ${q.numBusy}")
+                }
+                actor("K") { delay(12.0); s.terminateProcess() }
+            }
+            // S, woken at 10, is terminated at 12; at the repair at 15 P is given the unit and takes it
+            assertEquals(listOf("P got@15.0", "P holds 0, busy 0"), m.log, if (two) "two units" else "one unit")
+        }
+    }
+
+    @Test
     @DisplayName("off shift, a preemption takes nothing under any rule, and a loan ending passes to no one")
     fun nothingTakenOffShift() {
         for (rule in listOf(InterruptRule.RESUME, InterruptRule.RESTART, InterruptRule.FINISH)) {
