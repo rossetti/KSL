@@ -1764,9 +1764,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  A request, in a request queue, is there because it's entity is suspended. This function
          *  will remove the supplied request from the specified queue and place it in the queue
          *  associated with the specified resource. If the resource has units of capacity available to satisfy
-         *  the request, then the entity is resumed to allow the units to be allocated. If the resource
-         *  does not have sufficient units to satisfy the request, the entity stays suspended within the
-         *  resource's queue and will be processed as a normal request for the resource.
+         *  the request, and the resource's queue would choose this request next (as for a seize arriving now),
+         *  then the entity is resumed to allow the units to be allocated. Otherwise the entity stays suspended
+         *  within the resource's queue and will be processed as a normal request for the resource.
          *
          *  The specified resource must not be associated with the request. The request must be queued and
          *  in the specified queue. The entity must currently be suspended and must be associated with
@@ -1807,7 +1807,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // drops it when it next plans
             request.waitingPreemptRule?.let { rule -> resource.waitAsPreemptor(request, rule) }
             val detail = "request_id=${request.id}, moved_to_resource=${resource.name}, amount=${request.amountRequested}"
-            val canServe = newQ.size == 1 && resource.canAllocate(request.amountRequested)
+            // served at once when a seize arriving now would be: the resource can allocate and the new queue would
+            // choose this request next
+            val canServe = resource.canAllocate(request.amountRequested) &&
+                    newQ.nextRequestForResource(resource) === request
             if (wasWoken) {
                 // The resume already on the calendar carries the request: promise the new target's units if it
                 // can serve it now, and mark the request so nothing wakes it twice. When it resumes it takes the
@@ -1870,7 +1873,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             request.myResourcePool = pool
             emitRequestMoved(request, oldTarget, currentQueue, newQ)
             val detail = "request_id=${request.id}, moved_to_resource_pool=${pool.name}, amount=${request.amountRequested}"
-            val canServe = newQ.size == 1 && pool.canAllocate(resourceSelectionRule, request.amountRequested)
+            // served at once when a pool seize arriving now would be: the pool can allocate, whatever else waits
+            val canServe = pool.canAllocate(resourceSelectionRule, request.amountRequested)
             if (canServe) {
                 // promised now, as the rule given for the move would choose
                 request.selectionRule = resourceSelectionRule
@@ -1932,7 +1936,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             request.myMovableResourcePool = pool
             emitRequestMoved(request, oldTarget, currentQueue, newQ)
             val detail = "request_id=${request.id}, moved_to_movable_resource_pool=${pool.name}, amount=${request.amountRequested}"
-            val canServe = newQ.size == 1 && pool.canAllocate(resourceSelectionRule)
+            // served at once when a movable pool seize arriving now would be: the pool can allocate, whatever else waits
+            val canServe = pool.canAllocate(resourceSelectionRule)
             if (canServe) {
                 // promised now, as the rule given for the move would choose
                 request.selectionRule = resourceSelectionRule

@@ -21,6 +21,7 @@ package ksl.modeling.entity
 import ksl.modeling.spatial.DistancesModel
 import ksl.modeling.spatial.MovableResource
 import ksl.modeling.spatial.MovableResourcePoolWithQ
+import ksl.simulation.KSLEvent
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import ksl.utilities.random.rvariable.ConstantRV
@@ -140,6 +141,131 @@ class MovedRequestServedTest {
             assertEquals(listOf("sourceHolder@0.0", "targetHolder@0.0", "mover@8.0", "other@9.0"), m.log, "$kind")
             // the target holder's zero wait, the mover's wait in the target queue, and the other's wait
             assertEquals(3.0, m.targetWaits, "$kind: the mover's wait is recorded in the queue it was served from")
+        }
+    }
+
+    enum class Beside { TWO_UNIT_WAITER, WOKEN_WAITER }
+
+    /**
+     *  The mover waits on a source held for good, and is moved at [moveAt] into a target queue that is not
+     *  empty, beside a free unit. With [Beside.TWO_UNIT_WAITER], one of the target's two units is held until
+     *  100 and a request for two waits from 1: the free unit cannot serve it, so the mover takes it. With
+     *  [Beside.WOKEN_WAITER], the target's units are held until 8 and a request for one waits from 6; the
+     *  releases at 8 wake it, and the move comes before it resumes, at an earlier event priority: a free unit is
+     *  left for the mover only when the target has more units than the woken request takes.
+     */
+    private class BesideModel(parent: ModelElement, val kind: Kind, val beside: Beside, val units: Int) : ProcessModel(parent, "beside") {
+        private val speed = ConstantRV(10.0)
+        private val dm = DistancesModel()
+        val locA = dm.Location("A")
+        val locB = dm.Location("B")
+
+        init {
+            dm.addDistance(locA, locB, 100.0, symmetric = true)
+            dm.defaultVelocity = speed
+            spatialModel = dm
+        }
+
+        val r1 = ResourceWithQ(this, "R1")
+        val r2 = ResourceWithQ(this, "R2", capacity = units)
+        val p1 = ResourcePoolWithQ(this, listOf(Resource(this, "RA")), name = "P1")
+        val p2 = ResourcePoolWithQ(this, (1..units).map { Resource(this, "RB$it") }, name = "P2")
+        val f1 = MovableResourcePoolWithQ(this, listOf(MovableResource(this, locA, speed, "T1")), speed, RequestQ(this, "F1Q"), "F1")
+        val f2 = MovableResourcePoolWithQ(
+            this, (1..units).map { MovableResource(this, locA, speed, "TB$it") }, speed, RequestQ(this, "F2Q"), "F2"
+        )
+
+        val log = mutableListOf<String>()
+        lateinit var mover: User
+
+        val sourceQ: RequestQ
+            get() = when (kind) {
+                Kind.RESOURCE -> r1.myWaitingQ
+                Kind.POOL -> p1.myWaitingQ
+                Kind.MOVABLE_POOL -> f1.myWaitingQ
+            }
+
+        /** Seizes [amount] of the source or the target at [arrive], logs, holds for [hold] (its end at [endPriority]). */
+        inner class User(
+            val tag: String, val target: Boolean, val arrive: Double, val hold: Double, val amount: Int = 1,
+            val endPriority: Int = KSLEvent.DEFAULT_PRIORITY
+        ) : Entity(tag) {
+            val p: KSLProcess = process("use") {
+                entity.currentLocation = locA
+                delay(arrive)
+                when (kind) {
+                    Kind.RESOURCE -> { val a = seize(if (target) r2 else r1, amount); served(); delay(hold, delayPriority = endPriority); release(a) }
+                    Kind.POOL -> { val a = seize(if (target) p2 else p1, amount); served(); delay(hold, delayPriority = endPriority); release(a) }
+                    Kind.MOVABLE_POOL -> {
+                        val a = seize(if (target) f2 else f1, requestLocation = locA); served(); delay(hold, delayPriority = endPriority); release(a)
+                    }
+                }
+            }
+
+            private fun served() {
+                if (tag == "mover" || tag == "waiter") log.add("$tag@$time")
+            }
+
+            fun moveToTarget() {
+                val request = sourceQ.peekNext()!!
+                when (kind) {
+                    Kind.RESOURCE -> moveRequestToResource(request as ResourceRequest, sourceQ, r2, RESUME_PRIORITY)
+                    Kind.POOL -> moveRequestToResourcePool(
+                        request as ResourcePoolRequest, sourceQ, p2, p2.defaultResourceSelectionRule, RESUME_PRIORITY
+                    )
+                    Kind.MOVABLE_POOL -> moveRequestToMovableResourcePool(
+                        request as MovableResourcePoolRequest, sourceQ, f2, f2.defaultMovableResourceSelectionRule, RESUME_PRIORITY
+                    )
+                }
+            }
+        }
+
+        override fun initialize() {
+            log.clear()
+            activate(User("sourceHolder", target = false, arrive = 0.0, hold = 1000.0).p)
+            mover = User("mover", target = false, arrive = 2.0, hold = 1.0)
+            activate(mover.p)
+            when (beside) {
+                Beside.TWO_UNIT_WAITER -> {
+                    activate(User("targetHolder", target = true, arrive = 0.0, hold = 100.0).p)
+                    activate(User("waiter", target = true, arrive = 1.0, hold = 1.0, amount = 2).p)
+                    schedule(EventActionIfc<Nothing> { mover.moveToTarget() }, 4.0)
+                }
+                Beside.WOKEN_WAITER -> {
+                    for (k in 1..units) activate(User("targetHolder$k", target = true, arrive = 0.0, hold = 8.0, endPriority = -10).p)
+                    activate(User("waiter", target = true, arrive = 6.0, hold = 1.0).p)
+                    schedule(EventActionIfc<Nothing> { mover.moveToTarget() }, 8.0, priority = -5)
+                }
+            }
+        }
+    }
+
+    private fun runBeside(kind: Kind, beside: Beside, units: Int): List<String> {
+        val model = Model("Beside${System.nanoTime()}", autoCSVReports = false)
+        val m = BesideModel(model, kind, beside, units)
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 200.0
+        model.simulate()
+        return m.log
+    }
+
+    @Test
+    @DisplayName("a request moved beside a free unit its new queue's other request cannot use is served at the move, as a seize would be")
+    fun movedBesideAFreeUnit() {
+        for (kind in listOf(Kind.RESOURCE, Kind.POOL)) {
+            assertEquals("mover@4.0", runBeside(kind, Beside.TWO_UNIT_WAITER, units = 2).first(), "$kind")
+        }
+        // A movable pool request needs one unit, so no request waits beside a free unit except in the instant of
+        // its wake, and by the move it has left the queue: the mover is served at the move under either rule.
+        // This checks only that the second unit freed at 8 goes to the mover.
+        assertEquals(listOf("waiter@8.0", "mover@8.0"), runBeside(Kind.MOVABLE_POOL, Beside.WOKEN_WAITER, units = 2).sorted().reversed())
+    }
+
+    @Test
+    @DisplayName("a request moved beside a request woken for the only free unit waits for it, for a resource and a pool")
+    fun movedBesideAWokenRequestWaits() {
+        for (kind in listOf(Kind.RESOURCE, Kind.POOL)) {
+            assertEquals(listOf("waiter@8.0", "mover@9.0"), runBeside(kind, Beside.WOKEN_WAITER, units = 1), "$kind")
         }
     }
 }

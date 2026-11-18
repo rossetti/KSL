@@ -50,6 +50,7 @@ import ksl.modeling.station.StationNetwork
 import ksl.simulation.Model
 import ksl.simulation.ModelElement
 import kotlin.reflect.KClass
+import kotlin.reflect.full.allSuperclasses
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.isSubclassOf
@@ -434,6 +435,18 @@ fun Model.animationInventory(): AnimationInventory {
                     @Suppress("UNCHECKED_CAST")
                     val k = nested as KClass<out ProcessModel.Entity>
                     k.simpleName?.let { entityClasses.putIfAbsent(it, k) }
+                }
+            }
+            // A superclass's internal entities, marked as excluded, are made by this element too. They are
+            // recorded, as excluded, so that a trace that shows one is not reported as an undeclared type.
+            // Entity classes a superclass leaves included are not added: they would become new included types.
+            for (ancestor in pm::class.allSuperclasses) {
+                if (ancestor == ProcessModel::class || !ancestor.isSubclassOf(ProcessModel::class)) continue
+                for (nested in ancestor.nestedClasses) {
+                    if (nested.isAbstract || !nested.isSubclassOf(ProcessModel.Entity::class)) continue
+                    @Suppress("UNCHECKED_CAST")
+                    val k = nested as KClass<out ProcessModel.Entity>
+                    if (!entityIncluded(k)) k.simpleName?.let { entityClasses.putIfAbsent(it, k) }
                 }
             }
         } catch (_: Throwable) {

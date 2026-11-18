@@ -50,6 +50,8 @@ tasks.jar {
 
 tasks.test {
     useJUnitPlatform()
+    // with -Dksl.checkInvariants=true every model in the tests checks its resources' accounting after each event
+    System.getProperty("ksl.checkInvariants")?.let { systemProperty("ksl.checkInvariants", it) }
 }
 
 /*

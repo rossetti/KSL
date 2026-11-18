@@ -31,8 +31,6 @@ import kotlin.math.abs
  *  exactly the rate-line sum: 5608.4 where 5608.8 was required, short by the
  *  0.40 that `HOLDING` and `IN_TRANSIT` contributed identically to both runs.
  *  They now assert the same properties of the totals that replaced it.
- *
- *  See `.claude/plans/kslcore-costing-change-plan.md` §11, step 0.
  */
 class CostBasisTotalsTest {
 

@@ -240,7 +240,7 @@ class ResourceFailureTest {
         assertEquals(listOf("N got@8.0", "N done@9.0"), m.log)
     }
 
-    // ---------- an S4 behavior ----------
+    // ---------- a resource with a behavior ----------
 
     @Test
     @DisplayName("a behavior holding its own unit when the resource fails: its work is held and goes on at repair")

@@ -660,15 +660,22 @@ open class Resource @JvmOverloads constructor(
     fun goOnShift() {
         val shift = myShift ?: return
         if (!shift.isOffShift) return
-        // the capacity increase back to the on-shift capacity runs afterUnitsRestored itself
+        val capacityBefore = capacity
         shift.goOnShift()
         myFailureClock?.update()
+        // The capacity increase back to the on-shift capacity runs afterUnitsRestored itself. When the capacity
+        // was not raised, because it had been put back directly while off shift, no increase ran: the return to
+        // shift is still the moment the units can be used again, so the hook is called here.
+        if (capacity <= capacityBefore && !isRunEnded) afterUnitsRestored()
     }
 
     /**
      *  Called when this resource's units come back by other than a release: at the end of a capacity
-     *  increase, including the one a [goOnShift] makes, and of a [repair]. It is called once for each,
-     *  and not once the run has ended. A subclass whose waiting requests are not reached by the offer to
+     *  increase, including the one a [goOnShift] makes, and of a [repair], and at a [goOnShift] that raises
+     *  no capacity because the capacity was put back directly while off shift. It is called once for each,
+     *  except under `CapacityChangeRule.WAIT` when the return to shift waits behind a decrease still in
+     *  progress: then once at the return and once when the increase is made. It is not called once the run
+     *  has ended. A subclass whose waiting requests are not reached by the offer to
      *  the resource's own queues offers its units here.
      */
     protected open fun afterUnitsRestored() {}
@@ -1140,6 +1147,9 @@ open class Resource @JvmOverloads constructor(
     }
 
     /** The entity that waits out a resource's declared failures; a new one for every replication. */
+    // The entity that waits out failures is the resource's own plumbing, not an entity of the model: it is kept
+    // out of the animation inventory's included types, as a movable resource's driver is.
+    @ksl.animation.KSLAnimatedEntity(include = false)
     private inner class ResourceFailures : Entity() {
         val due: Suspension = Suspension("${this@Resource.name}:failure due")
         val repaired: Suspension = Suspension("${this@Resource.name}:repaired")
@@ -1147,6 +1157,7 @@ open class Resource @JvmOverloads constructor(
         /** The failure was applied when it came due, before this entity was woken. */
         var failedWhenDue: Boolean = false
 
+        @ksl.animation.KSLAnimatedProcess(name = "failures", include = false)
         val run: KSLProcess = process("failures", isDefaultProcess = true) {
             val spec = myFailureSpec!!
             while (true) {
@@ -1393,7 +1404,10 @@ open class Resource @JvmOverloads constructor(
     }
 
     /** The entity that runs a resource's behavior; a new one for every start. */
+    // The entity that runs the behavior is the resource's own plumbing, as the failures' entity is.
+    @ksl.animation.KSLAnimatedEntity(include = false)
     private inner class ResourceBehavior : Entity() {
+        @ksl.animation.KSLAnimatedProcess(name = "behavior", include = false)
         val run: KSLProcess = process("behavior", isDefaultProcess = true) {
             myBehaviorStart = null
             val block = myBehaviorBlock!!

@@ -180,7 +180,7 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
      * installs a gate can report on what its gate is doing.
      */
     override val haltedTransporters: List<GuidedTransporter>
-        get() = myResources.filter { it.numBusy == 0 && !it.isDispatchable }
+        get() = myResources.filter { it.numBusy == 0 && (it.isHalted || it.isUnderTow) }
 
     /**
      * How many transporters this pool has to give, which is how many it could actually send.

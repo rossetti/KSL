@@ -33,8 +33,9 @@ import kotlin.test.assertEquals
  *  Pins what the three `moveRequestTo…` functions do today, and the double resume a move can cause.
  *
  *  A move takes a waiting request out of its queue and puts it in the queue of another resource,
- *  pool or movable pool. When the target has units free and the moved request is alone in the new
- *  queue, the request is promised them and its entity is resumed at once; otherwise it waits there.
+ *  pool or movable pool. When a seize arriving now would be served (for a resource, it can allocate and
+ *  its queue would choose the moved request next; for a pool, the pool can allocate), the request is
+ *  promised the units and its entity is resumed at once; otherwise it waits there.
  *  The old queue records the wait only when the move asks it to.
  */
 class MoveRequestCharacterizationTest {

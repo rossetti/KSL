@@ -174,6 +174,7 @@ class RequestQ @JvmOverloads constructor(
         request.entity.terminateProcess(afterTermination)
         for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
         offerOnward(offerOn, "removed_and_terminated_request_id=${request.id}")
+        offerGuidedPool(request.resource)
     }
 
     /** The resources whose units a request for [resource] can take: the resource, or the members of its pool. */
@@ -407,6 +408,18 @@ class RequestQ @JvmOverloads constructor(
         if (!remove(request, false)) return
         for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
         offerOnward(offerOn, "request_abandoned_request_id=${request.id}")
+        offerGuidedPool(request.resource)
+    }
+
+    /**
+     *  A guided transporter pool promises nothing at a wake: it counts a woken request's transporter as taken
+     *  for as long as the request is in its queue. When such a request leaves without resuming, the transporter
+     *  is free in the pool's count and nothing has said so; the pool looks at its waiting requests again.
+     */
+    private fun offerGuidedPool(target: ResourceIfc) {
+        if (target is ksl.modeling.guidedpath.GuidedTransporterPoolWithQ && !executive.isEnded) {
+            target.transporterBecameDispatchable()
+        }
     }
 
     /**
