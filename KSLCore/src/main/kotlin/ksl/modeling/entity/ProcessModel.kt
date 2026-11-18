@@ -671,11 +671,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  at this entity's priority, places it in the queue and announces it. Shared by `seize` and a
          *  resource's seize trigger.
          */
-        internal fun enqueueResourceRequest(resource: Resource, amountNeeded: Int, queue: RequestQ): ResourceRequest {
+        internal fun enqueueResourceRequest(
+            resource: Resource,
+            amountNeeded: Int,
+            queue: RequestQ,
+            requestPriority: Int = priority
+        ): ResourceRequest {
             // a queue a seize waits in is offered the resource's freed units, whichever way they are freed
             resource.registerCapacityChangeQueue(queue)
             val request = ResourceRequest(amountNeeded, resource)
-            request.priority = priority // consider adding a queue priority parameter to the seize() function
+            request.priority = requestPriority
             queue.enqueue(request) // put the request in the queue
             emitAnimation { AnimationEvent.SeizeQueued(time, id, resource.name, queue.name, amountNeeded) }
             return request
@@ -690,14 +695,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             amountNeeded: Int,
             queue: RequestQ,
             resourceSelectionRule: ResourceSelectionRuleIfc,
-            resourceAllocationRule: ResourceAllocationRuleIfc
+            resourceAllocationRule: ResourceAllocationRuleIfc,
+            requestPriority: Int = priority
         ): ResourcePoolRequest {
             // a queue a seize waits in is offered the members' freed units, whichever way they are freed
             resourcePool.registerQueueOnMembers(queue)
             val request = ResourcePoolRequest(amountNeeded, resourcePool)
             request.selectionRule = resourceSelectionRule
             request.allocationRule = resourceAllocationRule
-            request.priority = priority // consider adding a queue priority parameter to the seize() function
+            request.priority = requestPriority
             queue.enqueue(request) // put the request in the queue
             emitAnimation { AnimationEvent.SeizeQueued(time, id, resourcePool.name, queue.name, amountNeeded) }
             return request
@@ -712,7 +718,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             queue: RequestQ,
             requestLocation: LocationIfc,
             resourceSelectionRule: MovableResourceSelectionRuleIfc,
-            resourceAllocationRule: MovableResourceAllocationRuleIfc
+            resourceAllocationRule: MovableResourceAllocationRuleIfc,
+            requestPriority: Int = priority
         ): MovableResourcePoolRequest {
             // a queue a seize waits in is offered the members' freed units, whichever way they are freed
             movableResourcePool.registerQueueOnMembers(queue)
@@ -720,7 +727,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             request.requestLocation = requestLocation
             request.selectionRule = resourceSelectionRule
             request.allocationRule = resourceAllocationRule
-            request.priority = priority // consider adding a queue priority parameter to the seize() function
+            request.priority = requestPriority
             queue.enqueue(request) // put the request in the queue
             emitAnimation { AnimationEvent.SeizeQueued(time, id, movableResourcePool.name, queue.name, 1) }
             return request
@@ -1184,8 +1191,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal var reservation: Resource.Reservation? = null
 
             /**
-             *  For a `preempt` that found nothing to take and waits: its rule, under which it plans again when
-             *  units come free or come back. Null for any other request.
+             *  For a `preempt` that waits: its rule. One that found nothing to take plans again under it when units
+             *  come free or come back; one that reserved under `FINISH` records it so that a move of its request
+             *  finds it. Null for any other request.
              */
             internal var waitingPreemptRule: InterruptRule? = null
 

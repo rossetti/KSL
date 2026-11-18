@@ -265,8 +265,15 @@ class Allocation internal constructor(
             myInterruptedSince = Double.NaN
             freezeRestart = false
             myEntity.removeFreezeReason(this, null)
-            claimTriggers(onRestore = true, value = Unit)
+            // while the resource settles a repair or a failing release the units can be taken again in the same
+            // call; it then claims the restored trigger itself, once settled, if the units are still back
+            if (!myResource.holdRestoredClaim(this)) claimTriggers(onRestore = true, value = Unit)
         }
+    }
+
+    /** Claims the waits on the restored trigger when this allocation is still held and has no units missing. */
+    internal fun claimRestoredIfWhole() {
+        if (isAllocated && missingUnits == 0) claimTriggers(onRestore = true, value = Unit)
     }
 
     /**
@@ -350,9 +357,14 @@ class Allocation internal constructor(
 
     /**
      *  A trigger for `waitForFirst` that fires when all the missing units of this allocation have come
-     *  back; at once if none are missing. Any entity may wait on it, not only the holder. A wait on it
-     *  ends by its other triggers or its time limit if the allocation is released first, and a released
-     *  allocation's trigger cannot be waited on.
+     *  back; at once if none are missing. At a repair, and at a release that ends a loan in the instant a
+     *  failure falls due, it fires only if the units are still back once that step is done: a waiting
+     *  preemptor that takes them again at the repair does not wake the holder. A `preempt` made later in the
+     *  same instant can still take them before the holder runs, so a holder that goes on with its work after
+     *  the trigger should do so in a loop, as the entity guide shows ("...react to a failure or
+     *  preemption"): a `delayOrInterrupt` called while units are missing returns at once with nothing done.
+     *  Any entity may wait on it, not only the holder. A wait on it ends by its other triggers or its time
+     *  limit if the allocation is released first, and a released allocation's trigger cannot be waited on.
      */
     fun restoredTrigger(): WaitTrigger<Unit> = RestoredTrigger(this)
 

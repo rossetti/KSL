@@ -63,6 +63,10 @@ class Signal @JvmOverloads constructor(
      *
      *  A trigger holds no state of any wait, so it can be kept and used in any number of waits.
      *
+     *  A [waitPriority] becomes the entity's priority, as it does after `waitFor(signal, waitPriority)`,
+     *  and stays so after the wait. The requests the wait's seize and items triggers place are ranked by
+     *  the entity's priority when the wait began, whatever the order of the triggers.
+     *
      *  @param waitPriority the entity's priority in this signal's queue; null (the default) means
      *  the entity's own priority when the wait starts
      *  @param waitStats whether the time the entity waits in this signal's queue is recorded,

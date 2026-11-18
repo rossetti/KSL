@@ -44,6 +44,7 @@ class PreemptionTest {
         val r3 = ResourceWithQ(this, "R3", capacity = 3)
         val ranked = ResourceWithQ(this, "Ranked", queue = RequestQ(this, "RankedQ", Queue.Discipline.RANKED))
         val ranked2 = ResourceWithQ(this, "Ranked2", capacity = 2, queue = RequestQ(this, "Ranked2Q", Queue.Discipline.RANKED))
+        val otherQ = RequestQ(this, "OtherQ")
         val backup = ResourceWithQ(this, "Backup")
 
         val log = mutableListOf<String>()
@@ -556,6 +557,42 @@ class PreemptionTest {
             // S, woken at 10, is terminated at 12; at the repair at 15 P is given the unit and takes it
             assertEquals(listOf("P got@15.0", "P holds 0, busy 0"), m.log, if (two) "two units" else "one unit")
         }
+    }
+
+    @Test
+    @DisplayName("a FINISH preemptor that reserved on arrival and is moved stays a preemptor at the resource it moves to")
+    fun reservedFinishPreemptorMoved() {
+        val (_, m) = run(length = 100.0) {
+            job("H", r, 0.0, 10.0)
+            job("B", backup, 0.0, 20.0)
+            job("S", backup, 0.5, 1.0)
+            val p = actor("P", 1) {
+                delay(1.0)
+                val a = preempt(r, rule = InterruptRule.FINISH)
+                log.add("P got@$time")
+                delay(1.0)
+                release(a)
+            }
+            p.movesTo = backup
+            at(2.0) { r.goOffShift() }
+        }
+        // P reserved H's unit at 1; R is off shift from 2 and, inactive at H's release at 10, P moves to Backup,
+        // where it is served ahead of S, which waited from 0.5
+        assertEquals(listOf("P got@20.0", "S got@21.0"), m.log.filter { it.startsWith("P got") || it.startsWith("S got") })
+    }
+
+    @Test
+    @DisplayName("two queues: a freed unit goes to a waiting preemptor ahead of the request it outranks that would be served next")
+    fun waitingPreemptorWithASecondQueue() {
+        val (_, m) = run(length = 100.0) {
+            job("H", r, 0.0, 10.0)
+            actor("L", 9) { delay(1.0); val a = seize(r, queue = otherQ); log.add("L got@$time"); delay(5.0); release(a) }
+            job("S", r, 2.0, 5.0, priority = 0)
+            urgent("W", r, 3.0, 5.0, priority = 5)
+        }
+        // at 10 the default rule would serve L, which entered first; W outranks L and takes the unit; then L and S
+        // in order of entry
+        assertEquals(listOf("W got@10.0", "L got@15.0", "S got@20.0"), m.log.filter { "got" in it && !it.startsWith("H") })
     }
 
     @Test

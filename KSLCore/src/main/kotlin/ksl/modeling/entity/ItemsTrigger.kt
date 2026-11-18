@@ -48,12 +48,13 @@ internal class ItemsTrigger<T : ModelElement.QObject>(
     override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): List<T> {
         // As the untimed receive does when it can be filled at once: the request enters the queue and
         // is filled in the same instant, which records a wait of zero.
-        return fill(blockingQ, newRequest(process.entity, null))
+        return fill(blockingQ, newRequest(process.entity, null, process.entity.priority))
     }
 
     override fun register(group: WaitGroup): Registration {
         val registration = ItemsRegistration(this, group)
-        val request = newRequest(group.entity, registration)
+        // ranked by the priority when the wait began, whatever a trigger registered before it did to the entity's
+        val request = newRequest(group.entity, registration, group.entityPriority)
         registration.request = request
         if (blockingQ.selectNextRequest() === request) {
             // It can be filled now, ahead of requests already waiting: as the untimed receive, it
@@ -63,8 +64,12 @@ internal class ItemsTrigger<T : ModelElement.QObject>(
         return registration
     }
 
-    private fun newRequest(entity: ProcessModel.Entity, registration: Registration?): BlockingQueue<T>.ChannelRequest {
-        val priority = blockingPriority ?: entity.priority
+    private fun newRequest(
+        entity: ProcessModel.Entity,
+        registration: Registration?,
+        entityPriority: Int
+    ): BlockingQueue<T>.ChannelRequest {
+        val priority = blockingPriority ?: entityPriority
         val request = if (amount != null) blockingQ.enqueueAmountRequest(entity, predicate, amount, priority, registration)
         else blockingQ.enqueueChannelRequest(entity, predicate, priority, registration)
         return request

@@ -30,6 +30,10 @@ internal class InterruptedTrigger(val allocation: Allocation) : WaitTrigger<Inte
 
     override fun register(group: WaitGroup): Registration = allocation.registerTrigger(this, group, onRestore = false)
 
+    /** Waiting again, after a seize trigger's promise broke: an allocation released since waits on nothing. */
+    override fun registerAgain(group: WaitGroup): Registration =
+        if (allocation.isAllocated) register(group) else EndedRegistration(this, group)
+
     override fun toString(): String = "InterruptedTrigger(allocation ${allocation.id} of ${allocation.myResource.name})"
 }
 
@@ -44,6 +48,10 @@ internal class RestoredTrigger(val allocation: Allocation) : WaitTrigger<Unit>()
     override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine) {}
 
     override fun register(group: WaitGroup): Registration = allocation.registerTrigger(this, group, onRestore = true)
+
+    /** Waiting again, after a seize trigger's promise broke: an allocation released since waits on nothing. */
+    override fun registerAgain(group: WaitGroup): Registration =
+        if (allocation.isAllocated) register(group) else EndedRegistration(this, group)
 
     override fun toString(): String = "RestoredTrigger(allocation ${allocation.id} of ${allocation.myResource.name})"
 }

@@ -1727,7 +1727,9 @@ interface KSLProcessBuilder {
      *  entity ahead of the waiting requests it outranks. It takes no freed unit ahead of a waiting request
      *  that is more urgent, or equally urgent and ahead of it, nor ahead of a `FINISH` entity, equally or
      *  more urgent, that is still taking its units: it goes on waiting in its queue and is served in its
-     *  turn. A movable resource cannot be preempted; use `seize` for it.
+     *  turn. With several request queues on the resource, the waiting request it is compared with is the
+     *  one the freed units would go to, the one that entered its queue first across the queues. A movable
+     *  resource cannot be preempted; use `seize` for it.
      *
      *  @param resource the resource to take units of
      *  @param amountNeeded the number of units, at least 1

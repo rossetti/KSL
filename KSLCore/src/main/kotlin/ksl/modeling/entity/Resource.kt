@@ -815,6 +815,9 @@ open class Resource @JvmOverloads constructor(
         val reservation = Reservation(request, request.amountRequested - free)
         request.reservation = reservation
         myReservations.add(reservation)
+        // only a FINISH preempt reserves; its rule is recorded so that a move of the request finds it, as it
+        // finds the rule of a preempt that waits
+        request.waitingPreemptRule = InterruptRule.FINISH
         numTimesPreempted++
     }
 
@@ -885,20 +888,24 @@ open class Resource @JvmOverloads constructor(
      */
     fun repair() {
         check(isFailed) { "$name is not failed; check isFailed before calling repair()." }
-        for (a in allocations()) {
-            if (a.missingByFailure > 0) a.unitsComeBack(byFailure = a.missingByFailure, byLoan = 0)
+        // a waiting preemptor can take back units in the offer below: a restored trigger fires only for the
+        // allocations whose units are still back once the offer is made
+        settlingRestores {
+            for (a in allocations()) {
+                if (a.missingByFailure > 0) a.unitsComeBack(byFailure = a.missingByFailure, byLoan = 0)
+            }
+            myFailureRule = null
+            myDeclaredFailureInProgress = false
+            // tell of a change of availability only against the state before the failure: inactive then and now
+            // is no change, and inactive then but not now is the resource becoming active
+            val next = stateFromUnits()
+            myQuietAvailabilityHooks = myInactiveAtFailure
+            myState = next
+            myQuietAvailabilityHooks = false
+            if (myInactiveAtFailure && next !== myInactiveState) resourceBecameActive()
+            myInactiveAtFailure = false
+            offerFreedUnits(ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "repaired_resource=$name")
         }
-        myFailureRule = null
-        myDeclaredFailureInProgress = false
-        // tell of a change of availability only against the state before the failure: inactive then and now
-        // is no change, and inactive then but not now is the resource becoming active
-        val next = stateFromUnits()
-        myQuietAvailabilityHooks = myInactiveAtFailure
-        myState = next
-        myQuietAvailabilityHooks = false
-        if (myInactiveAtFailure && next !== myInactiveState) resourceBecameActive()
-        myInactiveAtFailure = false
-        offerFreedUnits(ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "repaired_resource=$name")
         failureNotification()
         myFailureClock?.update()
         val failures = myFailuresEntity
@@ -1515,9 +1522,46 @@ open class Resource @JvmOverloads constructor(
         val failing = myFailureDueAtRelease
         myFailureDueAtRelease = false
         // the units of ending loans pass on, counting the units this release freed, unless the resource fails
-        // at this release; then they go back to their lenders, and the failure takes them with the rest
-        if (settlement != null) returnLoans(settlement, passOn = !failing)
-        if (failing) applyDueFailure()
+        // at this release; then they go back to their lenders, and the failure takes them with the rest in the
+        // same step, so a restored trigger fires only for units still back once the failure is applied
+        if (failing) {
+            settlingRestores {
+                if (settlement != null) returnLoans(settlement, passOn = false)
+                applyDueFailure()
+            }
+        } else if (settlement != null) {
+            returnLoans(settlement, passOn = true)
+        }
+    }
+
+    /** The allocations whose units came back while a repair or a failing release settles; null when none is settling. */
+    private var myRestoredWhileSettling: MutableList<Allocation>? = null
+
+    /** True when the restored claim of [allocation] is held back until this resource has settled. */
+    internal fun holdRestoredClaim(allocation: Allocation): Boolean {
+        val held = myRestoredWhileSettling ?: return false
+        held.add(allocation)
+        return true
+    }
+
+    /**
+     *  Runs the [steps] of a repair or a failing release, in which units come back and may be taken again, and
+     *  then claims the restored trigger of each allocation whose units are still back. Nested, the outer call
+     *  makes the claims.
+     */
+    private inline fun settlingRestores(steps: () -> Unit) {
+        if (myRestoredWhileSettling != null) {
+            steps()
+            return
+        }
+        val held = mutableListOf<Allocation>()
+        myRestoredWhileSettling = held
+        try {
+            steps()
+        } finally {
+            myRestoredWhileSettling = null
+        }
+        for (allocation in held.distinct()) allocation.claimRestoredIfWhole()
     }
 
     /** What settling a release's loans leaves to do: the units going back, by lender, and those of them down. */
@@ -1711,23 +1755,64 @@ open class Resource @JvmOverloads constructor(
     /**
      *  Whether the waiting preemptor [request] may take free units now. It may not while something as
      *  urgent as it is comes before it: a reservation still collecting units whose entity is equally or
-     *  more urgent, or the request a queue would serve next from this resource when that request is more
-     *  urgent, or is equally urgent and ahead of it (in its own queue by the queue's discipline, in another
-     *  queue by the time it began to wait). Requests of lower priority do not hold it back.
+     *  more urgent, or the request the free units would go to when that request is more urgent, or is
+     *  equally urgent and ahead of it (in its own queue by the queue's discipline, in another queue by the
+     *  time it began to wait). Under the default notification rule the free units go to one request, the
+     *  one that entered its queue first across the queues; under a rule of the model's own, the next
+     *  request of any queue can hold it back. Requests of lower priority do not hold it back.
      */
     private fun mayTakeFreeUnits(request: ProcessModel.Entity.ResourceRequest): Boolean {
         val priority = request.entity.priority
         if (myReservations.any { !it.isComplete && it.request.entity.priority <= priority }) return false
+        if (requestQNotificationRule === DefaultRequestQueueNotificationRule) {
+            // the free units would go to one request, the one the default rule serves next: the preemptor is
+            // compared with that request, the only one it would take them from
+            val (nextQueue, next) = nextByDefaultRule(myCapacityChangeQSet) ?: return true
+            return next === request || !comesBefore(next, nextQueue, request)
+        }
+        // a rule of the model's own offers queue by queue: the next request of any queue can hold it back
         for (queue in myCapacityChangeQSet) {
             val next = queue.nextRequestServableBy(this) ?: continue
             if (next === request) continue
-            val nextPriority = next.entity.priority
-            if (nextPriority < priority) return false
-            if (nextPriority == priority &&
-                (queue === request.queue || next.timeEnteredQueue < request.timeEnteredQueue)
-            ) return false
+            if (comesBefore(next, queue, request)) return false
         }
         return true
+    }
+
+    /**
+     *  Under the default notification rule, the request this resource would serve next from [queues]: of the
+     *  next request of each queue, the one that entered its queue first, with the queue it is in. Null when no
+     *  queue has a request the resource can serve. The offer of freed units and a waiting preemptor's check
+     *  both use it, so the two agree.
+     */
+    private fun nextByDefaultRule(queues: Set<RequestQ>): Pair<RequestQ, ProcessModel.Entity.Request>? {
+        var bestQueue: RequestQ? = null
+        var best: ProcessModel.Entity.Request? = null
+        for (queue in queues) {
+            val candidate = queue.nextRequestServableBy(this) ?: continue
+            if (best == null || candidate.timeEnteredQueue < best.timeEnteredQueue) {
+                bestQueue = queue
+                best = candidate
+            }
+        }
+        return if (best == null) null else Pair(bestQueue!!, best)
+    }
+
+    /**
+     *  Whether [next], the request next in [queue], comes before the waiting [preemptor]: it is more urgent, or
+     *  it is equally urgent and ahead of it (in the preemptor's own queue by the queue's discipline, in another
+     *  queue by the time it began to wait).
+     */
+    private fun comesBefore(
+        next: ProcessModel.Entity.Request,
+        queue: RequestQ,
+        preemptor: ProcessModel.Entity.ResourceRequest
+    ): Boolean {
+        val nextPriority = next.entity.priority
+        val priority = preemptor.entity.priority
+        return nextPriority < priority ||
+                (nextPriority == priority &&
+                        (queue === preemptor.queue || next.timeEnteredQueue < preemptor.timeEnteredQueue))
     }
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
@@ -2160,16 +2245,8 @@ open class Resource @JvmOverloads constructor(
         if (queues.isEmpty()) return
         if (requestQNotificationRule === DefaultRequestQueueNotificationRule) {
             while (numAvailableUnits > 0) {
-                var bestQueue: RequestQ? = null
-                var best: ProcessModel.Entity.Request? = null
-                for (q in queues) {
-                    val candidate = q.nextRequestServableBy(this) ?: continue
-                    if (best == null || candidate.timeEnteredQueue < best.timeEnteredQueue) {
-                        bestQueue = q
-                        best = candidate
-                    }
-                }
-                if (best == null || !bestQueue!!.wake(best, this, priority, source, detail)) break
+                val (bestQueue, best) = nextByDefaultRule(queues) ?: break
+                if (!bestQueue.wake(best, this, priority, source, detail)) break
             }
         } else {
             val itr = requestQNotificationRule.ruleIterator(queues)

@@ -59,6 +59,13 @@ abstract class WaitTrigger<out T> internal constructor() {
     internal abstract fun register(group: WaitGroup): Registration
 
     /**
+     *  Registers this trigger again for a wait that began earlier and now waits a second time, as a seize
+     *  trigger's wait does when its promise breaks. By default it registers as for a new wait. A trigger whose
+     *  source may have ended since the wait began answers with a registration that waits on nothing.
+     */
+    internal open fun registerAgain(group: WaitGroup): Registration = register(group)
+
+    /**
      *  If not null, the wait yields once at this priority before it registers, as a seize does
      *  before it joins its queue.
      */
@@ -291,6 +298,20 @@ internal abstract class Registration(val trigger: WaitTrigger<*>, val group: Wai
 }
 
 /**
+ *  The registration of a trigger that can no longer fire, in a wait that goes on for its other triggers and
+ *  its time limit. It holds nothing, so there is nothing to release, and it never wins.
+ */
+internal class EndedRegistration(trigger: WaitTrigger<*>, group: WaitGroup) : Registration(trigger, group) {
+
+    override fun onReleaseAsLoser() {}
+
+    override fun onReleaseOnTermination() {}
+
+    override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume =
+        error("The trigger $trigger can no longer fire, so its registration cannot win a wait.")
+}
+
+/**
  *  The state of one suspending `waitForFirst` or `suspendForOrTimeout`: the entity and its process,
  *  the triggers in argument order and their registrations, whether a claim has been made and by
  *  whom, and the timer. The first claim wins; nothing outside the wait keeps a reference to the
@@ -305,6 +326,13 @@ internal class WaitGroup(
 ) {
     /** One per trigger, in argument order. */
     val registrations: MutableList<Registration> = mutableListOf()
+
+    /**
+     *  The entity's priority when the wait began. A trigger that places a request for the entity ranks it by
+     *  this, so that a trigger registered earlier in the same wait, which may change the entity's priority as
+     *  a signal trigger with a wait priority does, has no effect on it.
+     */
+    var entityPriority: Int = entity.priority
 
     /** True once a trigger, the timer, or a suspension's holder has claimed the wait. */
     var claimed: Boolean = false

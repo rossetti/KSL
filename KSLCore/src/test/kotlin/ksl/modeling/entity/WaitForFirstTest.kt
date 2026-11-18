@@ -407,4 +407,97 @@ class WaitForFirstTest {
         assertEquals(listOf("WaitingForSignal@0.0"), of(itemsWinner))
         assertEquals(listOf("WaitingForSignal@0.0", "WaitTimedOut(either)@4.0"), of(timedOut))
     }
+
+    /**
+     *  An entity of priority 9 waits for the first of a signal, with a wait priority of 1, and a bed (or an
+     *  item), in either argument order, behind a plain request of priority 5 in a ranked queue. The request
+     *  the bed or items trigger places ranks by the entity's priority when the wait began, whatever the order.
+     */
+    private class PriorityModel(parent: ModelElement, val signalFirst: Boolean, val items: Boolean) : ProcessModel(parent, "priority") {
+        val q = RequestQ(this, "RQ", discipline = ksl.modeling.queue.Queue.Discipline.RANKED)
+        val r = ResourceWithQ(this, "R", capacity = 1, queue = q)
+        val bin = BlockingQueue<QObject>(this, name = "Bin")
+        val alarm = Signal(this, "Alarm")
+        val served = mutableListOf<String>()
+
+        init {
+            bin.requestQ.initialDiscipline = ksl.modeling.queue.Queue.Discipline.RANKED
+        }
+
+        inner class Holder : Entity() {
+            val p: KSLProcess = process("holder") {
+                if (items) {
+                    delay(10.0)
+                    send(QObject(), bin)
+                    delay(1.0)
+                    send(QObject(), bin)
+                } else {
+                    val a = seize(r)
+                    delay(10.0)
+                    release(a)
+                }
+            }
+        }
+
+        inner class Plain : Entity() {
+            init {
+                priority = 5
+            }
+
+            val p: KSLProcess = process("plain") {
+                delay(1.0)
+                if (items) {
+                    waitForItems(bin, 1)
+                    served.add("plain@$time")
+                } else {
+                    val a = seize(r)
+                    served.add("plain@$time")
+                    delay(1.0)
+                    release(a)
+                }
+            }
+        }
+
+        inner class Mixed : Entity() {
+            init {
+                priority = 9
+            }
+
+            val p: KSLProcess = process("mixed") {
+                delay(2.0)
+                val sig = alarm.trigger(waitPriority = 1)
+                val other: WaitTrigger<*> = if (items) bin.itemsTrigger() else r.seizeTrigger()
+                val res = if (signalFirst) waitForFirst(sig, other) else waitForFirst(other, sig)
+                if (res.firedBy(other)) {
+                    served.add("mixed@$time")
+                    if (!items) release(res.valueOf(other) as Allocation)
+                }
+            }
+        }
+
+        override fun initialize() {
+            served.clear()
+            activate(Holder().p)
+            activate(Plain().p)
+            activate(Mixed().p)
+        }
+    }
+
+    @Test
+    @DisplayName("a seize or items trigger listed after a signal trigger with a wait priority ranks by the entity's own priority")
+    fun signalWaitPriorityDoesNotReachALaterTrigger() {
+        for (items in listOf(false, true)) {
+            val orders = listOf(true, false).map { signalFirst ->
+                val model = Model("Priority${System.nanoTime()}", autoCSVReports = false)
+                val m = PriorityModel(model, signalFirst, items)
+                model.numberOfReplications = 1
+                model.lengthOfReplication = 100.0
+                model.simulate()
+                m.served.toList()
+            }
+            val what = if (items) "items" else "seize"
+            assertEquals(orders[1], orders[0], "$what: the argument order changed who is served")
+            assertEquals("plain", orders[0].first().substringBefore("@"), "$what: the plain request, priority 5, ranks ahead of 9")
+        }
+    }
 }

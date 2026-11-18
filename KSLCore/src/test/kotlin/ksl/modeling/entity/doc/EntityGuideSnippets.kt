@@ -285,15 +285,74 @@ private class Preempting(parent: ModelElement) : ProcessModel(parent) {
 
 // ── §4 hold a resource across work that does not use it; react to a failure or preemption ─────────────
 
-private class HoldingAndReacting(parent: ModelElement) : ProcessModel(parent) {
+/**
+ *  Runnable as well as compiled: `ReactingPatternTest` runs the patient's treatment loop, the guide's example,
+ *  through failures and preemptions, with a constant [treatment].
+ */
+internal class HoldingAndReacting(
+    parent: ModelElement,
+    treatment: ksl.utilities.random.rvariable.RVariableIfc = ExponentialRV(30.0, 3)
+) : ProcessModel(parent) {
     private val loadingBay = ResourceWithQ(this, "LoadingBay")
     private val forklift = ResourceWithQ(this, "Forklift")
     private val loadTime = RandomVariable(this, ExponentialRV(10.0, 2))
-    private val rooms = ResourceWithQ(this, "Rooms", capacity = 4)
-    private val doctors = ResourceWithQ(this, "Doctors", capacity = 2)
-    private val otherDoctors = ResourceWithQ(this, "OtherDoctors", capacity = 2)
-    private val treatmentRV = RandomVariable(this, ExponentialRV(30.0, 3))
+    internal val rooms = ResourceWithQ(this, "Rooms", capacity = 4)
+    internal val doctors = ResourceWithQ(this, "Doctors", capacity = 2)
+    internal val otherDoctors = ResourceWithQ(this, "OtherDoctors", capacity = 2)
+    private val treatmentRV = RandomVariable(this, treatment)
     private val calledAway = Signal(this, "CalledAway")
+
+    /** When each patient finished its treatment, and who treated it. */
+    internal val finished = mutableListOf<String>()
+
+    /** What a test sets up at the start of each replication. */
+    internal val setups = mutableListOf<HoldingAndReacting.() -> Unit>()
+
+    /** Admits a patient at time 0, of priority [prio], whose treatment loops, or reacts only once if [once]. */
+    internal fun admit(prio: Int = 9, once: Boolean = false) {
+        val patient = Patient(prio)
+        activate(if (once) patient.treatReactingOnce else patient.treat)
+    }
+
+    /** Runs [action] at time [t], at event priority [priority]. */
+    internal fun at(t: Double, priority: Int = KSLEvent.DEFAULT_PRIORITY, action: () -> Unit) {
+        schedule(EventActionIfc<Nothing> { action() }, t, priority = priority)
+    }
+
+    /**
+     *  An urgent entity of priority 1 that preempts [n] units of [res] at [from] under [rule], holds them for
+     *  [hold], and logs, just before it preempts, whether the first doctor's holder is missing units.
+     */
+    internal inner class Urgent(
+        val res: ResourceWithQ, val n: Int, val from: Double, val hold: Double, val rule: InterruptRule,
+        val delayPriority: Int, val seizePriority: Int, val log: MutableList<String>
+    ) : Entity() {
+        init {
+            priority = 1
+        }
+
+        val p: KSLProcess = process {
+            delay(from, delayPriority = delayPriority)
+            log.add("P checks@$time missing=${doctors.allocations().first().hasMissingUnits}")
+            val a = preempt(res, n, seizePriority = seizePriority, rule = rule)
+            log.add("P got@$time")
+            delay(hold)
+            release(a)
+        }
+    }
+
+    /** Activates an [Urgent] entity. */
+    internal fun urgent(
+        res: ResourceWithQ, n: Int, from: Double, hold: Double, rule: InterruptRule,
+        delayPriority: Int, seizePriority: Int, log: MutableList<String>
+    ) {
+        activate(Urgent(res, n, from, hold, rule, delayPriority, seizePriority, log).p)
+    }
+
+    override fun initialize() {
+        finished.clear()
+        for (setup in setups) setup()
+    }
 
     private inner class Truck : Entity() {
         val load: KSLProcess = process {
@@ -305,20 +364,44 @@ private class HoldingAndReacting(parent: ModelElement) : ProcessModel(parent) {
         }
     }
 
-    private inner class Patient : Entity() {
+    internal inner class Patient(prio: Int = 1) : Entity() {
+        init {
+            priority = prio
+        }
+
         val treat: KSLProcess = process {
             val room = seize(rooms)
-            val doc  = seize(doctors)
-            when (val r = delayOrInterrupt(treatmentRV, uses = listOf(doc, room))) {
-                is DelayResult.Completed -> { release(doc); release(room) }
-                is DelayResult.Interrupted -> {
-                    // wait up to 15 minutes for the doctor to come back, else see another one
-                    val back = waitForFirst(r.by.restoredTrigger(), timeout = 15.0)
-                    val d = if (back.timedOut) { release(r.by); seize(otherDoctors) } else r.by
-                    delayOrInterrupt(r.timeRemaining, uses = listOf(d, room))   // the rest of the work
-                    release(d); release(room)
-                }
+            var doc  = seize(doctors)
+            val work = treatmentRV.value
+            var left = work
+            while (true) {
+                val r = delayOrInterrupt(left, uses = listOf(doc, room))
+                if (r is DelayResult.Completed) break
+                r as DelayResult.Interrupted
+                // go on with what was left, or start again, as the rule of the taking says
+                left = if (r.rule == InterruptRule.RESTART) work else r.timeRemaining
+                // wait up to 15 minutes for what was taken to come back; if it is the doctor, see another one
+                val back = waitForFirst(r.by.restoredTrigger(), timeout = 15.0)
+                if (back.timedOut && r.by === doc) { release(doc); doc = seize(otherDoctors) }
             }
+            release(doc); release(room)
+            finished.add("finished@$time by ${doc.myResource.name}")
+        }
+
+        val treatReactingOnce: KSLProcess = process {
+            val room = seize(rooms)
+            var doc  = seize(doctors)
+            val work = treatmentRV.value
+            val r = delayOrInterrupt(work, uses = listOf(doc, room))
+            if (r is DelayResult.Interrupted) {
+                // wait up to 15 minutes for what was taken to come back; if it is the doctor, see another one
+                val back = waitForFirst(r.by.restoredTrigger(), timeout = 15.0)
+                if (back.timedOut && r.by === doc) { release(doc); doc = seize(otherDoctors) }
+                // the rest of the work, held through any later interruption until it is done
+                delay(if (r.rule == InterruptRule.RESTART) work else r.timeRemaining, uses = listOf(doc, room))
+            }
+            release(doc); release(room)
+            finished.add("finished@$time by ${doc.myResource.name}")
         }
 
         val treatAsAWait: KSLProcess = process {

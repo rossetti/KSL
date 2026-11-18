@@ -36,8 +36,8 @@ internal abstract class SeizeTrigger<V, R : ProcessModel.Entity.Request>(
     val recordRenegedWait: Boolean
 ) : WaitTrigger<V>() {
 
-    /** Places the request in the queue, as the untimed seize does. */
-    abstract fun enqueue(entity: ProcessModel.Entity): R
+    /** Places the request in the queue at [requestPriority], as the untimed seize does at the entity's priority. */
+    abstract fun enqueue(entity: ProcessModel.Entity, requestPriority: Int): R
 
     /** True when the request just placed can take its units at once, as the untimed seize decides. */
     abstract fun canTakeNow(entity: ProcessModel.Entity, request: R): Boolean
@@ -64,14 +64,15 @@ internal abstract class SeizeTrigger<V, R : ProcessModel.Entity.Request>(
     override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): V {
         // As seize does when it can take the units at once: the request enters the queue and leaves it in the
         // same instant, which records a wait of zero.
-        val request = enqueue(process.entity)
+        val request = enqueue(process.entity, process.entity.priority)
         return with(process) { complete(request) }
     }
 
     override fun register(group: WaitGroup): Registration {
         val entity = group.entity
         val registration = SeizeRegistration(this, group)
-        val request = enqueue(entity)
+        // ranked by the priority when the wait began, whatever a trigger registered before it did to the entity's
+        val request = enqueue(entity, group.entityPriority)
         registration.attach(request)
         if (canTakeNow(entity, request)) {
             // It can take its units now. They are promised to it, as a wake promises them, so nothing else takes
@@ -109,7 +110,8 @@ internal class ResourceSeizeTrigger(
     override fun canFireNow(entity: ProcessModel.Entity): Boolean =
         resource.canAllocate(amountNeeded) && queue.nextRequestForResource(resource) == null
 
-    override fun enqueue(entity: ProcessModel.Entity) = entity.enqueueResourceRequest(resource, amountNeeded, queue)
+    override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int) =
+        entity.enqueueResourceRequest(resource, amountNeeded, queue, requestPriority)
 
     override fun canTakeNow(entity: ProcessModel.Entity, request: ProcessModel.Entity.ResourceRequest) =
         entity.canTakeResourceNow(request, queue)
@@ -147,8 +149,8 @@ internal class ResourcePoolSeizeTrigger(
     override fun canFireNow(entity: ProcessModel.Entity): Boolean =
         resourcePool.canAllocate(resourceSelectionRule, amountNeeded)
 
-    override fun enqueue(entity: ProcessModel.Entity) =
-        entity.enqueuePoolRequest(resourcePool, amountNeeded, queue, resourceSelectionRule, resourceAllocationRule)
+    override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int) =
+        entity.enqueuePoolRequest(resourcePool, amountNeeded, queue, resourceSelectionRule, resourceAllocationRule, requestPriority)
 
     override fun canTakeNow(entity: ProcessModel.Entity, request: ProcessModel.Entity.ResourcePoolRequest) =
         resourcePool.canAllocate(resourceSelectionRule, amountNeeded)
@@ -185,8 +187,9 @@ internal class MovableResourcePoolSeizeTrigger(
     // as the untimed movable pool seize decides: the pool can allocate, whatever else waits
     override fun canFireNow(entity: ProcessModel.Entity): Boolean = movableResourcePool.canAllocate(resourceSelectionRule)
 
-    override fun enqueue(entity: ProcessModel.Entity) = entity.enqueueMovablePoolRequest(
-        movableResourcePool, queue, requestLocation ?: entity.currentLocation, resourceSelectionRule, resourceAllocationRule
+    override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int) = entity.enqueueMovablePoolRequest(
+        movableResourcePool, queue, requestLocation ?: entity.currentLocation, resourceSelectionRule, resourceAllocationRule,
+        requestPriority
     )
 
     override fun canTakeNow(entity: ProcessModel.Entity, request: ProcessModel.Entity.MovableResourcePoolRequest) =
@@ -270,6 +273,7 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
      */
     private suspend fun ProcessModel.Entity.ProcessCoroutine.rewait(): Boolean {
         val again = WaitGroup(group.entity, group.processId, group.triggers, entity.processModel.time, group.suspensionName)
+        again.entityPriority = group.entityPriority
         again.deadline = group.deadline
         again.timeoutPriority = group.timeoutPriority
         val seizeAgain = SeizeRegistration(seizeTrigger, again)
@@ -289,7 +293,7 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
         }
         for (trigger in group.triggers) {
             if (trigger === seizeTrigger) continue
-            again.registrations.add(trigger.register(again))
+            again.registrations.add(trigger.registerAgain(again))
             if (again.claimed) break
         }
         if (!again.claimed) waitAgain(again)

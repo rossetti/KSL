@@ -92,6 +92,84 @@ class AllocationTriggerTest {
         return m
     }
 
+    // ---------- a return that does not last ----------
+
+    /** A holder of priority 9 that is interrupted, waits once for its units, and logs whether they are all back. */
+    private fun TModel.holderWaitingOnce(res: ResourceWithQ, work: Double = 10.0) = actor("H", 9) {
+        val a = seize(res)
+        val first = delayOrInterrupt(work)
+        if (first is DelayResult.Interrupted) {
+            waitForFirst(a.restoredTrigger())
+            log.add("restored@$time missing=${a.hasMissingUnits}")
+            while (a.hasMissingUnits) waitForFirst(a.restoredTrigger())
+            delay(first.timeRemaining)
+        }
+        release(a)
+    }
+
+    @Test
+    @DisplayName("a repair whose units a waiting preemptor takes again at once: the restored trigger fires when they are back for good")
+    fun restoredOnlyWhenTheUnitsStayBack() {
+        val m = run {
+            holderWaitingOnce(r)
+            at(1.0) { r.fail(InterruptRule.RESUME) }
+            actor("W", 1) { delay(2.0); val a = preempt(r, rule = InterruptRule.RESUME); delay(3.0); release(a) }
+            at(5.0) { r.repair() }
+        }
+        // W, waiting from 2, takes the unit at the repair at 5 and keeps it until 8
+        assertEquals(listOf("restored@8.0 missing=false"), m.log)
+    }
+
+    @Test
+    @DisplayName("a repair with no waiting preemptor: the restored trigger fires at the repair, as before")
+    fun restoredAtARepairThatLasts() {
+        val m = run {
+            holderWaitingOnce(r)
+            at(1.0) { r.fail(InterruptRule.RESUME) }
+            at(5.0) { r.repair() }
+        }
+        assertEquals(listOf("restored@5.0 missing=false"), m.log)
+    }
+
+    @Test
+    @DisplayName("a loan that ends at the release that fails the resource on USES: the restored trigger fires at that failure's repair")
+    fun restoredAfterTheFailureAtALoansEnd() {
+        val m = run(configure = {
+            r.failures(ksl.utilities.random.rvariable.ConstantRV(1.0), ksl.utilities.random.rvariable.ConstantRV(2.0),
+                ResourceFailureBasis.USES, InterruptRule.RESUME)
+        }) {
+            holderWaitingOnce(r)
+            actor("B", 1) { delay(1.0); val a = preempt(r, rule = InterruptRule.RESUME); delay(3.0); release(a) }
+        }
+        // B's release at 4 is the first use: the loan comes back and the failure takes it in the same step
+        assertEquals(listOf("restored@6.0 missing=false"), m.log)
+    }
+
+    @Test
+    @DisplayName("a repair inside a repair, made by a listener told of the allocation a waiting preemptor is given")
+    fun repairInsideARepair() {
+        var nested = false
+        val m = run(configure = {
+            r.addAllocationListener(object : AllocationListenerIfc {
+                override fun allocate(allocation: Allocation) {
+                    if (time == 5.0 && !nested) {
+                        nested = true
+                        r.fail(InterruptRule.RESUME)
+                        r.repair()
+                    }
+                }
+                override fun deallocate(allocation: Allocation) {}
+            })
+        }) {
+            nested = false
+            holderWaitingOnce(r)
+            at(1.0) { r.fail(InterruptRule.RESUME) }
+            actor("W", 1) { delay(2.0); val a = preempt(r, rule = InterruptRule.RESUME); delay(3.0); release(a) }
+            at(5.0) { r.repair() }
+        }
+        assertEquals(listOf("restored@8.0 missing=false"), m.log)
+    }
+
     // ---------- the claim points ----------
 
     @Test

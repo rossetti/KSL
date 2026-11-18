@@ -349,4 +349,81 @@ class WaitForFirstSeizeTest {
             assertEquals(listOf("T:items@5.0 waiting=0", "restored@8.0 waiting=0 busy=0"), m.log, "items first = $itemsFirst")
         }
     }
+
+    /**
+     *  A wait on a seize trigger for both units of R and on an allocation trigger of another entity's
+     *  allocation of Other, with a time limit. The allocation is released at 3; at 5 the seize is woken by
+     *  the release of R and its promise broken in the same instant by a cut of R's capacity to 1. For the
+     *  restored trigger, Other fails at 0.5 and is not repaired, so the allocation's units are missing when
+     *  the wait begins and never come back.
+     */
+    private class RewaitModel(parent: ModelElement, val restored: Boolean) : ProcessModel(parent, "rewait") {
+        val r = ResourceWithQ(this, "R", capacity = 2)
+        val other = ResourceWithQ(this, "Other", capacity = 1)
+        var watched: Allocation? = null
+        val outcome = mutableListOf<String>()
+
+        inner class Holder : Entity() {
+            val p: KSLProcess = process("holder") {
+                val a = seize(r, 2)
+                delay(5.0)
+                release(a)
+                r.changeCapacity(r.CapacityChangeNotice(capacity = 1, duration = Double.POSITIVE_INFINITY))
+            }
+        }
+
+        inner class OtherHolder : Entity() {
+            val p: KSLProcess = process("otherHolder") {
+                val a = seize(other)
+                watched = a
+                if (restored) {
+                    // interrupted at 0.5 by the failure; it lets the allocation go at 3 with its units still missing
+                    delayOrInterrupt(3.0)
+                    delay(3.0 - time, uses = emptyList())
+                } else {
+                    delay(3.0)
+                }
+                release(a)
+            }
+        }
+
+        inner class Failer : Entity() {
+            val p: KSLProcess = process("failer") {
+                delay(0.5)
+                other.fail(InterruptRule.RESUME)
+            }
+        }
+
+        inner class Waiter : Entity() {
+            val p: KSLProcess = process("waiter") {
+                delay(1.0)
+                val take = r.seizeTrigger(amountNeeded = 2)
+                val watch = if (restored) watched!!.restoredTrigger() else watched!!.interruptedTrigger()
+                val res = waitForFirst(take, watch, timeout = 50.0)
+                outcome.add(if (res.timedOut) "timed out@$time" else "other@$time")
+            }
+        }
+
+        override fun initialize() {
+            outcome.clear()
+            watched = null
+            activate(Holder().p)
+            activate(OtherHolder().p)
+            activate(Waiter().p)
+            if (restored) activate(Failer().p)
+        }
+    }
+
+    @Test
+    @DisplayName("a seize trigger that waits again beside a trigger of an allocation released meanwhile goes on to its time limit")
+    fun rewaitBesideAReleasedAllocationsTrigger() {
+        for (restored in listOf(false, true)) {
+            val model = Model("Rewait${System.nanoTime()}", autoCSVReports = false)
+            val m = RewaitModel(model, restored)
+            model.numberOfReplications = 1
+            model.lengthOfReplication = 100.0
+            model.simulate()
+            assertEquals(listOf("timed out@51.0"), m.outcome, if (restored) "restored trigger" else "interrupted trigger")
+        }
+    }
 }

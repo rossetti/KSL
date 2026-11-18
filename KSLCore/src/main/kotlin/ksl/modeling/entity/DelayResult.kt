@@ -50,7 +50,9 @@ sealed class DelayResult {
     /**
      *  The delay ended early, at the moment units of [by] went missing. The units are still missing: the
      *  process decides what to do, for example wait for them with `by.restoredTrigger()`, release the
-     *  allocation, or carry on with what it holds.
+     *  allocation, or carry on with what it holds. Work that goes on after the units come back is best done
+     *  in a loop that calls `delayOrInterrupt` again with what is left, as the entity guide shows: the units
+     *  can be taken again before the process runs, and the next call then returns at once with nothing done.
      *
      *  @property timeRemaining the time that was left on the delay when it ended. After a process interrupt
      *  with its own post time, or one that restarted the delay, it can exceed the duration less the time run.

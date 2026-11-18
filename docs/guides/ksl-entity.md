@@ -597,7 +597,9 @@ private inner class Emergency : Entity() {
   outranks. It takes no freed unit ahead of a waiting request that is more
   urgent, or equally urgent and ahead of it, nor ahead of a `FINISH`
   preemptor, equally or more urgent, that is still taking its units: it goes
-  on waiting in its queue and is served in its turn.
+  on waiting in its queue and is served in its turn. With several request
+  queues on the resource, the waiting request it is compared with is the one
+  the freed units would go to, the one that entered its queue first.
 - **The rule** is the resource's `interruptRule` unless the call names one.
   Under `RESUME` and `RESTART` the units are taken now and the holder's delay
   is held. Under `FINISH` nothing is taken in service: the preemptor is
@@ -656,23 +658,62 @@ happens, use `delayOrInterrupt` (next entry).
 
 A plain `delay` is held while units it depends on are missing, and its
 process is not told. `delayOrInterrupt` runs as a delay does, but ends at the
-moment units go missing and returns what happened, so the process can decide:
+moment units go missing and returns what happened, so the process can decide.
+Any call of it can return `Interrupted`, and the code that calls it handles
+that result. Two shapes are common.
+
+To react to every interruption, loop:
 
 ```kotlin
 val room = seize(rooms)
-val doc  = seize(doctors)
-when (val r = delayOrInterrupt(treatmentRV, uses = listOf(doc, room))) {
-    is DelayResult.Completed -> { release(doc); release(room) }
-    is DelayResult.Interrupted -> {
-        // wait up to 15 minutes for the doctor to come back, else see another one
-        val back = waitForFirst(r.by.restoredTrigger(), timeout = 15.0)
-        val d = if (back.timedOut) { release(r.by); seize(otherDoctors) } else r.by
-        delayOrInterrupt(r.timeRemaining, uses = listOf(d, room))   // the rest of the work
-        release(d); release(room)
-    }
+var doc  = seize(doctors)
+val work = treatmentRV.value
+var left = work
+while (true) {
+    val r = delayOrInterrupt(left, uses = listOf(doc, room))
+    if (r is DelayResult.Completed) break
+    r as DelayResult.Interrupted
+    // go on with what was left, or start again, as the rule of the taking says
+    left = if (r.rule == InterruptRule.RESTART) work else r.timeRemaining
+    // wait up to 15 minutes for what was taken to come back; if it is the doctor, see another one
+    val back = waitForFirst(r.by.restoredTrigger(), timeout = 15.0)
+    if (back.timedOut && r.by === doc) { release(doc); doc = seize(otherDoctors) }
 }
+release(doc); release(room)
 ```
 
+To react only to the first, finish with a plain `delay`, which is held through
+any later interruption and so always does the rest of the work:
+
+```kotlin
+val room = seize(rooms)
+var doc  = seize(doctors)
+val work = treatmentRV.value
+val r = delayOrInterrupt(work, uses = listOf(doc, room))
+if (r is DelayResult.Interrupted) {
+    // wait up to 15 minutes for what was taken to come back; if it is the doctor, see another one
+    val back = waitForFirst(r.by.restoredTrigger(), timeout = 15.0)
+    if (back.timedOut && r.by === doc) { release(doc); doc = seize(otherDoctors) }
+    // the rest of the work, held through any later interruption until it is done
+    delay(if (r.rule == InterruptRule.RESTART) work else r.timeRemaining, uses = listOf(doc, room))
+}
+release(doc); release(room)
+```
+
+- **Which shape.** Loop when every interruption needs a decision, such as
+  seeing another doctor each time one is away too long. Finish with a plain
+  `delay` when only the first does: later interruptions are then waited out.
+  One difference: under `RESTART`, a later taking restarts the plain `delay`,
+  which holds only the time that was left, not the whole treatment; the loop
+  starts the whole treatment again. Loop if that matters.
+- **Never a second `delayOrInterrupt` whose result is ignored.** The units can
+  be taken again between the restored trigger firing and the process running:
+  a `preempt` made later in the same instant takes them first. A
+  `delayOrInterrupt` called then returns `Interrupted` at once, with nothing
+  done; in a loop that is one more turn, but code that goes on as if it had
+  completed releases with the work undone. (At a repair, the restored trigger
+  fires only if the units are still back once the repair is done: a waiting
+  preemptor that takes them again at the repair does not wake the holder.)
 - **Which to use.** `delay` when the work simply waits for the resource to
   come back; `delayOrInterrupt` when the process should choose. The resource's
   `interruptRule` still decides whether units are taken at all: under `FINISH`
@@ -953,6 +994,10 @@ when (r.trigger) {
   same queue (they enter it in argument order). Seize requests in different queues on one
   resource are served by the resource's notification rule. Choose a winner by the
   priority of the events that cause the triggers, never by argument order.
+- **Priorities.** A seize or items trigger ranks its request by the entity's priority when
+  the wait began. A signal trigger's `waitPriority` becomes the entity's priority, as with
+  `waitFor(signal, waitPriority)`, and stays so after the wait, but it does not reach the
+  requests of the wait's other triggers, whichever order they are listed in.
 - **A seize trigger** yields once before the wait starts, at the lowest `seizePriority`
   among the wait's seize triggers, as `seize` yields. Its value is the allocation; a
   losing seize request leaves its queue at the claim, recorded unless
