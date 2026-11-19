@@ -259,6 +259,13 @@ class Conveyor @JvmOverloads constructor(
     // of this conveyor to be free: the entry cell and the request on the conveyor being left
     private val myWaitingToLand = mutableMapOf<Cell, ConveyorRequest>()
 
+    /**
+     *  Entry cells granted to a request whose entity has not yet resumed to block them. The cell is not blocked
+     *  until the entity runs, so without this a second request could be granted the same cell in the same
+     *  instant, and one of the two would never enter.
+     */
+    private val myGrantedEntries = mutableMapOf<Cell, ConveyorRequest>()
+
     /** indicates if entering items have priority at entry cell over items riding on the conveyor
      *  The default is no priority (false)
      */
@@ -928,6 +935,7 @@ class Conveyor @JvmOverloads constructor(
         }
         positionedToEnter.clear()
         myWaitingToLand.clear()
+        myGrantedEntries.clear()
         pausedTimeRemaining = Double.NaN
         isStopped = false
         emitConveyorDefined()
@@ -1379,6 +1387,7 @@ class Conveyor @JvmOverloads constructor(
                         dequeueRequest(request)
                         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : request = ${request.id} removed from queue = : ${queue.name}" }
                         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Request (${request.name}): status = ${request.status}: resuming entity_id = ${request.entity.id} at location ${location}" }
+                        myGrantedEntries[cell] = request
                         myAccessingHoldQ.removeAndResume(request.entity)
                     } else {
                         // first request still needs to wait
@@ -1529,9 +1538,8 @@ class Conveyor @JvmOverloads constructor(
     private fun rescheduleAccumulatingConveyorMovement() {
         if (!isOccupied()) {
             // the conveyor is not occupied, but it could have items positioned to enter, or an item on another
-            // conveyor waiting to land here, which lands at the end of a cell move: once the item covering its
-            // landing cell is withdrawn, no other item may be left to keep the conveyor moving
-            if (hasItemPositionedToEnter() || myWaitingToLand.isNotEmpty()) {
+            // conveyor waiting to land on a cell that is now free, which lands at the end of a cell move
+            if (hasItemPositionedToEnter() || hasLandingReady()) {
                 ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Accumulating: has at least one item positioned to enter: movement scheduled" }
                 scheduleConveyorMovement()
                 return
@@ -1543,8 +1551,8 @@ class Conveyor @JvmOverloads constructor(
         // conveyor must be occupied, find the leading cell
         val leadingCell = findLeadingCell(conveyorCells)
         if (leadingCell == null) {
-            // no leading cell, thus no cells to move, may have items positioned to enter or an item waiting to land
-            if (hasItemPositionedToEnter() || myWaitingToLand.isNotEmpty()) {
+            // no leading cell, thus no cells to move, may have items positioned to enter or a landing ready
+            if (hasItemPositionedToEnter() || hasLandingReady()) {
                 ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Accumulating: no movable items but has at least one item positioned to enter: movement scheduled" }
                 scheduleConveyorMovement()
                 return
@@ -1850,6 +1858,8 @@ class Conveyor @JvmOverloads constructor(
             request.myPushOffTime = Double.NaN
             target.conveyor.forgetLanding(request, target.entryCell)
         }
+        // a request granted its entry cell whose entity is terminated before it blocks it gives the grant up
+        if (myGrantedEntries[request.entryCell] === request) myGrantedEntries.remove(request.entryCell)
         if (request.isCompleted) {
             return
         }
@@ -1881,6 +1891,13 @@ class Conveyor @JvmOverloads constructor(
         reconsiderAfterWithdrawal()
     }
 
+    /**
+     *  True when an item waits to land on a cell of this conveyor that is free. A landing waits only behind an item
+     *  covering its cell; the cell is free with the landing still waiting only once that item has been withdrawn,
+     *  so a jam, where the covering item is stopped, does not count and makes the conveyor no empty moves.
+     */
+    private fun hasLandingReady(): Boolean = myWaitingToLand.keys.any { it.isNotOccupied }
+
     /** Takes [item] out of this conveyor's line of items waiting to land, if it is the one waiting for [entryCell]. */
     private fun forgetLanding(item: ConveyorRequest, entryCell: Cell) {
         if (myWaitingToLand[entryCell] === item) {
@@ -1891,12 +1908,14 @@ class Conveyor @JvmOverloads constructor(
     /**
      *  After a withdrawal, outside a cell move: items stopped by what was withdrawn are set moving if no cell move
      *  is in progress, and the requests waiting at the entries are looked at again. An item waiting to land on this
-     *  conveyor keeps it moving (see the rescheduling), and lands at the end of a cell move, as every landing does.
+     *  conveyor, on a cell the withdrawal freed, keeps it moving (see the rescheduling), and lands at the end of a
+     *  cell move, as every landing does.
      */
     private fun reconsiderAfterWithdrawal() {
         if (!isCellTraversalInProgress()) {
             rescheduleConveyorMovement()
         }
+
         processRequestsWaitingToAccessConveyor()
         captureCellUsage()
     }
@@ -1989,6 +2008,7 @@ class Conveyor @JvmOverloads constructor(
             get() = state == requestCompletedState
 
         internal fun blockEntryLocation() {
+            if (myGrantedEntries[entryCell] === this) myGrantedEntries.remove(entryCell)
             state.blockEntryCell(this)
             entryCell.isBlocked = true
             // any blockage stops a non-accumulating conveyor at once
@@ -2254,6 +2274,11 @@ class Conveyor @JvmOverloads constructor(
             if (positionedToEnter.containsKey(entryCell)){
                 return true
             }
+            // or if the entry cell has been granted to another request whose entity has not yet blocked it
+            val granted = myGrantedEntries[entryCell]
+            if (granted != null && granted !== this) {
+                return true
+            }
             // requests gain access in turn: one behind another request at the same entry waits, even if it would fit
             if (!isFirstInLine()) {
                 return true
@@ -2489,6 +2514,7 @@ class Conveyor @JvmOverloads constructor(
             // remove the request from the queue and start it processing
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : dequeue request_id = ${request.id} at ${request.entryLocation}" }
             dequeueRequest(request)
+            myGrantedEntries[request.entryCell] = request
             myAccessingHoldQ.removeAndResume(request.entity)
         } else {
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... executing event : event_id = ${event.id} : entity_id = ${request.entity.id} : must wait for cells..." }

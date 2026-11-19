@@ -2320,6 +2320,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // rather than the internal hold on a conveyor hold queue.
             private var inConveyorHold: Boolean = false
 
+            /** The spatial element this process is moving, from the start of the move to its arrival. */
+            private var myMovedElement: SpatialElementIfc? = null
+
             // True while the delay below is the internal 0.0-time delay of yield() (used only to
             // order seize/yield resumptions in the event calendar): suppress its DelayStarted/
             // DelayEnded so this purely internal ordering step never surfaces as a modeler-visible
@@ -3727,11 +3730,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     )
                 }
                 spatialElement.isMoving = true
+                myMovedElement = spatialElement
                 inMoveDelay = true // suppress the internal delay's Delay events; this is a move
                 delay(t, movePriority, suspensionName)
                 inMoveDelay = false
                 spatialElement.currentLocation = toLoc
                 spatialElement.isMoving = false
+                myMovedElement = null
                 // A movable resource's odometers are about the resource, not about which verb
                 // happened to move it. This path is a single delay and does not go through the
                 // movement seam's clockwork, so the journey is booked here instead; without it a
@@ -4449,7 +4454,24 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
             }
 
+            /**
+             *  Ends any move the terminated process was making. The flags the move set are cleared, on the entity and
+             *  on a spatial element it was moving (a movable resource, which other entities go on to use). A move
+             *  changes location only on arrival, so a move cut short leaves the element where it set out.
+             */
+            private fun endMoves() {
+                isMoving = false
+                val moved = myMovedElement ?: return
+                myMovedElement = null
+                moved.isMoving = false
+                if (moved is ksl.modeling.spatial.MovableResource) {
+                    moved.isMovingEmpty = false
+                    moved.isTransporting = false
+                }
+            }
+
             private fun afterTerminatedProcessCompletion() {
+                endMoves()
                 val guided = leaveGuidedJourneys()
                 leaveFleet()
                 if (hasAllocations) {
