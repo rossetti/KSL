@@ -275,7 +275,7 @@ class RequestQ @JvmOverloads constructor(
     /**
      *   Returns the next request that can be fully satisfied by the resource. If no requests
      *   can be satisfied, then null is returned. The selection is based on the
-     *   queue discipline.
+     *   queue discipline, or, when the queue has a request selection rule, on the rule, as when units are freed.
      *   @param resource the resource to check
      *   @return the selected request or null
      */
@@ -284,7 +284,11 @@ class RequestQ @JvmOverloads constructor(
         if (amountAvailable <= 0) {
             return null
         }
-        return firstMatching { servesRequest(it, resource, amountAvailable) }
+        // a request selection rule decides who is next here as it does when units are freed, so that a request it
+        // chooses is not left waiting beside free units behind one it never chooses
+        val rule = requestSelectionRule ?: return firstMatching { servesRequest(it, resource, amountAvailable) }
+        val candidates = rule.selectRequests(resource, this).filter { servesRequest(it, resource, amountAvailable) }
+        return selectWithinAvailable(candidates, amountAvailable).firstOrNull()
     }
 
     private fun servesRequest(
@@ -305,7 +309,7 @@ class RequestQ @JvmOverloads constructor(
         return sum
     }
 
-    private fun effectiveAvailableFor(resource: ResourceIfc): Int {
+    internal fun effectiveAvailableFor(resource: ResourceIfc): Int {
         // a resource's or pool's available units already exclude what has been promised to woken
         // requests, in this queue or any other; only a guided transporter pool still counts its own
         return if (resource is Resource || resource is ResourcePool || resource is MovableResourcePool) {

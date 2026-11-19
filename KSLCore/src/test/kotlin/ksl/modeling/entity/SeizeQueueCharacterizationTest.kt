@@ -134,8 +134,11 @@ class SeizeQueueCharacterizationTest {
     fun externalResumeUnitsFree() {
         var before = ""
         val m = run {
-            // the rule offers freed units to nobody, so the freed unit stays free beside A
-            q.requestSelectionRule = RequestSelectionRuleIfc { _, _ -> emptyList() }
+            // the rule never chooses A, so the unit X frees at 5 stays free beside it; X, which the rule does
+            // choose, is served on arrival
+            q.requestSelectionRule = RequestSelectionRuleIfc { resource, queue ->
+                queue.toList().filter { it.resource == resource && it.entity.name != "A" }
+            }
             customer("X", 0.0, hold = 5.0)
             customer("A", 1.0)
             at(6.0) { before = state }

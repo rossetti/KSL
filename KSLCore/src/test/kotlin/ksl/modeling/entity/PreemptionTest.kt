@@ -610,6 +610,33 @@ class PreemptionTest {
     }
 
     @Test
+    @DisplayName("a waiting preemptor handed its allocation is not offered a move in that instant: it keeps the allocation it was given")
+    fun preemptorWithAPassedAllocationIsNotMoved() {
+        // A request is offered a move only when its resource becomes inactive, and a resource does so only once no
+        // unit is busy. The allocation passed to P is a busy unit, so R going off shift in the same step does not
+        // make it inactive, and P is not offered the move.
+        val (_, m) = run(length = 100.0) {
+            actor("H", 1) {
+                val a = seize(r)
+                log.add("H got@$time")
+                delay(10.0)
+                // the release hands P its allocation; off shift in the same step, R tells the requests in its queue
+                release(a)
+                r.goOffShift()
+            }
+            val p = actor("P", 2) {
+                delay(1.0)
+                val a = preempt(r, rule = InterruptRule.RESUME)
+                log.add("P got ${a.resource.name}@$time")
+                delay(1.0)
+                release(a)
+            }
+            p.movesTo = backup
+        }
+        assertEquals(listOf("H got@0.0", "P got R@10.0"), m.log)
+    }
+
+    @Test
     @DisplayName("off shift, a preemption takes nothing under any rule, and a loan ending passes to no one")
     fun nothingTakenOffShift() {
         for (rule in listOf(InterruptRule.RESUME, InterruptRule.RESTART, InterruptRule.FINISH)) {

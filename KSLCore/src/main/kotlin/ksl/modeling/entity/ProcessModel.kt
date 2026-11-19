@@ -1839,8 +1839,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (canServe) request.promise(resource, request.amountRequested)
                 request.markResumePending(ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
             } else if (canServe) {
-                // the moving request is the only request in the queue and the resource can allocate: promised
-                // now, so that nothing else takes the units before it resumes
+                // the resource can allocate and the new queue would choose this request next: promised now, so that
+                // nothing else takes the units before it resumes
                 request.promise(resource, request.amountRequested)
                 newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
             }
@@ -3495,7 +3495,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 queue.enqueue(request) // put the request in the queue, whether or not it will wait
                 emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, pool.name, queue.name, 1) }
                 try {
-                    if (!pool.hasIdleTransporter) {
+                    // a guided pool promises nothing to a request it wakes, so the transporters it is owed are counted
+                    // here: an arrival takes only one that no woken request is about to resume for
+                    if (queue.effectiveAvailableFor(pool) <= 0) {
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                         emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, pool.name) }
                         entity.state.waitForResource()

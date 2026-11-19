@@ -176,11 +176,11 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
 
     /**
      * The transporters of this pool that a movement gate is currently holding, or that are under
-     * tow. They are not offered to the allocation rule, and they are here so that a model which
-     * installs a gate can report on what its gate is doing.
+     * tow, whether or not they are allocated. They are not offered to the allocation rule, and they
+     * are here so that a model which installs a gate can report on what its gate is doing.
      */
     override val haltedTransporters: List<GuidedTransporter>
-        get() = myResources.filter { it.numBusy == 0 && (it.isHalted || it.isUnderTow) }
+        get() = myResources.filter { it.isHalted || it.isUnderTow }
 
     /**
      * How many transporters this pool has to give, which is how many it could actually send.
