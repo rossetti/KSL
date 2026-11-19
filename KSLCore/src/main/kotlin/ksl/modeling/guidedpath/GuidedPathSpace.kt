@@ -836,6 +836,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
     internal fun transporterArrived(transporter: GuidedTransporter) {
         val wait = transporter.journeyWait ?: return
         transporter.journeyWait = null
+        if (wait.waiter.myJourney === transporter) wait.waiter.myJourney = null
         wait.queue.removeAndResume(wait.waiter)
     }
 
@@ -853,6 +854,7 @@ open class GuidedPathSpace @JvmOverloads constructor(
     internal fun transporterInterrupted(transporter: GuidedTransporter) {
         val wait = transporter.journeyWait ?: return
         transporter.journeyWait = null
+        if (wait.waiter.myJourney === transporter) wait.waiter.myJourney = null
         wait.queue.removeAndResume(wait.waiter)
     }
 
@@ -915,7 +917,10 @@ open class GuidedPathSpace @JvmOverloads constructor(
     ): HoldQueue? {
         if (!startMove(transporter, destinationName, purpose)) return null
         val queue = holdQueueFor(wait)
+        // a waiter this journey replaces no longer waits on this transporter
+        transporter.journeyWait?.waiter?.let { if (it !== waiter && it.myJourney === transporter) it.myJourney = null }
         transporter.journeyWait = JourneyWait(waiter, queue)
+        waiter.myJourney = transporter
         return queue
     }
 

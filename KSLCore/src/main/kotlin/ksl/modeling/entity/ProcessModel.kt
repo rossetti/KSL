@@ -1366,6 +1366,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         var conveyorRequest: ConveyorRequestIfc? = null
             private set
 
+        /** The guided transporters the entity is aboard, from boarding (after loading) to alighting (after unloading). */
+        internal val myAboard: MutableList<ksl.modeling.guidedpath.GuidedTransporter> = mutableListOf()
+
+        /** The guided transporter whose journey the entity waits on, as the one the arrival will wake; null when none. */
+        internal var myJourney: ksl.modeling.guidedpath.GuidedTransporter? = null
+
         /** The request the entity waits on for an entry cell, until it is granted and becomes its conveyorRequest. */
         internal var myPendingConveyorRequest: Conveyor.ConveyorRequest? = null
 
@@ -4368,11 +4374,42 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 helper?.abandonTransfer()
             }
 
+            /**
+             *  Frees the guided transporters of the entity at its termination, before its resources are released, so
+             *  that no transporter is offered to a pool still carrying it or waiting to wake it: a journey that names
+             *  it as its waiter is left with none, and it is taken off every transporter it is aboard, which moves on
+             *  empty if it carries nothing else. Returns the guided transporters it holds, whose pools apply their idle
+             *  rule after the release, as at an ordinary release. Once the run has ended, only the records are cleared.
+             */
+            private fun leaveGuidedJourneys(): List<Pair<ksl.modeling.guidedpath.GuidedTransporter, ksl.modeling.guidedpath.GuidedTransporterPoolWithQ>> {
+                val journey = entity.myJourney
+                entity.myJourney = null
+                val aboard = entity.myAboard.toList()
+                if (executive.isEnded) {
+                    entity.myAboard.clear()
+                    return emptyList()
+                }
+                if (journey != null && journey.journeyWait?.waiter === entity) journey.journeyWait = null
+                for (transporter in aboard) {
+                    transporter.alight(entity)
+                    transporter.loadLeftMidJourney()
+                }
+                entity.myAboard.clear()
+                return entity.resourceAllocations.values.flatten().mapNotNull { a ->
+                    val pool = a.originatingPool as? ksl.modeling.guidedpath.GuidedTransporterPoolWithQ
+                    val transporter = a.myResource as? ksl.modeling.guidedpath.GuidedTransporter
+                    if (pool != null && transporter != null) transporter to pool else null
+                }
+            }
+
             private fun afterTerminatedProcessCompletion() {
+                val guided = leaveGuidedJourneys()
                 if (hasAllocations) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity releasing all resources." }
                     releaseAllResources()
                 }
+                // as at an ordinary release of a guided transporter: with nothing waiting, its pool's idle rule decides
+                for ((transporter, pool) in guided) pool.disposeIfUnwanted(transporter)
                 // And the guide-path space, for the same reason and with the same shape. Done
                 // before the isQueued branch below only because that branch may remove the entity
                 // from the very HoldQueue it is waiting in for space; either order is correct, and

@@ -896,6 +896,7 @@ class GuidedTransporter @JvmOverloads constructor(
             "Load (${load.name}) is already aboard transporter (${this.name})."
         }
         myManifest.add(load)
+        load.myAboard.add(this)
         require(myManifest.size <= loadCapacity) {
             "Transporter (${this.name}) was given ${myManifest.size} loads but holds $loadCapacity."
         }
@@ -909,8 +910,25 @@ class GuidedTransporter @JvmOverloads constructor(
         require(removed) {
             "Load (${load.name}) is not aboard transporter (${this.name}) and cannot be set down."
         }
+        load.myAboard.remove(this)
         observeCapacity()
         system.emitLoadChange(this, load, boarded = false)
+    }
+
+    /**
+     * A load was taken off part way through a journey, because its entity was terminated: a transporter left
+     * carrying nothing goes on as moving empty, now and after any block or halt on the way, rather than as
+     * moving loaded.
+     */
+    internal fun loadLeftMidJourney() {
+        if (isCarryingLoad) return
+        if (stateBeforeBlocking == TransporterState.MOVING_LOADED) stateBeforeBlocking = TransporterState.MOVING_EMPTY
+        if (stateBeforeHalt == TransporterState.MOVING_LOADED) stateBeforeHalt = TransporterState.MOVING_EMPTY
+        if (transporterState == TransporterState.MOVING_LOADED) {
+            transporterState = TransporterState.MOVING_EMPTY
+            system.refreshFleetCounts()
+            system.emitTransporterState(this, transporterState)
+        }
     }
 
     /**
@@ -1016,7 +1034,7 @@ class GuidedTransporter @JvmOverloads constructor(
     override var isHalted: Boolean = false
         private set
 
-    private var stateBeforeHalt: TransporterState = TransporterState.IDLE
+    internal var stateBeforeHalt: TransporterState = TransporterState.IDLE
 
     internal fun halt() {
         if (isHalted) return
@@ -1097,6 +1115,9 @@ class GuidedTransporter @JvmOverloads constructor(
         currentRoute = null
         claimedZone = null
         pendingDestination = null
+        // the loads and the waiter of the last replication forget this transporter, as it forgets them
+        for (load in myManifest) load.myAboard.remove(this)
+        journeyWait?.waiter?.let { if (it.myJourney === this) it.myJourney = null }
         myManifest.clear()
         observeCapacity()
         awaitedZone = null
