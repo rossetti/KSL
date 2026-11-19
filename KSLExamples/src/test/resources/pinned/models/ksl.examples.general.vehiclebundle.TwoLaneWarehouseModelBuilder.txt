@@ -59,6 +59,8 @@ R Fleet:AvailabilityQ:NumInQ n=10.0 avg=1.2955417036027412 sd=0.1014330293099419
 R Fleet:AvailabilityQ:TimeInQ n=10.0 avg=6.333581203673841 sd=0.581961419083577 min=5.379673615183031 max=7.275883306842707
 R Fleet:AwaitingBoardingHoldQ:NumInQ n=10.0 avg=0.0 sd=0.0 min=0.0 max=0.0
 R Fleet:AwaitingBoardingHoldQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Fleet:AwaitingLoadHoldQ:NumInQ n=10.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Fleet:AwaitingLoadHoldQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
 R Fleet:AwaitingPickupHoldQ:NumInQ n=10.0 avg=1.3456383880657878 sd=0.09254293616460632 min=1.1761984800806626 max=1.478494703516846
 R Fleet:AwaitingPickupHoldQ:TimeInQ n=10.0 avg=12.193970104357707 sd=0.39231128645604396 min=11.635842555831351 max=12.932770921014225
 R Fleet:Dispatcher:TaskQ:NumInQ n=10.0 avg=1.3456383880657878 sd=0.09254293616460632 min=1.1761984800806626 max=1.478494703516846

@@ -41,6 +41,7 @@ import ksl.modeling.fleet.FleetTransportResult
 import ksl.modeling.fleet.Dispatcher
 import ksl.modeling.fleet.Stop
 import ksl.modeling.fleet.TransitResult
+import ksl.modeling.fleet.TaskState
 import ksl.modeling.spatial.*
 import ksl.simulation.ModelElement
 import ksl.utilities.GetValueIfc
@@ -3506,8 +3507,9 @@ interface KSLProcessBuilder {
      *
      * For a process that must do something between asking and being carried -- finishing an
      * operation, releasing a machine -- so that the vehicle can be on its way while that happens.
-     * The returned task must be passed to [awaitFleetTransport]; abandoning it would leave the
-     * vehicle to collect an entity that never suspends.
+     * The returned task must be passed to [awaitFleetTransport]. A vehicle that reaches the pickup
+     * before then waits there for it, and starts loading when the entity begins to wait; abandoning
+     * the task would leave that vehicle waiting for the rest of the replication.
      *
      * @return the posted task, which is also where its wait is recorded
      */
@@ -3524,7 +3526,7 @@ interface KSLProcessBuilder {
         // no window in which a caller holds an unposted task.
         return system.dispatcher.postTransport(
             entity, origin, destination, loadingDelay, unLoadingDelay, priority
-        )
+        ).also { entity.myFleetTask = it }
     }
 
     /**
@@ -3547,9 +3549,15 @@ interface KSLProcessBuilder {
         // Two holds, and neither reports anything: they carry the suspension, while the wait itself
         // is recorded on the task in the dispatcher's queue. Making these the statistics would put
         // two rows on the report that look like waiting lines, one of which -- riding -- is not one.
+        // A vehicle that got to the pickup first is waiting for this; it starts loading now.
+        system.releaseVehicleAwaiting(task)
         hold(system.awaitingPickupHoldQ, suspensionName = "$suspensionName:awaitingVehicle")
         val pickedUp = system.time
-        hold(system.inTransitHoldQ, suspensionName = "$suspensionName:riding")
+        // A load set down in the instant it was picked up is already delivered.
+        if (task.state != TaskState.COMPLETED) {
+            hold(system.inTransitHoldQ, suspensionName = "$suspensionName:riding")
+        }
+        entity.myFleetTask = null
         // The vehicle resumed us, having set currentLocation before doing so.
         val delivered = system.time
         system.recordTimeAboard(delivered - pickedUp)
@@ -3643,13 +3651,13 @@ interface KSLProcessBuilder {
      * Joins the line at a stop and returns immediately, without waiting to be carried.
      *
      * For a process that must do something between joining and boarding. The returned ride must be
-     * passed to [awaitRide]; abandoning it would leave a vehicle to collect a load that never
-     * suspends.
+     * passed to [awaitRide]. Until it is, the entity stands in the line but no vehicle takes it: a
+     * vehicle that comes past in the meantime leaves it for a later one.
      *
      * @return the ride, which is also where its wait is recorded
      */
     suspend fun requestRide(stop: Stop, destination: String): Stop.Ride =
-        stop.join(entity, destination)
+        stop.join(entity, destination).also { entity.myRide = it }
 
     /**
      * Waits until a ride joined by [requestRide] has been taken and completed.
@@ -3670,9 +3678,14 @@ interface KSLProcessBuilder {
         val joined = ride.timeEnteredQueue
         // Two holds, neither of which reports anything: the wait itself is recorded by the stop's
         // own queue, and riding is not a waiting line at all.
+        ride.stop.startedWaiting(ride)
         hold(system.awaitingBoardingHoldQ, suspensionName = "$suspensionName:awaitingVehicle")
         val boarded = system.time
-        hold(system.inTransitHoldQ, suspensionName = "$suspensionName:riding")
+        // A rider put down in the instant it boarded has already arrived.
+        if (!ride.hasAlighted) {
+            hold(system.inTransitHoldQ, suspensionName = "$suspensionName:riding")
+        }
+        entity.myRide = null
         // The vehicle resumed us, having set currentLocation before doing so.
         val alighted = system.time
         return TransitResult(

@@ -96,6 +96,17 @@ class Stop @JvmOverloads constructor(
         var carriedBy: FleetVehicle? = null
             internal set
 
+        /**
+         * True while the rider is waiting to be carried: from the moment its process waits for the
+         * ride until a vehicle takes it. A rider that has joined the line and not yet begun to wait
+         * is finishing something, and no vehicle takes it.
+         */
+        var isWaiting: Boolean = false
+            internal set
+
+        /** Set when the rider is put down, so that a rider put down in the instant it boarded does not wait. */
+        internal var hasAlighted: Boolean = false
+
         /** How many vehicles served this stop while it waited and left it standing. */
         var numVehiclesPassed: Int = 0
             internal set
@@ -157,9 +168,14 @@ class Stop @JvmOverloads constructor(
         }
         val ride = Ride(rider, destination)
         myWaiting.enqueue(ride)
+        return ride
+    }
+
+    /** The rider has begun to wait to be carried. Called by the rider's own verb. */
+    internal fun startedWaiting(ride: Ride) {
+        ride.isWaiting = true
         // A vehicle holding here for a load is waiting for exactly this.
         releaseHoldingVehicles()
-        return ride
     }
 
     /** Takes a ride out of the line because a vehicle is collecting it. */
@@ -167,6 +183,15 @@ class Stop @JvmOverloads constructor(
         require(ride.stop === this) { "Ride (${ride.name}) is not waiting at ${this.name}." }
         myWaiting.remove(ride)
         myNumBoarded.increment()
+    }
+
+    /**
+     * Takes a ride out of the line because its rider was terminated: no boarding is counted and no
+     * wait is recorded. Does nothing when the ride is not in the line.
+     */
+    internal fun leave(ride: Ride) {
+        if (myWaiting.contains(ride)) myWaiting.remove(ride, false)
+        ride.isWaiting = false
     }
 
     /** A load came off here. */
@@ -232,13 +257,15 @@ class Stop @JvmOverloads constructor(
     private fun deadlineReached(event: ksl.simulation.KSLEvent<Nothing>) = releaseHoldingVehicles()
 
     /**
-     * Everyone here bound for one of [destinations], longest waiting first.
+     * Everyone here waiting to be carried and bound for one of [destinations], longest waiting
+     * first. A rider that has joined the line but not yet begun to wait (see [Ride.isWaiting]) is not
+     * listed.
      *
      * What a boarding action draws from: pass it [StopContextIfc.onwardLocations] and it returns
      * exactly those the vehicle could usefully take, in the order they arrived.
      */
     fun waitingFor(destinations: Set<String>): List<Ride> =
-        myWaiting.filter { it.destination in destinations }
+        myWaiting.filter { it.isWaiting && it.destination in destinations }
 
     override fun toString(): String = "Stop($name at $location, $numWaiting waiting)"
 }

@@ -1372,6 +1372,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /** The guided transporter whose journey the entity waits on, as the one the arrival will wake; null when none. */
         internal var myJourney: ksl.modeling.guidedpath.GuidedTransporter? = null
 
+        /** The fleet transport the entity asked for, from the request until the wait for it returns. */
+        internal var myFleetTask: ksl.modeling.fleet.Dispatcher.TransportTask? = null
+
+        /** The ride the entity asked for at a stop, from joining the line until the wait for it returns. */
+        internal var myRide: ksl.modeling.fleet.Stop.Ride? = null
+
         /** The request the entity waits on for an entry cell, until it is granted and becomes its conveyorRequest. */
         internal var myPendingConveyorRequest: Conveyor.ConveyorRequest? = null
 
@@ -4402,8 +4408,43 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
             }
 
+            /**
+             *  Frees the fleet of the terminated entity. A transport task not yet collected is taken off the board
+             *  and cancelled, and a vehicle committed to it is released; a load aboard is taken off where the vehicle
+             *  is and its task cancelled. A ride is taken out of the stop's line, or the rider off the vehicle, with
+             *  no boarding or alighting counted. Runs after [leaveGuidedJourneys], which has already taken a load
+             *  off a guided transporter that carries it. Once the run has ended, only the records are cleared.
+             */
+            private fun leaveFleet() {
+                val task = entity.myFleetTask
+                val ride = entity.myRide
+                entity.myFleetTask = null
+                entity.myRide = null
+                if (executive.isEnded) return
+                if (task != null) {
+                    val vehicle = task.carriedBy
+                    if (task.state == ksl.modeling.fleet.TaskState.IN_PROGRESS && vehicle != null &&
+                        vehicle.body.manifest.contains(entity)
+                    ) {
+                        vehicle.body.alight(entity)
+                    }
+                    task.dispatcher.withdrawTerminated(task)
+                }
+                if (ride != null) {
+                    val vehicle = ride.carriedBy
+                    if (vehicle == null) {
+                        ride.stop.leave(ride)
+                    } else if (!ride.hasAlighted) {
+                        if (vehicle.body.manifest.contains(entity)) vehicle.body.alight(entity)
+                        vehicle.rideAlighted(ride)
+                        ride.hasAlighted = true
+                    }
+                }
+            }
+
             private fun afterTerminatedProcessCompletion() {
                 val guided = leaveGuidedJourneys()
+                leaveFleet()
                 if (hasAllocations) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity releasing all resources." }
                     releaseAllResources()

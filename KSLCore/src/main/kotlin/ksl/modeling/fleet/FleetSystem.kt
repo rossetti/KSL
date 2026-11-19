@@ -198,10 +198,10 @@ abstract class FleetSystem @JvmOverloads constructor(
             ?.first
     }
 
-    // ---- the six hold queues -------------------------------------------------------------------
+    // ---- the seven hold queues -----------------------------------------------------------------
     //
     // Suspension plumbing, not the model's waiting line -- that is the dispatcher's task queue.
-    // All six are internal so only this subsystem can suspend anything in them, and all six
+    // All seven are internal so only this subsystem can suspend anything in them, and all seven
     // report nothing, which is what `Conveyor` does for the same reason: a hold queue is how a
     // suspended entity is found again, and letting it double as the statistic conflates a mechanism
     // with a measurement.
@@ -218,6 +218,22 @@ abstract class FleetSystem @JvmOverloads constructor(
      */
     internal val awaitingBoardingHoldQ = HoldQueue(this, "${this.name}:AwaitingBoardingHoldQ")
     internal val inTransitHoldQ = HoldQueue(this, "${this.name}:InTransitHoldQ")
+
+    /**
+     * Where a vehicle that reached a pickup before its load began waiting stands until it does.
+     *
+     * A process may ask for transport and wait for it later, so that the vehicle is on its way while
+     * the process finishes something. The vehicle that gets there first waits for it, holding its
+     * place, rather than carrying the entity off in the middle of whatever it is doing.
+     */
+    internal val awaitingLoadHoldQ = HoldQueue(this, "${this.name}:AwaitingLoadHoldQ")
+
+    /** Resumes the vehicle, if any, standing at the pickup of [task] waiting for its load. */
+    internal fun releaseVehicleAwaiting(task: Dispatcher.TransportTask) {
+        val agent = task.vehicleAwaitingLoad?.agent ?: return
+        task.vehicleAwaitingLoad = null
+        if (awaitingLoadHoldQ.contains(agent)) awaitingLoadHoldQ.removeAndResume(agent)
+    }
     internal val availabilityQ = HoldQueue(this, "${this.name}:AvailabilityQ")
     internal val dispatcherIdleQ = HoldQueue(this, "${this.name}:DispatcherIdleQ")
 
@@ -295,8 +311,8 @@ abstract class FleetSystem @JvmOverloads constructor(
 
     private fun switchOwnHoldQueues(option: Boolean) {
         val queues = listOf(
-            awaitingPickupHoldQ, awaitingBoardingHoldQ, inTransitHoldQ, availabilityQ,
-            dispatcherIdleQ, outOfServiceQ
+            awaitingPickupHoldQ, awaitingBoardingHoldQ, inTransitHoldQ, awaitingLoadHoldQ,
+            availabilityQ, dispatcherIdleQ, outOfServiceQ
         )
         for (q in queues) {
             q.waitTimeStatOption = option
@@ -574,6 +590,11 @@ abstract class FleetSystem @JvmOverloads constructor(
             availabilityQ.removeAndResume(agent)
             return
         }
+        // Neither idle nor travelling: it is at a stop -- loading, unloading, waiting for a load,
+        // holding or dwelling -- or dealing with an interruption. Its own loop takes the commitment
+        // when the round it is on ends; re-aiming it here would start it moving in the middle of a
+        // loading, and there is no journey to wake it from.
+        if (!agent.vehicle.body.movementQueue.contains(agent)) return
         // Under way on a disposition. Turn it round. The target is the first commitment's pickup;
         // the vehicle's own loop plans the whole round and issues its own leg on waking, so this
         // only has to stop it going where it no longer needs to go.
@@ -1072,6 +1093,9 @@ abstract class FleetSystem @JvmOverloads constructor(
                 // several tasks in one dispatching pass makes one round rather than several.
                 val committed = assignments.toList()
                 val t = tourFor(committed).also { it.startedAt = time; tour = it }
+                // The loads that actually came aboard in this round. A pickup passed over, or found
+                // on arrival to be no longer this vehicle's, carried nothing.
+                var carried = 0
                 // A rider does not get off at the end of a cycle. A circular service that set
                 // everybody down each lap could never carry anybody the long way round, which is
                 // most of what a circular service is for; and a load aboard is aboard, whatever the
@@ -1162,6 +1186,7 @@ abstract class FleetSystem @JvmOverloads constructor(
                     // through exactly this code.
                     val visit = StopVisit(stop, t, blockedAtStart, failedAtStart)
                     with(stop.action) { perform(visit) }    // MAY SUSPEND
+                    carried += maxOf(stop.action.loadChange - visit.numNotBoarded, 0)
                     // Held after the action rather than before it, because a departure time is a
                     // statement about leaving and a vehicle that has not served the stop has not
                     // arrived in any sense that matters. An instant already past holds nothing,
@@ -1185,7 +1210,7 @@ abstract class FleetSystem @JvmOverloads constructor(
                 }
                 // What this round actually carried, counted from the tour rather than from the
                 // manifest, which is empty again by now.
-                vehicle.tourCompleted(t.stops.sumOf { maxOf(it.action.loadChange, 0) })
+                vehicle.tourCompleted(carried)
                 tour = null
                 vehicle.taskEnded()
                 refreshFleetCounts()
@@ -1207,7 +1232,10 @@ abstract class FleetSystem @JvmOverloads constructor(
                 vehicle.body.alight(ride.rider)
                 vehicle.rideAlighted(ride)
                 stops.firstOrNull { it.location == here }?.alighted()
-                inTransitHoldQ.removeAndResume(ride.rider)
+                ride.hasAlighted = true
+                // Not yet back in the in-transit queue when it boarded in this same instant; it then
+                // finds its ride over and does not wait.
+                if (inTransitHoldQ.contains(ride.rider)) inTransitHoldQ.removeAndResume(ride.rider)
             }
         }
 
@@ -1225,6 +1253,9 @@ abstract class FleetSystem @JvmOverloads constructor(
             val task = stop.action.task ?: return true
             return assignments.any { it.task === task }
         }
+
+        /** True when [task] is still one of this vehicle's commitments. */
+        private fun stillCommittedTo(task: Dispatcher.Task): Boolean = assignments.any { it.task === task }
 
         /**
          * Ends one commitment: tells the dispatcher, drops it, and counts the delivery.
@@ -1259,6 +1290,9 @@ abstract class FleetSystem @JvmOverloads constructor(
             private val failedAtTourStart: Double
         ) : StopContextIfc {
 
+            /** Pickups at this stop that found, after the loading, that the task was no longer theirs. */
+            var numNotBoarded: Int = 0
+
             override val vehicle: FleetVehicle
                 get() = this@VehicleAgent.vehicle
 
@@ -1281,10 +1315,28 @@ abstract class FleetSystem @JvmOverloads constructor(
                 // and measured this way the two paradigms agree to the digit on the same shop.
                 task.approachTime = time - task.assignedAt
                 task.failedBeforePickup = vehicle.cumulativeFailedTime - failedAtTourStart
+                // A load that asked for transport and has not yet begun to wait for it is finishing
+                // something. The vehicle waits for it here, and the loading starts when it is ready.
+                if (!awaitingPickupHoldQ.contains(task.load)) {
+                    task.vehicleAwaitingLoad = vehicle
+                    hold(awaitingLoadHoldQ,                 // SUSPENDS
+                        suspensionName = "${vehicle.name}:awaitingLoad")
+                    if (!stillCommittedTo(task)) {
+                        numNotBoarded++
+                        return
+                    }
+                }
                 if (task.loadingDelay != ConstantRV.ZERO) {
                     emitLoadingPhase(vehicle, ksl.modeling.guidedpath.TransporterState.LOADING)
                     delay(task.loadingDelay,                // SUSPENDS
                         suspensionName = "${vehicle.name}:loading")
+                    // The loading the vehicle began is finished, but the task may have been taken
+                    // back or its load terminated meanwhile. Then nothing goes aboard.
+                    if (!stillCommittedTo(task)) {
+                        emitLoadingPhase(vehicle, null)
+                        numNotBoarded++
+                        return
+                    }
                 }
                 task.carriedBy = vehicle
                 // Aboard. From here the body's moving state is derived rather than asserted: the
@@ -1315,6 +1367,12 @@ abstract class FleetSystem @JvmOverloads constructor(
                     emitLoadingPhase(vehicle, ksl.modeling.guidedpath.TransporterState.UNLOADING)
                     delay(task.unLoadingDelay,              // SUSPENDS
                         suspensionName = "${vehicle.name}:unloading")
+                    // A load terminated while it was being unloaded is already off, and its task
+                    // cancelled. The vehicle has finished the unloading it began; nothing is set down.
+                    if (task.state == TaskState.CANCELLED) {
+                        emitLoadingPhase(vehicle, null)
+                        return
+                    }
                 }
                 task.blockedWhileLoaded =
                     vehicle.body.cumulativeBlockedTime - blockedAtTourStart - task.blockedAtPickup
@@ -1329,7 +1387,10 @@ abstract class FleetSystem @JvmOverloads constructor(
                 // would report four deliveries at the moment of the fourth, and the three loads set
                 // down earlier would each have been delivered without the fleet counting it yet.
                 completeAssignment(assignmentFor(task))
-                inTransitHoldQ.removeAndResume(task.load) // the verb returns
+                // The verb returns. A load set down in the instant it was picked up -- a vehicle that
+                // needed no journey to get there -- has not yet reached the in-transit queue; it
+                // finds its task completed and does not wait.
+                if (inTransitHoldQ.contains(task.load)) inTransitHoldQ.removeAndResume(task.load)
             }
 
             override suspend fun KSLProcessBuilder.takeAboard(ride: Stop.Ride) {
@@ -1342,9 +1403,18 @@ abstract class FleetSystem @JvmOverloads constructor(
                                 "many it can take is not known until it arrives."
                     )
                 }
+                if (!ride.isWaiting) {
+                    throw FleetProtocolException(
+                        "Vehicle (${vehicle.name}) was asked to board (${ride.rider.name}) at " +
+                                "(${ride.stop.name}), which has joined the line but is not yet " +
+                                "waiting to be carried. Check Ride.isWaiting first; Stop.waitingFor " +
+                                "lists only riders that are."
+                    )
+                }
                 // Out of the stop's line first, so the wait it reports ends at the instant the
                 // vehicle took the rider rather than at the end of the whole visit.
                 ride.stop.departing(ride)
+                ride.isWaiting = false
                 ride.boardedAt = time
                 ride.carriedBy = vehicle
                 vehicle.body.board(ride.rider)
@@ -1359,7 +1429,8 @@ abstract class FleetSystem @JvmOverloads constructor(
                 vehicle.rideAlighted(ride)
                 ride.stop.system.stops.firstOrNull { it.location == ride.destination }
                     ?.alighted()
-                inTransitHoldQ.removeAndResume(ride.rider)      // the verb returns
+                ride.hasAlighted = true
+                if (inTransitHoldQ.contains(ride.rider)) inTransitHoldQ.removeAndResume(ride.rider)      // the verb returns
             }
 
             override suspend fun KSLProcessBuilder.holdAt(stop: Stop, until: Double) {

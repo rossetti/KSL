@@ -60,7 +60,7 @@ class QueueRoleSeparationTest {
      *  the driving one holds vehicle agents rather than loads under this paradigm, and none of
      *  which must report either. */
     private fun holdQueueNames(shop: Shop) = listOf(
-        shop.agv.awaitingPickupHoldQ, shop.agv.awaitingBoardingHoldQ, shop.agv.inTransitHoldQ,
+        shop.agv.awaitingPickupHoldQ, shop.agv.awaitingBoardingHoldQ, shop.agv.inTransitHoldQ, shop.agv.awaitingLoadHoldQ,
         shop.agv.availabilityQ, shop.agv.dispatcherIdleQ, shop.agv.outOfServiceQ,
         shop.agv.spaceSystem.awaitingPickupHoldQ, shop.agv.spaceSystem.ridingHoldQ,
         shop.agv.spaceSystem.drivingHoldQ
@@ -115,7 +115,7 @@ class QueueRoleSeparationTest {
         val rows = m.simulationReporter.acrossReplicationStatisticsList()
             .map { it.name }
             .filter { it.startsWith("Agv") && it.contains(":NumInQ") }
-        assertEquals(10, rows.size,
-            "with reporting on, the task queue and all nine hold queues should appear: $rows")
+        assertEquals(11, rows.size,
+            "with reporting on, the task queue and all ten hold queues should appear: $rows")
     }
 }

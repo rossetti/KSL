@@ -238,7 +238,7 @@ open class Dispatcher @JvmOverloads constructor(
         val dispatcher: Dispatcher
             get() = this@Dispatcher
 
-        internal fun transitionTo(next: TaskState) {
+        internal fun transitionTo(next: TaskState, byTermination: Boolean = false) {
             val legal = when (state) {
                 TaskState.POSTED -> next == TaskState.ASSIGNED || next == TaskState.CANCELLED
                 // ASSIGNED -> COMPLETED is legal only for a task with nothing waiting on it.
@@ -252,7 +252,11 @@ open class Dispatcher @JvmOverloads constructor(
                     next == TaskState.IN_PROGRESS || next == TaskState.POSTED ||
                             next == TaskState.CANCELLED ||
                             (next == TaskState.COMPLETED && waitingEntity == null)
-                TaskState.IN_PROGRESS -> next == TaskState.COMPLETED
+                // A load aboard cannot be withdrawn by anybody, because there is nowhere to set it
+                // down. The one exception is the load ceasing to exist: a terminated entity is taken
+                // off where the vehicle is, and its task ends cancelled.
+                TaskState.IN_PROGRESS ->
+                    next == TaskState.COMPLETED || (next == TaskState.CANCELLED && byTermination)
                 TaskState.COMPLETED, TaskState.CANCELLED -> false
             }
             if (!legal) {
@@ -310,6 +314,9 @@ open class Dispatcher @JvmOverloads constructor(
          * those delays, and neither is derivable from the other.
          */
         internal var carriedBy: FleetVehicle? = null
+
+        /** The vehicle standing at the pickup waiting for the load to start waiting for it, if any. */
+        internal var vehicleAwaitingLoad: FleetVehicle? = null
 
         // Marks taken when *this* load went aboard, so that its ride is measured from its own
         // pickup. With one load per tour the pickup and the start of the loaded leg are the same
@@ -633,6 +640,9 @@ open class Dispatcher @JvmOverloads constructor(
         // `declareAvailable` declines on its behalf and it declares itself when it is fit again.
         declareAvailable(assignment.vehicle)
         assignment.vehicle.agent?.abandonAssignment(assignment)
+        // A vehicle standing at the pickup waiting for the load is let go: it finds the task no
+        // longer its own and goes on with its round.
+        (assignment.task as? TransportTask)?.let { system.releaseVehicleAwaiting(it) }
     }
 
     /**
@@ -709,6 +719,32 @@ open class Dispatcher @JvmOverloads constructor(
      * transport. Dequeuing at assignment instead would silently redefine the subsystem's headline
      * statistic to mean something narrower.
      */
+    /**
+     * Frees this dispatcher of a task whose load was terminated, whatever state the task is in.
+     *
+     * A task not yet collected leaves the board and is cancelled, and a vehicle committed to it is
+     * released as a cancellation releases it. A task whose load is aboard is cancelled as well, by
+     * the transition only termination may make; the caller has already taken the load off. A
+     * completed task is left as it is.
+     */
+    internal fun withdrawTerminated(task: TransportTask) {
+        when (task.state) {
+            TaskState.POSTED, TaskState.ASSIGNED -> {
+                assignmentFor(task)?.let { releaseFrom(it, "CANCELLED") }
+                myTaskQ.remove(task, false)
+                task.transitionTo(TaskState.CANCELLED)
+            }
+            TaskState.IN_PROGRESS -> {
+                assignmentFor(task)?.let { releaseFrom(it, "CANCELLED") }
+                task.transitionTo(TaskState.CANCELLED, byTermination = true)
+            }
+            TaskState.COMPLETED, TaskState.CANCELLED -> Unit
+        }
+        // A vehicle waiting at the pickup for a task already cancelled, by removeAndTerminate, is
+        // let go here; one released above was let go by releaseFrom.
+        system.releaseVehicleAwaiting(task)
+    }
+
     internal fun tookPossession(assignment: Assignment) {
         val task = assignment.task
         myTaskQ.remove(task)

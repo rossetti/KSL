@@ -67,6 +67,8 @@ Agv:AwaitingBoardingHoldQ:NumInQ                                       	        
 Agv:AwaitingBoardingHoldQ:TimeInQ                                      	            0 	          NaN 	          NaN
 Agv:InTransitHoldQ:NumInQ                                              	           20 	       0.5096 	       0.0117
 Agv:InTransitHoldQ:TimeInQ                                             	           20 	      20.4000 	       0.0000
+Agv:AwaitingLoadHoldQ:NumInQ                                           	           20 	       0.0000 	       0.0000
+Agv:AwaitingLoadHoldQ:TimeInQ                                          	            0 	          NaN 	          NaN
 Agv:AvailabilityQ:NumInQ                                               	           20 	       0.1269 	       0.0132
 Agv:AvailabilityQ:TimeInQ                                              	           20 	       4.0534 	       0.4625
 Agv:DispatcherIdleQ:NumInQ                                             	           20 	       1.0000 	       0.0000

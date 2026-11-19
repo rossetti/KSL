@@ -52,6 +52,8 @@ R Yard:AvailabilityQ:NumInQ n=20.0 avg=1.050489465746007 sd=0.025669265852225162
 R Yard:AvailabilityQ:TimeInQ n=20.0 avg=18.452431428975615 sd=0.6682241637308243 min=17.0669259012173 max=19.764331413501814
 R Yard:AwaitingBoardingHoldQ:NumInQ n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
 R Yard:AwaitingBoardingHoldQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
+R Yard:AwaitingLoadHoldQ:NumInQ n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Yard:AwaitingLoadHoldQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
 R Yard:AwaitingPickupHoldQ:NumInQ n=20.0 avg=1.2567110365775758 sd=0.07870280471046957 min=1.126546357287871 max=1.4130667702748119
 R Yard:AwaitingPickupHoldQ:TimeInQ n=20.0 avg=25.096528766102878 sd=0.7285231610391159 min=24.028321419412173 max=26.311192514885157
 R Yard:Dispatcher:TaskQ:NumInQ n=20.0 avg=1.2567110365775758 sd=0.07870280471046957 min=1.126546357287871 max=1.4130667702748119
