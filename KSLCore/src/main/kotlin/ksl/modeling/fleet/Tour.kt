@@ -156,5 +156,13 @@ class Tour internal constructor(
 
 /** One leg of a tour: somewhere to be, and something to do there. */
 class TourStop(val location: String, val action: TourStopActionIfc) {
+
+    /**
+     * The commitment this stop was made from, when the vehicle made it: a line cycle's stops name no task in
+     * their actions, so this is what says whose they are once the cycle is cancelled. Null for a stop made by
+     * a tour policy, which is then judged by its action's task.
+     */
+    internal var madeFor: Dispatcher.Task? = null
+
     override fun toString(): String = "TourStop($location, $action)"
 }

@@ -1372,11 +1372,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /** The guided transporter whose journey the entity waits on, as the one the arrival will wake; null when none. */
         internal var myJourney: ksl.modeling.guidedpath.GuidedTransporter? = null
 
-        /** The fleet transport the entity asked for, from the request until the wait for it returns. */
-        internal var myFleetTask: ksl.modeling.fleet.Dispatcher.TransportTask? = null
+        /** The fleet transports the entity asked for, each from its request until the wait for it returns. */
+        internal val myFleetTasks: MutableList<ksl.modeling.fleet.Dispatcher.TransportTask> = mutableListOf()
 
-        /** The ride the entity asked for at a stop, from joining the line until the wait for it returns. */
-        internal var myRide: ksl.modeling.fleet.Stop.Ride? = null
+        /** The rides the entity asked for at stops, each from joining the line until the wait for it returns. */
+        internal val myRides: MutableList<ksl.modeling.fleet.Stop.Ride> = mutableListOf()
 
         /** The request the entity waits on for an entry cell, until it is granted and becomes its conveyorRequest. */
         internal var myPendingConveyorRequest: Conveyor.ConveyorRequest? = null
@@ -4401,6 +4401,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     transporter.loadLeftMidJourney()
                 }
                 entity.myAboard.clear()
+                // A transporter shown loading or unloading for the entity is shown as it actually is: the delay
+                // that showed it so ended with the process, before the line that would have said otherwise.
+                val held = entity.resourceAllocations.values.flatten()
+                    .mapNotNull { it.myResource as? ksl.modeling.guidedpath.GuidedTransporter }
+                for (transporter in (held + aboard).distinct()) {
+                    transporter.system.emitTransporterState(transporter, transporter.transporterState)
+                }
                 return entity.resourceAllocations.values.flatten().mapNotNull { a ->
                     val pool = a.originatingPool as? ksl.modeling.guidedpath.GuidedTransporterPoolWithQ
                     val transporter = a.myResource as? ksl.modeling.guidedpath.GuidedTransporter
@@ -4416,12 +4423,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  off a guided transporter that carries it. Once the run has ended, only the records are cleared.
              */
             private fun leaveFleet() {
-                val task = entity.myFleetTask
-                val ride = entity.myRide
-                entity.myFleetTask = null
-                entity.myRide = null
+                val tasks = entity.myFleetTasks.toList()
+                val rides = entity.myRides.toList()
+                entity.myFleetTasks.clear()
+                entity.myRides.clear()
                 if (executive.isEnded) return
-                if (task != null) {
+                for (task in tasks) {
                     val vehicle = task.carriedBy
                     if (task.state == ksl.modeling.fleet.TaskState.IN_PROGRESS && vehicle != null &&
                         vehicle.body.manifest.contains(entity)
@@ -4430,7 +4437,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     }
                     task.dispatcher.withdrawTerminated(task)
                 }
-                if (ride != null) {
+                for (ride in rides) {
                     val vehicle = ride.carriedBy
                     if (vehicle == null) {
                         ride.stop.leave(ride)

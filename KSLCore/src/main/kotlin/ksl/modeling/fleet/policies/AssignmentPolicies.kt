@@ -4,6 +4,7 @@ import ksl.modeling.fleet.FleetVehicle
 import ksl.modeling.fleet.AssignmentProposal
 import ksl.modeling.fleet.Dispatcher
 import ksl.modeling.fleet.TaskBoard
+import ksl.modeling.fleet.TaskState
 import ksl.modeling.agent.contractNet
 import ksl.modeling.entity.KSLProcessBuilder
 import ksl.modeling.spatial.FleetSpaceIfc
@@ -468,6 +469,9 @@ class ContractNetAssignmentPolicy(
             // SUSPENDS for the deadline. Written at the call site so the cost of negotiating is
             // visible in the policy that incurs it.
             val winning = with(round) { auction(cfp, deadline, selectBest) } ?: continue
+            // The auction took simulated time, during which the task may have ended: its load terminated,
+            // or the task cancelled. A task no longer on the board is not proposed.
+            if (task.state != TaskState.POSTED) continue
             spokenFor.add(winning.vehicle)
             proposals.add(AssignmentProposal(winning.vehicle, task, terms = winning.value))
         }

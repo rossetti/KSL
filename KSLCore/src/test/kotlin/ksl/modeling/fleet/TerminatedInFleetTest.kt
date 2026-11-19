@@ -57,14 +57,17 @@ class TerminatedInFleetTest {
     // transport rig
     // ------------------------------------------------------------------------------------------------------
 
-    private class Shop(parent: ModelElement, capacity: Int = 1) : ProcessModel(parent, "Shop") {
+    private class Shop(
+        parent: ModelElement, capacity: Int = 1,
+        policy: ksl.modeling.fleet.policies.AssignmentPolicyIfc = ksl.modeling.fleet.policies.NearestVehiclePolicy()
+    ) : ProcessModel(parent, "Shop") {
         val network = AgvTestNetworks.ring()
 
         init {
             spatialModel = network
         }
 
-        val agv = AgvSystem(this, network, name = "Agv")
+        val agv = AgvSystem(this, network, assignmentPolicy = policy, name = "Agv")
         val cart = AgvVehicle(
             agv, TransporterPlacement.At(AgvTestNetworks.DEPOT), ConstantRV(10.0), name = "Cart", loadCapacity = capacity
         ).apply { homeBase = AgvTestNetworks.DEPOT }
@@ -98,6 +101,21 @@ class TerminatedInFleetTest {
                 awaitFleetTransport(task)
                 log.add("$tag delivered@$time")
             }
+        }
+
+        /** Asks for two transports from [origin] at 0, to S and to W, and waits for neither. */
+        inner class TwoAsks(val tag: String) : Entity(tag) {
+            val p: KSLProcess = process(isDefaultProcess = true) {
+                currentLocation = network.requireLocation(AgvTestNetworks.NEAR)
+                tasks["$tag-1"] = requestFleetTransport(agv, AgvTestNetworks.DROP)
+                tasks["$tag-2"] = requestFleetTransport(agv, AgvTestNetworks.FAR)
+                delay(100.0)
+            }
+        }
+
+        fun twoAsks(tag: String) = TwoAsks(tag).also {
+            actors[tag] = it
+            activate(it.p)
         }
 
         fun load(
@@ -158,7 +176,11 @@ class TerminatedInFleetTest {
         val log: List<String> get() = logs.first()
     }
 
-    private fun runShop(reps: Int = 1, capacity: Int = 1, setup: Shop.() -> Unit): ShopOutcome {
+    private fun runShop(
+        reps: Int = 1, capacity: Int = 1,
+        policy: ksl.modeling.fleet.policies.AssignmentPolicyIfc = ksl.modeling.fleet.policies.NearestVehiclePolicy(),
+        setup: Shop.() -> Unit
+    ): ShopOutcome {
         val logs = mutableListOf<List<String>>()
         val model = Model("FleetTermination${System.nanoTime()}", autoCSVReports = false)
         lateinit var shop: Shop
@@ -166,7 +188,7 @@ class TerminatedInFleetTest {
             override val isActive = true
             override fun emit(event: AnimationEvent) = shop.onAnimation(event)
         }
-        shop = Shop(model, capacity)
+        shop = Shop(model, capacity, policy)
         shop.setups.add(setup)
         shop.setups.add { at(199.0) { logs.add(log.toList()) } }
         model.numberOfReplications = reps
@@ -305,6 +327,47 @@ class TerminatedInFleetTest {
         val perTour = o.shop.cart.loadsPerTour!!.withinReplicationStatistic
         assertEquals(1.0, perTour.count, "rounds observed")
         assertEquals(0.0, perTour.weightedAverage, "loads carried in the round")
+    }
+
+    @Test
+    @DisplayName("a commitment revoked while the cart waits at the pickup for its load, and given straight back: the cart goes on waiting")
+    fun revokedWhileWaitingForTheLoad() {
+        val o = runShop {
+            load("A", split = 30.0)
+            at(20.0) { agv.dispatcher.revoke(cart.currentAssignment!!) }
+        }
+        assertFreed("revoked while waiting", o, "A")
+        assertEquals(listOf("A ready@30.0", "A delivered@40.0"), o.log)
+        assertCounts("revoked while waiting", o, posted = 1, completed = 1, cancelled = 0, made = 2, revoked = 1)
+    }
+
+    @Test
+    @DisplayName("terminated while its task is being auctioned: the auction's result for it is dropped")
+    fun terminatedDuringAnAuction() {
+        val o = runShop(policy = ksl.modeling.fleet.policies.ContractNetAssignmentPolicy(5.0)) {
+            load("A")
+            terminate("A", 2.0)
+            probe(10.0)
+        }
+        assertFreed("auction", o, "A")
+        assertEquals(TaskState.CANCELLED, o.shop.tasks.getValue("A").state)
+        assertEquals(listOf("probe@10.0 at=Park aboard=0 task=null"), o.log)
+        assertCounts("auction", o, posted = 1, completed = 0, cancelled = 1, made = 0, revoked = 0)
+    }
+
+    @Test
+    @DisplayName("an entity with two transports asked for and not yet waited for is terminated: both are withdrawn")
+    fun twoRequestsWithdrawn() {
+        val o = runShop {
+            twoAsks("A")
+            terminate("A", 5.0)
+            probe(45.0)
+        }
+        assertFreed("two requests", o, "A")
+        assertEquals(TaskState.CANCELLED, o.shop.tasks.getValue("A-1").state)
+        assertEquals(TaskState.CANCELLED, o.shop.tasks.getValue("A-2").state)
+        assertEquals(listOf("probe@45.0 at=Park aboard=0 task=null"), o.log)
+        assertCounts("two requests", o, posted = 2, completed = 0, cancelled = 2, made = 1, revoked = 1)
     }
 
     // ---------- aboard ----------
@@ -495,6 +558,122 @@ class TerminatedInFleetTest {
         assertEquals(0.0, yard.fleet.dispatcher.numTasksCompleted.value)
     }
 
+    // ---------- a vehicle carrying more than one load ----------
+
+    /**
+     *  The loop A, B, C, D with links 100 long in 25-long zones, and a two-load cart at A, speed 10. A batching
+     *  policy hands it One (A to C) and Two (B to D) together at 5: One aboard at 5, Two at 15, One set down at C at
+     *  25, Two at D at 35.
+     */
+    private class Loop(parent: ModelElement) : ProcessModel(parent, "Loop") {
+        val network: GuidedPathNetwork = GuidedPathNetwork.builder("Loop")
+            .link("AB", "A", "B", length = 100.0, zoneLength = 25.0, beginDirection = 0.0)
+            .link("BC", "B", "C", length = 100.0, zoneLength = 25.0, beginDirection = 90.0)
+            .link("CD", "C", "D", length = 100.0, zoneLength = 25.0, beginDirection = 180.0)
+            .link("DA", "D", "A", length = 100.0, zoneLength = 25.0, beginDirection = 270.0)
+            .build()
+
+        init {
+            spatialModel = network
+        }
+
+        val agv = AgvSystem(
+            this, network,
+            assignmentPolicy = ksl.modeling.fleet.policies.BatchedAssignmentPolicy(
+                window = 5.0, inner = ksl.modeling.fleet.policies.ConsolidatingPolicy()
+            ),
+            name = "Agv"
+        )
+        val cart = AgvVehicle(agv, TransporterPlacement.At("A"), ConstantRV(10.0), name = "Cart", loadCapacity = 2)
+        val log = mutableListOf<String>()
+        val setups = mutableListOf<Loop.() -> Unit>()
+        val actors = mutableMapOf<String, Entity>()
+
+        inner class Load(val tag: String, val from: Double, val origin: String, val destination: String) : Entity(tag) {
+            val p: KSLProcess = process(isDefaultProcess = true) {
+                delay(from)
+                currentLocation = network.requireLocation(origin)
+                transportByFleet(agv, destination, origin)
+                log.add("$tag delivered@$time at=${currentLocation.name} cart=${cart.currentLocationName}")
+            }
+        }
+
+        fun load(tag: String, origin: String, destination: String, from: Double = 0.0) =
+            Load(tag, from, origin, destination).also {
+                actors[tag] = it
+                activate(it.p)
+            }
+
+        fun terminate(tag: String, t: Double) = at(t) { actors.getValue(tag).terminateProcess() }
+
+        fun at(t: Double, action: () -> Unit) {
+            schedule({ _: KSLEvent<Nothing> -> action() }, t)
+        }
+
+        override fun initialize() {
+            log.clear()
+            actors.clear()
+            for (s in setups) s()
+        }
+    }
+
+    private fun runLoop(setup: Loop.() -> Unit): Pair<Loop, Throwable?> {
+        val model = Model("FleetLoop${System.nanoTime()}", autoCSVReports = false)
+        val loop = Loop(model)
+        loop.setups.add(setup)
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 300.0
+        val error = try {
+            model.simulate()
+            null
+        } catch (e: Throwable) {
+            e
+        }
+        return loop to error
+    }
+
+    @Test
+    @DisplayName("control: a two-load cart delivers One at C at 25 and Two at D at 35")
+    fun twoLoadControl() {
+        val (loop, error) = runLoop {
+            load("One", "A", "C")
+            load("Two", "B", "D")
+        }
+        assertNull(error, "the run stopped: $error")
+        assertEquals(listOf("One delivered@25.0 at=C cart=C", "Two delivered@35.0 at=D cart=D"), loop.log)
+    }
+
+    @Test
+    @DisplayName("one of two loads terminated aboard, with other work waiting: the cart sets the other down where it is bound before taking new work")
+    fun oneOfTwoTerminatedWithWorkWaiting() {
+        val (loop, error) = runLoop {
+            load("One", "A", "C")
+            load("Two", "B", "D")
+            load("Three", "A", "B", from = 16.0)
+            terminate("Two", 20.0)
+        }
+        assertNull(error, "the run stopped: $error")
+        // One at C at 25, where the round ends; the batching policy gives the cart Three at the end of its 5-long
+        // window, at 30; the cart collects it at A at 50 and sets it down at B at 60.
+        assertEquals(listOf("One delivered@25.0 at=C cart=C", "Three delivered@60.0 at=B cart=B"), loop.log)
+    }
+
+    @Test
+    @DisplayName("a commitment revoked from a cart carrying another load: the cart sets that load down where it is bound before anything else")
+    fun revokedFromACartCarryingAnother() {
+        val (loop, error) = runLoop {
+            load("One", "A", "C")
+            load("Two", "D", "A")
+            at(10.0) {
+                agv.dispatcher.revoke(cart.assignments.first { it.task.waitingEntity === actors.getValue("Two") })
+            }
+        }
+        assertNull(error, "the run stopped: $error")
+        // Two, revoked at 10, waits on the board while the cart finishes its round with One at C at 25; the batching
+        // policy gives it back to the cart at 30, which collects it at D at 40 and sets it down at A at 50.
+        assertEquals(listOf("One delivered@25.0 at=C cart=C", "Two delivered@50.0 at=A cart=A"), loop.log)
+    }
+
     // ------------------------------------------------------------------------------------------------------
     // ride rig
     // ------------------------------------------------------------------------------------------------------
@@ -526,6 +705,7 @@ class TerminatedInFleetTest {
         val log = mutableListOf<String>()
         val setups = mutableListOf<Town.() -> Unit>()
         val actors = mutableMapOf<String, Entity>()
+        val passed = mutableMapOf<String, Int>()
         private val myBoardTriggers = mutableMapOf<Long, () -> Unit>()
         private val myAlightTriggers = mutableMapOf<Long, () -> Unit>()
 
@@ -539,7 +719,8 @@ class TerminatedInFleetTest {
                     delay(split)
                     log.add("$tag ready@$time")
                 }
-                awaitRide(ride)
+                val r = awaitRide(ride)
+                passed[tag] = r.numVehiclesPassed
                 log.add("$tag alighted@$time")
             }
         }
@@ -582,6 +763,7 @@ class TerminatedInFleetTest {
         override fun initialize() {
             log.clear()
             actors.clear()
+            passed.clear()
             myBoardTriggers.clear()
             myAlightTriggers.clear()
             repeat(6) { fleet.dispatcher.postLine(line) }
@@ -589,7 +771,9 @@ class TerminatedInFleetTest {
         }
     }
 
-    private class TownOutcome(val log: List<String>, val error: Throwable?, val town: Town)
+    private class TownOutcome(val log: List<String>, val error: Throwable?, val town: Town) {
+        fun passedOf(tag: String): Int = town.passed.getValue(tag)
+    }
 
     private fun runTown(capacity: Int = 1, setup: Town.() -> Unit): TownOutcome {
         val model = Model("RideTermination${System.nanoTime()}", autoCSVReports = false)
@@ -657,6 +841,22 @@ class TerminatedInFleetTest {
     }
 
     @Test
+    @DisplayName("a rider not yet waiting when a full bus leaves others standing was not passed by")
+    fun aRiderNotYetWaitingIsNotPassedBy() {
+        val o = runTown {
+            rider("R1", stopB, "D")
+            rider("R3", stopB, "D")
+            rider("R2", stopB, "D", split = 15.0)
+        }
+        assertRiderFreed("not yet waiting", o, "R1", "R2", "R3")
+        // The one-seat bus takes R1 at 10 and leaves R3 standing; R2 is not yet waiting. At 50 it takes R3 and leaves
+        // R2, which is waiting by then.
+        assertEquals(2.0, o.town.stopB.numPassedByFull.value, "visits that left somebody standing")
+        assertEquals(1, o.passedOf("R3"), "R3 was passed by at 10")
+        assertEquals(1, o.passedOf("R2"), "R2 was passed by at 50 only")
+    }
+
+    @Test
     @DisplayName("a rider that joins, then is terminated before it waits: it leaves the line")
     fun splitRideTerminatedBeforeWaiting() {
         val o = runTown {
@@ -697,6 +897,28 @@ class TerminatedInFleetTest {
         assertEquals(listOf("R3 alighted@30.0"), o.log)
         assertEquals(0.0, o.town.stopC.numPassedByFull.value, "passed by full at C")
         assertEquals(1.0, o.town.stopD.numAlighted.value, "alighted at D")
+    }
+
+    @Test
+    @DisplayName("a one-seat bus whose rider is carried on into the next cycle starts that cycle")
+    fun fullBusIntoTheNextCycle() {
+        val o = runTown { rider("R1", stopC, "B") }
+        assertRiderFreed("full into next cycle", o, "R1")
+        // Boards at C at 20; D at 30, A at 40 ends the cycle; the next starts at A and reaches B at 50.
+        assertEquals(listOf("R1 alighted@50.0"), o.log)
+    }
+
+    @Test
+    @DisplayName("a line cycle cancelled mid-cycle: the bus serves none of its remaining stops, and the next cycle carries the rider on")
+    fun lineCycleCancelledMidCycle() {
+        val o = runTown {
+            rider("R1", stopB, "C")
+            at(15.0) { fleet.dispatcher.cancel(bus.currentAssignment!!.task) }
+        }
+        assertRiderFreed("cancelled cycle", o, "R1")
+        // The bus, on BC at 15, starts the next cycle from A: C at 20 and D at 30 passed, A at 40, B at 50, C at 60.
+        assertEquals(listOf("R1 alighted@60.0"), o.log)
+        assertEquals(1.0, o.town.stopC.numAlighted.value, "alighted at C")
     }
 
     @Test

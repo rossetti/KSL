@@ -120,7 +120,10 @@ class Stop @JvmOverloads constructor(
     val waitingQ: QueueCIfc<Ride>
         get() = myWaiting
 
-    /** Who is waiting, in the order they arrived. What a boarding action draws from. */
+    /**
+     * Who is in the line, in the order they joined, including riders that have joined but not yet begun to wait
+     * (see [Ride.isWaiting]), whom no vehicle may take. A boarding action draws from [waitingFor].
+     */
     val waiting: List<Ride>
         get() = myWaiting.toList()
 
@@ -209,13 +212,14 @@ class Stop @JvmOverloads constructor(
         // Whoever is still standing here was left behind by this visit, which is what the per-rider
         // count means. It is taken from the queue rather than passed in, so the stop's row and the
         // rider's own figure cannot come to disagree about who was passed by.
-        for (r in myWaiting) r.numVehiclesPassed++
+        // Only those waiting: a rider that has joined the line but not yet begun to wait was not passed by.
+        for (r in myWaiting) if (r.isWaiting) r.numVehiclesPassed++
     }
 
     /** A vehicle was told past without serving it. */
     internal fun passedBySkipped() {
         myNumPassedBySkipped.increment()
-        for (r in myWaiting) r.numVehiclesPassed++
+        for (r in myWaiting) if (r.isWaiting) r.numVehiclesPassed++
     }
 
     // ---- vehicles that are waiting here ----------------------------------------------------

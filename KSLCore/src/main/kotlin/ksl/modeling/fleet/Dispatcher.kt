@@ -638,7 +638,13 @@ open class Dispatcher @JvmOverloads constructor(
         // Available again in the same breath, so a pass that releases and reassigns can do both
         // without an intervening wake -- unless the vehicle is out of service, in which case
         // `declareAvailable` declines on its behalf and it declares itself when it is fit again.
-        declareAvailable(assignment.vehicle)
+        // A vehicle that still holds another commitment is in the middle of a round with stops of its
+        // own to make, and stays withdrawn: turned toward new work, it would arrive somewhere else and
+        // serve the stop it was making there. It is offered work when its round ends.
+        val stillHolding = assignment.vehicle.assignments.any {
+            it !== assignment && (it.state == AssignmentState.ASSIGNED || it.state == AssignmentState.IN_PROGRESS)
+        }
+        if (!stillHolding) declareAvailable(assignment.vehicle)
         assignment.vehicle.agent?.abandonAssignment(assignment)
         // A vehicle standing at the pickup waiting for the load is let go: it finds the task no
         // longer its own and goes on with its round.
@@ -875,6 +881,15 @@ open class Dispatcher @JvmOverloads constructor(
                             "A policy may only propose vehicles from the available set it was given (A6)."
                 )
             }
+            if (p.task.isTerminal) {
+                throw FleetDispatchException(
+                    "Policy ($assignmentPolicy) proposed task (${p.task.name}) for vehicle " +
+                            "(${p.vehicle.name}), but that task has ended (${p.task.state}), as when its " +
+                            "load is terminated while the policy decides. A policy that takes simulated " +
+                            "time to decide -- an auction deadline, a batching window -- must re-check " +
+                            "that a task is still POSTED before it proposes it."
+                )
+            }
             if (p.task.state != TaskState.POSTED) {
                 throw FleetDispatchException(
                     "Policy ($assignmentPolicy) proposed task (${p.task.name}) for vehicle " +
@@ -882,8 +897,11 @@ open class Dispatcher @JvmOverloads constructor(
                             "vehicle committed to it (A1)."
                 )
             }
+            // A line cycle carries nobody of its own: its riders come aboard at its stops, as there is
+            // room. So a vehicle full of riders can still be given the next cycle. It still counts toward
+            // what the vehicle takes this pass, so nothing else is added to a vehicle with no room.
             val roomLeft = p.vehicle.spareCapacity - (takenThisPass[p.vehicle] ?: 0)
-            if (roomLeft <= 0) {
+            if (p.task !is LineTask && roomLeft <= 0) {
                 throw FleetDispatchException(
                     "Policy ($assignmentPolicy) proposed task (${p.task.name}) for vehicle " +
                             "(${p.vehicle.name}), which already has everything it can carry this " +

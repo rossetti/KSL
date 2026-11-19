@@ -135,15 +135,20 @@ class TerminatedOnGuidedJourneyTest {
         }
     }
 
-    private class Outcome(val log: List<String>, val error: Throwable?, val shop: Shop, val alighted: List<String>)
+    private class Outcome(
+        val log: List<String>, val error: Throwable?, val shop: Shop, val alighted: List<String>,
+        val states: List<String> = emptyList()
+    )
 
     private fun run(homeRule: Boolean = false, setup: Shop.() -> Unit): Outcome {
         val alighted = mutableListOf<String>()
+        val states = mutableListOf<String>()
         val model = Model("GuidedTermination${System.nanoTime()}", autoCSVReports = false)
         model.animationSink = object : AnimationSink {
             override val isActive = true
             override fun emit(event: AnimationEvent) {
                 if (event is AnimationEvent.VehicleLoadAlighted) alighted.add("${event.entityId}@${event.simTime}")
+                if (event is AnimationEvent.GuidedTransporterStateChanged) states.add("${event.state}@${event.simTime}")
             }
         }
         val shop = Shop(model, homeRule)
@@ -156,7 +161,7 @@ class TerminatedOnGuidedJourneyTest {
         } catch (e: Throwable) {
             e
         }
-        return Outcome(shop.log.toList(), error, shop, alighted)
+        return Outcome(shop.log.toList(), error, shop, alighted, states)
     }
 
     private fun assertCompleted(case: String, o: Outcome) {
@@ -227,6 +232,23 @@ class TerminatedOnGuidedJourneyTest {
         }
         assertCompleted("loading", o)
         assertEquals("Q got cart@22.0", o.log.first { it.startsWith("Q got") })
+    }
+
+    @Test
+    @DisplayName("terminated while loading or unloading: the cart is not left drawn as loading or unloading")
+    fun animationAfterLoadingOrUnloading() {
+        val loading = run {
+            part("V", 0.0, loading = 5.0)
+            terminate("V", 22.0)
+        }
+        assertCompleted("loading", loading)
+        assertEquals("IDLE@22.0", loading.states.last(), "loading: ${loading.states}")
+        val unloading = run {
+            part("V", 0.0, unloading = 5.0)
+            terminate("V", 32.0)
+        }
+        assertCompleted("unloading", unloading)
+        assertEquals("IDLE@32.0", unloading.states.last(), "unloading: ${unloading.states}")
     }
 
     // ---------- riding ----------

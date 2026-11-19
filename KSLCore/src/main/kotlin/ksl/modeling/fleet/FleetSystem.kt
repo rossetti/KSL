@@ -1250,7 +1250,7 @@ abstract class FleetSystem @JvmOverloads constructor(
          * per tour is what lets a revocation take one task off a vehicle that is carrying others.
          */
         private fun stillOurs(stop: TourStop): Boolean {
-            val task = stop.action.task ?: return true
+            val task = stop.madeFor ?: stop.action.task ?: return true
             return assignments.any { it.task === task }
         }
 
@@ -1317,7 +1317,9 @@ abstract class FleetSystem @JvmOverloads constructor(
                 task.failedBeforePickup = vehicle.cumulativeFailedTime - failedAtTourStart
                 // A load that asked for transport and has not yet begun to wait for it is finishing
                 // something. The vehicle waits for it here, and the loading starts when it is ready.
-                if (!awaitingPickupHoldQ.contains(task.load)) {
+                // A loop, because the vehicle can be let go and given the same task straight back, a revocation
+                // and a re-assignment, while the load is still busy: it then waits again.
+                while (!awaitingPickupHoldQ.contains(task.load)) {
                     task.vehicleAwaitingLoad = vehicle
                     hold(awaitingLoadHoldQ,                 // SUSPENDS
                         suspensionName = "${vehicle.name}:awaitingLoad")
@@ -1443,7 +1445,9 @@ abstract class FleetSystem @JvmOverloads constructor(
         /** The route metadata the setdown stop reads is captured before the route is cleared; this
          *  turns one task into the stops that discharge it. A two-stop tour today, and the loop
          *  above does not know that. */
-        private fun stopsFor(task: Dispatcher.Task): List<TourStop> = when (task) {
+        private fun stopsFor(task: Dispatcher.Task): List<TourStop> = stopsMadeFor(task).onEach { it.madeFor = task }
+
+        private fun stopsMadeFor(task: Dispatcher.Task): List<TourStop> = when (task) {
             is Dispatcher.TransportTask -> listOf(
                 TourStop(task.origin, PickUp(task)),
                 TourStop(task.destination, SetDown(task))

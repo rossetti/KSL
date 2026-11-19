@@ -78,7 +78,7 @@ class FeasibleAssignments internal constructor(
      * pickup cannot be reached. A capacity-one fleet is unaffected: every idle vehicle has room.
      */
     fun isFeasible(vehicle: FleetVehicle, task: Dispatcher.Task): Boolean =
-        vehicle.spareCapacity > 0 && cost(vehicle, task).isFinite()
+        (task is Dispatcher.LineTask || vehicle.spareCapacity > 0) && cost(vehicle, task).isFinite()
 
     /**
      * Distance from where the vehicle stands to the task's pickup, **along the guide path**, or

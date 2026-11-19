@@ -3526,7 +3526,7 @@ interface KSLProcessBuilder {
         // no window in which a caller holds an unposted task.
         return system.dispatcher.postTransport(
             entity, origin, destination, loadingDelay, unLoadingDelay, priority
-        ).also { entity.myFleetTask = it }
+        ).also { entity.myFleetTasks.add(it) }
     }
 
     /**
@@ -3557,7 +3557,7 @@ interface KSLProcessBuilder {
         if (task.state != TaskState.COMPLETED) {
             hold(system.inTransitHoldQ, suspensionName = "$suspensionName:riding")
         }
-        entity.myFleetTask = null
+        entity.myFleetTasks.remove(task)
         // The vehicle resumed us, having set currentLocation before doing so.
         val delivered = system.time
         system.recordTimeAboard(delivered - pickedUp)
@@ -3657,7 +3657,7 @@ interface KSLProcessBuilder {
      * @return the ride, which is also where its wait is recorded
      */
     suspend fun requestRide(stop: Stop, destination: String): Stop.Ride =
-        stop.join(entity, destination).also { entity.myRide = it }
+        stop.join(entity, destination).also { entity.myRides.add(it) }
 
     /**
      * Waits until a ride joined by [requestRide] has been taken and completed.
@@ -3685,7 +3685,7 @@ interface KSLProcessBuilder {
         if (!ride.hasAlighted) {
             hold(system.inTransitHoldQ, suspensionName = "$suspensionName:riding")
         }
-        entity.myRide = null
+        entity.myRides.remove(ride)
         // The vehicle resumed us, having set currentLocation before doing so.
         val alighted = system.time
         return TransitResult(
