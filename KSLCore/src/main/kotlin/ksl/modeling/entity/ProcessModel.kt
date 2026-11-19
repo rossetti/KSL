@@ -1366,6 +1366,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         var conveyorRequest: ConveyorRequestIfc? = null
             private set
 
+        /** The request the entity waits on for an entry cell, until it is granted and becomes its conveyorRequest. */
+        internal var myPendingConveyorRequest: Conveyor.ConveyorRequest? = null
+
+        /**
+         *  The helper of a transfer in progress, from before it starts until the request it made on the next
+         *  conveyor becomes the entity's own: through it, the entity owns what the transfer asked for or holds.
+         */
+        internal var myTransferHelper: CTransferEntity? = null
+
         /**
          *  This function is used to define via a builder for a process for the entity.
          *
@@ -4014,7 +4023,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (conveyor.entryCells[entryLocation]?.isUnavailable == true) {
                     emitAnimation { AnimationEvent.ConveyorEntryBlocked(time, entity.id, conveyor.name, entryLocation) }
                 }
-                // holds the entity until the entry cell is blocked for entry
+                // holds the entity until the entry cell is blocked for entry; until then the request is pending, and
+                // a termination of the entity withdraws it
+                entity.myPendingConveyorRequest = conveyorRequest
                 inConveyorHold = true
                 hold(
                     conveyor.myAccessingHoldQ,
@@ -4022,6 +4033,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 )
                 inConveyorHold = false
                 // ensure that the entity remembers that it is now "using" the conveyor
+                entity.myPendingConveyorRequest = null
                 entity.conveyorRequest = conveyorRequest
                 // entity via the request now blocks (controls) the access cell for entry
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > REQUEST CONVEYOR : entity_id = ${entity.id} : BLOCKING ENTRY CELL: suspension name = $currentSuspendName" }
@@ -4145,6 +4157,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     nextConveyor, entryLocation, conveyorRequest.numCellsNeeded,
                     requestPriority, requestResumePriority, suspensionName
                 )
+                // the entity owns what the transfer asks for or holds until the next conveyor's request is its own
+                entity.myTransferHelper = te
                 //tell the current entity to wait for the transfer to occur, waitFor activates the transfer process
                 waitFor(te.transferProcess, suspensionName = suspensionName)
                 // the transfer process should be completed, get the request from the transfer entity
@@ -4157,8 +4171,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 exitConveyor(exitPriority)
                 // update the request so that it uses the original entity, not the transfer entity
                 tr.entity = entity
-                // make the entity use the new request
+                // make the entity use the new request; it owns it directly now, not through the transfer
                 entity.conveyorRequest = tr
+                entity.myTransferHelper = null
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END: TRANSFER CONVEYOR : entity_id = ${entity.id} : conveyor = ${nextConveyor.name} : suspension name = $currentSuspendName" }
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
@@ -4332,6 +4347,27 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  the user should override the Entity's handleTerminatedProcess() function to
              *  supply specific logic.
              */
+            /**
+             *  Gives up the entity's conveyors at its termination: its own request, granted or pending, and, for a
+             *  transfer in progress, what the transfer has asked for or holds on the next conveyor. The references
+             *  are cleared first, so a second call does nothing; once the run has ended nothing is withdrawn, since
+             *  the conveyors start afresh at the next replication.
+             */
+            private fun leaveConveyors() {
+                val helper = entity.myTransferHelper
+                entity.myTransferHelper = null
+                val request = (entity.conveyorRequest ?: entity.myPendingConveyorRequest) as Conveyor.ConveyorRequest?
+                entity.conveyorRequest = null
+                entity.myPendingConveyorRequest = null
+                if (executive.isEnded) {
+                    return
+                }
+                // the request on the conveyor the entity is on, or is waiting for
+                request?.conveyor?.withdraw(request)
+                // what a transfer in progress has asked for, or holds, on the next conveyor
+                helper?.abandonTransfer()
+            }
+
             private fun afterTerminatedProcessCompletion() {
                 if (hasAllocations) {
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity releasing all resources." }
@@ -4349,6 +4385,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity leaving all crossings." }
                     leaveAllCrossings()
                 }
+                // And the conveyors: what the entity waits for, holds or covers on a conveyor, and what a transfer in
+                // progress has asked for or holds on the next, is given up in the instant of the termination.
+                leaveConveyors()
                 //TODO need to handle blockages in termination. This entity has been terminated, what to do about blocked entities?
                 if (isQueued) {
                     //remove it from its queue with no stats
@@ -5003,13 +5042,37 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         suspensionName: String? = null
     ) : Entity() {
         lateinit var transferRequest: Conveyor.ConveyorRequest
+
+        /** The entity this helper works for was terminated before the helper started. */
+        private var myIsAbandoned = false
+
         val transferProcess = process {
+            // the entity it works for has gone: nothing to ask for
+            if (myIsAbandoned) return@process
             val r = requestConveyor(
                 nextConveyor,
                 entryLocation, numCellsNeeded, requestPriority,
                 requestResumePriority, suspensionName
             )
             transferRequest = r as Conveyor.ConveyorRequest
+        }
+
+        /**
+         *  The entity this helper works for was terminated: whatever the helper asked for or holds is given up. A
+         *  helper waiting for the next conveyor's entry was terminated with the entity, and withdrew its request
+         *  itself; one not yet started will ask for nothing; one done gives up the request it obtained, which was
+         *  still its own.
+         */
+        internal fun abandonTransfer() {
+            myIsAbandoned = true
+            if (isSuspended) {
+                terminateProcess()
+                return
+            }
+            val made = conveyorRequest as Conveyor.ConveyorRequest?
+            if (made != null && made.entity === this) {
+                made.conveyor.withdraw(made)
+            }
         }
     }
 

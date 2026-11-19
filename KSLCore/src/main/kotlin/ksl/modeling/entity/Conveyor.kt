@@ -1528,8 +1528,10 @@ class Conveyor @JvmOverloads constructor(
 
     private fun rescheduleAccumulatingConveyorMovement() {
         if (!isOccupied()) {
-            // the conveyor is not occupied, but it could have items positioned to enter
-            if (hasItemPositionedToEnter()) {
+            // the conveyor is not occupied, but it could have items positioned to enter, or an item on another
+            // conveyor waiting to land here, which lands at the end of a cell move: once the item covering its
+            // landing cell is withdrawn, no other item may be left to keep the conveyor moving
+            if (hasItemPositionedToEnter() || myWaitingToLand.isNotEmpty()) {
                 ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Accumulating: has at least one item positioned to enter: movement scheduled" }
                 scheduleConveyorMovement()
                 return
@@ -1541,8 +1543,8 @@ class Conveyor @JvmOverloads constructor(
         // conveyor must be occupied, find the leading cell
         val leadingCell = findLeadingCell(conveyorCells)
         if (leadingCell == null) {
-            // no leading cell, thus no cells to move, may have items positioned to enter
-            if (hasItemPositionedToEnter()) {
+            // no leading cell, thus no cells to move, may have items positioned to enter or an item waiting to land
+            if (hasItemPositionedToEnter() || myWaitingToLand.isNotEmpty()) {
                 ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Accumulating: no movable items but has at least one item positioned to enter: movement scheduled" }
                 scheduleConveyorMovement()
                 return
@@ -1827,6 +1829,76 @@ class Conveyor @JvmOverloads constructor(
             }
             startExitingProcess(request)
         }
+    }
+
+    /**
+     *  Gives up [request] at once, whatever its state, because its entity was terminated: the request leaves the
+     *  access queue it waits in, gives up the entry or exit cell it blocks and the cells its item covers, stops
+     *  being positioned to enter, and, for an item held in its exit cell to land on another conveyor, leaves that
+     *  conveyor's line of items waiting to land. It is then completed, so the events already scheduled for it (its
+     *  arrival, a ride start, an exit start) do nothing. The conveyor then goes on as if the item had left: its
+     *  movement is rescheduled if none is in progress, and the requests waiting at its entries are looked at
+     *  again. An item that covered cells is shown leaving in the animation trace. A completed request is left
+     *  as it is.
+     */
+    internal fun withdraw(request: ConveyorRequest) {
+        // an item held in its exit cell until it can land gives up its place in the other conveyor's line of items
+        // waiting to land, whatever state the request is in
+        val target = request.myTransferTo
+        if (target != null) {
+            request.myTransferTo = null
+            request.myPushOffTime = Double.NaN
+            target.conveyor.forgetLanding(request, target.entryCell)
+        }
+        if (request.isCompleted) {
+            return
+        }
+        val accessQueue = myAccessQueues[request.entryLocation]!!
+        if (accessQueue.contains(request)) {
+            accessQueue.remove(request, false)
+        }
+        if (request.isBlockingEntry) {
+            removeBlockage(request.entryCell)
+        }
+        if (request.isBlockingExit && request.status != ItemStatus.EXITING) {
+            removeBlockage(myExitCells[request.currentLocation]!!)
+        }
+        if (positionedToEnter[request.entryCell] === request) {
+            positionedToEnter.remove(request.entryCell)
+        }
+        val coveredCells = request.occupiesCells
+        val location = request.currentLocation
+        request.leaveCells()
+        request.status = ItemStatus.OFF
+        request.state = requestCompletedState
+        ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > CONVEYOR (${this@Conveyor.name}): entity_id = ${request.entity.id} : request withdrawn: its entity was terminated" }
+        if (coveredCells) {
+            val sink = model.animationSink
+            if (sink.isActive && isCaptured()) {
+                sink.emit(AnimationEvent.ConveyorExited(time, request.entity.id, name, location))
+            }
+        }
+        reconsiderAfterWithdrawal()
+    }
+
+    /** Takes [item] out of this conveyor's line of items waiting to land, if it is the one waiting for [entryCell]. */
+    private fun forgetLanding(item: ConveyorRequest, entryCell: Cell) {
+        if (myWaitingToLand[entryCell] === item) {
+            myWaitingToLand.remove(entryCell)
+        }
+    }
+
+    /**
+     *  After a withdrawal, outside a cell move: items stopped by what was withdrawn are set moving if no cell move
+     *  is in progress, and the requests waiting at the entries are looked at again. An item waiting to land on this
+     *  conveyor keeps it moving (see the rescheduling), and lands at the end of a cell move, as every landing does.
+     */
+    private fun reconsiderAfterWithdrawal() {
+        if (!isCellTraversalInProgress()) {
+            rescheduleConveyorMovement()
+        }
+        processRequestsWaitingToAccessConveyor()
+        captureCellUsage()
     }
 
     /**
@@ -2170,6 +2242,13 @@ class Conveyor @JvmOverloads constructor(
             }
         }
 
+        /** Frees every cell the item covers; it covers none afterwards. */
+        internal fun leaveCells() {
+            while (popRearCell()) {
+                // pops each cell, from the rear, freeing it
+            }
+        }
+
         internal fun mustWait(): Boolean {
             // request must wait if another request is positioned to enter at the request's entry cell
             if (positionedToEnter.containsKey(entryCell)){
@@ -2398,6 +2477,8 @@ class Conveyor @JvmOverloads constructor(
     private fun receiveRequest(event: KSLEvent<ConveyorRequest>) {
         //TODO this resumes the entity waiting to access the conveyor
         val request = event.message!!
+        // withdrawn in the instant between the request and its arrival: its entity was terminated
+        if (request.isCompleted) return
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : arrive for cells" }
         // a new request for cells has arrived at an entry point of the conveyor
         // always enter the queue to get statistics on waiting to enter the conveyor
@@ -2457,6 +2538,8 @@ class Conveyor @JvmOverloads constructor(
 
     private fun startRideAction(event: KSLEvent<ConveyorRequest>) {
         val request = event.message!!
+        // withdrawn between the request to ride and the ride: its entity was terminated
+        if (request.isCompleted) return
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : start ride action" }
         request.startRiding()
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : start ride action" }
@@ -2479,6 +2562,8 @@ class Conveyor @JvmOverloads constructor(
 
     private fun startExitAction(event: KSLEvent<ConveyorRequest>) {
         val request = event.message!!
+        // withdrawn between the request to exit and the exit: its entity was terminated
+        if (request.isCompleted) return
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** EXECUTING ... : event_id = ${event.id} : entity_id = ${request.entity.id} : start exit action" }
         startExitingProcess(request)
         ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > EVENT : *** COMPLETED! : event_id = ${event.id} : entity_id = ${request.entity.id} : start exit action" }
