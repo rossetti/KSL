@@ -50,8 +50,29 @@ class RequestSelectionRuleTest {
             }
         }
 
+        /** Asks for the unit from [from], giving up after [timeout]. */
+        inner class Impatient(name: String, val from: Double, val timeout: Double) : Entity(name) {
+            val p: KSLProcess = process(isDefaultProcess = true) {
+                delay(from)
+                val result = seizeOrTimeout(r, timeout = timeout)
+                if (result.timedOut) {
+                    log.add("${this@Impatient.name} gave up@$time")
+                } else {
+                    log.add("${this@Impatient.name} got@$time")
+                    release(result.value)
+                }
+            }
+        }
+
+        val setups = mutableListOf<Shop.() -> Unit>()
+        var standard = true
+
         override fun initialize() {
             log.clear()
+            if (!standard) {
+                for (s in setups) s()
+                return
+            }
             // H is served before the rule matters: it is the only request when it arrives, and the rule is asked only
             // whom among waiting requests to serve; it holds the unit to 10
             activate(Job("X-H", 0.0, 10.0).p)
@@ -70,5 +91,18 @@ class RequestSelectionRuleTest {
         model.simulate()
         // at 10 the rule chooses nobody, and the unit stays free; X arrives at 12 and takes it; W is never chosen
         assertEquals(listOf("X-H got@0.0", "X got@12.0"), shop.log)
+    }
+
+    @Test
+    @DisplayName("a timed seize the rule does not choose waits as an untimed one does, though the unit is free, and gives up")
+    fun timedSeizeFollowsTheRule() {
+        val model = Model("SelectionRuleTimed${System.nanoTime()}", autoCSVReports = false)
+        val shop = Shop(model)
+        shop.standard = false
+        shop.setups.add { activate(Impatient("W", 0.0, 2.0).p) }
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 50.0
+        model.simulate()
+        assertEquals(listOf("W gave up@2.0"), shop.log)
     }
 }

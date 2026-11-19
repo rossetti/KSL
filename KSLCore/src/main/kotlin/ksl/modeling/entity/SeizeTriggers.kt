@@ -107,8 +107,11 @@ internal class ResourceSeizeTrigger(
 
     override val seizedName: String get() = resource.name
 
+    // A request selection rule chooses among queued requests, so with one the request must be queued before it can
+    // be chosen: the wait then registers it, and serves it at once when the rule chooses it (canTakeNow).
     override fun canFireNow(entity: ProcessModel.Entity): Boolean =
-        resource.canAllocate(amountNeeded) && queue.nextRequestForResource(resource) == null
+        queue.requestSelectionRule == null &&
+                resource.canAllocate(amountNeeded) && queue.nextRequestForResource(resource) == null
 
     override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int) =
         entity.enqueueResourceRequest(resource, amountNeeded, queue, requestPriority)

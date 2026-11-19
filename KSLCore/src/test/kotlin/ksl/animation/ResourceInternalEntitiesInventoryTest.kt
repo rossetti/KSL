@@ -129,6 +129,20 @@ class ResourceInternalEntitiesInventoryTest {
         }
     }
 
+    @Test
+    @DisplayName("EntityTypeInfo keeps the constructor and copy signatures of R1.8.2, so code compiled against it still runs")
+    fun entityTypeInfoKeepsItsSignatures() {
+        val c = EntityTypeInfo::class.java
+        val b = Boolean::class.javaPrimitiveType
+        val i = Int::class.javaPrimitiveType
+        c.getConstructor(String::class.java, List::class.java, b, b)
+        c.getConstructor(String::class.java, List::class.java, b, b, i, Class.forName("kotlin.jvm.internal.DefaultConstructorMarker"))
+        c.getMethod("copy", String::class.java, List::class.java, b, b)
+        c.getMethod("copy\$default", c, String::class.java, List::class.java, b, b, i, Any::class.java)
+        val info = EntityTypeInfo("Job")
+        assertTrue(info.include && !info.isInternal, "a type built by a client is included and not internal")
+    }
+
     private class Agents(parent: ModelElement) : AgentModel(parent, "Agents")
 
     @Test

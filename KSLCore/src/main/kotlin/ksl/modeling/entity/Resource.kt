@@ -761,8 +761,11 @@ open class Resource @JvmOverloads constructor(
         returning: Map<Allocation, Int> = emptyMap()
     ): PreemptionPlan? {
         // off shift, or with the capacity cut below what is needed, nothing is taken: units above the capacity
-        // are only finishing the work they were allocated for
-        if (amountNeeded > capacity) return null
+        // are only finishing the work they were allocated for. Under the WAIT rule the capacity is cut only as busy
+        // units are released, so a pending decrease counts at the capacity it is heading to, and off shift at none.
+        if (isOffShift) return null
+        val reachable = myCurrentChangeNotice?.let { minOf(capacity, it.capacity) } ?: capacity
+        if (amountNeeded > reachable) return null
         val free = numAvailableUnits
         var short = amountNeeded - free
         if (short <= 0) return null

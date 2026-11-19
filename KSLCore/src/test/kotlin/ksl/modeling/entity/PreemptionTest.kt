@@ -637,6 +637,19 @@ class PreemptionTest {
     }
 
     @Test
+    @DisplayName("off shift under the WAIT capacity rule, a preemption takes nothing: the holder finishes and the preemptor starts back on shift")
+    fun nothingTakenOffShiftUnderWait() {
+        val (_, m) = run(configure = { r.capacityChangeRule = CapacityChangeRule.WAIT }) {
+            job("L", r, 0.0, 10.0, priority = 9)
+            at(1.0) { r.goOffShift() }
+            urgent("P", r, 2.0, 2.0)
+            at(20.0) { r.goOnShift() }
+        }
+        assertEquals(listOf("L got@0.0", "L done@10.0", "P got@20.0", "P done@22.0"), m.log)
+        assertEquals(0, m.r.numTimesPreempted)
+    }
+
+    @Test
     @DisplayName("off shift, a preemption takes nothing under any rule, and a loan ending passes to no one")
     fun nothingTakenOffShift() {
         for (rule in listOf(InterruptRule.RESUME, InterruptRule.RESTART, InterruptRule.FINISH)) {

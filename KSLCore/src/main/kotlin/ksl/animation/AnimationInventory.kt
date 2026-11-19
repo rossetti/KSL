@@ -117,11 +117,15 @@ data class EntityTypeInfo(
     val include: Boolean = true,
     /** True when the type is an agent (an `AgentModel.Agent` subclass): its visual-ness is runtime-conditional
      *  (drawn only if projected/moved), unlike a process entity which the process-view machinery always draws (G3). */
-    val isAgent: Boolean = false,
+    val isAgent: Boolean = false
+) {
     /** True when the library itself creates the type for an element, such as the entity that runs a resource's
-     *  behavior: it is captured, but it is not one of the model's own entity types to lay out or animate. */
-    val isInternal: Boolean = false
-)
+     *  behavior: it is captured, but it is not one of the model's own entity types to lay out or animate. A
+     *  property of the body rather than the constructor, so the constructor and `copy` keep their signatures;
+     *  `copy` does not carry it. */
+    var isInternal: Boolean = false
+        internal set
+}
 
 /**
  * A named spatial location (landmark / point of interest) an agent context declared via `Context.location(...)`
@@ -464,10 +468,8 @@ fun Model.animationInventory(): AnimationInventory {
     // rather than dropped, so the manifest can drive capture exclusion and the editor can show/toggle it.
     val entityTypes = entityClasses
         .map { (name, cls) ->
-            EntityTypeInfo(
-                name, processesOf(cls), include = entityIncluded(cls), isAgent = entityIsAgent(cls),
-                isInternal = entityIsInternal(cls)
-            )
+            EntityTypeInfo(name, processesOf(cls), include = entityIncluded(cls), isAgent = entityIsAgent(cls))
+                .also { it.isInternal = entityIsInternal(cls) }
         }
 
     return AnimationInventory(
