@@ -191,6 +191,16 @@ class RequestQ @JvmOverloads constructor(
         offerOnward(membersOf(resource), detail)
     }
 
+    /**
+     *  Called when a request arrives, or is moved in, and is not served at once although units are free: under a
+     *  request selection rule whose choice depends on what is queued, the arrival can make the rule choose requests
+     *  already waiting, and those are offered the free units now rather than at the next release.
+     */
+    internal fun offerFreeUnitsUnderRule(resource: ResourceIfc, detail: String) {
+        if (requestSelectionRule == null) return
+        offerFreeUnitsOf(resource, detail)
+    }
+
     /** Offers the available units of [members] to the requests waiting for them, unless the run has ended. */
     private fun offerOnward(members: Collection<Resource>, detail: String) {
         if (members.isEmpty() || executive.isEnded) return

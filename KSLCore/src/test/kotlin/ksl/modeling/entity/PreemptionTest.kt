@@ -650,6 +650,33 @@ class PreemptionTest {
     }
 
     @Test
+    @DisplayName("back on shift under either capacity rule, a waiting preemptor takes the unit from the lower-priority holder")
+    fun waitingPreemptorBackOnShiftUnderEitherRule() {
+        for (rule in listOf(CapacityChangeRule.IGNORE, CapacityChangeRule.WAIT)) {
+            // the cut is still waiting for L's unit when the shift returns
+            val (_, pending) = run(configure = { r.capacityChangeRule = rule }) {
+                job("L", r, 0.0, 10.0, priority = 9)
+                at(1.0) { r.goOffShift() }
+                urgent("P", r, 2.0, 1.0)
+                at(5.0) { r.goOnShift() }
+            }
+            assertEquals(listOf("L got@0.0", "P got@5.0", "P done@6.0", "L done@11.0"), pending.log, "cut pending, $rule")
+            // a borrower's release completes the cut off shift and the unit goes back to its lender, L
+            val (_, completed) = run(configure = { r.capacityChangeRule = rule }) {
+                job("L", r, 0.0, 10.0, priority = 9)
+                urgent("B", r, 1.0, 2.0, priority = 3)
+                at(2.0) { r.goOffShift() }
+                urgent("P", r, 4.0, 1.0)
+                at(5.0) { r.goOnShift() }
+            }
+            assertEquals(
+                listOf("L got@0.0", "B got@1.0", "B done@3.0", "P got@5.0", "P done@6.0", "L done@13.0"),
+                completed.log, "cut completed, $rule"
+            )
+        }
+    }
+
+    @Test
     @DisplayName("off shift, a preemption takes nothing under any rule, and a loan ending passes to no one")
     fun nothingTakenOffShift() {
         for (rule in listOf(InterruptRule.RESUME, InterruptRule.RESTART, InterruptRule.FINISH)) {

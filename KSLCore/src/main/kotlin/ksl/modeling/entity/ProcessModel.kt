@@ -1843,6 +1843,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // nothing else takes the units before it resumes
                 request.promise(resource, request.amountRequested)
                 newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
+            } else if (resource.canAllocate(request.amountRequested)) {
+                newQ.offerFreeUnitsUnderRule(resource, "request_moved_not_chosen_$detail")
             }
             currentQueue.afterMovedAway(withdrawn, oldTarget, "request_moved_away_$detail")
         }
@@ -2537,6 +2539,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 // Fast path: a trigger that can fire at once, in argument order, ends the wait without suspending.
                 for (trigger in triggers) {
+                    if (trigger.decidesWhenQueued) break
                     if (trigger.canFireNow(this@Entity)) {
                         val value = trigger.fireNow(this)
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst ended at once by $trigger, ($this)" }
@@ -3270,6 +3273,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     val nextRequest = queue.nextRequestForResource(resource)
                     // null means that no requests were picked, if it wasn't picked as next by the rule, then the request must wait
                     if ((nextRequest == null) || nextRequest != request) {
+                        queue.offerFreeUnitsUnderRule(resource, "seize_arrived_not_chosen_request_id=${request.id}")
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                         emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, resource.name) }
                         entity.state.waitForResource()
@@ -4472,6 +4476,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
             }
 
+            /** Ends every blockage this terminated process started, waking the entities it blocks. */
+            private fun endBlockagesOfTerminatedProcess() {
+                val active = myActiveBlockages?.toList() ?: return
+                for (blockage in active) {
+                    if (blockage.isActive && blockage.isStartedBy(this)) blockage.end(this, this@Entity)
+                }
+            }
+
             private fun afterTerminatedProcessCompletion() {
                 endMoves()
                 val guided = leaveGuidedJourneys()
@@ -4497,7 +4509,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // And the conveyors: what the entity waits for, holds or covers on a conveyor, and what a transfer in
                 // progress has asked for or holds on the next, is given up in the instant of the termination.
                 leaveConveyors()
-                //TODO need to handle blockages in termination. This entity has been terminated, what to do about blocked entities?
+                // a blockage the terminated process started ends with it: nothing else could end it, and the
+                // entities it blocks would wait for good
+                endBlockagesOfTerminatedProcess()
                 if (isQueued) {
                     //remove it from its queue with no stats
                     @Suppress("UNCHECKED_CAST")
@@ -4505,13 +4519,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     val q = queue!! as Queue<Entity>
                     q.remove(entity, false)
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity removed from queue ${q.name} ." }
-                } else if (isScheduled) {
-                    if (myDelayEvent != null) {
-                        if (myDelayEvent!!.isScheduled) {
-                            logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity delay event was cancelled." }
-                            myDelayEvent?.cancel = true
-                        }
-                    }
+                }
+                // Independent of the queue: a model may hold the entity in a queue of its own while it delays, and a
+                // delay event left on the calendar would resume the dead process when it fires.
+                if (myDelayEvent?.isScheduled == true) {
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > Process $this was terminated for Entity $entity delay event was cancelled." }
+                    myDelayEvent?.cancel = true
                 }
                 // a resume scheduled for the dead process will be dropped as stale; it is no longer pending
                 myPendingResume = null
@@ -4858,6 +4871,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal fun removeBlockedEntity(entity: Entity) {
                 myBlockedEntities.remove(entity)
             }
+
+            /** True when [process] started this blockage. */
+            internal fun isStartedBy(process: KSLProcess): Boolean = myBlockingProcess == process
 
             internal fun end(process: KSLProcess, ender: Entity, priority: Int = RESUME_PRIORITY) {
                 require(myBlockingProcess == process) { "The process (${myBlockingProcess?.name}) that started the blockage was not the same process attempting to end it." }

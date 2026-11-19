@@ -68,6 +68,9 @@ internal abstract class SeizeTrigger<V, R : ProcessModel.Entity.Request>(
         return with(process) { complete(request) }
     }
 
+    /** Called when the request has been queued and could not be served at once. */
+    internal open fun offerFreeUnitsAfterArrival() {}
+
     override fun register(group: WaitGroup): Registration {
         val entity = group.entity
         val registration = SeizeRegistration(this, group)
@@ -82,6 +85,7 @@ internal abstract class SeizeTrigger<V, R : ProcessModel.Entity.Request>(
             queue.resumeWoken(request, ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "seize trigger served at once")
         } else {
             entity.emitAnimation { AnimationEvent.SeizeWaiting(queue.time, entity.id, seizedName) }
+            offerFreeUnitsAfterArrival()
         }
         return registration
     }
@@ -112,6 +116,13 @@ internal class ResourceSeizeTrigger(
     override fun canFireNow(entity: ProcessModel.Entity): Boolean =
         queue.requestSelectionRule == null &&
                 resource.canAllocate(amountNeeded) && queue.nextRequestForResource(resource) == null
+
+    override val decidesWhenQueued: Boolean
+        get() = queue.requestSelectionRule != null
+
+    override fun offerFreeUnitsAfterArrival() {
+        if (resource.canAllocate(amountNeeded)) queue.offerFreeUnitsUnderRule(resource, "seize_trigger_arrived_not_chosen")
+    }
 
     override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int) =
         entity.enqueueResourceRequest(resource, amountNeeded, queue, requestPriority)
@@ -286,7 +297,9 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
         // its queue, to be woken later for a wait that has ended.
         again.registrations.add(seizeAgain)
         for (trigger in group.triggers) {
-            if (trigger !== seizeTrigger && trigger.canFireNow(entity)) {
+            if (trigger === seizeTrigger) continue
+            if (trigger.decidesWhenQueued) break
+            if (trigger.canFireNow(entity)) {
                 val value = trigger.fireNow(this)
                 // the request loses, as at any claim: it leaves its queue and its units are offered on
                 again.claim(null, null, ResumeSource.UNKNOWN_INTERNAL, ProcessModel.RESUME_PRIORITY)
