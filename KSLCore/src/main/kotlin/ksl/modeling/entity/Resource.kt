@@ -1147,9 +1147,9 @@ open class Resource @JvmOverloads constructor(
     }
 
     /** The entity that waits out a resource's declared failures; a new one for every replication. */
-    // The entity that waits out failures is the resource's own plumbing, not an entity of the model: it is kept
-    // out of the animation inventory's included types, as a movable resource's driver is.
-    @ksl.animation.KSLAnimatedEntity(include = false)
+    // The entity that waits out failures is the resource's own plumbing, not an entity of the model: the animation
+    // inventory lists it as internal, as it does a movable resource's driver, and its events are captured.
+    @ksl.animation.KSLInternalEntity
     private inner class ResourceFailures : Entity() {
         val due: Suspension = Suspension("${this@Resource.name}:failure due")
         val repaired: Suspension = Suspension("${this@Resource.name}:repaired")
@@ -1157,7 +1157,7 @@ open class Resource @JvmOverloads constructor(
         /** The failure was applied when it came due, before this entity was woken. */
         var failedWhenDue: Boolean = false
 
-        @ksl.animation.KSLAnimatedProcess(name = "failures", include = false)
+        @ksl.animation.KSLAnimatedProcess(name = "failures")
         val run: KSLProcess = process("failures", isDefaultProcess = true) {
             val spec = myFailureSpec!!
             while (true) {
@@ -1404,10 +1404,11 @@ open class Resource @JvmOverloads constructor(
     }
 
     /** The entity that runs a resource's behavior; a new one for every start. */
-    // The entity that runs the behavior is the resource's own plumbing, as the failures' entity is.
-    @ksl.animation.KSLAnimatedEntity(include = false)
+    // The entity that runs the behavior is the resource's own, as the failures' entity is. What it does, seizing
+    // this resource during a break for instance, is part of what a replay shows, so its events are captured.
+    @ksl.animation.KSLInternalEntity
     private inner class ResourceBehavior : Entity() {
-        @ksl.animation.KSLAnimatedProcess(name = "behavior", include = false)
+        @ksl.animation.KSLAnimatedProcess(name = "behavior")
         val run: KSLProcess = process("behavior", isDefaultProcess = true) {
             myBehaviorStart = null
             val block = myBehaviorBlock!!
@@ -1673,7 +1674,7 @@ open class Resource @JvmOverloads constructor(
             for (request in waiting) {
                 plan = planPreemption(request.entity, request.amountRequested, returning)
                 // units this release freed go to what is as urgent as it first, as at any re-planning
-                if (plan != null && plan.free > 0 && !mayTakeFreeUnits(request)) plan = null
+                if (plan != null && plan.free > 0 && !mayTakeFreeUnits(request, plan.free)) plan = null
                 if (plan != null) {
                     chosen = request
                     break
@@ -1755,7 +1756,7 @@ open class Resource @JvmOverloads constructor(
             val amount = request.amountRequested
             val plan = if (amount <= numAvailableUnits) PreemptionPlan(amount, emptyList())
                 else planPreemption(request.entity, amount) ?: continue
-            if (plan.free > 0 && !mayTakeFreeUnits(request)) continue
+            if (plan.free > 0 && !mayTakeFreeUnits(request, plan.free)) continue
             myWaitingPreemptors.remove(request)
             val why = "preemptor_replanned_resource=$name, request_id=${request.id}, ${detail ?: ""}"
             if (request.waitingPreemptRule == InterruptRule.FINISH && plan.takes.isNotEmpty()) {
@@ -1767,22 +1768,33 @@ open class Resource @JvmOverloads constructor(
     }
 
     /**
-     *  Whether the waiting preemptor [request] may take free units now. It may not while something as
-     *  urgent as it is comes before it: a reservation still collecting units whose entity is equally or
-     *  more urgent, or the request the free units would go to when that request is more urgent, or is
+     *  Whether the waiting preemptor [request] may take [units] free units now. It may not while something
+     *  as urgent as it is comes before it: a reservation still collecting units whose entity is equally or
+     *  more urgent, or a request that the free units would go to when that request is more urgent, or is
      *  equally urgent and ahead of it (in its own queue by the queue's discipline, in another queue by the
-     *  time it began to wait). Under the default notification rule the free units go to one request, the
-     *  one that entered its queue first across the queues; under a rule of the model's own, the next
-     *  request of any queue can hold it back. Requests of lower priority do not hold it back.
+     *  time it began to wait). Under the default notification rule the free units are offered request by
+     *  request, to the one that entered its queue first across the queues, until they are used up: the
+     *  preemptor is compared with every request that would be served from the units it would take, in the
+     *  order they would be served. Under a rule of the model's own, the next request of any queue can hold
+     *  it back. Requests of lower priority do not hold it back.
      */
-    private fun mayTakeFreeUnits(request: ProcessModel.Entity.ResourceRequest): Boolean {
+    private fun mayTakeFreeUnits(request: ProcessModel.Entity.ResourceRequest, units: Int): Boolean {
         val priority = request.entity.priority
         if (myReservations.any { !it.isComplete && it.request.entity.priority <= priority }) return false
         if (requestQNotificationRule === DefaultRequestQueueNotificationRule) {
-            // the free units would go to one request, the one the default rule serves next: the preemptor is
-            // compared with that request, the only one it would take them from
-            val (nextQueue, next) = nextByDefaultRule(myCapacityChangeQSet) ?: return true
-            return next === request || !comesBefore(next, nextQueue, request)
+            // the units the preemptor would take would otherwise go, one request after another, to the requests
+            // the default rule serves in turn: it is compared with each of them, until it would be served itself
+            // or the units run out
+            var budget = units
+            val served = mutableSetOf<ProcessModel.Entity.Request>()
+            while (budget > 0) {
+                val (nextQueue, next) = nextByDefaultRule(myCapacityChangeQSet, budget, served) ?: return true
+                if (next === request) return true
+                if (comesBefore(next, nextQueue, request)) return false
+                served.add(next)
+                budget -= minOf(next.amountRequested, budget)
+            }
+            return true
         }
         // a rule of the model's own offers queue by queue: the next request of any queue can hold it back
         for (queue in myCapacityChangeQSet) {
@@ -1797,13 +1809,18 @@ open class Resource @JvmOverloads constructor(
      *  Under the default notification rule, the request this resource would serve next from [queues]: of the
      *  next request of each queue, the one that entered its queue first, with the queue it is in. Null when no
      *  queue has a request the resource can serve. The offer of freed units and a waiting preemptor's check
-     *  both use it, so the two agree.
+     *  both use it, so the two agree. The check asks what would be served from [available] units, passing over
+     *  the requests it has already counted as served ([passOver]).
      */
-    private fun nextByDefaultRule(queues: Set<RequestQ>): Pair<RequestQ, ProcessModel.Entity.Request>? {
+    private fun nextByDefaultRule(
+        queues: Set<RequestQ>,
+        available: Int = numAvailableUnits,
+        passOver: Set<ProcessModel.Entity.Request> = emptySet()
+    ): Pair<RequestQ, ProcessModel.Entity.Request>? {
         var bestQueue: RequestQ? = null
         var best: ProcessModel.Entity.Request? = null
         for (queue in queues) {
-            val candidate = queue.nextRequestServableBy(this) ?: continue
+            val candidate = queue.nextRequestServableBy(this, available, passOver) ?: continue
             if (best == null || candidate.timeEnteredQueue < best.timeEnteredQueue) {
                 bestQueue = queue
                 best = candidate

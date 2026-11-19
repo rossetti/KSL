@@ -117,7 +117,10 @@ data class EntityTypeInfo(
     val include: Boolean = true,
     /** True when the type is an agent (an `AgentModel.Agent` subclass): its visual-ness is runtime-conditional
      *  (drawn only if projected/moved), unlike a process entity which the process-view machinery always draws (G3). */
-    val isAgent: Boolean = false
+    val isAgent: Boolean = false,
+    /** True when the library itself creates the type for an element, such as the entity that runs a resource's
+     *  behavior: it is captured, but it is not one of the model's own entity types to lay out or animate. */
+    val isInternal: Boolean = false
 )
 
 /**
@@ -238,6 +241,10 @@ data class AnimationInventory(
 /** Whether [cls] is included for animation (a `@KSLAnimatedEntity(include=false)` opts it out). Defensive. */
 private fun entityIncluded(cls: KClass<out ProcessModel.Entity>): Boolean =
     try { cls.findAnnotation<KSLAnimatedEntity>()?.include ?: true } catch (_: Throwable) { true }
+
+/** Whether [cls] is an entity type the library creates for an element (marked with `KSLInternalEntity`). */
+private fun entityIsInternal(cls: KClass<out ProcessModel.Entity>): Boolean =
+    try { cls.findAnnotation<KSLInternalEntity>() != null } catch (_: Throwable) { false }
 
 /** Whether [cls] is an agent type (an `AgentModel.Agent` subclass); its visual-ness is runtime-conditional (G3). */
 private fun entityIsAgent(cls: KClass<out ProcessModel.Entity>): Boolean =
@@ -437,16 +444,16 @@ fun Model.animationInventory(): AnimationInventory {
                     k.simpleName?.let { entityClasses.putIfAbsent(it, k) }
                 }
             }
-            // A superclass's internal entities, marked as excluded, are made by this element too. They are
-            // recorded, as excluded, so that a trace that shows one is not reported as an undeclared type.
-            // Entity classes a superclass leaves included are not added: they would become new included types.
+            // A superclass's internal or excluded entities are made by this element too. They are recorded, as
+            // they are marked, so that a trace that shows one is not reported as an undeclared type. Entity
+            // classes a superclass leaves included are not added: they would become new included types.
             for (ancestor in pm::class.allSuperclasses) {
                 if (ancestor == ProcessModel::class || !ancestor.isSubclassOf(ProcessModel::class)) continue
                 for (nested in ancestor.nestedClasses) {
                     if (nested.isAbstract || !nested.isSubclassOf(ProcessModel.Entity::class)) continue
                     @Suppress("UNCHECKED_CAST")
                     val k = nested as KClass<out ProcessModel.Entity>
-                    if (!entityIncluded(k)) k.simpleName?.let { entityClasses.putIfAbsent(it, k) }
+                    if (!entityIncluded(k) || entityIsInternal(k)) k.simpleName?.let { entityClasses.putIfAbsent(it, k) }
                 }
             }
         } catch (_: Throwable) {
@@ -456,7 +463,12 @@ fun Model.animationInventory(): AnimationInventory {
     // Keep all discovered types (10.1d): a @KSLAnimatedEntity(include=false) is recorded with include=false
     // rather than dropped, so the manifest can drive capture exclusion and the editor can show/toggle it.
     val entityTypes = entityClasses
-        .map { (name, cls) -> EntityTypeInfo(name, processesOf(cls), include = entityIncluded(cls), isAgent = entityIsAgent(cls)) }
+        .map { (name, cls) ->
+            EntityTypeInfo(
+                name, processesOf(cls), include = entityIncluded(cls), isAgent = entityIsAgent(cls),
+                isInternal = entityIsInternal(cls)
+            )
+        }
 
     return AnimationInventory(
         queues = queues.toList(),

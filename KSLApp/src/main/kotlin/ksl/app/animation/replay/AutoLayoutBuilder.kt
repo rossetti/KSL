@@ -152,7 +152,7 @@ internal fun AnimationLayout.withModelGeometry(inventory: AnimationInventory): A
  *  the trace path additionally seeds agent types it observes. */
 internal fun AnimationLayout.withModelObjectClasses(inventory: AnimationInventory): AnimationLayout =
     withSeededObjectClasses(
-        inventory.entityTypes.filter { it.include && !it.isAgent }.map { it.typeName },
+        inventory.entityTypes.filter { it.include && !it.isAgent && !it.isInternal }.map { it.typeName },
         objectGlyphSize(spaces),
     )
 

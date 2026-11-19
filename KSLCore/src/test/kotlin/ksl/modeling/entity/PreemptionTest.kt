@@ -596,6 +596,20 @@ class PreemptionTest {
     }
 
     @Test
+    @DisplayName("two queues: a waiting preemptor needing more units than the request served next takes none ahead of a more urgent request behind it")
+    fun waitingPreemptorTakingMoreThanTheNextRequest() {
+        val (_, m) = run(length = 100.0) {
+            job("H", r2, 0.0, 4.0, priority = 1, n = 2)
+            job("A", r2, 1.0, 5.0, priority = 5)
+            actor("B", 1) { delay(2.0); val a = seize(r2, queue = otherQ); log.add("B got@$time"); delay(5.0); release(a) }
+            urgent("P", r2, 3.0, 1.0, priority = 2, n = 2)
+        }
+        // at 4 H frees both units: the default rule serves A, which entered first, and then B, which outranks P; P has
+        // both units once A and B are done, at 9
+        assertEquals(listOf("A got@4.0", "B got@4.0", "P got@9.0"), m.log.filter { "got" in it && !it.startsWith("H") })
+    }
+
+    @Test
     @DisplayName("off shift, a preemption takes nothing under any rule, and a loan ending passes to no one")
     fun nothingTakenOffShift() {
         for (rule in listOf(InterruptRule.RESUME, InterruptRule.RESTART, InterruptRule.FINISH)) {

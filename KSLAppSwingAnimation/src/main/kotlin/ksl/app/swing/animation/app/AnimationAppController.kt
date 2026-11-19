@@ -1068,8 +1068,11 @@ class AnimationAppController(
      * the list, before and after a run. See G3.
      */
     fun objectStyleTypeNames(): List<String> {
-        val processEntities = inventory.entityTypes.filter { it.include && !it.isAgent }.map { it.typeName }
-        return if (hasTrace()) (processEntities + objectTypeNamesFromLastTrace()).distinct() else processEntities
+        val processEntities = inventory.entityTypes.filter { it.include && !it.isAgent && !it.isInternal }.map { it.typeName }
+        // the library's own entities appear in a trace, but they are not the model's types to style
+        val internal = inventory.entityTypes.filter { it.isInternal }.map { it.typeName }.toSet()
+        return if (hasTrace()) (processEntities + objectTypeNamesFromLastTrace().filterNot { it in internal }).distinct()
+        else processEntities
     }
 
     private var currentHandle: RunHandle? = null

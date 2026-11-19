@@ -72,7 +72,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     // Object-style rows: the types actually seen animating in the last trace once a run exists (so control-only
     // entities aren't offered), else the structural entity types from the inventory; recomputed on a new run.
     private var styleTypeNames: List<String> = controller.objectStyleTypeNames()
-    private val processNames: List<String> by lazy { controller.inventory.entityTypes.flatMap { it.processes }.map { it.name }.distinct() }
+    private val processNames: List<String> by lazy { controller.inventory.entityTypes.filterNot { it.isInternal }.flatMap { it.processes }.map { it.name }.distinct() }
     private var styleTableModel: javax.swing.table.AbstractTableModel? = null
     private var procTableModel: javax.swing.table.AbstractTableModel? = null
     private val conveyorListModel = javax.swing.DefaultListModel<String>()
