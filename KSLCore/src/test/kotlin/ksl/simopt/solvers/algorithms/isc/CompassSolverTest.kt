@@ -206,4 +206,12 @@ class CompassSolverTest {
         solver.runAllIterations()
         assertTrue(resets >= 1, "CompassSolver.initializeIterations must reset the evaluation clock (D1)")
     }
+
+    @Test
+    fun endingASolverBeforeItStartsIsAHalt() {
+        val solver = makeSolver()
+        solver.endIterations("ended before it started")
+        assertTrue(solver.solverResult is ksl.simopt.solvers.SolverResult.NotExecuted,
+            "a solver ended before it ran has no results")
+    }
 }

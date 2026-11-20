@@ -347,6 +347,9 @@ abstract class Solver(
     /** True once a halt was asked for by [stopIterations] or [endIterations] during the current run. */
     private var myHaltRequested: Boolean = false
 
+    /** True once the stopping criteria were found satisfied after an iteration of the current run. */
+    private var myStoppingCriteriaMet: Boolean = false
+
     /** Why the last run ended, recorded when it ended; null while a run is in progress or before the first. */
     private var myTerminationReason: String? = null
 
@@ -1146,6 +1149,7 @@ abstract class Solver(
             super.initializeIterations()
             iterationCounter = 0
             myHaltRequested = false
+            myStoppingCriteriaMet = false
             myTerminationReason = null
             //     numTimesBestSolutionUpdated = 0
             numOracleCalls = 0
@@ -1184,6 +1188,7 @@ abstract class Solver(
          */
         override fun checkStoppingCondition() {
             if (isStoppingCriteriaSatisfied()) {
+                myStoppingCriteriaMet = true
                 stop()
             }
         }
@@ -1215,8 +1220,10 @@ abstract class Solver(
             logger.trace { "Executing mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
             mainIterationsEnded()
             logger.trace { "Executed mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
+            // From what the run found as it went: the criteria are not asked again here, since a run ended before
+            // it started has nothing they could read, and asking repeats what they report.
             myTerminationReason = when {
-                isStoppingCriteriaSatisfied() -> SolverResult.STOPPING_CRITERIA_SATISFIED
+                myStoppingCriteriaMet -> SolverResult.STOPPING_CRITERIA_SATISFIED
                 myHaltRequested -> SolverResult.HALTED_BEFORE_COMPLETION
                 iterationCounter >= maximumNumberIterations -> SolverResult.MAXIMUM_ITERATIONS_REACHED
                 endingStatus == IterativeProcessIfc.EndingStatus.EXCEEDED_EXECUTION_TIME -> SolverResult.MAXIMUM_EXECUTION_TIME_REACHED

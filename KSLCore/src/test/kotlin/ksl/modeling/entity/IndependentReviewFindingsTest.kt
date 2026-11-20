@@ -49,6 +49,10 @@ class IndependentReviewFindingsTest {
             }
         }
         val pair = ResourceWithQ(this, "Pair", capacity = 2, queue = pairQ)
+        val threeQ = RequestQ(this, "ThreeQ").apply {
+            requestSelectionRule = RequestSelectionRuleIfc { res, queue -> queue.filter { it.resource == res } }
+        }
+        val three = ResourceWithQ(this, "Three", capacity = 3, queue = threeQ)
         val items = BlockingQueue<Item>(this, name = "Items")
         val anyFillable = BlockingQueue<Item>(this, name = "AnyFillable").apply {
             receiverRequestSelector = FirstFillableRequest()
@@ -229,5 +233,31 @@ class IndependentReviewFindingsTest {
             assertNull(error, "withRuleSeize=$withRuleSeize: the run stopped: $error")
             assertEquals(listOf("W items@1.0"), shop.log, "withRuleSeize=$withRuleSeize")
         }
+    }
+
+    @Test
+    @DisplayName("a release that frees enough for two seize triggers of one wait serves the first and withdraws the other")
+    fun releaseServingTwoTriggersOfOneWait() {
+        val (shop, error) = run {
+            actor("H", 1) { val a = seize(three, 3); delay(5.0); release(a) }
+            actor("W") {
+                delay(1.0)
+                val one = three.seizeTrigger(1, queue = threeQ)
+                val two = three.seizeTrigger(2, queue = threeQ)
+                val result = waitForFirst(one, two)
+                val a = if (result.firedBy(one)) result.valueOf(one) else result.valueOf(two)
+                log.add("W ${if (result.firedBy(one)) "one" else "two"} ${a.amount}@$time waiting=${three.myWaitingQ.size} busy=${three.numBusy}")
+                delay(1.0)
+                release(a)
+            }
+            actor("V") {
+                delay(6.0)
+                val a = seize(three, 3, queue = threeQ)
+                log.add("V got ${a.amount}@$time")
+                release(a)
+            }
+        }
+        assertNull(error, "the run stopped: $error")
+        assertEquals(listOf("W one 1@5.0 waiting=0 busy=1", "V got 3@6.0"), shop.log)
     }
 }
