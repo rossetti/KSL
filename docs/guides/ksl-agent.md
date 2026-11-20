@@ -403,9 +403,12 @@ the instant, it is the right trigger for mirroring state another object
 owns, such as a resource's `numBusy`.
 
 `AgentSignal` is a statechart broadcast, distinct from
-`ksl.modeling.entity.Signal`, which suspended entities wait on; you
-cannot `waitFor` an `AgentSignal`. To fire one later, schedule it from
-the `AgentModel`: `schedule({ signal.fire() }, t)`.
+`ksl.modeling.entity.Signal`, which suspended entities wait on. A process
+waits for an `AgentSignal` through its trigger, alone or with others and a
+time limit: `waitForFirst(signal.trigger(), timeout = 5.0)`; the next
+`fire()` ends the wait of every process waiting for it, as it reaches every
+subscribed state. `waitFor` does not take it. To fire one later, schedule it
+from the `AgentModel`: `schedule({ signal.fire() }, t)`.
 
 ### ...send and receive messages
 

@@ -963,7 +963,8 @@ when (r.trigger) {
 ```
 
 The triggers are `mailbox.trigger(predicate)` and `mailbox.triggerOfType<T>()`,
-`signal.trigger()`, `queue.itemsTrigger(amount, predicate)` and
+`signal.trigger()`, `agentSignal.trigger()` for an `AgentSignal` (the next `fire()`
+ends the wait of every process waiting for it), `queue.itemsTrigger(amount, predicate)` and
 `queue.anyItemsTrigger(predicate)`, and `resource.seizeTrigger(amount)` and
 `pool.seizeTrigger(amount)` for a resource, a resource pool or a movable resource pool.
 A trigger is only a description, so you can keep one as a property and use it in any

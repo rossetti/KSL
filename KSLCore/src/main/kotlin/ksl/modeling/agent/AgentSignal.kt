@@ -18,6 +18,15 @@
 
 package ksl.modeling.agent
 
+import ksl.animation.AnimationEvent
+import ksl.modeling.entity.AfterResume
+import ksl.modeling.entity.AloneState
+import ksl.modeling.entity.ProcessModel
+import ksl.modeling.entity.Registration
+import ksl.modeling.entity.ResumeSource
+import ksl.modeling.entity.WaitGroup
+import ksl.modeling.entity.WaitTrigger
+
 /**
  *  A broadcast trigger that statecharts can listen for. Unlike
  *  [AgentMessage] (point-to-point) and `onCondition` (a predicate
@@ -39,7 +48,9 @@ package ksl.modeling.agent
  *   - That one is a `ModelElement` that holds suspended entities and
  *     resumes them. It's a process-view primitive.
  *   - This one is a statechart broadcast — observers, not coroutines.
- *     It cannot be waited on with `waitFor`.
+ *     A process waits for it through its [trigger] in `waitForFirst`,
+ *     alone or with other triggers and a time limit; `waitFor` does not
+ *     take it.
  *
  *  To fire one later, schedule it from the `AgentModel`:
  *  `schedule({ signal.fire() }, t)`.
@@ -75,4 +86,63 @@ class AgentSignal(val name: String = "AgentSignal") {
     /** Number of currently-subscribed handlers (for diagnostics). */
     val numSubscribers: Int
         get() = subscribers.size
+
+    /**
+     *  A trigger for `waitForFirst` that fires when this signal is next fired. It never fires at once: a signal is
+     *  an event, so the wait subscribes, and the next [fire] claims it, resuming the process. One [fire] ends the
+     *  wait of every process waiting for it, as it reaches every subscribed statechart. The subscription ends with
+     *  the wait, whichever trigger wins, and when the waiting process is terminated. Nothing is recorded: a signal
+     *  keeps no statistics.
+     */
+    fun trigger(): WaitTrigger<Unit> = AgentSignalTrigger(this)
+}
+
+/** The trigger of an agent signal, made by `AgentSignal.trigger`. */
+internal class AgentSignalTrigger(val signal: AgentSignal) : WaitTrigger<Unit>() {
+
+    override fun canFireNow(entity: ProcessModel.Entity): Boolean = false
+
+    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine) {
+        error("An agent signal trigger cannot fire without a wait; canFireNow is always false.")
+    }
+
+    override fun register(group: WaitGroup): Registration {
+        val entity = group.entity
+        val registration = AgentSignalRegistration(this, group)
+        entity.emitAnimation { AnimationEvent.WaitingForSignal(entity.processModel.time, entity.id, signal.name) }
+        return registration
+    }
+
+    override val aloneState: AloneState
+        get() = AloneState.WAITING_FOR_SIGNAL
+
+    override fun toString(): String = "AgentSignalTrigger(${signal.name})"
+}
+
+/**
+ *  An agent signal trigger's place in one wait: a subscription to the signal, which claims the wait when the signal
+ *  is fired. The subscription ends at the claim, whoever wins, and at a termination.
+ */
+internal class AgentSignalRegistration(
+    private val signalTrigger: AgentSignalTrigger,
+    group: WaitGroup
+) : Registration(signalTrigger, group) {
+
+    private val unsubscribe: () -> Unit = signalTrigger.signal.subscribe {
+        if (claimWait(Unit, ResumeSource.SIGNAL, ProcessModel.RESUME_PRIORITY)) end()
+    }
+
+    private fun end() = unsubscribe()
+
+    override fun onReleaseAsLoser() = end()
+
+    override fun onReleaseOnTermination() = end()
+
+    override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
+        markReleased()
+        end()
+        val entity = group.entity
+        entity.emitAnimation { AnimationEvent.SignalReceived(entity.processModel.time, entity.id, signalTrigger.signal.name) }
+        return AfterResume.Value(Unit)
+    }
 }
