@@ -318,6 +318,9 @@ open class Dispatcher @JvmOverloads constructor(
         /** The vehicle standing at the pickup waiting for the load to start waiting for it, if any. */
         internal var vehicleAwaitingLoad: FleetVehicle? = null
 
+        /** True while the load waits to be collected for this task; it may wait on another of its tasks instead. */
+        internal var isLoadWaiting: Boolean = false
+
         // Marks taken when *this* load went aboard, so that its ride is measured from its own
         // pickup. With one load per tour the pickup and the start of the loaded leg are the same
         // instant; with several they are not, and a load collected second would otherwise be
@@ -682,6 +685,8 @@ open class Dispatcher @JvmOverloads constructor(
         assignment.task.assignedAt = Double.NaN
         (assignment.task as? TransportTask)?.let { it.numReassignments++ }
         releaseFrom(assignment)
+        // the task is back on the board: a vehicle that is free now may take it, whether or not this one is
+        wake()
     }
 
     // ---- the vehicle protocol ----------------------------------------------------------------

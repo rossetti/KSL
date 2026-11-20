@@ -107,6 +107,14 @@ interface StopContextIfc {
     val onwardLocations: Set<String>
 
     /**
+     * How many riders may come aboard here: the vehicle's spare room, less the places that pickups later in this
+     * round still need. A boarding action takes no more than this, so that a load the round is committed to
+     * collecting finds its place. The vehicle's spare room when nothing else is known.
+     */
+    val seatsForRiders: Int
+        get() = vehicle.spareCapacity
+
+    /**
      * Takes [task]'s load aboard: waits out the loading delay, puts it on the manifest, marks the
      * instant its ride begins, tells the dispatcher the vehicle has possession, and releases the
      * load from its wait.
@@ -251,13 +259,13 @@ data class BoardWaiting @JvmOverloads constructor(
             val eligible = here.waitingFor(onwardLocations)
             var taken = 0
             for (ride in eligible) {
-                if (taken >= most || vehicle.spareCapacity <= 0) break
+                if (taken >= most || seatsForRiders <= 0) break
                 takeAboard(ride)
                 taken++
             }
             // Counted only when the room ran out, not when the limit did: a metered service that
             // leaves people standing is doing what it was told, and a full one is not.
-            if (taken < eligible.size && vehicle.spareCapacity <= 0) {
+            if (taken < eligible.size && seatsForRiders <= 0) {
                 here.passedByFull()
             }
         }
@@ -307,11 +315,11 @@ data class HoldUntilFull @JvmOverloads constructor(
             var taken = 0
             while (true) {
                 for (ride in here.waitingFor(onwardLocations)) {
-                    if (taken >= most || vehicle.spareCapacity <= 0) break
+                    if (taken >= most || seatsForRiders <= 0) break
                     takeAboard(ride)
                     taken++
                 }
-                if (taken >= most || vehicle.spareCapacity <= 0) break
+                if (taken >= most || seatsForRiders <= 0) break
                 if (here.system.time >= deadline) break
                 holdAt(here, deadline)                          // SUSPENDS
             }

@@ -1107,6 +1107,12 @@ abstract class FleetSystem @JvmOverloads constructor(
                 val failedAtStart = vehicle.cumulativeFailedTime
                 while (!t.isComplete) {
                     val stop = t.nextStop!!
+                    // A stop for work no longer this vehicle's is passed over before anything is asked about it: the
+                    // control is not consulted, and nothing is counted as skipped or served there.
+                    if (!stillOurs(stop)) {
+                        t.advance()
+                        continue
+                    }
                     // Asked BEFORE the leg, which is what makes a skip mean "do not make this
                     // journey" rather than "drive all the way there and then refuse". The vehicle
                     // may still pass through the place, because the route between the two remaining
@@ -1114,6 +1120,20 @@ abstract class FleetSystem @JvmOverloads constructor(
                     // exactly express running.
                     val instruction =
                         with(vehicle.stopControl) { instruct(vehicle, stop, t) }   // MAY SUSPEND
+                    if (instruction is StopInstruction.ServeAndEndTour) {
+                        val ahead = t.remainingStops.drop(1).firstOrNull { s ->
+                            s.action.task is Dispatcher.TransportTask && stillOurs(s)
+                        }
+                        if (ahead != null) {
+                            throw FleetProtocolException(
+                                "Vehicle (${vehicle.name}) was instructed to end its round at (${stop.location}) " +
+                                        "with a stop still to make for task (${ahead.action.task!!.name}) at " +
+                                        "(${ahead.location}). A round may be cut short only where no load is " +
+                                        "still to be collected or set down, because a load suspended on it " +
+                                        "would never be carried."
+                            )
+                        }
+                    }
                     if (instruction is StopInstruction.Skip) {
                         if (stop.action.task != null) {
                             throw FleetProtocolException(
@@ -1293,6 +1313,16 @@ abstract class FleetSystem @JvmOverloads constructor(
             /** Pickups at this stop that found, after the loading, that the task was no longer theirs. */
             var numNotBoarded: Int = 0
 
+            override val seatsForRiders: Int
+                get() {
+                    // the loads still to be collected later in this round, by stops that are still this vehicle's
+                    val pending = tour.remainingStops.drop(1).count { s ->
+                        val task = s.action.task
+                        s.action.loadChange > 0 && task is Dispatcher.TransportTask && task.carriedBy == null && stillOurs(s)
+                    }
+                    return (vehicle.spareCapacity - pending).coerceAtLeast(0)
+                }
+
             override val vehicle: FleetVehicle
                 get() = this@VehicleAgent.vehicle
 
@@ -1319,7 +1349,7 @@ abstract class FleetSystem @JvmOverloads constructor(
                 // something. The vehicle waits for it here, and the loading starts when it is ready.
                 // A loop, because the vehicle can be let go and given the same task straight back, a revocation
                 // and a re-assignment, while the load is still busy: it then waits again.
-                while (!awaitingPickupHoldQ.contains(task.load)) {
+                while (!(task.isLoadWaiting && awaitingPickupHoldQ.contains(task.load))) {
                     task.vehicleAwaitingLoad = vehicle
                     hold(awaitingLoadHoldQ,                 // SUSPENDS
                         suspensionName = "${vehicle.name}:awaitingLoad")
@@ -1341,6 +1371,7 @@ abstract class FleetSystem @JvmOverloads constructor(
                     }
                 }
                 task.carriedBy = vehicle
+                task.isLoadWaiting = false
                 // Aboard. From here the body's moving state is derived rather than asserted: the
                 // next leg is loaded because something is on it.
                 vehicle.body.board(task.load)

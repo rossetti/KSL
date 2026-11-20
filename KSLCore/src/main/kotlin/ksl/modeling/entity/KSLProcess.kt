@@ -3550,6 +3550,7 @@ interface KSLProcessBuilder {
         // is recorded on the task in the dispatcher's queue. Making these the statistics would put
         // two rows on the report that look like waiting lines, one of which -- riding -- is not one.
         // A vehicle that got to the pickup first is waiting for this; it starts loading now.
+        task.isLoadWaiting = true
         system.releaseVehicleAwaiting(task)
         hold(system.awaitingPickupHoldQ, suspensionName = "$suspensionName:awaitingVehicle")
         val pickedUp = system.time

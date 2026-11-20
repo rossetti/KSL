@@ -2,6 +2,7 @@ package ksl.modeling.fleet.policies
 
 import ksl.modeling.fleet.FleetVehicle
 import ksl.modeling.fleet.AssignmentProposal
+import ksl.modeling.fleet.AssignmentState
 import ksl.modeling.fleet.Dispatcher
 import ksl.modeling.fleet.TaskBoard
 import ksl.modeling.fleet.TaskState
@@ -67,6 +68,13 @@ class DispatchContext internal constructor(
      */
     val feasible: FeasibleAssignments
         get() = FeasibleAssignments(board.unassigned, available, space)
+
+    /**
+     * True when [vehicle] has room for what [task] brings aboard. A line cycle brings nobody of its own, so a
+     * vehicle full of riders may run the next one; every other task needs a free place.
+     */
+    fun hasRoomFor(vehicle: FleetVehicle, task: Dispatcher.Task): Boolean =
+        task is Dispatcher.LineTask || vehicle.spareCapacity > 0
 
     // There is deliberately no `waitFor` here. A policy receives the process builder as its
     // receiver, so it consumes simulated time with `delay` directly -- the same verb it would use
@@ -179,7 +187,9 @@ class PullFromBoardPolicy : AssignmentPolicyIfc {
         val free = context.available.toMutableList()
         for (task in context.board.unassigned) {
             if (free.isEmpty()) break
-            proposals.add(AssignmentProposal(free.removeAt(0), task))
+            val vehicle = free.firstOrNull { context.hasRoomFor(it, task) } ?: continue
+            free.remove(vehicle)
+            proposals.add(AssignmentProposal(vehicle, task))
         }
         return proposals
     }
@@ -243,7 +253,7 @@ class LeastUsedVehiclePolicy : AssignmentPolicyIfc {
         val proposals = mutableListOf<AssignmentProposal>()
         for (task in context.board.unassigned) {
             if (free.isEmpty()) break
-            val best = free.minByOrNull { it.numTasksCompleted.value } ?: break
+            val best = free.filter { context.hasRoomFor(it, task) }.minByOrNull { it.numTasksCompleted.value } ?: continue
             free.remove(best)
             proposals.add(AssignmentProposal(best, task))
         }
@@ -268,8 +278,11 @@ class RandomAssignmentPolicy(private val stream: RNStreamIfc) : AssignmentPolicy
         val proposals = mutableListOf<AssignmentProposal>()
         for (task in context.board.unassigned) {
             if (free.isEmpty()) break
-            val pick = stream.randInt(0, free.size - 1)
-            proposals.add(AssignmentProposal(free.removeAt(pick), task))
+            val withRoom = free.filter { context.hasRoomFor(it, task) }
+            if (withRoom.isEmpty()) continue
+            val chosen = withRoom[stream.randInt(0, withRoom.size - 1)]
+            free.remove(chosen)
+            proposals.add(AssignmentProposal(chosen, task))
         }
         return proposals
     }
@@ -356,6 +369,7 @@ private inline fun greedyByDistance(
         var best: FleetVehicle? = null
         var bestScore = Double.POSITIVE_INFINITY
         for (v in free) {
+            if (!context.hasRoomFor(v, task)) continue
             val d = context.distanceTo(v, task.pickupLocation)
             if (d.isInfinite()) continue          // cannot get there at all
             val sc = score(d)
@@ -460,8 +474,8 @@ class ContractNetAssignmentPolicy(
         // The board is a live view, so the list is taken once here: auctioning takes simulated time
         // and tasks posted during it belong to the next pass, not to a list being iterated.
         for (task in context.board.unassigned.toList()) {
-            val stillFree = context.available.filter { it !in spokenFor }
-            if (stillFree.isEmpty()) break
+            val stillFree = context.available.filter { it !in spokenFor && context.hasRoomFor(it, task) }
+            if (stillFree.isEmpty()) continue
             val round = DispatchContext(
                 context.board, stillFree, context.space, context.dispatcher.time, context.dispatcher
             )
@@ -623,7 +637,7 @@ class ReassigningPolicy(
 
             // Case one: someone else could collect this load materially sooner.
             val challenger = context.available
-                .filter { it !== holder.vehicle }
+                .filter { it !== holder.vehicle && context.hasRoomFor(it, task) }
                 .minWithOrNull(
                     compareBy({ context.distanceTo(it, task.pickupLocation) }, { it.name })
                 )
@@ -646,6 +660,13 @@ class ReassigningPolicy(
                 if (challengerCost.isFinite()) dispatcher.revoke(holder)
                 continue
             }
+
+            // A vehicle holding other work stays on its round when this is taken back, so it could take nothing
+            // better now, and revoking would only send the task to a farther vehicle or back to the board.
+            val holdsOtherWork = holder.vehicle.assignments.any {
+                it !== holder && (it.state == AssignmentState.ASSIGNED || it.state == AssignmentState.IN_PROGRESS)
+            }
+            if (holdsOtherWork) continue
 
             // Case two: this vehicle could collect a *different* load materially sooner. The two are
             // not the same test and a fleet of one has only the second -- which is precisely the
