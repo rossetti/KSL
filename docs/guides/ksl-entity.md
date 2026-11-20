@@ -991,7 +991,8 @@ when (r.trigger) {
 - **Ties.** In time, the first to happen wins. At one instant, the event that runs first
   wins: the higher-priority event, then the earlier-scheduled one; within one event, the
   order of the code. Argument order decides only when several triggers can already fire
-  when `waitForFirst` is called, and between two seize triggers whose requests wait in the
+  when `waitForFirst` is called (an items trigger can already fire when its queue's request
+  selector would fill it at once, even ahead of requests already waiting), and between two seize triggers whose requests wait in the
   same queue (they enter it in argument order). Seize requests in different queues on one
   resource are served by the resource's notification rule. Choose a winner by the
   priority of the events that cause the triggers, never by argument order.
@@ -1277,6 +1278,15 @@ on the Dokka pages.
 - **`BlockingQueue` has *two* statistics surfaces.** Under finite
   capacity, both `senderQ` (producer side) and `requestQ` (consumer
   side) can be non-trivial. Read both when diagnosing backpressure.
+- **Check a model that combines features with `-Dksl.checkInvariants=true`.**
+  Every resource then checks its accounting after each event (units busy, lent,
+  promised and reserved, delays held, no request left beside units it could take),
+  and every resource and blocking queue checks that each request of a
+  `waitForFirst` belongs to a wait that is still open. A broken check stops the run
+  with a message naming the time, the element and what is out of balance. It slows
+  the run, so use it while building and checking a model, not for production
+  runs. It cannot tell you whether the right request won a tie: check that against
+  the rules in [...wait for whichever comes first](#wait-for-whichever-comes-first).
 - **`Resource`'s `numBusyUnits` is not the same as `numActiveUnits` or
   capacity.** Capacity is the configured max; busy is allocated units
   at this instant; queue length is pending requests. Utilization in

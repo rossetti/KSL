@@ -175,6 +175,68 @@ class ResourceInvariantsTest {
         assertContains(messages, "for 1 units, un-woken, while 1 are available")
     }
 
+    /**
+     *  W waits for the first of a unit of R, held by another until 10, an item of a blocking queue, and a signal.
+     *  At 5 its wait is closed on purpose without releasing what it placed, as a registration left out of its
+     *  wait would be: its request stays in R's queue, or in the blocking queue's request queue, for a wait that
+     *  has ended.
+     */
+    private class LeftBehind(parent: ModelElement, val inResource: Boolean) : ProcessModel(parent, "leftBehind") {
+        val r = ResourceWithQ(this, "R")
+        val items = BlockingQueue<Item>(this, name = "Items")
+        val signal = Signal(this, "Go")
+
+        inner class Item : QObject()
+
+        inner class Holder : Entity() {
+            val run: KSLProcess = process("holder") { val a = seize(r); delay(10.0); release(a) }
+        }
+
+        inner class Waiter : Entity() {
+            val run: KSLProcess = process("waiter") {
+                delay(1.0)
+                if (inResource) waitForFirst(r.seizeTrigger(), signal.trigger()) else waitForFirst(items.itemsTrigger(), signal.trigger())
+            }
+        }
+
+        override fun initialize() {
+            activate(Holder().run)
+            activate(Waiter().run)
+            schedule({ _: KSLEvent<Nothing> ->
+                val registration = if (inResource) r.myWaitingQ.peekFirst()!!.registration
+                else (items.requestQ as ksl.modeling.queue.Queue<*>).peekFirst()
+                    .let { (it as BlockingQueue<*>.ChannelRequest).registration }
+                registration!!.group.closeOnTermination()
+            }, 5.0)
+        }
+    }
+
+    private fun leftBehindMessages(inResource: Boolean): String {
+        ResourceInvariants.enabled = true
+        val model = Model("LeftBehind${System.nanoTime()}", autoCSVReports = false)
+        LeftBehind(model, inResource)
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 20.0
+        val error = assertFailsWith<RuntimeException> { model.simulate() }
+        return generateSequence<Throwable>(error) { it.cause }.joinToString(" | ") { it.message ?: "" }
+    }
+
+    @Test
+    @DisplayName("switched on, a resource request left in its queue after its wait ended is caught")
+    fun onCatchesAResourceRequestOfAnEndedWait() {
+        val messages = leftBehindMessages(inResource = true)
+        assertContains(messages, "at time 5.0")
+        assertContains(messages, "waits in R:Q for a wait that has already ended")
+    }
+
+    @Test
+    @DisplayName("switched on, a blocking queue request left in its queue after its wait ended is caught")
+    fun onCatchesAnItemsRequestOfAnEndedWait() {
+        val messages = leftBehindMessages(inResource = false)
+        assertContains(messages, "at time 5.0")
+        assertContains(messages, "waits in Items:RequestQ for a wait that has already ended")
+    }
+
     @Test
     @DisplayName("switched off, nothing is checked")
     fun offChecksNothing() {

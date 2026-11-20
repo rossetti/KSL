@@ -24,8 +24,8 @@ import ksl.simulation.Model
 import ksl.utilities.observers.ObserverIfc
 
 /**
- *  Checks the accounting of every resource of a model after each event, when switched on by the system
- *  property `ksl.checkInvariants=true`; off, it costs nothing. A broken invariant throws, and the executive
+ *  Checks the accounting of every resource of a model, and the waiting requests of every blocking queue, after
+ *  each event, when switched on by the system property `ksl.checkInvariants=true`; off, it costs nothing. A broken invariant throws, and the executive
  *  reports it with the event it followed. It is a diagnostic for models and for the library's own tests,
  *  not something a model relies on.
  *
@@ -45,7 +45,11 @@ import ksl.utilities.observers.ObserverIfc
  *    held, and is never held by one while it reports an interruption instead;
  *  - no request waits, un-woken, in one of its queues beside units it could take. A woken request is
  *    already on its way; a failed or inactive resource can serve no one; and a request that the queue's
- *    selection rule holds back, or that does not fit in the units available, is not one it could serve.
+ *    selection rule holds back, or that does not fit in the units available, is not one it could serve;
+ *  - every request in one of its queues for a wait for the first of several things belongs to a wait that is
+ *    still open, or is the one that ended it and has yet to resume.
+ *
+ *  For each blocking queue, it checks the last of these for the requests waiting for its items.
  */
 internal object ResourceInvariants {
 
@@ -60,11 +64,19 @@ internal object ResourceInvariants {
             // no element can be added while the model runs, so the resources are found once per replication
             // rather than by walking the model after every event
             var resources: List<Resource> = emptyList()
+            var blockingQueues: List<BlockingQueue<*>> = emptyList()
 
             override fun onChange(newValue: KSLEvent<*>?) {
                 when (executive.status) {
-                    Executive.Status.INITIALIZED -> resources = model.getModelElements().filterIsInstance<Resource>()
-                    Executive.Status.AFTER_EVENT -> for (resource in resources) check(resource)
+                    Executive.Status.INITIALIZED -> {
+                        val elements = model.getModelElements()
+                        resources = elements.filterIsInstance<Resource>()
+                        blockingQueues = elements.filterIsInstance<BlockingQueue<*>>()
+                    }
+                    Executive.Status.AFTER_EVENT -> {
+                        for (resource in resources) check(resource)
+                        for (queue in blockingQueues) check(queue)
+                    }
                     else -> {}
                 }
             }
@@ -74,10 +86,37 @@ internal object ResourceInvariants {
     private fun violation(resource: Resource, message: String): Nothing =
         throw IllegalStateException("Invariant broken at time ${resource.time} on resource ${resource.name}: $message")
 
-    /** Checks every resource of [model]. */
+    private fun violation(queue: BlockingQueue<*>, message: String): Nothing =
+        throw IllegalStateException("Invariant broken at time ${queue.time} on blocking queue ${queue.name}: $message")
+
+    /**
+     *  The message for a request whose wait has ended though the request still waits; null when its wait is
+     *  open, when it is the one that ended the wait and has yet to resume, or when it is not part of such a wait.
+     *  The other requests of an ended wait leave their queues as it ends.
+     */
+    private fun endedWait(registration: Registration?, requestId: Long, entityId: Long, queueName: String): String? {
+        if (registration == null) return null
+        val group = registration.group
+        if (!registration.isReleased && (!group.claimed || registration === group.winnerRegistration)) return null
+        return "request $requestId of entity $entityId waits in $queueName for a wait that has already ended"
+    }
+
+    /** Checks every resource and blocking queue of [model]. */
     fun check(model: Model) {
         for (element in model.getModelElements()) {
             if (element is Resource) check(element)
+            if (element is BlockingQueue<*>) check(element)
+        }
+    }
+
+    /**
+     *  Checks that every request waiting in [queue] for its items belongs to a wait that is still open, or is the
+     *  one that ended it and has yet to resume.
+     */
+    fun check(queue: BlockingQueue<*>) {
+        for (request in queue.waitingRequests) {
+            endedWait(request.registration, request.id, request.receiver.id, queue.waitingRequests.name)
+                ?.let { violation(queue, it) }
         }
     }
 
@@ -112,7 +151,10 @@ internal object ResourceInvariants {
         // the promises of woken requests, wherever they wait
         var promised = 0
         for (queue in resource.registeredQueues) {
-            for (request in queue) promised += request.promises[resource] ?: 0
+            for (request in queue) {
+                promised += request.promises[resource] ?: 0
+                endedWait(request.registration, request.id, request.entity.id, queue.name)?.let { violation(resource, it) }
+            }
         }
         if (promised != resource.myPromisedUnits) {
             violation(resource, "${resource.myPromisedUnits} units are promised, but the requests in its queues hold $promised")

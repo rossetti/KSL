@@ -1228,7 +1228,8 @@ no limit are what make the comparisons with limits believable.
   replication. Count from the start of the replication, not from the end of the warm-up.
 - **Turn on the resource checks.** Run with `-Dksl.checkInvariants=true` and every resource checks its
   accounting after each event: units busy, units lent by preemption and units missing through failures,
-  the reservations of waiting preemptors, and the delays held on each allocation.
+  the reservations of waiting preemptors, and the delays held on each allocation. Each resource and
+  blocking queue also checks that every request of a `waitForFirst` belongs to a wait that is still open.
 - **Turn the behavior off by its control** (case 1) to check the rest of the model against an answer
   without it.
 

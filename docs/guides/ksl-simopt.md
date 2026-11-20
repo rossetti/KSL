@@ -1273,7 +1273,7 @@ For full member lists, see the Dokka API reference. This is the orientation map.
 | `ReplicationPerEvaluationIfc` (`FixedReplicationsPerEvaluation`, `FixedGrowthRateReplicationSchedule`) | Reps-per-evaluation strategy. |
 | `ReplicationBudgetStoppingCriterion` / `SolutionQualityEvaluatorIfc` | Equal-effort stop / the general stopping hook. |
 | `NeighborhoodFinderIfc` (`MooreNeighborhoodFinder`, `VonNeumannNeighborhoodFinder`), `GenerateNeighborIfc` | Discrete neighborhood generation for local search. |
-| `SolverResult` / `EvaluatorMetrics` | Immutable run snapshot / evaluator usage + cache savings. |
+| `SolverResult` / `EvaluatorMetrics` | Immutable run snapshot (`SolverResult.Completed.terminationReason` says why the run ended: stopping criteria satisfied, maximum iterations reached, maximum execution time reached, or halted before completion; not finished while the run is still going) / evaluator usage + cache savings. |
 | `*SolverStateTracker` | Console / CSV / DataFrame progress trackers (+ `Nested*`) — §6. |
 | `SolverPortfolio`, `SolverMemberTask`, `SolverFactoryIfc`, `ConcurrentRunOptions`, `ConfirmationOptions`, `PooledMemberEvaluatorFactory`, `ConcurrentSolverRunner` | Race several solvers concurrently on one problem (blocking API). |
 

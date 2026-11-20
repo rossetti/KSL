@@ -216,6 +216,10 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     val requestQ: QueueCIfc<ChannelRequest>
         get() = myRequestQ
 
+    /** The requests waiting for items, for the invariant checks. */
+    internal val waitingRequests: Queue<ChannelRequest>
+        get() = myRequestQ
+
     private val myChannelQ: Queue<T> = Queue(this, "${this.name}:ChannelQ")
 
     /**
