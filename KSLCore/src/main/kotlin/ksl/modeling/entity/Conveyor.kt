@@ -63,13 +63,9 @@ fun List<Conveyor.Cell>.allAvailable() : Boolean {
 /** A conveyor consists of a series of segments. A segment has a starting location (origin) and an ending location
  * (destination) and is associated with a conveyor. The start and end of each segment represent locations along
  * the conveyor where entities can enter and exit.  A conveyor does not utilize a spatial model. The locations
- * associated with its segments are instances of the interface IdentityIfc. Thus, movement on the conveyor is
- * disassociated with any spatial model associated with the entity using the conveyor.  Since a spatial model
- * using instances of the LocationIfc interface and LocationIfc extends the IdentityIfc, the locations associated
- * with segments can be the same as those associated with spatial models. If the destination of a ride request
- * is an instance of LocationIfc then the entity's curren location property will be updated after the movement.
- * However, if the segments are not defined by locations within a spatial model, no updating of the entity's location
- * will take place. The modeler is responsible for making the update to the entity location, if applicable.
+ * associated with its segments are names. Thus, movement on the conveyor is disassociated with any spatial model
+ * associated with the entity using the conveyor, and riding a conveyor does not change the entity's current
+ * location. The modeler is responsible for updating the entity's location, if the model uses one.
  *
  * A conveyor has a cell size, which represents the length of
  * each cell on all segments of the conveyor. A conveyor also has a maximum permitted number of cells that can be
@@ -308,7 +304,7 @@ class Conveyor @JvmOverloads constructor(
             segs.add(CSegment(index + 1, myEntryCells[segment.entryLocation]!!, myExitCells[segment.exitLocation]!!))
         }
         segments = segs.toList()
-        statsticalReportingForSegmentUtilization(false)
+        statisticalReportingForSegmentUtilization(false)
     }
 
     private val myNumOccupiedCells =
@@ -384,12 +380,20 @@ class Conveyor @JvmOverloads constructor(
      *  @param option the option for reporting. True means reporting occurs
      */
     @Suppress("unused")
-    fun statsticalReportingForSegmentUtilization(option: Boolean) {
+    fun statisticalReportingForSegmentUtilization(option: Boolean) {
         for (seg in segments) {
             seg.myNumOccupiedCells.defaultReportingOption = option
             seg.cellUtilization.defaultReportingOption = option
         }
     }
+
+    /** The former, misspelled name of [statisticalReportingForSegmentUtilization]. */
+    @Deprecated(
+        "Misspelled; use statisticalReportingForSegmentUtilization.",
+        ReplaceWith("statisticalReportingForSegmentUtilization(option)")
+    )
+    @Suppress("unused")
+    fun statsticalReportingForSegmentUtilization(option: Boolean) = statisticalReportingForSegmentUtilization(option)
 
     /**
      *  Returns the queue that holds requests that are waiting to access the

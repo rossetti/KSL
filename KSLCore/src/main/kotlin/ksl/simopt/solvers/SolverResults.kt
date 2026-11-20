@@ -77,12 +77,25 @@ sealed class SolverResult {
         val executionTimeMillis: Long? = null
     ) : SolverResult() {
 
+        /**
+         * The maximum number of iterations the run was allowed, when known, so that the report can tell a run
+         * that used them all from one that was halted. A property of the body rather than the constructor, so
+         * the constructor and `copy` keep their signatures; `copy` does not carry it.
+         */
+        var maximumIterations: Int? = null
+            internal set
+
         override fun toString(): String {
             return toReportString()
         }
 
         override fun toReportString(): String {
-            val termReason = if (isStoppingCriteriaMet) "Stopping Criteria Satisfied" else "Execution Halted/Error"
+            val limit = maximumIterations
+            val termReason = when {
+                isStoppingCriteriaMet -> "Stopping Criteria Satisfied"
+                limit != null && totalIterations >= limit -> "Maximum Iterations Reached"
+                else -> "Halted Before Completion"
+            }
             val timeString = executionTimeMillis?.let { "${it}ms" } ?: "Not Tracked"
 
             // Format the best solution safely in case it is null

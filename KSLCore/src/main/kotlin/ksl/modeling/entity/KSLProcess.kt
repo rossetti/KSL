@@ -2678,9 +2678,8 @@ interface KSLProcessBuilder {
      * will remain on the conveyor until the entity indicates that the cells are to be released by using
      * the exit function. The behavior of the conveyor during the ride and when the item reaches its
      * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
-     * while the entity occupies the final cells before exiting or riding again.  If the destination implements
-     * the LocationIfc, then the current location property of the entity will be updated to this value at the
-     * completion of the ride.
+     * while the entity occupies the final cells before exiting or riding again. A conveyor's locations are names:
+     * riding does not change the entity's current location, which the model updates itself if it uses one.
      *
      * A ride that begins at the entry location must end no nearer than the item is long: the destination must be
      * at least as many cells from the entry cell as the item needs, so that the item is fully on the conveyor when
@@ -2708,9 +2707,8 @@ interface KSLProcessBuilder {
      * will remain on the conveyor until the entity indicates that the cells are to be released by using
      * the exit function. The behavior of the conveyor during the ride and when the item reaches its
      * destination is governed by the type of conveyor. A blockage occurs at the destination location of the segment
-     * while the entity occupies the final cells before exiting or riding again. If the destination implements
-     * the LocationIfc, then the current location property of the entity will be updated to this value at the
-     * completion of the ride.
+     * while the entity occupies the final cells before exiting or riding again. A conveyor's locations are names:
+     * riding does not change the entity's current location, which the model updates itself if it uses one.
      *
      * A ride that begins at the entry location must end no nearer than the item is long: the destination must be
      * at least as many cells from the entry cell as the item needs, so that the item is fully on the conveyor when

@@ -376,45 +376,19 @@ data class EstimatedResponse(
     }
 
     /**
-     *  Computes the pooled variance when combining samples from the same population.
-     *  The pooling process assumes a weighted average of the variances. In the case
-     *  where each estimate only has count equal to 1, the variance is computed from the two data points.
-     *  In the cases where the pooled sample will have 3 elements, the variance associated with the sample
-     *  size of 2 is used. In the cases where both samples have 2 or more elements, a weighted
-     *  pooled variance is computed.
+     *  The variance of the sample made by pooling this estimate's observations with those of [e], both from
+     *  the same population: the sample variance (divisor n - 1) of all n = n1 + n2 observations, whatever the
+     *  split,
+     *  (n1 - 1) s1^2 + (n2 - 1) s2^2 + (n1 n2 / n)(x1 - x2)^2, all divided by n - 1,
+     *  where an estimate of a single observation contributes no within-sample term.
      */
     fun pooledVariance(e: EstimatedResponse): Double {
-        if ((count == 1.0) && (e.count == 1.0)) {
-            // we have a sample of size 2 now, just average them
-            val avg = (average + e.average) / 2.0
-            val v = (average - avg) * (average - avg) + (e.average - avg) * (e.average - avg)
-            return v
-        } else if (count == 1.0 && e.count >= 2.0) {
-            // Since count == 1, it is like a new data point. Use Welford's algorithm.
-            var m2 = e.variance * (e.count - 1)// base m2 on e
-            val n = count + e.count
-            // e.average is the current mean, average is the new value
-            val delta = (average - e.average)
-            val mean = e.average + delta / n
-            val delta2 = (average - mean)
-            m2 = m2 + delta * delta2
-            return m2 / (n - 1.0)
-        } else if ((count >= 2.0) && (e.count == 1.0)) {
-            // Since e.count == 1, "e" is new data point. Use Welford's algorithm.
-            var m2 = variance * (count - 1)
-            val n = count + e.count
-            // average is the current mean, e.average is the new value
-            val delta = (e.average - average)
-            val mean = average + delta / n
-            val delta2 = (e.average - mean)
-            m2 = m2 + delta * delta2
-            return m2 / (n - 1.0)
-        } else {
-            // both counts must be > 2
-            val n = count + e.count
-            val v = (count - 1.0) * variance + (e.count - 1.0) * e.variance
-            return v / (n - 2.0)
-        }
+        val n = count + e.count
+        val within1 = if (count > 1.0) (count - 1.0) * variance else 0.0
+        val within2 = if (e.count > 1.0) (e.count - 1.0) * e.variance else 0.0
+        val d = average - e.average
+        val between = (count * e.count / n) * d * d
+        return (within1 + within2 + between) / (n - 1.0)
     }
 
     fun instance(): EstimatedResponse {

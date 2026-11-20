@@ -1127,7 +1127,7 @@ abstract class Solver(
                 evaluatorMetrics = evalMetrics,
                 isStoppingCriteriaMet = this.isStoppingCriteriaSatisfied(),
                 executionTimeMillis = this.iterativeProcess.elapsedExecutionTime.inWholeMilliseconds
-            )
+            ).also { it.maximumIterations = this.maximumNumberIterations }
         }
 
     protected inner class MainIterativeProcess :
