@@ -260,7 +260,10 @@ class ConveyorAnchors : TraceAccumulator<Map<String, List<Pair<String, Int>>>> {
  * (`suspensionName ?: entityType`), so each placed storage binds to the trace's members. Named delays are
  * always kept: naming a delay is an intentional "show this as a storage" signal.
  */
-class DelayStorages : TraceAccumulator<List<String>> {
+class DelayStorages(
+    /** Entity types whose delays make no storage: the library's own, such as the entity running a resource's behavior. */
+    private val excludedTypes: Set<String> = emptySet()
+) : TraceAccumulator<List<String>> {
     private val entityType = HashMap<Long, String>()
     private val named = LinkedHashSet<String>()
     private val bareTypes = LinkedHashSet<String>()
@@ -273,6 +276,7 @@ class DelayStorages : TraceAccumulator<List<String>> {
             is AnimationEvent.SeizeAllocated -> entityType[event.entityId]?.let { seizedTypes.add(it) }
             is AnimationEvent.AgentPositionChanged -> hasAgents = true
             is AnimationEvent.DelayStarted -> {
+                if (entityType[event.entityId] in excludedTypes) return
                 val name = event.suspensionName
                 if (name != null) named.add(name) else entityType[event.entityId]?.let { bareTypes.add(it) }
             }

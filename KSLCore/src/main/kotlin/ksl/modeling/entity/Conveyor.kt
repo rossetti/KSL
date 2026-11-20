@@ -1912,10 +1912,14 @@ class Conveyor @JvmOverloads constructor(
      *  cell move, as every landing does.
      */
     private fun reconsiderAfterWithdrawal() {
+        // a cell move paused for the items withdrawn belongs to them: with nothing left to move, the next move is a
+        // full one
+        if (!isOccupied() && !hasItemPositionedToEnter() && !hasLandingReady()) {
+            pausedTimeRemaining = Double.NaN
+        }
         if (!isCellTraversalInProgress()) {
             rescheduleConveyorMovement()
         }
-
         processRequestsWaitingToAccessConveyor()
         captureCellUsage()
     }

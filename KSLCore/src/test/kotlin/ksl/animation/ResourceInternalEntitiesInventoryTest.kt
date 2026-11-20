@@ -143,6 +143,16 @@ class ResourceInternalEntitiesInventoryTest {
         assertTrue(info.include && !info.isInternal, "a type built by a client is included and not internal")
     }
 
+    @Test
+    @DisplayName("the internal flag is not serialized, so an inventory written now is read by a release that does not know it")
+    fun internalFlagNotSerialized() {
+        val model = Model("Inventory${System.nanoTime()}", autoCSVReports = false)
+        Resource(model, "Worker")
+        val internalType = model.animationInventory().entityTypes.first { it.isInternal }
+        val json = kotlinx.serialization.json.Json.encodeToString(EntityTypeInfo.serializer(), internalType)
+        assertTrue("isInternal" !in json, json)
+    }
+
     private class Agents(parent: ModelElement) : AgentModel(parent, "Agents")
 
     @Test

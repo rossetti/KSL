@@ -77,6 +77,20 @@ class ConveyorEntryGrantTest {
 
         fun probe(tag: String, at: Double) = Probe(tag, at).also { activate(it.p) }
 
+        /** Takes the entry at A at [request], rides from [ride] to B and gets off, logging when it is off. */
+        inner class Late(val tag: String, val request: Double, val ride: Double) : Entity(tag) {
+            val p: KSLProcess = process("late") {
+                delay(request)
+                val cr = requestConveyor(c, "A")
+                delay(ride - time)
+                rideConveyor(cr, "B")
+                exitConveyor(cr)
+                log.add("$tag off@$time")
+            }
+        }
+
+        fun late(tag: String, request: Double, ride: Double) = Late(tag, request, ride).also { actors[tag] = it; activate(it.p) }
+
         fun rider(tag: String, arrive: Double) = Rider(tag, arrive).also { actors[tag] = it; activate(it.p) }
 
         fun blocker(tag: String, arrive: Double, leave: Double, then: () -> Unit) =
@@ -159,5 +173,21 @@ class ConveyorEntryGrantTest {
         }
         assertNull(error, "the run stopped: $error")
         assertEquals(listOf("W access@0.0", "W terminated@4.0 moving=false"), line.log)
+    }
+
+    @Test
+    @DisplayName("a cell move paused for an item that is then withdrawn does not shorten the next item's first move")
+    fun pausedMoveOfAWithdrawnItemIsDiscarded() {
+        // E takes the entry at 5.4, which stops the non-accumulating conveyor part way through W's cell move; W is
+        // terminated at 5.5, leaving the conveyor empty; E rides from 8. It is off when it would be with no W at all.
+        val (control, controlError) = run(Conveyor.Type.NON_ACCUMULATING) { late("E", 5.4, 8.0) }
+        assertNull(controlError)
+        val (line, error) = run(Conveyor.Type.NON_ACCUMULATING) {
+            rider("W", 0.0)
+            late("E", 5.4, 8.0)
+            probe("W", 5.5)
+        }
+        assertNull(error, "the run stopped: $error")
+        assertEquals(control.log.filter { it.startsWith("E off") }, line.log.filter { it.startsWith("E off") })
     }
 }

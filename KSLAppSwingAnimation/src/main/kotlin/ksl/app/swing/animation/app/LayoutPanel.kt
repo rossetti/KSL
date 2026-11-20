@@ -749,7 +749,9 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         if (storageArm != null) { disarmStorage(); return } // re-clicking the armed tool cancels
         // Suspension names aren't in the inventory (runtime), so seed with entity types (unnamed delays bind to the
         // type name) plus any explicitly-named suspensions harvested from the last run's trace, and allow free text.
-        val storageNames = (controller.inventory.namesOf(ElementKind.ENTITY_TYPE) +
+        // the library's own entity types are not the model's to lay out
+        val internal = controller.inventory.entityTypes.filter { it.isInternal }.map { it.typeName }.toSet()
+        val storageNames = (controller.inventory.namesOf(ElementKind.ENTITY_TYPE).filterNot { it in internal } +
             controller.suspensionNamesFromLastTrace()).distinct()
         val nameCombo = JComboBox(storageNames.toTypedArray()).apply { isEditable = true; selectedItem = "" }
         val styleCombo = JComboBox(ksl.animation.StorageStyle.entries.toTypedArray())

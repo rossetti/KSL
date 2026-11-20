@@ -86,8 +86,19 @@ class TerminatedWhileMovingTest {
         }
     }
 
+    private val moveEvents = mutableListOf<String>()
+
     private fun run(setup: Yard.() -> Unit): Pair<Yard, Throwable?> {
         val model = Model("Moving${System.nanoTime()}", autoCSVReports = false)
+        moveEvents.clear()
+        model.animationSink = object : ksl.animation.AnimationSink {
+            override val isActive = true
+            override fun emit(event: ksl.animation.AnimationEvent) {
+                if (event is ksl.animation.AnimationEvent.SpatialElementMoveCompleted) {
+                    moveEvents.add("${event.name} ended@${event.simTime} x=${event.toX}")
+                }
+            }
+        }
         val yard = Yard(model)
         yard.setups.add(setup)
         model.numberOfReplications = 1
@@ -131,5 +142,7 @@ class TerminatedWhileMovingTest {
         // A move changes the cart's location when it arrives, so a move cut short leaves it where it set out, at O.
         // D2 has it at 4 and moves it to O, where it already is.
         assertEquals(listOf("D1 terminated@4.0 cart moving=false", "D2 moved the cart@4.0"), yard.log)
+        // the animation is told D1's move ended at 4, where the cart stands, and then D2's move, to where it stands
+        assertEquals(listOf("Cart ended@4.0 x=0.0", "Cart ended@4.0 x=0.0"), moveEvents)
     }
 }

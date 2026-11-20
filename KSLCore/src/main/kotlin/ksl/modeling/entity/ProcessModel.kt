@@ -4470,6 +4470,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val moved = myMovedElement ?: return
                 myMovedElement = null
                 moved.isMoving = false
+                // the animation was told the move would arrive; it is told the move ended where the element stands
+                val captured = model.animationSink.captureSpec?.captures(
+                    ksl.animation.ElementKind.MOVABLE_RESOURCE, moved.spatialName
+                ) ?: true
+                if (captured && !executive.isEnded) {
+                    val at = moved.currentLocation
+                    emitAnimation { AnimationEvent.SpatialElementMoveCompleted(time, moved.spatialName, at.x, at.y, at.z) }
+                }
                 if (moved is ksl.modeling.spatial.MovableResource) {
                     moved.isMovingEmpty = false
                     moved.isTransporting = false

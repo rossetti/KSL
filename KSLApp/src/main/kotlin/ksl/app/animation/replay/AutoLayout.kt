@@ -51,7 +51,11 @@ import kotlin.math.sin
  * as straight belts spaced by cell index, with any remaining name-only mover locations on a ring. Response
  * statistics are not placed (a model can expose dozens, crushing the auto-grid).
  */
-fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null): AnimationLayout {
+fun ReplayModel.autoLayout(
+    events: List<AnimationEvent>,
+    title: String? = null,
+    excludedEntityTypes: Set<String> = emptySet()
+): AnimationLayout {
     // One streaming pass mines positions, named travel locations, movers, and agent states. Non-Cartesian
     // models emit NaN coordinates, which the accumulators skip — so observed/centroids/homes are populated
     // only for coordinate-based models (see TraceAccumulators).
@@ -63,7 +67,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
     val typeAcc = ObjectTypeNames()
     val stationFlowAcc = StationFlow()
     val conveyorAcc = ConveyorAnchors()
-    val storageAcc = DelayStorages()
+    val storageAcc = DelayStorages(excludedEntityTypes)
     val storagePeakAcc = StoragePeaks()
     val capacityAcc = ResourceCapacities()
     val queuePeakAcc = QueuePeaks()
@@ -135,7 +139,7 @@ fun ReplayModel.autoLayout(events: List<AnimationEvent>, title: String? = null):
         .filterIsInstance<AnimationEvent.QObjectEnqueued>()
         .filter { vehicles.isVehicleInternalQueue(it.queueName) && !vehicles.isVehicleHoldQueue(it.queueName) }
         .mapNotNull { entityTypeOf(it.entityId) }.toSet()
-    val objectTypes = typeAcc.result() - controlTypes
+    val objectTypes = typeAcc.result() - controlTypes - excludedEntityTypes
     val glyphSize = objectGlyphSize(effectiveSpaces)
 
     // Agent state colors from the trace, so agent-state coloring works in Quick view (P5): assign a palette to the

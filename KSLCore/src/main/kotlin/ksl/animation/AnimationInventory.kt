@@ -122,7 +122,9 @@ data class EntityTypeInfo(
     /** True when the library itself creates the type for an element, such as the entity that runs a resource's
      *  behavior: it is captured, but it is not one of the model's own entity types to lay out or animate. A
      *  property of the body rather than the constructor, so the constructor and `copy` keep their signatures;
-     *  `copy` does not carry it. */
+     *  `copy` does not carry it. Not serialized, so that an inventory written by this release is read by a
+     *  release that does not know it; an inventory read back from its serialized form reports false. */
+    @kotlinx.serialization.Transient
     var isInternal: Boolean = false
         internal set
 }

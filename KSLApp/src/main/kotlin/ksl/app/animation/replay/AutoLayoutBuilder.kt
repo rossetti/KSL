@@ -133,7 +133,9 @@ private fun traceAutoLayout(trace: AnimationSource, inventory: AnimationInventor
     // Defer to the scaffold ONLY for a coordinate-free spatial-mover model (true DistancesModel): MDS beats the
     // trace's crude ring. Process/station/conveyor (no movers) and agent models render from the trace.
     if (extentAcc.result() == null && hasMovers && !hasAgents) return null
-    return ReplayModel.build(trace).autoLayout(trace.events, trace.header.description)
+    // the library's own entities appear in a trace but are not the model's: no object class, no storage
+    val internal = inventory.entityTypes.filter { it.isInternal }.map { it.typeName }.toSet()
+    return ReplayModel.build(trace).autoLayout(trace.events, trace.header.description, internal)
         .withModelGeometry(inventory)
         .withModelLocations(inventory)
         .withObservedFlow(trace)
