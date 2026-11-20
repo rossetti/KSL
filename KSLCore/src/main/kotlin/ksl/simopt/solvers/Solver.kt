@@ -46,6 +46,7 @@ import ksl.simopt.solvers.concurrent.PooledMemberEvaluatorFactory
 import ksl.simopt.solvers.concurrent.SolverFactoryIfc
 import ksl.simulation.ExperimentRunParametersIfc
 import ksl.simulation.IterativeProcess
+import ksl.simulation.IterativeProcessIfc
 import ksl.simulation.IterativeProcessStatusIfc
 import ksl.simulation.ModelBuilderIfc
 import ksl.utilities.Identity
@@ -343,6 +344,12 @@ abstract class Solver(
     var iterationCounter: Int = 0
         private set
 
+    /** True once a halt was asked for by [stopIterations] or [endIterations] during the current run. */
+    private var myHaltRequested: Boolean = false
+
+    /** Why the last run ended, recorded when it ended; null while a run is in progress or before the first. */
+    private var myTerminationReason: String? = null
+
     /**
      *  The initial starting solution for the algorithm. It is the responsibility
      *  of the subclass to initialize the initial solution.
@@ -505,6 +512,7 @@ abstract class Solver(
      */
     @Suppress("unused")
     fun stopIterations(msg: String? = null) {
+        myHaltRequested = true
         onStopRequested(msg)
         myMainIterativeProcess.stop(msg)
     }
@@ -529,6 +537,7 @@ abstract class Solver(
      */
     @Suppress("unused")
     fun endIterations(msg: String? = null) {
+        myHaltRequested = true
         myMainIterativeProcess.end(msg)
     }
 
@@ -1127,7 +1136,7 @@ abstract class Solver(
                 evaluatorMetrics = evalMetrics,
                 isStoppingCriteriaMet = this.isStoppingCriteriaSatisfied(),
                 executionTimeMillis = this.iterativeProcess.elapsedExecutionTime.inWholeMilliseconds
-            ).also { it.maximumIterations = this.maximumNumberIterations }
+            ).also { it.terminationReason = myTerminationReason ?: SolverResult.NOT_FINISHED }
         }
 
     protected inner class MainIterativeProcess :
@@ -1136,6 +1145,8 @@ abstract class Solver(
         override fun initializeIterations() {
             super.initializeIterations()
             iterationCounter = 0
+            myHaltRequested = false
+            myTerminationReason = null
             //     numTimesBestSolutionUpdated = 0
             numOracleCalls = 0
             numReplicationsRequested = 0
@@ -1204,6 +1215,13 @@ abstract class Solver(
             logger.trace { "Executing mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
             mainIterationsEnded()
             logger.trace { "Executed mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
+            myTerminationReason = when {
+                isStoppingCriteriaSatisfied() -> SolverResult.STOPPING_CRITERIA_SATISFIED
+                myHaltRequested -> SolverResult.HALTED_BEFORE_COMPLETION
+                iterationCounter >= maximumNumberIterations -> SolverResult.MAXIMUM_ITERATIONS_REACHED
+                endingStatus == IterativeProcessIfc.EndingStatus.EXCEEDED_EXECUTION_TIME -> SolverResult.MAXIMUM_EXECUTION_TIME_REACHED
+                else -> SolverResult.HALTED_BEFORE_COMPLETION
+            }
             super.endIterations()
             logger.debug { "Ended: solver $name iterations." }
             lifeCycleEmitter.emit(SolverStatus.COMPLETED)

@@ -23,9 +23,10 @@ import ksl.simulation.ModelElement
 /**
  *  The trigger of items from a blocking queue, made by `BlockingQueue.itemsTrigger` (an amount of
  *  matching items) or `BlockingQueue.anyItemsTrigger` (every matching item, at least one). It can
- *  fire at once when no request is waiting ahead of it and the channel holds what it needs, which
- *  is when the untimed receive fills at once; otherwise it places a request in the queue's request
- *  queue, which the queue claims when it selects the request.
+ *  fire at once when no request is waiting and the channel holds what it needs. With requests waiting,
+ *  it places its request in the queue's request queue in argument order, and is filled at once if the
+ *  queue's request selector chooses it, as the untimed receive is; otherwise the queue claims the wait
+ *  when it later selects the request.
  *
  *  @param amount the number of items wanted, or null for every matching item
  */
@@ -44,6 +45,14 @@ internal class ItemsTrigger<T : ModelElement.QObject>(
 
     override fun canFireNow(entity: ProcessModel.Entity): Boolean =
         blockingQ.requestQ.isEmpty && blockingQ.countByChannel(predicate) >= (amount ?: 1)
+
+    /**
+     *  With requests already waiting and the items it needs in the channel, whether it is filled at once is known
+     *  only once its request is queued: the queue's request selector may fill it ahead of them. It then registers in
+     *  argument order, and claims the wait as it registers when the selector chooses it.
+     */
+    override val decidesWhenQueued: Boolean
+        get() = !blockingQ.requestQ.isEmpty && blockingQ.countByChannel(predicate) >= (amount ?: 1)
 
     override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): List<T> {
         // As the untimed receive does when it can be filled at once: the request enters the queue and

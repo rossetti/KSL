@@ -26,6 +26,7 @@
  */
 package ksl.utilities.distributions.fitting.mixture
 
+import ksl.utilities.random.rng.RNStreamProvider
 import ksl.utilities.distributions.ContinuousDistributionIfc
 import ksl.utilities.distributions.Lognormal
 import ksl.utilities.distributions.MixtureDistribution
@@ -83,8 +84,9 @@ val receptionDeskTruth: MixtureDistribution = MixtureDistribution(
 /**
  *  Generates service times by asking the true mixture for a random variable.
  *
- *  A fixed stream number means you get the same data every time you run any example, so the
- *  numbers you see match the ones in the report. Change [streamNum] to see how much the answers
+ *  A fixed stream number from a provider of its own means you get the same data every time you run
+ *  any example, whatever else has drawn from the default streams first, so the numbers you see match
+ *  the ones in the report. Change [streamNum] to see how much the answers
  *  move from one sample to the next — that variability is exactly what the designed experiment
  *  in the report measures.
  *
@@ -92,7 +94,7 @@ val receptionDeskTruth: MixtureDistribution = MixtureDistribution(
  *  @param streamNum which random number stream to draw from
  */
 fun receptionDeskData(n: Int = 400, streamNum: Int = 1): DoubleArray =
-    receptionDeskTruth.randomVariable(streamNum).sample(n)
+    receptionDeskTruth.randomVariable(streamNum, RNStreamProvider()).sample(n)
 
 /**
  *  A second, independent sample from the same truth, drawn from a different stream.

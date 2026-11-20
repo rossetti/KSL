@@ -1782,6 +1782,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         /**
+         *  True when [request] can be moved by [moveRequestToResource] now: it is this entity's, it is queued,
+         *  the entity is suspended, and it has not already been given an allocation to take when it resumes.
+         */
+        protected fun canMoveRequestToResource(request: ResourceRequest): Boolean =
+            request.entity == this && request.isQueued && isSuspended && request.passedAllocation == null
+
+        /**
          *  A request, in a request queue, is there because it's entity is suspended. This function
          *  will remove the supplied request from the specified queue and place it in the queue
          *  associated with the specified resource. If the resource has units of capacity available to satisfy
@@ -1802,13 +1809,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  @param waitStats indicated whether the removal of the request from its current queue will cause
          *  waiting time statistics to be collected for that queue. The default is false.
          */
-        /**
-         *  True when [request] can be moved by [moveRequestToResource] now: it is this entity's, it is queued,
-         *  the entity is suspended, and it has not already been given an allocation to take when it resumes.
-         */
-        protected fun canMoveRequestToResource(request: ResourceRequest): Boolean =
-            request.entity == this && request.isQueued && isSuspended && request.passedAllocation == null
-
         protected fun moveRequestToResource(
             request: ResourceRequest,
             currentQueue: RequestQ,
@@ -2571,7 +2571,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val registered = mutableSetOf<WaitTrigger<*>>()
                 for (trigger in triggers) {
                     if (trigger.decidesWhenQueued) {
-                        group.registrations.add(trigger.register(group))
+                        trigger.register(group)
                         registered.add(trigger)
                         if (group.claimed) break
                     } else if (registered.isNotEmpty() && trigger.canFireNow(this@Entity)) {
@@ -2584,7 +2584,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 if (!group.claimed) {
                     for (trigger in triggers) {
                         if (trigger in registered) continue
-                        group.registrations.add(trigger.register(group))
+                        trigger.register(group)
                         if (group.claimed) break
                     }
                 }

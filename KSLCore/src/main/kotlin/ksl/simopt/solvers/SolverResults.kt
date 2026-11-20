@@ -36,6 +36,15 @@ data class EvaluatorMetrics(
  */
 sealed class SolverResult {
 
+    companion object {
+        internal const val STOPPING_CRITERIA_SATISFIED = "Stopping Criteria Satisfied"
+        internal const val MAXIMUM_ITERATIONS_REACHED = "Maximum Iterations Reached"
+        internal const val MAXIMUM_EXECUTION_TIME_REACHED = "Maximum Execution Time Reached"
+        internal const val HALTED_BEFORE_COMPLETION = "Halted Before Completion"
+        internal const val NOT_FINISHED = "Not Finished"
+    }
+
+
     /** Generates a human-readable summary of the current state or results. */
     abstract fun toReportString(): String
 
@@ -78,11 +87,13 @@ sealed class SolverResult {
     ) : SolverResult() {
 
         /**
-         * The maximum number of iterations the run was allowed, when known, so that the report can tell a run
-         * that used them all from one that was halted. A property of the body rather than the constructor, so
-         * the constructor and `copy` keep their signatures; `copy` does not carry it.
+         * Why the run ended: "Stopping Criteria Satisfied", "Maximum Iterations Reached", "Maximum Execution Time
+         * Reached", "Halted Before Completion", or "Not Finished" for a run read before it ended. The solver records
+         * it when the run ends, so a later change to the solver's settings does not alter it. A property of the body
+         * rather than the constructor, so the constructor and `copy` keep their signatures; `copy` does not carry it,
+         * and a result made directly reports the criteria or a halt.
          */
-        var maximumIterations: Int? = null
+        var terminationReason: String = if (isStoppingCriteriaMet) STOPPING_CRITERIA_SATISFIED else HALTED_BEFORE_COMPLETION
             internal set
 
         override fun toString(): String {
@@ -90,12 +101,7 @@ sealed class SolverResult {
         }
 
         override fun toReportString(): String {
-            val limit = maximumIterations
-            val termReason = when {
-                isStoppingCriteriaMet -> "Stopping Criteria Satisfied"
-                limit != null && totalIterations >= limit -> "Maximum Iterations Reached"
-                else -> "Halted Before Completion"
-            }
+            val termReason = terminationReason
             val timeString = executionTimeMillis?.let { "${it}ms" } ?: "Not Tracked"
 
             // Format the best solution safely in case it is null

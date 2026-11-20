@@ -24,6 +24,9 @@ import ksl.simopt.evaluator.ResponseFunctionIfc
 import ksl.simopt.evaluator.ResponseFunctionOracle
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.algorithms.StochasticHillClimber
+import ksl.utilities.io.report.dsl.report
+import ksl.utilities.io.report.extensions.solverResult
+import ksl.utilities.io.report.toMarkdown
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -33,26 +36,69 @@ import kotlin.test.assertTrue
 /** A solver's report says why the run ended: a run that used all its iterations was not halted or in error. */
 class SolverTerminationReportTest {
 
-    @Test
-    @DisplayName("a run that reaches its maximum iterations reports that, not a halt or an error")
-    fun maximumIterationsReported() {
+    private fun problem(): ProblemDefinition {
         val pd = ProblemDefinition(
             problemName = "reportProblem", modelIdentifier = "fn", objFnResponseName = "cost",
             inputNames = listOf("x1", "x2")
         )
         pd.inputVariable("x1", 1.0, 50.0, 1.0)
         pd.inputVariable("x2", 1.0, 50.0, 1.0)
+        return pd
+    }
+
+    /** A hill climber on a noisy linear cost; [onEvaluation] runs at each evaluation the oracle makes. */
+    private fun climber(iterations: Int, onEvaluation: () -> Unit = {}): StochasticHillClimber {
+        val pd = problem()
         val oracle = ResponseFunctionOracle("fn", setOf("cost"), ResponseFunctionBuilderIfc { provider ->
             val stream = provider.rnStream(1)
-            ResponseFunctionIfc { inputs -> mapOf("cost" to inputs.getValue("x1") + inputs.getValue("x2") + stream.randU01()) }
+            ResponseFunctionIfc { inputs ->
+                onEvaluation()
+                mapOf("cost" to inputs.getValue("x1") + inputs.getValue("x2") + stream.randU01())
+            }
         })
-        val solver = StochasticHillClimber(pd, Evaluator(pd, oracle), maximumIterations = 2, replicationsPerEvaluation = 5)
+        return StochasticHillClimber(pd, Evaluator(pd, oracle), maximumIterations = iterations, replicationsPerEvaluation = 5)
+    }
+
+    private fun SolverResult.Completed.rendered(): String = report("Solver") { solverResult(this@rendered) }.toMarkdown()
+
+    @Test
+    @DisplayName("a run that reaches its maximum iterations reports that, not a halt or an error, in both reports")
+    fun maximumIterationsReported() {
+        val solver = climber(2)
         solver.runAllIterations()
         val result = solver.solverResult as SolverResult.Completed
         assertEquals(2, result.totalIterations, "the run used its iterations")
         assertFalse(result.isStoppingCriteriaMet, "the stopping criteria were not what ended it")
-        val report = result.toReportString()
-        assertTrue("Maximum Iterations Reached" in report, report)
-        assertFalse("Halted" in report, report)
+        for (text in listOf(result.toReportString(), result.rendered())) {
+            assertTrue(text.contains("Maximum Iterations Reached", ignoreCase = true), text)
+            assertFalse(text.contains("Halted", ignoreCase = true), text)
+            assertFalse(text.contains("error", ignoreCase = true), text)
+        }
+    }
+
+    @Test
+    @DisplayName("the reason a run ended is fixed when it ends: raising the limit afterwards does not make it a halt")
+    fun reasonFixedWhenTheRunEnds() {
+        val solver = climber(2)
+        solver.runAllIterations()
+        solver.maximumNumberIterations = 10
+        val result = solver.solverResult as SolverResult.Completed
+        for (text in listOf(result.toReportString(), result.rendered())) {
+            assertTrue(text.contains("Maximum Iterations Reached", ignoreCase = true), text)
+        }
+    }
+
+    @Test
+    @DisplayName("a run halted during its last iteration reports a halt, not its maximum iterations reached")
+    fun haltInTheLastIteration() {
+        lateinit var solver: StochasticHillClimber
+        solver = climber(2) { if (solver.iterationCounter == 2) solver.stopIterations("halted by the test") }
+        solver.runAllIterations()
+        val result = solver.solverResult as SolverResult.Completed
+        assertEquals(2, result.totalIterations)
+        for (text in listOf(result.toReportString(), result.rendered())) {
+            assertTrue(text.contains("Halted Before Completion", ignoreCase = true), text)
+            assertFalse(text.contains("Maximum Iterations Reached", ignoreCase = true), text)
+        }
     }
 }

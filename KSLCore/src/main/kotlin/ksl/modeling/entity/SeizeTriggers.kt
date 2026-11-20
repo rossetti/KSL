@@ -292,12 +292,10 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
         again.entityPriority = group.entityPriority
         again.deadline = group.deadline
         again.timeoutPriority = group.timeoutPriority
+        // In the group (as every registration is, when it is made) before any other trigger registers: one of them
+        // can claim the wait as it registers, and the claim releases only the registrations the group holds.
         val seizeAgain = SeizeRegistration(seizeTrigger, again)
         seizeAgain.attach(request)
-        // In the group before any other trigger registers: one of them can claim the wait as it registers,
-        // and the claim releases only the registrations the group holds. Left out, the request would stay in
-        // its queue, to be woken later for a wait that has ended.
-        again.registrations.add(seizeAgain)
         // In argument order, as the first wait registers: a trigger that can fire at once ends the re-wait, the
         // request losing as at any claim (it leaves its queue and its units are offered on). A trigger decided only
         // once it is queued registers at its turn, and claims the re-wait if it can. The others register last.
@@ -305,7 +303,7 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
         for (trigger in group.triggers) {
             if (trigger === seizeTrigger) continue
             if (trigger.decidesWhenQueued) {
-                again.registrations.add(trigger.registerAgain(again))
+                trigger.registerAgain(again)
                 registered.add(trigger)
                 if (again.claimed) break
             } else if (trigger.canFireNow(entity)) {
@@ -318,7 +316,7 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
         if (!again.claimed) {
             for (trigger in group.triggers) {
                 if (trigger === seizeTrigger || trigger in registered) continue
-                again.registrations.add(trigger.registerAgain(again))
+                trigger.registerAgain(again)
                 if (again.claimed) break
             }
         }

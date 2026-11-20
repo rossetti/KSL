@@ -247,6 +247,14 @@ internal sealed class AfterResume {
  */
 internal abstract class Registration(val trigger: WaitTrigger<*>, val group: WaitGroup) {
 
+    init {
+        // In the group from the start, before its trigger places anything: a request it places can let another
+        // registration of the same wait claim it (a selection rule that serves only once a second request waits),
+        // and the claim releases only the registrations the group holds. Left out, this one would stay behind, to be
+        // woken later for a wait that has ended.
+        group.registrations.add(this)
+    }
+
     /**
      *  Ends this registration's wait because its trigger fired: the one way a source ends a wait. The
      *  wait's other registrations are released, its timer cancelled and its resume scheduled, as
@@ -333,7 +341,7 @@ internal class WaitGroup(
     val startTime: Double,
     val suspensionName: String?
 ) {
-    /** One per trigger, in argument order. */
+    /** One per registered trigger, in the order they registered; each adds itself as it is made. */
     val registrations: MutableList<Registration> = mutableListOf()
 
     /**

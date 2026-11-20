@@ -41,7 +41,18 @@ class IndependentReviewFindingsTest {
         val other = ResourceWithQ(this, "Other")
         val target = ResourceWithQ(this, "Target")
         val two = ResourceWithQ(this, "Two", capacity = 2)
+        val pairQ = RequestQ(this, "PairQ").apply {
+            // serves the requests for a resource only once two or more wait for it, then all of them
+            requestSelectionRule = RequestSelectionRuleIfc { res, queue ->
+                val mine = queue.filter { it.resource == res }
+                if (mine.size >= 2) mine else emptyList()
+            }
+        }
+        val pair = ResourceWithQ(this, "Pair", capacity = 2, queue = pairQ)
         val items = BlockingQueue<Item>(this, name = "Items")
+        val anyFillable = BlockingQueue<Item>(this, name = "AnyFillable").apply {
+            receiverRequestSelector = FirstFillableRequest()
+        }
         val signal = Signal(this, "S")
         val log = mutableListOf<String>()
         val setups = mutableListOf<Shop.() -> Unit>()
@@ -169,6 +180,54 @@ class IndependentReviewFindingsTest {
             assertNull(error, "signalFirst=$signalFirst: the run stopped: $error")
             assertEquals(emptyList(), shop.log, "signalFirst=$signalFirst")
             assertEquals(0.0, shop.signal.waitingQ.timeInQ.withinReplicationStatistic.count, "signalFirst=$signalFirst: signal waits recorded")
+        }
+    }
+
+    @Test
+    @DisplayName("a seize trigger whose arrival lets an earlier trigger of the same wait win is withdrawn as a loser")
+    fun laterSeizeTriggerWakesAnEarlierOne() {
+        val (shop, error) = run {
+            actor("W") {
+                val first = pair.seizeTrigger(queue = pairQ)
+                val second = pair.seizeTrigger(queue = pairQ)
+                val result = waitForFirst(first, second)
+                val a = if (result.firedBy(first)) result.valueOf(first) else result.valueOf(second)
+                log.add("W ${if (result.trigger === first) "first" else "second"} ${a.amount}@$time waiting=${pairQ.size} busy=${pair.numBusy}")
+                delay(1.0)
+                release(a)
+            }
+            // nothing of the wait is left in the queue, to be served later for a wait that has ended
+            at(5.0) { log.add("after@$time waiting=${pairQ.size} busy=${pair.numBusy}") }
+        }
+        assertNull(error, "the run stopped: $error")
+        assertEquals(listOf("W first 1@0.0 waiting=0 busy=1", "after@5.0 waiting=0 busy=0"), shop.log)
+    }
+
+    @Test
+    @DisplayName("an items trigger the queue would fill at once, ahead of a request waiting, wins over a later ready trigger")
+    fun itemsTriggerFilledAheadOfAWaitingRequest() {
+        for (withRuleSeize in listOf(false, true)) {
+            val (shop, error) = run {
+                actor("X") {
+                    // waits for more than the queue will hold, ahead of W
+                    waitForItems(anyFillable, 5)
+                    log.add("X returned@$time")
+                }
+                actor("W") {
+                    delay(1.0)
+                    val a = seize(other)
+                    val take = anyFillable.itemsTrigger(1)
+                    val restored = a.restoredTrigger()
+                    val triggers = if (withRuleSeize) listOf(r.seizeTrigger(queue = q), take, restored) else listOf(take, restored)
+                    val result = waitForFirst(triggers)
+                    log.add("W ${if (result.firedBy(take)) "items" else if (result.firedBy(restored)) "restored" else "other"}@$time")
+                    release(a)
+                }
+                actor("H") { val a = seize(r); delay(50.0); release(a) }
+                at(0.5) { anyFillable.sendToChannel(Item("a")) }
+            }
+            assertNull(error, "withRuleSeize=$withRuleSeize: the run stopped: $error")
+            assertEquals(listOf("W items@1.0"), shop.log, "withRuleSeize=$withRuleSeize")
         }
     }
 }

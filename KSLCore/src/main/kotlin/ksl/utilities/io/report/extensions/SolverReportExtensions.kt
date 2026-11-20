@@ -95,8 +95,7 @@ fun ReportBuilder.solverResult(
             section(myTitle) {
                 // ── 1. Run summary ────────────────────────────────────────────
                 val myTimeStr = result.executionTimeMillis?.let { "${it} ms" } ?: "Not tracked"
-                val myTermReason = if (result.isStoppingCriteriaMet)
-                    "Stopping criteria satisfied" else "Execution halted / error"
+                val myTermReason = result.terminationReason
                 dataTable(
                     headers = listOf("Property", "Value"),
                     rows = listOf(
