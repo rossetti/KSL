@@ -1522,6 +1522,10 @@ open class Resource @JvmOverloads constructor(
         // deallocate the allocation, so it can't be used again
         allocation.deallocate()
         deallocationNotification(allocation)
+        // A use failure due at this release is known before the release completes a capacity change, whose
+        // increase would otherwise offer the freed units first: while it is due, nothing is offered, and it is
+        // applied at the end of the release.
+        countUse()
         // deallocation completed need to check for pending capacity change; not once the run has ended, when
         // the releases come from terminating the replication's entities and nothing more can be scheduled.
         // The capacity and its changes start afresh at the next replication.
@@ -1536,7 +1540,6 @@ open class Resource @JvmOverloads constructor(
                 }
             }
         }
-        countUse()
         myReleaseInProgress = false
         val failing = myFailureDueAtRelease
         myFailureDueAtRelease = false
@@ -2236,7 +2239,7 @@ open class Resource @JvmOverloads constructor(
         if (available <= 0) {
             logger.trace { "$time > Resource: $name, had 0 units available after the positive capacity change. No reason to notify entities." }
             // none is free, but a waiting preemptor may now take what it needs from lower-priority holders
-            if (!isRunEnded) replanWaitingPreemptors(notice.priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "capacity_increase_resource=$name")
+            if (!isRunEnded && !myFailureDueAtRelease) replanWaitingPreemptors(notice.priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "capacity_increase_resource=$name")
         } else if (myCapacityChangeQSet.isEmpty()) {
             // no queues are currently associated with this resource, no reason to notify
             logger.trace { "$time > Resource: $name, The resource is not associated with any capacity change queues. No queues were notified of the positive capacity change." }
@@ -2245,8 +2248,9 @@ open class Resource @JvmOverloads constructor(
             // which may resume the entity processes at the current simulated time
             notifyWaitingRequestsOfCapacityIncrease(available, notice.priority)
         }
-        // a subclass whose waiting requests the queues above do not reach offers its units here
-        if (!isRunEnded) afterUnitsRestored()
+        // a subclass whose waiting requests the queues above do not reach offers its units here; not while a
+        // failure due at the release in progress is still to be applied
+        if (!isRunEnded && !myFailureDueAtRelease) afterUnitsRestored()
     }
 
     protected fun notifyWaitingRequestsOfCapacityIncrease(available: Int, priority: Int) {
@@ -2275,7 +2279,7 @@ open class Resource @JvmOverloads constructor(
     ) {
         // once the run has ended, units restored by the termination of the entities, as a shift's end in a
         // finally block, are offered to no one: nothing can be resumed
-        if (isInactive || isRunEnded) return
+        if (isInactive || isRunEnded || myFailureDueAtRelease) return
         // a waiting preemptor plans again first, even when no unit is free: units that came back to their
         // holders, at a repair or a return to shift, can be taken from them
         replanWaitingPreemptors(priority, source, detail)

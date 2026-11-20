@@ -100,7 +100,8 @@ internal class ItemsRegistration<T : ModelElement.QObject>(
     }
 
     override fun onReleaseOnTermination() {
-        itemsTrigger.blockingQ.removeRequest(request)
+        // the requests behind it are looked at once every registration of the ended wait is released
+        itemsTrigger.blockingQ.removeRequestOnTermination(request)
     }
 
     override val deferredNotificationSource: Any

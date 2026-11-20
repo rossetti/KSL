@@ -423,14 +423,17 @@ class RequestQ @JvmOverloads constructor(
      *  asked for are offered too: under a request selection rule, removing the request the rule had
      *  chosen can let it choose another.
      */
-    internal fun removeAbandoned(request: ProcessModel.Entity.Request) {
+    internal fun removeAbandoned(request: ProcessModel.Entity.Request, offer: Boolean = true): Boolean {
         val withdrawn = request.promises.toMap()
         val offerOn = LinkedHashSet<Resource>(withdrawn.keys)
         offerOn.addAll(membersOf(request.resource))
-        if (!remove(request, false)) return
+        if (!remove(request, false)) return false
         for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
+        // a wait releasing all its registrations at a termination offers once they are all released
+        if (!offer) return true
         offerOnward(offerOn, "request_abandoned_request_id=${request.id}")
         offerGuidedPool(request.resource)
+        return true
     }
 
     /**

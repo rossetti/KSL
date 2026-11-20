@@ -1792,6 +1792,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  The specified resource must not be associated with the request. The request must be queued and
          *  in the specified queue. The entity must currently be suspended and must be associated with
          *  the supplied request.  The request must be for a resource to be moved to a resource with a queue.
+         *  A waiting preemptor that has already been given its allocation, in the instant before it resumes to
+         *  take it, cannot be moved: it has the units it waited for. Use [canMoveRequestToResource] to check.
          *
          *  @param request the request to move
          *  @param currentQueue the queue that the request is currently in
@@ -1800,6 +1802,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  @param waitStats indicated whether the removal of the request from its current queue will cause
          *  waiting time statistics to be collected for that queue. The default is false.
          */
+        /**
+         *  True when [request] can be moved by [moveRequestToResource] now: it is this entity's, it is queued,
+         *  the entity is suspended, and it has not already been given an allocation to take when it resumes.
+         */
+        protected fun canMoveRequestToResource(request: ResourceRequest): Boolean =
+            request.entity == this && request.isQueued && isSuspended && request.passedAllocation == null
+
         protected fun moveRequestToResource(
             request: ResourceRequest,
             currentQueue: RequestQ,
@@ -1808,6 +1817,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             waitStats: Boolean = false
         ) {
             require(request.isQueued) { "The request must be queued to move it" }
+            require(request.passedAllocation == null) {
+                "The request ${request.id} of entity $name was already given its allocation of " +
+                        "${request.resource.name}, to take when it resumes, so it cannot be moved. " +
+                        "Check canMoveRequestToResource() first."
+            }
             require(currentQueue == request.queue) { "The supplied queue is not the queue associated with the request that is moving" }
             require(request.entity == this) { "The request to move is not from this entity" }
             require(request.entity.isSuspended) { "The entity must be suspended" }
@@ -2549,9 +2563,30 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val group = WaitGroup(this@Entity, id, triggers.toList(), time, suspensionName)
                 group.deadline = time + timeout
                 group.timeoutPriority = timeoutPriority
+                // In argument order. A trigger decided only once it is queued registers first, and claims the wait
+                // if it can. A trigger after it that can fire at once then wins at once, only the queued requests
+                // before it losing: some triggers only add a waiter when they register and would not notice they
+                // are ready. The triggers before the first queued one could not fire (the fast path above). The
+                // rest register last, in argument order.
+                val registered = mutableSetOf<WaitTrigger<*>>()
                 for (trigger in triggers) {
-                    group.registrations.add(trigger.register(group))
-                    if (group.claimed) break
+                    if (trigger.decidesWhenQueued) {
+                        group.registrations.add(trigger.register(group))
+                        registered.add(trigger)
+                        if (group.claimed) break
+                    } else if (registered.isNotEmpty() && trigger.canFireNow(this@Entity)) {
+                        val value = trigger.fireNow(this)
+                        group.claim(null, null, ResumeSource.UNKNOWN_INTERNAL, RESUME_PRIORITY)
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst ended at once by $trigger, ($this)" }
+                        return WaitForFirstResult(triggers.toList(), trigger, value, 0.0)
+                    }
+                }
+                if (!group.claimed) {
+                    for (trigger in triggers) {
+                        if (trigger in registered) continue
+                        group.registrations.add(trigger.register(group))
+                        if (group.claimed) break
+                    }
                 }
                 try {
                     if (!group.claimed) {
@@ -3230,9 +3265,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     group.resumedNormally = true
                 } finally {
                     if (!group.resumedNormally) {
+                        // closed first: releasing one registration can wake requests behind it, among them another of
+                        // this wait's own, which must not claim a wait whose process has ended
+                        group.closeOnTermination()
                         for (registration in group.registrations) {
                             registration.releaseOnTermination()
                         }
+                        // then the requests behind them, once per source, as a claim does
+                        group.registrations.filter { it.deferredNotificationSource != null }
+                            .distinctBy { it.deferredNotificationSource }
+                            .forEach { it.notifyDeferred() }
                         group.cancelTimer()
                         onTermination()
                     }

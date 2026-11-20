@@ -256,7 +256,9 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
     }
 
     override fun onReleaseOnTermination() {
-        (request.queue as? RequestQ)?.removeAbandoned(request)
+        // the units are offered once every registration of the ended wait is released (notifyDeferred)
+        val queue = request.queue as? RequestQ ?: return
+        if (queue.removeAbandoned(request, offer = false)) leftQueue = queue
     }
 
     override val deferredNotificationSource: Any?
@@ -296,21 +298,29 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
         // and the claim releases only the registrations the group holds. Left out, the request would stay in
         // its queue, to be woken later for a wait that has ended.
         again.registrations.add(seizeAgain)
+        // In argument order, as the first wait registers: a trigger that can fire at once ends the re-wait, the
+        // request losing as at any claim (it leaves its queue and its units are offered on). A trigger decided only
+        // once it is queued registers at its turn, and claims the re-wait if it can. The others register last.
+        val registered = mutableSetOf<WaitTrigger<*>>()
         for (trigger in group.triggers) {
             if (trigger === seizeTrigger) continue
-            if (trigger.decidesWhenQueued) break
-            if (trigger.canFireNow(entity)) {
+            if (trigger.decidesWhenQueued) {
+                again.registrations.add(trigger.registerAgain(again))
+                registered.add(trigger)
+                if (again.claimed) break
+            } else if (trigger.canFireNow(entity)) {
                 val value = trigger.fireNow(this)
-                // the request loses, as at any claim: it leaves its queue and its units are offered on
                 again.claim(null, null, ResumeSource.UNKNOWN_INTERNAL, ProcessModel.RESUME_PRIORITY)
                 otherWinner = AfterResume.Other(trigger, value)
                 return false
             }
         }
-        for (trigger in group.triggers) {
-            if (trigger === seizeTrigger) continue
-            again.registrations.add(trigger.registerAgain(again))
-            if (again.claimed) break
+        if (!again.claimed) {
+            for (trigger in group.triggers) {
+                if (trigger === seizeTrigger || trigger in registered) continue
+                again.registrations.add(trigger.registerAgain(again))
+                if (again.claimed) break
+            }
         }
         if (!again.claimed) waitAgain(again)
         if (again.timedOut) return false

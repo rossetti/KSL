@@ -347,6 +347,11 @@ internal class WaitGroup(
     var claimed: Boolean = false
         private set
 
+    /** Closes the wait without a winner, because its process ended: nothing can claim it afterwards. */
+    fun closeOnTermination() {
+        claimed = true
+    }
+
     /** The trigger that claimed the wait; null when the timer or a suspension's holder did. */
     var winner: WaitTrigger<*>? = null
         private set

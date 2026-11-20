@@ -618,6 +618,16 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         myRequestQ.remove(request)
     }
 
+    /**
+     *  Removes the request of a wait whose process ended, recording nothing. The requests behind it are looked
+     *  at through notifyAfterDeferredRemoval, once the wait's other registrations are released too.
+     */
+    internal fun removeRequestOnTermination(request: ChannelRequest) {
+        if (myRequestQ.remove(request, false) && myRequestBeingResumed === request) {
+            myRequestBeingResumed = null
+        }
+    }
+
     /** Looks at the waiting requests after a deferred removal. */
     internal fun notifyAfterDeferredRemoval() {
         notifyWaitingRequests()
