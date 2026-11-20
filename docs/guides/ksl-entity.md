@@ -594,12 +594,16 @@ private inner class Emergency : Entity() {
   its units (under `FINISH`, reserves them), and the holders stay held. So a
   holder never resumes ahead of a waiting preemptor that outranks it, and
   freed units go to a waiting preemptor ahead of the waiting requests it
-  outranks. It takes no freed unit ahead of a waiting request that is more
-  urgent, or equally urgent and ahead of it, nor ahead of a `FINISH`
-  preemptor, equally or more urgent, that is still taking its units: it goes
-  on waiting in its queue and is served in its turn. With several request
-  queues on the resource, the waiting request it is compared with is the one
-  the freed units would go to, the one that entered its queue first.
+  outranks. The freed units are offered request by request, and before each
+  the preemptor is compared with the request they would go to next: it goes
+  ahead of one it outranks, and gives way to one that is more urgent, or
+  equally urgent and ahead of it, and to a `FINISH` preemptor, equally or
+  more urgent, that is still taking its units. A more urgent request further
+  back does not hold it back. Once the offer is over, it takes what it can:
+  the units left and those of the holders it outranks. With several request
+  queues on the resource, the request next in line is the one that entered
+  its queue first under the default notification rule, and the next in the
+  queue being offered under a rule of the model's own.
 - **The rule** is the resource's `interruptRule` unless the call names one.
   Under `RESUME` and `RESTART` the units are taken now and the holder's delay
   is held. Under `FINISH` nothing is taken in service: the preemptor is

@@ -374,15 +374,10 @@ class RequestQ @JvmOverloads constructor(
      *  that names [member] and fits in its available units, or one that names a pool [member] belongs to
      *  and that the pool can supply. Requests already woken are skipped, and so are requests that do not
      *  fit, as when units are freed today. A request selection rule, when the queue has one, limits which
-     *  requests are considered. A waiting preemptor's check asks what [available] units of [member] would
-     *  serve, passing over the requests in [passOver]; a pool's request is judged by what the pool can supply
-     *  now, as at an offer.
+     *  requests are considered.
      */
-    internal fun nextRequestServableBy(
-        member: Resource,
-        available: Int = member.numAvailableUnits,
-        passOver: Set<ProcessModel.Entity.Request> = emptySet()
-    ): ProcessModel.Entity.Request? {
+    internal fun nextRequestServableBy(member: Resource): ProcessModel.Entity.Request? {
+        val available = member.numAvailableUnits
         val rule = requestSelectionRule
         val allowed: Set<ProcessModel.Entity.Request>? = if (rule == null) null else buildSet {
             addAll(rule.selectRequests(member, this@RequestQ))
@@ -395,7 +390,7 @@ class RequestQ @JvmOverloads constructor(
         }
         // in the queue's own discipline order, which for a LIFO or random queue is not the list order
         return firstMatching { request ->
-            if (request.resumePending || request.isReserved || request in passOver ||
+            if (request.resumePending || request.isReserved ||
                 (allowed != null && request !in allowed)
             ) {
                 false

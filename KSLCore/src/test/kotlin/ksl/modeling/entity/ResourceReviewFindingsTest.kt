@@ -94,7 +94,7 @@ class ResourceReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("a waiting preemptor needing fewer units than are freed takes none ahead of a more urgent request the rest would serve")
+    @DisplayName("a waiting preemptor needing fewer units than are freed is compared with the request next in line, not one further back")
     fun preemptorNeedingFewerThanFreed() {
         val shop = run(2) {
             job("H", 0.0, 4.0, priority = 1, n = 2)
@@ -102,8 +102,9 @@ class ResourceReviewFindingsTest {
             job("B", 2.0, 5.0, priority = 2, queue = otherQ)
             urgent("P", 3.0, 1.0, priority = 5)
         }
-        // at 4 the default offer serves L (entered first) and B: B outranks P, so P waits for the next unit, at 9
-        assertEquals(listOf("H got@0.0", "L got@4.0", "B got@4.0", "P got@9.0"), shop.log)
+        // at 4 the default offer would serve L first (entered first): P outranks L and takes a unit, then L takes the
+        // other. B, more urgent than P but behind L, is served at P's release, at 5
+        assertEquals(listOf("H got@0.0", "P got@4.0", "L got@4.0", "B got@5.0"), shop.log)
     }
 
     @Test

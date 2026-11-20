@@ -1758,7 +1758,9 @@ open class Resource @JvmOverloads constructor(
      *  its units, or, under `FINISH`, reserves them; then the next plans. So a holder never resumes ahead
      *  of a waiting preemptor that outranks it, and free units go to a waiting preemptor ahead of the
      *  requests it outranks. It takes no free unit ahead of a request or a reservation as urgent as it is
-     *  (see [mayTakeFreeUnits]): it stays waiting, and the units go to the reservations and the queue.
+     *  (see [mayTakeFreeUnits]): it stays waiting, and the units go to the reservations and the queue. The
+     *  offer of freed units calls this first, before each request it serves, and once more when it has served
+     *  any reservation or request.
      */
     private fun replanWaitingPreemptors(priority: Int, source: ResumeSource, detail: String?) {
         if (myWaitingPreemptors.isEmpty() || isFailed || isInactive || isRunEnded) return
@@ -1789,37 +1791,28 @@ open class Resource @JvmOverloads constructor(
 
     /**
      *  Whether the waiting preemptor [request] may take free units now. It may not while something as urgent as it
-     *  is comes before it: a reservation still collecting units whose entity is equally or more urgent, or a
-     *  request the free units would be offered to before it when that request is more urgent, or is equally urgent
-     *  and ahead of it (in its own queue by the queue's discipline, in another queue by the time it began to wait).
-     *  Under the default notification rule the free units are offered request by request, to the one that entered
-     *  its queue first across the queues, until they are used up: the preemptor is compared with every request
-     *  served before it, over all the free units. Under a rule of the model's own, the next request of any queue can
-     *  hold it back. Requests of lower priority do not hold it back.
+     *  is comes before it: a reservation still collecting units whose entity is equally or more urgent, or the
+     *  request the free units would go to next, when that request is more urgent, or is equally urgent and ahead of
+     *  it (in its own queue by the queue's discipline, in another queue by the time it began to wait). That request
+     *  is the one the offer would serve next: under the default notification rule, the one that entered its queue
+     *  first; under a rule of the model's own, the next of the first queue, in the rule's order, that has one the
+     *  units can serve. A request of lower priority does not hold it back. The offer asks again before each request
+     *  it serves, so the preemptor is compared with each in turn.
      */
     private fun mayTakeFreeUnits(request: ProcessModel.Entity.ResourceRequest): Boolean {
         val priority = request.entity.priority
         if (myReservations.any { !it.isComplete && it.request.entity.priority <= priority }) return false
         if (requestQNotificationRule === DefaultRequestQueueNotificationRule) {
-            // The free units are offered request by request, in the default rule's order, until they run out. The
-            // preemptor is compared with each request served before it in that order, over all the free units: one
-            // that comes before it holds it back, as the offer would serve that request ahead of it.
-            var budget = numAvailableUnits
-            val passOver = mutableSetOf<ProcessModel.Entity.Request>()
-            while (budget > 0) {
-                val (nextQueue, next) = nextByDefaultRule(myCapacityChangeQSet, budget, passOver) ?: break
-                if (next === request) return true
-                if (comesBefore(next, nextQueue, request)) return false
-                passOver.add(next)
-                budget -= minOf(next.amountRequested, budget)
-            }
-            return true
+            val (nextQueue, next) = nextByDefaultRule(myCapacityChangeQSet) ?: return true
+            return next === request || !comesBefore(next, nextQueue, request)
         }
-        // a rule of the model's own offers queue by queue: the next request of any queue can hold it back
-        for (queue in myCapacityChangeQSet) {
+        // a rule of the model's own offers queue by queue, in its order: the next request is that of the first queue
+        // with one the units can serve, as the offer finds it
+        val itr = requestQNotificationRule.ruleIterator(myCapacityChangeQSet)
+        while (itr.hasNext()) {
+            val queue = itr.next()
             val next = queue.nextRequestServableBy(this) ?: continue
-            if (next === request) continue
-            if (comesBefore(next, queue, request)) return false
+            return next === request || !comesBefore(next, queue, request)
         }
         return true
     }
@@ -1835,18 +1828,13 @@ open class Resource @JvmOverloads constructor(
      *  Under the default notification rule, the request this resource would serve next from [queues]: of the
      *  next request of each queue, the one that entered its queue first, with the queue it is in. Null when no
      *  queue has a request the resource can serve. The offer of freed units and a waiting preemptor's check
-     *  both use it, so the two agree. The check asks what would be served from [available] units, passing over
-     *  the requests it has already counted as served ([passOver]).
+     *  both use it, so the two agree.
      */
-    private fun nextByDefaultRule(
-        queues: Set<RequestQ>,
-        available: Int = numAvailableUnits,
-        passOver: Set<ProcessModel.Entity.Request> = emptySet()
-    ): Pair<RequestQ, ProcessModel.Entity.Request>? {
+    private fun nextByDefaultRule(queues: Set<RequestQ>): Pair<RequestQ, ProcessModel.Entity.Request>? {
         var bestQueue: RequestQ? = null
         var best: ProcessModel.Entity.Request? = null
         for (queue in queues) {
-            val candidate = queue.nextRequestServableBy(this, available, passOver) ?: continue
+            val candidate = queue.nextRequestServableBy(this) ?: continue
             if (best == null || candidate.timeEnteredQueue < best.timeEnteredQueue) {
                 bestQueue = queue
                 best = candidate
@@ -2293,16 +2281,29 @@ open class Resource @JvmOverloads constructor(
         // a waiting preemptor plans again first, even when no unit is free: units that came back to their
         // holders, at a repair or a return to shift, can be taken from them
         replanWaitingPreemptors(priority, source, detail)
-        if (numAvailableUnits <= 0) return
-        // a preemption waiting for units its victims used takes them ahead of the queue
-        serveReservations(priority, source, detail)
-        if (numAvailableUnits <= 0) return
+        val free = numAvailableUnits
+        if (free > 0) {
+            // a preemption waiting for units its victims used takes them ahead of the queue
+            serveReservations(priority, source, detail)
+            if (numAvailableUnits > 0) offerToQueues(priority, source, detail, alsoQueue)
+        }
+        // a preemptor that gave way to a reservation or a more urgent request takes what it can now that they are
+        // served: the units left, and those of the holders it outranks
+        if (numAvailableUnits != free && myWaitingPreemptors.isNotEmpty()) replanWaitingPreemptors(priority, source, detail)
+    }
+
+    /**
+     *  Offers the available units to the requests in the registered queues and [alsoQueue], by the notification
+     *  rule. A waiting preemptor plans again before each request is served, so it is compared with each in turn.
+     */
+    private fun offerToQueues(priority: Int, source: ResumeSource, detail: String?, alsoQueue: RequestQ?) {
         val queues: Set<RequestQ> =
             if (alsoQueue == null || alsoQueue in myCapacityChangeQSet) myCapacityChangeQSet
             else LinkedHashSet(myCapacityChangeQSet).apply { add(alsoQueue) }
         if (queues.isEmpty()) return
         if (requestQNotificationRule === DefaultRequestQueueNotificationRule) {
             while (numAvailableUnits > 0) {
+                if (!replanBeforeNextRequest(priority, source, detail)) break
                 val (bestQueue, best) = nextByDefaultRule(queues) ?: break
                 if (!bestQueue.wake(best, this, priority, source, detail)) break
             }
@@ -2311,11 +2312,18 @@ open class Resource @JvmOverloads constructor(
             while (itr.hasNext() && numAvailableUnits > 0) {
                 val q = itr.next()
                 while (numAvailableUnits > 0) {
+                    if (!replanBeforeNextRequest(priority, source, detail)) break
                     val candidate = q.nextRequestServableBy(this) ?: break
                     if (!q.wake(candidate, this, priority, source, detail)) break
                 }
             }
         }
+    }
+
+    /** Lets the waiting preemptors plan before the next request is served; false when no unit is left to offer. */
+    private fun replanBeforeNextRequest(priority: Int, source: ResumeSource, detail: String?): Boolean {
+        if (myWaitingPreemptors.isNotEmpty()) replanWaitingPreemptors(priority, source, detail)
+        return numAvailableUnits > 0
     }
 
     protected fun negativeChangeNoPendingChangeIgnoreRule(notice: CapacityChangeNotice) {

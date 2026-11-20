@@ -554,8 +554,10 @@ class PreemptionTest {
                 }
                 actor("K") { delay(12.0); s.terminateProcess() }
             }
-            // S, woken at 10, is terminated at 12; at the repair at 15 P is given the unit and takes it
-            assertEquals(listOf("P got@15.0", "P holds 0, busy 0"), m.log, if (two) "two units" else "one unit")
+            // with one unit: S, woken at 10, is terminated at 12; at the repair at 15 P is given the unit and takes it.
+            // With two, P takes at 10 the unit S's wake leaves free, once the offer has served S
+            val got = if (two) "P got@10.0" else "P got@15.0"
+            assertEquals(listOf(got, "P holds 0, busy 0"), m.log, if (two) "two units" else "one unit")
         }
     }
 
@@ -596,7 +598,7 @@ class PreemptionTest {
     }
 
     @Test
-    @DisplayName("two queues: a waiting preemptor needing more units than the request served next takes none ahead of a more urgent request behind it")
+    @DisplayName("two queues: a waiting preemptor needing more units than the request served next goes ahead of it, though a more urgent request waits behind it")
     fun waitingPreemptorTakingMoreThanTheNextRequest() {
         val (_, m) = run(length = 100.0) {
             job("H", r2, 0.0, 4.0, priority = 1, n = 2)
@@ -604,9 +606,9 @@ class PreemptionTest {
             actor("B", 1) { delay(2.0); val a = seize(r2, queue = otherQ); log.add("B got@$time"); delay(5.0); release(a) }
             urgent("P", r2, 3.0, 1.0, priority = 2, n = 2)
         }
-        // at 4 H frees both units: the default rule serves A, which entered first, and then B, which outranks P; P has
-        // both units once A and B are done, at 9
-        assertEquals(listOf("A got@4.0", "B got@4.0", "P got@9.0"), m.log.filter { "got" in it && !it.startsWith("H") })
+        // at 4 H frees both units: the default rule would serve A, which entered first; P outranks A and takes both.
+        // B, more urgent than P, is not next in line, so it does not hold P back; A and B follow at P's release
+        assertEquals(listOf("P got@4.0", "A got@5.0", "B got@5.0"), m.log.filter { "got" in it && !it.startsWith("H") })
     }
 
     @Test
