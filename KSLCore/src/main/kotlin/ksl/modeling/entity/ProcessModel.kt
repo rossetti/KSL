@@ -4526,11 +4526,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
             }
 
-            /** Ends every blockage this terminated process started, waking the entities it blocks. */
+            /**
+             *  Ends every blockage this terminated process started, waking the entities it blocks. Once the
+             *  replication has ended, it wakes no one: the executive accepts no more events, and the blocked entities
+             *  are being terminated too, each leaving the blockage as it ends.
+             */
             private fun endBlockagesOfTerminatedProcess() {
                 val active = myActiveBlockages?.toList() ?: return
                 for (blockage in active) {
-                    if (blockage.isActive && blockage.isStartedBy(this)) blockage.end(this, this@Entity)
+                    if (blockage.isActive && blockage.isStartedBy(this)) {
+                        blockage.end(this, this@Entity, wakeBlocked = !executive.isEnded)
+                    }
                 }
             }
 
@@ -4925,7 +4931,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             /** True when [process] started this blockage. */
             internal fun isStartedBy(process: KSLProcess): Boolean = myBlockingProcess == process
 
-            internal fun end(process: KSLProcess, ender: Entity, priority: Int = RESUME_PRIORITY) {
+            internal fun end(process: KSLProcess, ender: Entity, priority: Int = RESUME_PRIORITY, wakeBlocked: Boolean = true) {
                 require(myBlockingProcess == process) { "The process (${myBlockingProcess?.name}) that started the blockage was not the same process attempting to end it." }
                 require(isActive) { "The blockage ($name) cannot be ended because it is not active." }
                 require(ender == myEntity) { "The entity (${ender.name}) clearing the blockage must be its associated entity (${myEntity.name}) that created it." }
@@ -4933,13 +4939,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 isCompleted = true
                 isActive = false
                 myBlockingProcess = null
-                for (blockedEntity in myBlockedEntities) {
-                    blockedEntity.scheduleResumeProcess(
-                        priority = priority,
-                        source = ResumeSource.BLOCKAGE_END,
-                        detail = "blockage=$name, blocking_entity_id=${myEntity.id}"
-                    )
-                    //the entities are responsible for removing themselves using the removeBlockedEntity() function after resuming
+                // once the run has ended no resume can be scheduled; the blocked entities leave as they are terminated
+                if (wakeBlocked) {
+                    for (blockedEntity in myBlockedEntities) {
+                        blockedEntity.scheduleResumeProcess(
+                            priority = priority,
+                            source = ResumeSource.BLOCKAGE_END,
+                            detail = "blockage=$name, blocking_entity_id=${myEntity.id}"
+                        )
+                        //the entities are responsible for removing themselves using the removeBlockedEntity() function after resuming
+                    }
                 }
                 // remove the blockage from the entity's management list
                 if (myActiveBlockages != null) {

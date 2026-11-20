@@ -873,12 +873,22 @@ open class Resource @JvmOverloads constructor(
      */
     fun fail(rule: InterruptRule = interruptRule) {
         check(!isFailed) { "$name is already failed; check isFailed before calling fail()." }
+        failWith(rule, declared = false)
+    }
+
+    /**
+     *  Fails the resource. The failure is marked as a declared one, or not, before its listeners are told, so a
+     *  listener that repairs it and fails the resource again by hand makes a failure of the model's own, which the
+     *  declared failures leave alone.
+     */
+    private fun failWith(rule: InterruptRule, declared: Boolean) {
         // nothing was available while inactive and nothing is while failed: no change to tell of
         myInactiveAtFailure = isInactive
         myQuietAvailabilityHooks = true
         myState = myFailedState
         myQuietAvailabilityHooks = false
         myFailureRule = rule
+        myDeclaredFailureInProgress = declared
         if (rule != InterruptRule.FINISH) {
             // units already missing (lent to a preemptor) go missing through the borrower's allocation
             for (a in allocations()) {
@@ -1075,8 +1085,7 @@ open class Resource @JvmOverloads constructor(
         if (!entity.due.isSuspended || isRunEnded) return
         // a resource failed by hand keeps that failure; the entity waits for its repair, as before
         if (!isFailed) {
-            fail(myFailureSpec!!.rule)
-            myDeclaredFailureInProgress = true
+            failWith(myFailureSpec!!.rule, declared = true)
             entity.failedWhenDue = true
         }
         entity.due.resume()
@@ -1178,16 +1187,17 @@ open class Resource @JvmOverloads constructor(
                 }
                 if (failedWhenDue) {
                     failedWhenDue = false
-                    // repaired by hand at the instant it failed: the time to the next failure counts from then
-                    if (!isFailed) continue
-                } else {
-                    if (isFailed) {
-                        // failed by a call of fail(): this failure waits for that repair and its clock starts again
-                        suspendFor(repaired)
-                        continue
-                    }
-                    fail(spec.rule)
-                    myDeclaredFailureInProgress = true
+                } else if (!isFailed) {
+                    failWith(spec.rule, declared = true)
+                }
+                // repaired by hand at the instant it failed, by a failure listener: the time to the next failure
+                // counts from then
+                if (!isFailed) continue
+                if (!myDeclaredFailureInProgress) {
+                    // failed by a call of fail(), before this failure came due or in place of it at the instant it
+                    // began: this failure waits for that repair and its clock starts again
+                    suspendFor(repaired)
+                    continue
                 }
                 // the repair time, or a repair by hand before it ends, whichever comes first; a hand repair
                 // ends this failure early, and the time to the next one counts from it
