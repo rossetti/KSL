@@ -1378,8 +1378,21 @@ class Model @JvmOverloads constructor(
         }
         logger.trace { "Performing after replication actions for model elements" }
         ModelElement.logger.trace { "Performing after replication actions for model elements" }
-        afterReplicationActions()
+        isTerminatingEntities = true
+        try {
+            afterReplicationActions()
+        } finally {
+            isTerminatingEntities = false
+        }
     }
+
+    /**
+     *  True only while the after-replication actions run, when the process models terminate the entities still
+     *  waiting and their finally blocks and termination hooks run. A wake-up or activation asked for then is
+     *  dropped; at any other time scheduling after the replication has ended is an error, as it has always been.
+     */
+    internal var isTerminatingEntities: Boolean = false
+        private set
 
     internal fun endExperiment() {
         logger.debug { "Performing after experiment actions for model elements" }

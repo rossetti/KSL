@@ -249,12 +249,26 @@ class Executive @JvmOverloads constructor(
             event.isScheduled = true
             return event
         } else {
-            val event = KSLEvent(-99, eventAction, eventTime, priority, message, name, theElementScheduling)
+            val event = unscheduledEvent(theElementScheduling, eventAction, interEventTime, message, priority, name)
             val sb = StringBuilder()
             sb.append("Attempted to schedule an event, $event, after the scheduled simulation end time: ${scheduledEndTime()} the event was not scheduled and will not execute")
             Model.logger.trace { sb.toString() }
             return event
         }
+    }
+
+    /**
+     *  An event that is not placed on the calendar and will not execute (its id is -99 and it is not
+     *  scheduled): what scheduling returns for an event that cannot happen, after the scheduled end time or
+     *  once the replication has ended.
+     */
+    internal fun <T> unscheduledEvent(
+        theElementScheduling: ModelElement, eventAction: ModelElement.EventActionIfc<T>, interEventTime: Double,
+        message: T? = null, priority: Int, name: String? = null
+    ): KSLEvent<T> {
+        val event = KSLEvent(-99, eventAction, currentTime + interEventTime, priority, message, name, theElementScheduling)
+        event.name = name
+        return event
     }
 
     /**

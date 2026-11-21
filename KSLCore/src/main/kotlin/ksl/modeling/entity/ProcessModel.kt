@@ -377,7 +377,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      * @param process the process to start for an entity
      * @param timeUntilActivation the time until the start the process
      * @param priority the priority associated with the event to start the process
-     * @return the scheduled activation event
+     * @return the scheduled activation event. While a replication's entities are terminated at its end
+     * (`isReplicationEnding`), no event can happen: the activation is dropped and the event returned is not
+     * scheduled.
      */
     fun activate(
         process: KSLProcess,
@@ -401,6 +403,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     protected open fun dispose(entity: Entity) {
 
     }
+
+    /**
+     *  True while the entities still waiting at the end of a replication are terminated, and their finally
+     *  blocks and termination hooks (`Entity.handleTerminatedProcess`) run. A wake-up or an activation asked for
+     *  then is dropped, since no event can happen any more; a termination hook can read this to skip building a
+     *  recovery entity. At any other time after the replication's events have ended, scheduling is an error.
+     */
+    val isReplicationEnding: Boolean
+        get() = model.isTerminatingEntities
 
     /**
      *  It is essential that subclasses that override this function call the super.
@@ -1461,8 +1472,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             source: ResumeSource = ResumeSource.UNKNOWN_INTERNAL,
             detail: String? = null
         ) {
-            // entity must be in a process and suspended
-            if (myCurrentProcess != null) {
+            // entity must be in a process and suspended. While the entities still waiting at the end of a
+            // replication are terminated no event can happen: a wake-up asked for then (from a finally block or a
+            // termination hook) is dropped, and the entity is terminated in its turn
+            if (myCurrentProcess != null && !model.isTerminatingEntities) {
                 val intent = ResumeIntent(
                     source = source,
                     detail = detail,
@@ -1519,7 +1532,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // from the queue immediately before calling, so a terminated entity cannot be selected.
             // Adding a liveness check here would silence genuine state-machine errors on the one
             // resume path that has no provenance. If a third caller is ever added, revisit this.
-            if (myCurrentProcess != null) {
+            // dropped while the entities are terminated at the end of a replication, as a scheduled resume is
+            if (myCurrentProcess != null && !model.isTerminatingEntities) {
                 // an immediate resume must not overtake one that is already scheduled
                 checkNoPendingResume("an immediate resume")
 //                logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = $id: called IMMEDIATE resume" }
@@ -1554,13 +1568,16 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  the user should override the Entity's handleTerminatedProcess() function to
          *  supply specific logic.  Termination happens immediately, with no time delay.
          *
-         *  Calling this function when the entity is not currently executing a process does nothing.
+         *  Calling this function when the entity is not currently executing a process, or when its process is
+         *  already being terminated, does nothing.
          *
          *  @param afterTermination a function to invoke after the process is successfully terminated.
          *  The entity supplied to it has already been released and may be given a new process.
          */
         fun terminateProcess(afterTermination: ((entity: Entity) -> Unit)? = null) {
-            if (myCurrentProcess != null) {
+            // a process already terminated is still bound to its entity until its clean-up has finished: a
+            // termination hook run by that clean-up may ask again, and there is nothing more to do
+            if (myCurrentProcess != null && !myCurrentProcess!!.isTerminated) {
                 myCurrentProcess!!.terminate(afterTermination)
             }
         }
@@ -1747,6 +1764,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  what the entity does next, including activating a new process instance on it — abandon
          *  the task that was terminated and start a recovery task, for example. The terminated
          *  process instance itself cannot be reused; create a new one.
+         *
+         *  It is also called for every entity still waiting when a replication ends, as the entities are
+         *  terminated then. A process activated or a wake-up asked for at that time is dropped, since no event
+         *  can happen; `isReplicationEnding` on the process model tells the two cases apart.
          *
          *  @param terminatedProcess the process that was terminated.
          */
@@ -2393,6 +2414,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     } else {
                         "The $this process cannot be activated for the entity because the entity is already running a process: ${cp?.name}"
                     }
+                }
+                if (model.isTerminatingEntities) {
+                    // asked for while the replication's entities are terminated at its end: no event can happen,
+                    // so the activation is dropped and the entity is left as it was
+                    return executive.unscheduledEvent(this@ProcessModel, myActivationAction, timeUntilActivation, this, priority)
                 }
                 myPendingProcess = this
                 entity.state.schedule()
@@ -4528,8 +4554,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             /**
              *  Ends every blockage this terminated process started, waking the entities it blocks. Once the
-             *  replication has ended, it wakes no one: the executive accepts no more events, and the blocked entities
-             *  are being terminated too, each leaving the blockage as it ends.
+             *  replication's events have ended it wakes no one: the blocked entities are being terminated too, each
+             *  leaving the blockage as it ends.
              */
             private fun endBlockagesOfTerminatedProcess() {
                 val active = myActiveBlockages?.toList() ?: return
@@ -4871,7 +4897,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  blockage is cleared.  Only the entity that creates the blockage can start and clear it.
          *  A started blockage must be cleared before the end of the process routine that contains
          *  it; otherwise, an exception will occur. Thus, blockages that are started must always
-         *  be cleared.  The primary purpose of this construct is to facilitate process
+         *  be cleared, for example with `clearBlockage` in a finally block; at the end of a replication,
+         *  when the entity is terminated, the wake-ups that clearing asks for are dropped. A process
+         *  terminated with a blockage it started ends that blockage. The primary purpose of this construct is to facilitate process
          *  interaction between entities. Using blockages should be preferred over raw suspend/resume
          *  usage and even the use of Suspension instances.
          */
@@ -4939,7 +4967,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 isCompleted = true
                 isActive = false
                 myBlockingProcess = null
-                // once the run has ended no resume can be scheduled; the blocked entities leave as they are terminated
+                // once the replication's events have ended no resume can be scheduled; the blocked entities leave as
+                // they are terminated
                 if (wakeBlocked) {
                     for (blockedEntity in myBlockedEntities) {
                         blockedEntity.scheduleResumeProcess(
