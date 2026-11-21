@@ -753,20 +753,28 @@ open class Resource @JvmOverloads constructor(
      *  holders whose entity's priority is lower (a larger number) than [entity]'s, lowest priority first and,
      *  among equals, the most recently allocated first, only as many as are still needed. Units [returning]
      *  to a holder from a loan that is ending count as that holder's. Null when the free units are already
-     *  enough or when the free and lendable units together are too few.
+     *  enough, when the free and lendable units together are too few, when more is needed than the capacity the
+     *  resource is heading to (its current change, and any change asked for and waiting, but not a capacity
+     *  schedule's item waiting its turn), or, for a preemption that takes units at once ([takesAtOnce], under
+     *  `RESUME` or `RESTART`), while a `FINISH` reservation of another entity, as urgent or more, is still collecting
+     *  its units.
      */
     internal fun planPreemption(
         entity: ProcessModel.Entity,
         amountNeeded: Int,
-        returning: Map<Allocation, Int> = emptyMap()
+        returning: Map<Allocation, Int> = emptyMap(),
+        takesAtOnce: Boolean = true
     ): PreemptionPlan? {
         // off shift, or with the capacity cut below what is needed, nothing is taken: units above the capacity
         // are only finishing the work they were allocated for. Under the WAIT rule the capacity is cut only as busy
         // units are released, so a pending decrease counts at the capacity it is heading to, and off shift at none.
-        var reachable = myCurrentChangeNotice?.let { minOf(capacity, it.capacity) } ?: capacity
-        // a cut waiting behind another change, as a shift's end can, counts as well
-        for (waiting in myWaitingChangeNotices) reachable = minOf(reachable, waiting.capacity)
-        if (amountNeeded > reachable) return null
+        if (amountNeeded > reachableCapacity) return null
+        // a FINISH preemption still collecting its units ranks its claim: units are not taken at once, under RESUME
+        // or RESTART, from holders ahead of one that is as urgent or more. Another FINISH preemption only reserves,
+        // and the reservations are served in order of priority.
+        if (takesAtOnce && myReservations.any { isCollecting(it) && it.request.entity !== entity && it.request.entity.priority <= entity.priority }) {
+            return null
+        }
         val free = numAvailableUnits
         var short = amountNeeded - free
         if (short <= 0) return null
@@ -843,11 +851,22 @@ open class Resource @JvmOverloads constructor(
      *  among equals, and resumes each one that has all it needs.
      */
     private fun serveReservations(priority: Int, source: ResumeSource, detail: String?) {
+        var withdrawn = 0
         // a stable sort: the list is in the order the reservations were made
         for (reservation in myReservations.sortedBy { it.request.entity.priority }) {
             if (numAvailableUnits <= 0) break
             // one already woken to take its units keeps its place until it takes them
             if (reservation.isComplete) continue
+            if (!isCollecting(reservation)) {
+                // more than the capacity heading to: it holds nothing, and collects when the capacity returns
+                val held = reservation.request.promises[this] ?: 0
+                if (held > 0) {
+                    reservation.request.withdrawPromise(this, held)
+                    reservation.stillNeeded += held
+                    withdrawn += held
+                }
+                continue
+            }
             val k = minOf(reservation.stillNeeded, numAvailableUnits)
             reservation.request.promise(this, k)
             reservation.stillNeeded -= k
@@ -856,6 +875,109 @@ open class Resource @JvmOverloads constructor(
             val request = reservation.request
             val queue = request.queue as RequestQ
             queue.resumeWoken(request, priority, source, "reservation_completed_resource=$name, request_id=${request.id}, $detail")
+        }
+        // a pending change counted the promised units it needs
+        if (withdrawn > 0) unitsWithdrawnFromPromise(withdrawn)
+    }
+
+    /**
+     *  The capacity the resource is heading to: the current capacity, cut to that of its current change and of any
+     *  change asked for and waiting behind it, as an off-shift or a cut by hand can. A capacity schedule's item
+     *  whose turn has not come does not count: under WAIT the schedule runs late, and its next item can wait while
+     *  the current one still runs.
+     */
+    private val reachableCapacity: Int
+        get() {
+            var reachable = myCurrentChangeNotice?.let { minOf(capacity, it.capacity) } ?: capacity
+            for (waiting in myWaitingChangeNotices) {
+                if (!waiting.isScheduleItem) reachable = minOf(reachable, waiting.capacity)
+            }
+            return reachable
+        }
+
+    /**
+     *  True for a reservation still collecting its units that the capacity the resource is heading to could fill.
+     *  One for more units than that holds nothing and blocks no one; it collects when the capacity returns.
+     */
+    private fun isCollecting(reservation: Reservation): Boolean =
+        !reservation.isComplete && reservation.request.amountRequested <= reachableCapacity
+
+    /**
+     *  A seize has just taken units of this resource, as a woken or reserved request taking what it was promised
+     *  does. Promised units cannot be lent, so a waiting preemptor that outranks the request could not plan
+     *  against them; now they are an allocation it may take from, and it plans again.
+     */
+    internal fun afterPromisedUnitsTaken() {
+        if (myWaitingPreemptors.isEmpty() || isRunEnded) return
+        replanWaitingPreemptors(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "promised_units_taken_resource=$name")
+    }
+
+    /** Set when a reservation was given up by a decrease, so its units are offered once the change is applied. */
+    private var myReservationReturned: Boolean = false
+
+    /** Offers the units of reservations a decrease gave up, once the change has been applied. */
+    private fun offerUnitsOfReturnedReservations(priority: Int) {
+        // a change asked for and now waiting can lower the capacity heading to below what a reservation needs:
+        // it stops collecting, and gives back what it holds at once rather than at the next offer
+        var withdrawn = 0
+        for (reservation in myReservations) {
+            if (reservation.isComplete || isCollecting(reservation)) continue
+            val held = reservation.request.promises[this] ?: 0
+            if (held <= 0) continue
+            reservation.request.withdrawPromise(this, held)
+            reservation.stillNeeded += held
+            withdrawn += held
+            myReservationReturned = true
+        }
+        // a pending change counted the promised units it needs; once the loop is over, as handing them on can
+        // start the next change
+        if (withdrawn > 0) unitsWithdrawnFromPromise(withdrawn)
+        if (!myReservationReturned) return
+        myReservationReturned = false
+        if (!isRunEnded) offerFreedUnits(priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "reservation_given_up_resource=$name")
+    }
+
+    /**
+     *  For a capacity decrease short of idle units: takes back up to [need] units promised to reservations still
+     *  collecting theirs, the least urgent first and the latest made first among equals, and returns how many it
+     *  took. Each such reservation needs them again, and collects them as units come free. A complete reservation,
+     *  whose request has been woken to take its units, keeps them, as a woken request does. Without this a WAIT
+     *  decrease and a part-filled reservation could each wait for the units the other holds.
+     */
+    private fun reclaimFromReservationsCollecting(need: Int): Int {
+        var taken = 0
+        val collecting = myReservations.filter { !it.isComplete }
+            .withIndex().sortedWith(compareBy<IndexedValue<Reservation>>({ -it.value.request.entity.priority }, { -it.index }))
+            .map { it.value }
+        for (reservation in collecting) {
+            if (taken >= need) break
+            val request = reservation.request
+            val held = request.promises[this] ?: 0
+            if (held <= 0) continue
+            val k = minOf(held, need - taken)
+            request.withdrawPromise(this, k)
+            reservation.stillNeeded += k
+            taken += k
+        }
+        return taken
+    }
+
+    /**
+     *  As a capacity decrease to [limit] is applied: a reservation still collecting, for more units than [limit],
+     *  could never complete, and would hold its promised units, and so the resource, for good. It is given up: its
+     *  units are no longer promised, and its request waits again as a `FINISH` preemptor, planning again when
+     *  units come back, as one that found too few on arrival does. It took nothing, so it no longer counts as a
+     *  preemption.
+     */
+    private fun returnReservationsBeyond(limit: Int) {
+        for (reservation in myReservations.filter { !it.isComplete && it.request.amountRequested > limit }) {
+            val request = reservation.request
+            val held = request.promises[this] ?: 0
+            dropReservation(request)
+            if (held > 0) request.withdrawPromise(this, held)
+            numTimesPreempted--
+            waitAsPreemptor(request as ProcessModel.Entity.ResourceRequest, InterruptRule.FINISH)
+            myReservationReturned = true
         }
     }
 
@@ -1789,7 +1911,7 @@ open class Resource @JvmOverloads constructor(
         for (request in candidates) {
             val amount = request.amountRequested
             val plan = if (amount <= numAvailableUnits) PreemptionPlan(amount, emptyList())
-                else planPreemption(request.entity, amount) ?: continue
+                else planPreemption(request.entity, amount, takesAtOnce = request.waitingPreemptRule != InterruptRule.FINISH) ?: continue
             if (plan.free > 0 && !mayTakeFreeUnits(request)) continue
             // taking only free units, it is served as a seize is, so its queue's selection rule must choose it, as
             // it must on arrival
@@ -1816,7 +1938,7 @@ open class Resource @JvmOverloads constructor(
      */
     private fun mayTakeFreeUnits(request: ProcessModel.Entity.ResourceRequest): Boolean {
         val priority = request.entity.priority
-        if (myReservations.any { !it.isComplete && it.request.entity.priority <= priority }) return false
+        if (myReservations.any { isCollecting(it) && it.request.entity.priority <= priority }) return false
         if (requestQNotificationRule === DefaultRequestQueueNotificationRule) {
             val (nextQueue, next) = nextByDefaultRule(myCapacityChangeQSet) ?: return true
             return next === request || !comesBefore(next, nextQueue, request)
@@ -1971,6 +2093,12 @@ open class Resource @JvmOverloads constructor(
      * R1.8 it became current without its decrease ever being applied.
      */
     private fun startNextWaitingChangeIgnoreRule() {
+        applyNextWaitingChangeIgnoreRule()
+        // a reservation a decrease just gave up has its units offered now the change is applied
+        offerUnitsOfReturnedReservations(KSLEvent.DEFAULT_PRIORITY)
+    }
+
+    private fun applyNextWaitingChangeIgnoreRule() {
         myCurrentChangeNotice = null
         while (myWaitingChangeNotices.isNotEmpty()) {
             val next = myWaitingChangeNotices.removeFirst()
@@ -1993,6 +2121,12 @@ open class Resource @JvmOverloads constructor(
      * next one starts at once rather than waiting for an end that never comes.
      */
     private fun startNextWaitingChangeWaitRule() {
+        applyNextWaitingChangeWaitRule()
+        // a reservation a decrease just gave up has its units offered now the change is applied
+        offerUnitsOfReturnedReservations(KSLEvent.DEFAULT_PRIORITY)
+    }
+
+    private fun applyNextWaitingChangeWaitRule() {
         myCurrentChangeNotice = null
         while (myWaitingChangeNotices.isNotEmpty()) {
             val next = myWaitingChangeNotices.removeFirst()
@@ -2183,6 +2317,7 @@ open class Resource @JvmOverloads constructor(
             logger.trace { "$time > Resource: $name, handling WAIT rule" }
             handleIncomingChangeNoticeWaitRule(notice)
         }
+        offerUnitsOfReturnedReservations(notice.priority)
     }
 
     protected fun handleIncomingChangeNoticeIgnoreRule(notice: CapacityChangeNotice) {
@@ -2202,6 +2337,10 @@ open class Resource @JvmOverloads constructor(
                 // process the positive change now since there is no pending change anymore
                 if (notice.capacity > capacity) {
                     processPositiveCapacityChange(notice)
+                } else if (!isRunEnded) {
+                    // the capacity stays as it is, so no increase follows to offer anything; a waiting preemptor that
+                    // the cleared cuts held back may take from lower-priority holders now, as under WAIT
+                    offerFreedUnits(notice.priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "decrease_withdrawn_resource=$name")
                 }
             } else if (notice.capacity < capacity) {
                 // negative change with change pending
@@ -2345,6 +2484,7 @@ open class Resource @JvmOverloads constructor(
         logger.trace { "$time > Resource: $name, change notice $notice is decreasing the capacity from $capacity to ${notice.capacity}." }
         // notice.capacity < capacity, need to decrease the capacity
         val decrease = capacity - notice.capacity
+        returnReservationsBeyond(notice.capacity)
         if (numIdleUnits >= decrease) {
             // there are enough available units to handle the change w/o using busy resources
             capacity = capacity - decrease
@@ -2413,6 +2553,9 @@ open class Resource @JvmOverloads constructor(
         logger.trace { "$time > Resource: $name, change notice $notice is decreasing the capacity from $capacity to ${notice.capacity}." }
         // notice.capacity < capacity, need to decrease the capacity
         val decrease = capacity - notice.capacity
+        returnReservationsBeyond(notice.capacity)
+        // units promised to a reservation still collecting its units are as good as idle to a decrease
+        if (numIdleUnits < decrease) reclaimFromReservationsCollecting(decrease - numIdleUnits.coerceAtLeast(0))
         if (numIdleUnits >= decrease) {
             // there are enough available units to handle the change w/o using busy resources
             capacity = capacity - decrease
@@ -2458,6 +2601,9 @@ open class Resource @JvmOverloads constructor(
         logger.trace { "$time > Resource: $name, change notice $notice is decreasing the capacity from $capacity to ${notice.capacity}." }
         // notice.capacity < capacity, need to decrease the capacity
         val decrease = capacity - notice.capacity
+        returnReservationsBeyond(notice.capacity)
+        // units promised to a reservation still collecting its units are as good as idle to a decrease
+        if (numIdleUnits < decrease) reclaimFromReservationsCollecting(decrease - numIdleUnits.coerceAtLeast(0))
         if (numIdleUnits >= decrease) {
             // there are enough available units to handle the change w/o using busy resources
             capacity = capacity - decrease
@@ -2535,6 +2681,9 @@ open class Resource @JvmOverloads constructor(
 
         val id : Int = ++myNoticeCount
 
+        /** True for a capacity schedule's item, as against a change the model asked for (a cut, an off-shift). */
+        internal var isScheduleItem: Boolean = false
+
         var changeEvent: KSLEvent<CapacityChangeNotice>? = null
             internal set
 
@@ -2568,7 +2717,7 @@ open class Resource @JvmOverloads constructor(
         override fun capacityChange(item: CapacitySchedule.CapacityItem) {
             logger.trace { "$time > Resource: $name, capacity item ${item.name} started with capacity ${item.capacity} for duration ${item.duration}." }
             // make the capacity change notice using information from CapacityItem
-            val notice = CapacityChangeNotice(item.capacity, item.duration, item.priority)
+            val notice = CapacityChangeNotice(item.capacity, item.duration, item.priority).also { it.isScheduleItem = true }
             notice.capacitySchedule = item.schedule
             // tell resource to handle it
             changeCapacity(notice)

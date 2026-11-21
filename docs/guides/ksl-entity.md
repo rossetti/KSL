@@ -586,7 +586,10 @@ private inner class Emergency : Entity() {
   are still needed. A holder of equal or higher
   priority is never preempted. When the free units and all the lower-priority
   holders' units together are too few, the capacity is less than the amount
-  needed (as off shift), or the resource is failed or inactive, nothing is
+  needed (as off shift, or below a cut asked for and still waiting its turn;
+  a capacity schedule's next item does not count until it starts), the
+  resource is failed or inactive, or (for `RESUME` and `RESTART`) a `FINISH`
+  preemptor as urgent or more is still collecting its units, nothing is
   taken: `preempt` waits like `seize`. It plans again whenever units come
   free or come back: at a release, at the end of a loan, at a repair, on a
   return to shift and at a capacity increase. The most urgent waiting
@@ -609,7 +612,12 @@ private inner class Emergency : Entity() {
   is held. Under `FINISH` nothing is taken in service: the preemptor is
   promised the free units and takes the rest as units are released, ahead of
   everyone waiting in the queue; several such preemptors take them in order
-  of priority, the earliest first among equals.
+  of priority, the earliest first among equals. A capacity decrease under
+  WAIT that is short of idle units takes back units promised to one still
+  collecting, which collects them again later. Under either rule, one that
+  needs more units than the capacity the resource is heading to holds none
+  and blocks no one; it is served, or reserves again, when the capacity
+  returns.
 - **The units go back.** The holder keeps its allocation. When the preemptor
   releases, the units it took go back to their holders first, newest first,
   and only then to the queue, unless a waiting preemptor outranks the holder

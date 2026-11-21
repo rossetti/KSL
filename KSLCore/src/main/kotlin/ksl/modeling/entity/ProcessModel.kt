@@ -1215,6 +1215,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal val isReserved: Boolean
                 get() = reservation != null
 
+            /** Withdraws [amount] of the units of [member] promised to this request, making them available again. */
+            internal fun withdrawPromise(member: Resource, amount: Int) {
+                val held = myPromises[member] ?: 0
+                require(amount in 1..held) { "cannot withdraw $amount units of ${member.name} from request_id = $id, which holds $held" }
+                if (held == amount) myPromises.remove(member) else myPromises[member] = held - amount
+                member.myPromisedUnits -= amount
+            }
+
             /** Withdraws this request's promises, making the units available again. */
             internal fun clearPromises() {
                 for ((member, amount) in myPromises) {
@@ -1854,6 +1862,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             val withdrawn = request.promises.toMap()
             val oldTarget = request.resource
             currentQueue.remove(request, waitStats)
+            // its promised units go on first, before anything here may promise them again
+            currentQueue.handOnWithdrawn(withdrawn)
             val newQ = resource.myWaitingQ
             newQ.enqueue(request, request.priority)
             // the request's original resource is replaced with the new resource
@@ -1925,6 +1935,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             val withdrawn = request.promises.toMap()
             val oldTarget = request.resource
             currentQueue.remove(request, waitStats)
+            // its promised units go on first, before anything here may promise them again
+            currentQueue.handOnWithdrawn(withdrawn)
             val newQ = pool.myWaitingQ
             newQ.enqueue(request, request.priority)
             // the request's original resource pool is replaced with the new resource pool
@@ -1988,6 +2000,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             val withdrawn = request.promises.toMap()
             val oldTarget = request.resource
             currentQueue.remove(request, waitStats)
+            // its promised units go on first, before anything here may promise them again
+            currentQueue.handOnWithdrawn(withdrawn)
             val newQ = pool.myWaitingQ
             newQ.enqueue(request, request.priority)
             // the request's original movable resource pool is replaced with the new movable resource pool
@@ -3067,7 +3081,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         takeResource(request, resource, queue, suspensionName, rewait = null)!!
                     } else {
                         val plan = if (!resource.isFailed && !resource.isInactive) {
-                            resource.planPreemption(entity, amountNeeded)
+                            resource.planPreemption(entity, amountNeeded, takesAtOnce = rule != InterruptRule.FINISH)
                         } else null
                         if (plan != null && rule != InterruptRule.FINISH) {
                             // taken at once: the request leaves its queue with a wait of zero
@@ -3169,6 +3183,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // a probably redundant check to ensure the resource can actually allocate the units
                 require(theResource.canAllocate(amountNeeded)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${theResource.name}" }
                 val allocation = theResource.allocate(entity, amountNeeded, queue, suspensionName)
+                theResource.afterPromisedUnitsTaken()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${theResource.name} : allocation_id = ${allocation.id}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END: SEIZE: RESOURCE: ${theResource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 return allocation
@@ -3452,6 +3467,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         resourceSelectionRule, resourceAllocationRule, suspensionName
                     )
                 }
+                // as for a seize of one resource: a waiting preemptor of a member may now take from this allocation
+                for (a in allocation.allocations) a.myResource.afterPromisedUnitsTaken()
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${thePool.name} : allocation_id = ${allocation.id}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: RESOURCE POOL: ${thePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 return allocation

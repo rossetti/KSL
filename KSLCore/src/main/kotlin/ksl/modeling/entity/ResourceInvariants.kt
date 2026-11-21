@@ -38,7 +38,8 @@ import ksl.utilities.observers.ObserverIfc
  *  - no loan outlives its borrower, and a lender, if any, still holds its allocation;
  *  - the units promised to woken requests are the promises the requests in its queues hold;
  *  - a pending capacity decrease never waits for more units than are busy or promised, the only ones that
- *    can still come to it, by a release or a withdrawn promise;
+ *    can still come to it, by a release or a withdrawn promise; under WAIT, units promised to a reservation
+ *    still collecting its units do not count, since the decrease takes them back as it starts;
  *  - each reservation's request waits in a queue, reserved, and holds what the reservation has promised;
  *  - every wait listed on an allocation's triggers is still open;
  *  - a holder's delay is held only by allocations with units missing, has no event on the calendar while
@@ -165,6 +166,15 @@ internal object ResourceInvariants {
                 resource, "a pending capacity change needs $need units, but only ${resource.numBusy} are busy and " +
                         "${resource.myPromisedUnits} promised"
             )
+        }
+        if (resource.capacityChangeRule == CapacityChangeRule.WAIT && need > 0) {
+            val collecting = resource.reservations.filter { !it.isComplete }.sumOf { it.request.promises[resource] ?: 0 }
+            if (need > resource.numBusy + resource.myPromisedUnits - collecting) {
+                violation(
+                    resource, "a pending capacity decrease needs $need units, but only ${resource.numBusy} are busy and " +
+                            "${resource.myPromisedUnits - collecting} promised outside reservations still collecting theirs"
+                )
+            }
         }
         for (reservation in resource.reservations) {
             val request = reservation.request
