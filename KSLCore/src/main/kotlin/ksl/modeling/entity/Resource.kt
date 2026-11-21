@@ -883,12 +883,11 @@ open class Resource @JvmOverloads constructor(
      */
     private fun failWith(rule: InterruptRule, declared: Boolean) {
         // nothing was available while inactive and nothing is while failed: no change to tell of
-        myInactiveAtFailure = isInactive
+        val inactive = isInactive
         myQuietAvailabilityHooks = true
         myState = myFailedState
         myQuietAvailabilityHooks = false
-        myFailureRule = rule
-        myDeclaredFailureInProgress = declared
+        myFailure = FailureInProgress(rule, declared, inactive)
         if (rule != InterruptRule.FINISH) {
             // units already missing (lent to a preemptor) go missing through the borrower's allocation
             for (a in allocations()) {
@@ -909,22 +908,21 @@ open class Resource @JvmOverloads constructor(
      */
     fun repair() {
         check(isFailed) { "$name is not failed; check isFailed before calling repair()." }
+        val failure = checkNotNull(myFailure) { "$name is failed with no failure in progress." }
         // a waiting preemptor can take back units in the offer below: a restored trigger fires only for the
         // allocations whose units are still back once the offer is made
         settlingRestores {
             for (a in allocations()) {
                 if (a.missingByFailure > 0) a.unitsComeBack(byFailure = a.missingByFailure, byLoan = 0)
             }
-            myFailureRule = null
-            myDeclaredFailureInProgress = false
+            myFailure = null
             // tell of a change of availability only against the state before the failure: inactive then and now
             // is no change, and inactive then but not now is the resource becoming active
             val next = stateFromUnits()
-            myQuietAvailabilityHooks = myInactiveAtFailure
+            myQuietAvailabilityHooks = failure.inactiveAtStart
             myState = next
             myQuietAvailabilityHooks = false
-            if (myInactiveAtFailure && next !== myInactiveState) resourceBecameActive()
-            myInactiveAtFailure = false
+            if (failure.inactiveAtStart && next !== myInactiveState) resourceBecameActive()
             offerFreedUnits(ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "repaired_resource=$name")
         }
         failureNotification()
@@ -934,17 +932,18 @@ open class Resource @JvmOverloads constructor(
         if (!isRunEnded) afterUnitsRestored()
     }
 
-    /** Whether the resource was inactive when the failure in progress began. */
-    private var myInactiveAtFailure: Boolean = false
+    /**
+     *  The failure in progress: its rule, whether the declared failures started it (rather than a call of
+     *  `fail()`), and whether the resource was inactive when it began. Made before any listener is told of the
+     *  failure, and taken at the start of the repair, so every part of a failure is set and cleared at once.
+     */
+    private class FailureInProgress(val rule: InterruptRule, val declared: Boolean, val inactiveAtStart: Boolean)
+
+    /** The failure in progress; null while the resource is not failed. */
+    private var myFailure: FailureInProgress? = null
 
     /** True while a change into or out of the failed state is being made, when the availability hooks keep quiet. */
     private var myQuietAvailabilityHooks: Boolean = false
-
-    /** True while the failure in progress is one the declared failures started. */
-    private var myDeclaredFailureInProgress: Boolean = false
-
-    /** The rule of the failure in progress; null while not failed. */
-    private var myFailureRule: InterruptRule? = null
 
     private fun failureNotification() {
         for (listener in allocationListeners) {
@@ -1038,9 +1037,7 @@ open class Resource @JvmOverloads constructor(
     private var myUsesLeft: Int = 0
 
     private fun resetFailures() {
-        myInactiveAtFailure = false
-        myFailureRule = null
-        myDeclaredFailureInProgress = false
+        myFailure = null
         myFailureClock?.disarm()
         myUsesLeft = 0
         myFailuresEntity = null
@@ -1193,7 +1190,7 @@ open class Resource @JvmOverloads constructor(
                 // repaired by hand at the instant it failed, by a failure listener: the time to the next failure
                 // counts from then
                 if (!isFailed) continue
-                if (!myDeclaredFailureInProgress) {
+                if (myFailure?.declared != true) {
                     // failed by a call of fail(), before this failure came due or in place of it at the instant it
                     // began: this failure waits for that repair and its clock starts again
                     suspendFor(repaired)
@@ -1203,7 +1200,7 @@ open class Resource @JvmOverloads constructor(
                 // ends this failure early, and the time to the next one counts from it
                 suspendForOrTimeout(repaired, spec.repairTime.value)
                 // repair only the failure this entity started, not one the model made after a hand repair
-                if (isFailed && myDeclaredFailureInProgress) repair()
+                if (isFailed && myFailure?.declared == true) repair()
             }
         }
     }
@@ -1227,7 +1224,11 @@ open class Resource @JvmOverloads constructor(
     val hasBehavior: Boolean
         get() = myBehaviorBlock != null
 
-    /** True while the behavior is running in this replication, from its activation until it ends. */
+    /**
+     *  True while the behavior is running in this replication, from its activation until it ends: by returning
+     *  from its block, by a stop, by the model terminating its process (as clearing the queue it waits in does),
+     *  or at the end of the replication.
+     */
     val isBehaviorActive: Boolean
         get() = myBehaviorEntity != null
 
@@ -1390,8 +1391,11 @@ open class Resource @JvmOverloads constructor(
         check(!entity.run.isRunning) {
             "The behavior of $name cannot stop itself at once; it returns from its block, or stops after its current cycle."
         }
+        // ended first, so the terminated process's own hook finds nothing more to end; the stop action runs once
+        // its process has been terminated
+        clearBehaviorState()
         entity.terminateProcess()
-        endBehavior(stopped = true)
+        myBehaviorStoppedAction?.invoke()
     }
 
     private fun launchBehavior() {
@@ -1446,6 +1450,16 @@ open class Resource @JvmOverloads constructor(
                 }
             }
             endBehavior(stopped = myStopRequested)
+        }
+
+        /**
+         *  The behavior's process was terminated by the model, not by `stopBehavior`: the behavior has ended, and
+         *  it may be started again. Its stop action runs only if a stop after the cycle had been asked for. At the
+         *  end of a replication nothing runs; the state is cleared.
+         */
+        override fun handleTerminatedProcess(terminatedProcess: KSLProcess) {
+            if (myBehaviorEntity !== this) return
+            if (isReplicationEnding) clearBehaviorState() else endBehavior(stopped = myStopRequested)
         }
     }
 
@@ -1609,11 +1623,12 @@ open class Resource @JvmOverloads constructor(
         if (passOn && returning.isNotEmpty() && !isFailed && !isInactive && !isRunEnded) passLoansOn(returning)
         // a resource failed now, under RESUME or RESTART, has all its units down, however the failure began: one
         // begun since the loans were settled, as by a listener told of this release, is not in the settlement
-        val allDown = isFailed && myFailureRule != null && myFailureRule != InterruptRule.FINISH
+        val failureRule = myFailure?.rule
+        val allDown = isFailed && failureRule != null && failureRule != InterruptRule.FINISH
         for ((lender, back) in returning) {
             if (back > 0) {
                 val down = if (allDown) back else minOf(back, settlement.down[lender] ?: 0)
-                lender.loanComesBack(back, down, myFailureRule)
+                lender.loanComesBack(back, down, failureRule)
                 if (!lender.isDeallocated) returnNotification(lender, back)
             }
         }

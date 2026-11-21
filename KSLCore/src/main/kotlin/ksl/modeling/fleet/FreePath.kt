@@ -205,9 +205,11 @@ class FreePathBody internal constructor(
         waiter: ProcessModel.Entity
     ): HoldQueue? {
         // Every loaded departure, counted where the guide path counts it: as a movement begins,
-        // rather than per journey, so a vehicle redirected mid-move records the new movement too.
-        if (myManifest.isNotEmpty()) myLoadsPerLoadedMove?.value = myManifest.size.toDouble()
-        return resource.beginTravelTo(destination, purpose, waiter)
+        // rather than per journey, so a vehicle redirected mid-move records the new movement too. A
+        // call that finds the vehicle already there begins no movement and counts nothing.
+        val travel = resource.beginTravelTo(destination, purpose, waiter)
+        if (travel != null && myManifest.isNotEmpty()) myLoadsPerLoadedMove?.value = myManifest.size.toDouble()
+        return travel
     }
 
     // ---- being towed ---------------------------------------------------------------------------

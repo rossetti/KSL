@@ -418,7 +418,7 @@ abstract class FleetVehicle @JvmOverloads constructor(
      * See [ksl.modeling.fleet.policies.ChargeReservePolicy] for the guard that stops it happening.
      */
     val isStranded: Boolean
-        get() = body.isHalted
+        get() = isFlat && body.isHalted
 
     private val myFracTimeCharging: TWResponse? =
         if (battery == null) null else TWResponse(this, "${this.name}:FracTimeCharging")

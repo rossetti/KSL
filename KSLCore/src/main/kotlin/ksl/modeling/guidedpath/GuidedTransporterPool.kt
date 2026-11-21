@@ -293,6 +293,10 @@ open class GuidedTransporterPoolWithQ @JvmOverloads constructor(
         )
     }
 
+    /** True while a request waits in this pool's queue. */
+    internal val hasWaitingRequests: Boolean
+        get() = myWaitingQ.isNotEmpty
+
     override fun toString(): String =
         "GuidedTransporterPoolWithQ($name, ${myResources.size} transporters, " +
                 "${idleTransporters.size} dispatchable, ${haltedTransporters.size} halted, " +

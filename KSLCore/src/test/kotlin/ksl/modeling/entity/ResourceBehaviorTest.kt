@@ -598,4 +598,64 @@ class ResourceBehaviorTest {
             Files.deleteIfExists(trace)
         }
     }
+
+    // ── Terminated by the model ─────────────────────────────────────────────
+
+    /** A cyclic break that seizes the resource through its own queue, which the model clears at 10. */
+    private class TerminatedThroughItsQueue(parent: ModelElement, val stopFirst: Boolean) : ProcessModel(parent, "Killed") {
+        val q = RequestQ(this, "KQ")
+        val r = ResourceWithQ(this, name = "KR", capacity = 1, queue = q)
+        val log = mutableListOf<String>()
+        var stoppedActions = 0
+
+        init {
+            r.cyclicBehavior {
+                delay(5.0)
+                val a = seize(r)
+                log.add("break@$time")
+                delay(1.0)
+                release(a)
+            }
+            r.onBehaviorStopped { stoppedActions++ }
+        }
+
+        inner class Holder : Entity() {
+            val p: KSLProcess = process("holder") { val a = seize(r); delay(20.0); release(a) }
+        }
+
+        override fun initialize() {
+            log.clear()
+            stoppedActions = 0
+            activate(Holder().p)
+            if (stopFirst) schedule({ _: KSLEvent<Nothing> -> r.stopBehavior(BehaviorStop.AFTER_CYCLE) }, 8.0)
+            schedule({ _: KSLEvent<Nothing> -> q.removeAllAndTerminate() }, 10.0)
+            schedule({ _: KSLEvent<Nothing> -> log.add("active@$time=${r.isBehaviorActive}") }, 11.0)
+            schedule({ _: KSLEvent<Nothing> -> r.startBehavior(); log.add("restarted@$time") }, 30.0)
+        }
+    }
+
+    private fun runKilled(stopFirst: Boolean): TerminatedThroughItsQueue {
+        val model = Model("Killed${System.nanoTime()}", autoCSVReports = false)
+        val pm = TerminatedThroughItsQueue(model, stopFirst)
+        model.numberOfReplications = 1
+        model.lengthOfReplication = 40.0
+        model.simulate()
+        return pm
+    }
+
+    @Test
+    @DisplayName("a behavior whose process the model terminates has ended: it can be started again, and its stop action does not run")
+    fun terminatedByTheModel() {
+        val pm = runKilled(stopFirst = false)
+        assertEquals(listOf("active@11.0=false", "restarted@30.0", "break@35.0"), pm.log)
+        assertEquals(0, pm.stoppedActions)
+    }
+
+    @Test
+    @DisplayName("a behavior terminated by the model with a stop after its cycle pending counts as stopped, once")
+    fun terminatedWithAStopPending() {
+        val pm = runKilled(stopFirst = true)
+        assertEquals(listOf("active@11.0=false", "restarted@30.0", "break@35.0"), pm.log)
+        assertEquals(1, pm.stoppedActions)
+    }
 }

@@ -1058,7 +1058,8 @@ class GuidedTransporter @JvmOverloads constructor(
     internal fun clearHalt() {
         if (!isHalted) return
         isHalted = false
-        announceDispatchable()
+        // a new journey is being issued: the idle rule is not asked, as its journey would compete with that one
+        announceDispatchable(applyIdleRule = false)
     }
 
     // ---- being available to a pool ---------------------------------------------------------------
@@ -1098,10 +1099,16 @@ class GuidedTransporter @JvmOverloads constructor(
      * being released by anybody. So the moment that makes it dispatchable has to say so, or an
      * entity waits for a transporter that is standing free in front of it.
      */
-    private fun announceDispatchable() {
+    private fun announceDispatchable(applyIdleRule: Boolean = true) {
         // nothing can be dispatched once the run has ended
         if (!isDispatchable || isRunEnded) return
         for (pool in myPools) pool.transporterBecameDispatchable()
+        // Nobody waiting in any of its pools, an idle transporter then has the idle rule applied, as at a release:
+        // one given back while it could not be dispatched (failed, off shift, halted) was passed over by the rule
+        // then. The rule of the first pool it joined decides, as for a transporter shared by several pools.
+        if (applyIdleRule && transporterState == TransporterState.IDLE && myPools.none { it.hasWaitingRequests }) {
+            myPools.firstOrNull()?.disposeIfUnwanted(this)
+        }
     }
 
     // ---- placement and movement ---------------------------------------------------------------

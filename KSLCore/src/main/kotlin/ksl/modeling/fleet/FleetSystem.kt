@@ -1004,6 +1004,10 @@ abstract class FleetSystem @JvmOverloads constructor(
                 if (settle != null) {
                     with(vehicle.interruptionPolicy) { handle(settle) }     // SUSPENDS, usually
                     vehicle.interruptionEnded(settle)
+                    // Whatever it was doing for its own reasons (going home, repositioning, going to charge)
+                    // was cut short where it stopped: once it is put right it considers its disposition again,
+                    // rather than settling where the interruption left it.
+                    disposed = false
                     if (!vehicle.isFitToContinue) {
                         // The policy did not put it right, so it is out for the rest of the
                         // replication -- standing where it stopped, keeping its space. Nothing
@@ -1182,8 +1186,12 @@ abstract class FleetSystem @JvmOverloads constructor(
                         // someone else -- and the model would keep running, with two vehicles
                         // believing they had it.
                         if (!stillOurs(stop)) break
-                        // Nothing pending means the journey ended the ordinary way: it arrived.
-                        val interruption = vehicle.takeInterruption() ?: break
+                        // Nothing pending means the journey ended the ordinary way. That is not proof it ended
+                        // here: a task taken back and given to this vehicle again in one pass re-aims the body
+                        // at another stop, and the journey ends there. The leg is issued again, and
+                        // beginTravelTo says the vehicle is already here only when it is, so a stop is made
+                        // only where it is.
+                        val interruption = vehicle.takeInterruption() ?: continue
                         with(vehicle.interruptionPolicy) { handle(interruption) }   // SUSPENDS
                         vehicle.interruptionEnded(interruption)
                         if (!vehicle.isFitToContinue) {
