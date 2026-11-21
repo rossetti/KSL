@@ -29,7 +29,7 @@ import ksl.simulation.ModelElement
  *
  *  The list returned is an order. When units come free, and when a request arrives, the first request
  *  of the list that can be served now is served first. A rule that filters the queue returns the requests
- *  in the queue's list order, which for a LIFO, ranked or random queue is not its discipline; a rule that
+ *  in the queue's list order, which for a LIFO or random queue is not its discipline; a rule that
  *  wants another order sorts its list. When units of a resource that belongs to pools come free, the
  *  rule's choices for the resource come before its choices for each of those pools. The queue still holds
  *  requests already woken, whose units are promised and no longer counted as available; they are passed
@@ -307,6 +307,21 @@ class RequestQ @JvmOverloads constructor(
         val rule = requestSelectionRule ?: return firstMatching { servesRequest(it, resource, amountAvailable) }
         val candidates = rule.selectRequests(resource, this).filter { servesRequest(it, resource, amountAvailable) }
         return selectWithinAvailable(candidates, amountAvailable).firstOrNull()
+    }
+
+    /**
+     *  For a request of this queue resuming with nothing promised (moved while woken, or its promise broke): whether
+     *  the queue's request selection rule would choose it now, the first of the rule's list that can be served,
+     *  counting the request itself as waiting. With no rule, true: the discipline was applied when it was woken.
+     */
+    internal fun wouldChoose(request: ProcessModel.Entity.Request): Boolean {
+        val rule = requestSelectionRule ?: return true
+        val target = request.resource
+        val available = effectiveAvailableFor(target)
+        val first = rule.selectRequests(target, this).firstOrNull {
+            it === request || servesRequest(it, target, available)
+        }
+        return first === request
     }
 
     private fun servesRequest(

@@ -346,7 +346,7 @@ requests it wants served, which together must fit in the units available.
 Its list is an order: when units come free, and when a request arrives,
 the first request of the list that can be served now is served first. A
 rule that filters the queue, `requestQ.filter { ... }`, returns them in
-the queue's list order, which for a LIFO, ranked or random queue is not
+the queue's list order, which for a LIFO or random queue is not
 its discipline; sort the list to impose another order. When a member's
 units come free, the rule's choices for the member come before its
 choices for each pool the member belongs to. With no rule, the queue's

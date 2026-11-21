@@ -1883,6 +1883,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // promise, or finds none and waits on in the new queue.
                 if (canServe) request.promise(resource, request.amountRequested)
                 request.markResumePending(ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
+                // not chosen: the free units go to the request the new queue's rule chooses
+                if (!canServe && resource.canAllocate(request.amountRequested)) {
+                    newQ.offerFreeUnitsUnderRule(resource, "request_moved_not_chosen_$detail")
+                }
             } else if (canServe) {
                 // the resource can allocate and the new queue would choose this request next: promised now, so that
                 // nothing else takes the units before it resumes
@@ -1962,6 +1966,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             if (wasWoken) {
                 // the resume already on the calendar carries the request; nothing may wake it twice
                 request.markResumePending(ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
+                // not chosen: the free units go to the request the new queue's rule chooses
+                if (!canServe && canAllocate) newQ.offerFreeUnitsUnderRule(pool, "request_moved_not_chosen_$detail")
             } else if (canServe) {
                 newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_RESOURCE_POOL, detail)
             } else if (canAllocate) {
@@ -2029,6 +2035,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             if (wasWoken) {
                 // the resume already on the calendar carries the request; nothing may wake it twice
                 request.markResumePending(ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
+                // not chosen: the free units go to the request the new queue's rule chooses
+                if (!canServe && canAllocate) newQ.offerFreeUnitsUnderRule(pool, "request_moved_not_chosen_$detail")
             } else if (canServe) {
                 newQ.resumeWoken(request, resumePriority, ResumeSource.REQUEST_MOVED_TO_MOVABLE_POOL, detail)
             } else if (canAllocate) {
@@ -3228,8 +3236,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): Boolean {
                 while (true) {
                     val promises = request.promises
+                    // nothing promised to a request the library woke (or moved while woken): the units are taken only
+                    // if its queue would choose it now, as an arriving seize's. A resume the model asks for itself
+                    // (resumeProcess) is the model's decision, and takes what is free.
+                    val wokenByLibrary = request.resumePending
+                    val chosen = { !wokenByLibrary || ((request.queue as? RequestQ)?.wouldChoose(request) ?: true) }
                     val honourable = if (promises.isEmpty()) {
-                        canAllocateNow()
+                        canAllocateNow() && chosen()
                     } else {
                         promises.keys.all { !it.isInactive && !it.isFailed && it.capacity - it.numBusy - it.myPromisedUnits >= 0 }
                     }
@@ -3245,14 +3258,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // What was promised went away, but something else may be free now, such as another member of a
                     // pool. The release that freed it has already offered it, so waiting would strand the request
                     // beside it until the next release: take it now instead.
-                    if (canAllocateNow()) return true
+                    if (canAllocateNow() && chosen()) return true
                     // The units it withdrew are free again, and the release that freed them offered them only to
-                    // this request: offer them to the requests behind it, as when a waiting request leaves.
+                    // this request: offer them to the requests behind it, as when a waiting request leaves. A request
+                    // that held no promise and was not chosen offers the units of what it asks for, so the request its
+                    // queue's rule chose is served now.
                     for (member in withdrawn.keys) {
                         member.offerFreedUnits(
                             RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
                             "promise_withdrawn_request_id=${request.id}"
                         )
+                    }
+                    if (withdrawn.isEmpty()) {
+                        (request.queue as? RequestQ)?.offerFreeUnitsUnderRule(request.resource, "not_chosen_at_resume_request_id=${request.id}")
                     }
                     if (rewait == null) {
                         entity.state.waitForResource()
