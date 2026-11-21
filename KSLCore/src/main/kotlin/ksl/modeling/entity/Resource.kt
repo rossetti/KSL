@@ -903,13 +903,27 @@ open class Resource @JvmOverloads constructor(
         !reservation.isComplete && reservation.request.amountRequested <= reachableCapacity
 
     /**
-     *  A seize has just taken units of this resource, as a woken or reserved request taking what it was promised
-     *  does. Promised units cannot be lent, so a waiting preemptor that outranks the request could not plan
-     *  against them; now they are an allocation it may take from, and it plans again.
+     *  A seize has just taken units of this resource, out of [servedFrom], as a woken or reserved request taking
+     *  what it was promised does. Promised units cannot be lent, so a waiting preemptor that outranks the request
+     *  could not plan against them; now they are an allocation it may take from, and it plans again.
      */
-    internal fun afterPromisedUnitsTaken() {
-        if (myWaitingPreemptors.isEmpty() || isRunEnded) return
+    internal fun afterSeizeTook(servedFrom: RequestQ) {
+        if (isRunEnded) return
+        // A request selection rule sees woken requests, which still wait in the queue with their units promised;
+        // one serving strictly from the head chooses the woken head again and serves no one behind it. Now the head
+        // has left, the units still free are offered again, so the request it chooses next is served at once.
+        if (servedFrom.requestSelectionRule != null && numAvailableUnits > 0) {
+            offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "woken_request_left_resource=$name")
+            return
+        }
+        if (myWaitingPreemptors.isEmpty()) return
         replanWaitingPreemptors(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "promised_units_taken_resource=$name")
+    }
+
+    /** A waiting preemptor was moved here: the waiting preemptors plan, as on an arrival. */
+    internal fun preemptorMovedIn() {
+        if (isRunEnded) return
+        replanWaitingPreemptors(ProcessModel.RESUME_PRIORITY, ResumeSource.REQUEST_MOVED_TO_RESOURCE, "preemptor_moved_in_resource=$name")
     }
 
     /** Set when a reservation was given up by a decrease, so its units are offered once the change is applied. */

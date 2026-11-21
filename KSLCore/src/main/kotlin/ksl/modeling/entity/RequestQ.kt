@@ -26,13 +26,21 @@ import ksl.simulation.ModelElement
  *  Determines the requests that will be allocated from the specified amount available from the
  *  request queue. The total amount requested by the returned requests must not exceed the
  *  amount available.
+ *
+ *  The list returned is an order. When units come free, and when a request arrives, the first request
+ *  of the list that can be served now is served first. A rule that filters the queue returns the requests
+ *  in the queue's list order, which for a LIFO, ranked or random queue is not its discipline; a rule that
+ *  wants another order sorts its list. When units of a resource that belongs to pools come free, the
+ *  rule's choices for the resource come before its choices for each of those pools. The queue still holds
+ *  requests already woken, whose units are promised and no longer counted as available; they are passed
+ *  over when the list is used.
  */
 fun interface RequestSelectionRuleIfc {
 
     /**
      *  Determines the requests that can be allocated from the specified amount available from the
      *  request queue. The total amount requested by the returned requests must not exceed the
-     *  amount available.
+     *  amount available. The list's order is the order in which they are served.
      *
      * @param resource the resource to select requests for
      * @param requestQ the queue to search
@@ -307,7 +315,23 @@ class RequestQ @JvmOverloads constructor(
         amountAvailable: Int
     ): Boolean = request.resource == resource &&
             !request.resumePending && !request.isReserved &&
-            request.amountRequested <= amountAvailable
+            request.amountRequested <= amountAvailable && poolCanServe(request)
+
+    /**
+     *  For a pool's request: whether the pool can supply it now by the selection rule its seize named, as when units
+     *  are freed (`nextRequestServableBy`). A pool's free units may be enough in number yet not for that rule, and a
+     *  request its rule cannot serve must not be taken as next, ahead of one that could be served.
+     */
+    private fun poolCanServe(request: ProcessModel.Entity.Request): Boolean {
+        val target = request.resource
+        return when {
+            request is ProcessModel.Entity.ResourcePoolRequest && target is ResourcePool ->
+                target.canAllocate(request.selectionRule ?: target.defaultResourceSelectionRule, request.amountRequested)
+            request is ProcessModel.Entity.MovableResourcePoolRequest && target is MovableResourcePool ->
+                target.canAllocate(request.selectionRule ?: target.defaultMovableResourceSelectionRule)
+            else -> true
+        }
+    }
 
     private fun pendingResumeAmountFor(resource: ResourceIfc): Int {
         var sum = 0
@@ -373,26 +397,15 @@ class RequestQ @JvmOverloads constructor(
      *  The first request in this queue, in its discipline, that units freed on [member] can serve now: one
      *  that names [member] and fits in its available units, or one that names a pool [member] belongs to
      *  and that the pool can supply. Requests already woken are skipped, and so are requests that do not
-     *  fit, as when units are freed today. A request selection rule, when the queue has one, limits which
-     *  requests are considered.
+     *  fit, as when units are freed today. With a request selection rule it is the first of the rule's list
+     *  that can be served, as for a seize arriving (`nextRequestForResource`), so an arrival and a release
+     *  choose alike.
      */
     internal fun nextRequestServableBy(member: Resource): ProcessModel.Entity.Request? {
         val available = member.numAvailableUnits
         val rule = requestSelectionRule
-        val allowed: Set<ProcessModel.Entity.Request>? = if (rule == null) null else buildSet {
-            addAll(rule.selectRequests(member, this@RequestQ))
-            for (request in this@RequestQ) {
-                val target = request.resource
-                if (target is AbstractResourcePool<*> && target.isMember(member)) {
-                    addAll(rule.selectRequests(target, this@RequestQ))
-                }
-            }
-        }
-        // in the queue's own discipline order, which for a LIFO or random queue is not the list order
-        return firstMatching { request ->
-            if (request.resumePending || request.isReserved ||
-                (allowed != null && request !in allowed)
-            ) {
+        fun servable(request: ProcessModel.Entity.Request): Boolean =
+            if (request.resumePending || request.isReserved) {
                 false
             } else {
                 val target = request.resource
@@ -408,7 +421,16 @@ class RequestQ @JvmOverloads constructor(
                     else -> false
                 }
             }
+        // with no rule, in the queue's own discipline order, which for a LIFO or random queue is not the list order
+        if (rule == null) return firstMatching { servable(it) }
+        // with a rule, in the order of the rule's list, as an arriving seize takes the first of it: the rule's
+        // choices for this member, then its choices for each pool the member belongs to
+        val chosen = LinkedHashSet<ProcessModel.Entity.Request>(rule.selectRequests(member, this))
+        for (request in this) {
+            val target = request.resource
+            if (target is AbstractResourcePool<*> && target.isMember(member)) chosen.addAll(rule.selectRequests(target, this))
         }
+        return chosen.firstOrNull { it.queue === this && servable(it) }
     }
 
     /**

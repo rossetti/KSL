@@ -340,6 +340,18 @@ queue keeps its own discipline. To offer freed units queue by queue in the
 order the queues were registered, as before R1.8, set the resource's
 `initialRequestQueueNotificationRule` to `RegistrationOrderNotificationRule`.
 
+**A request selection rule decides who is served, and in what order.** A
+`RequestQ`'s `requestSelectionRule` returns, for a resource or pool, the
+requests it wants served, which together must fit in the units available.
+Its list is an order: when units come free, and when a request arrives,
+the first request of the list that can be served now is served first. A
+rule that filters the queue, `requestQ.filter { ... }`, returns them in
+the queue's list order, which for a LIFO, ranked or random queue is not
+its discipline; sort the list to impose another order. When a member's
+units come free, the rule's choices for the member come before its
+choices for each pool the member belongs to. With no rule, the queue's
+discipline decides.
+
 ### ...renege (give up waiting for a resource)
 
 *New in R1.9; experimental.* Worked examples: [`ksl-waits-tutorial`](ksl-waits-tutorial.md), cases 1 and 2.

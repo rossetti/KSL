@@ -159,15 +159,24 @@ internal class ResourcePoolSeizeTrigger(
 
     override val seizedName: String get() = resourcePool.name
 
-    // as the untimed pool seize decides: the pool can allocate, whatever else waits
+    // as a resource's seize trigger decides: the pool can allocate and no request it could serve waits ahead; with a
+    // request selection rule, only once queued (decidesWhenQueued)
     override fun canFireNow(entity: ProcessModel.Entity): Boolean =
-        resourcePool.canAllocate(resourceSelectionRule, amountNeeded)
+        queue.requestSelectionRule == null && resourcePool.canAllocate(resourceSelectionRule, amountNeeded) &&
+                queue.nextRequestForResource(resourcePool) == null
+
+    override val decidesWhenQueued: Boolean
+        get() = queue.requestSelectionRule != null
+
+    override fun offerFreeUnitsAfterArrival() {
+        if (resourcePool.canAllocate(resourceSelectionRule, amountNeeded)) queue.offerFreeUnitsUnderRule(resourcePool, "seize_trigger_arrived_not_chosen")
+    }
 
     override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int) =
         entity.enqueuePoolRequest(resourcePool, amountNeeded, queue, resourceSelectionRule, resourceAllocationRule, requestPriority)
 
     override fun canTakeNow(entity: ProcessModel.Entity, request: ProcessModel.Entity.ResourcePoolRequest) =
-        resourcePool.canAllocate(resourceSelectionRule, amountNeeded)
+        resourcePool.canAllocate(resourceSelectionRule, amountNeeded) && queue.nextRequestForResource(resourcePool) === request
 
     override suspend fun ProcessModel.Entity.ProcessCoroutine.take(
         request: ProcessModel.Entity.ResourcePoolRequest,
@@ -198,8 +207,18 @@ internal class MovableResourcePoolSeizeTrigger(
 
     override val seizedName: String get() = movableResourcePool.name
 
-    // as the untimed movable pool seize decides: the pool can allocate, whatever else waits
-    override fun canFireNow(entity: ProcessModel.Entity): Boolean = movableResourcePool.canAllocate(resourceSelectionRule)
+    // as a resource's seize trigger decides: the pool can allocate and no request it could serve waits ahead; with a
+    // request selection rule, only once queued (decidesWhenQueued)
+    override fun canFireNow(entity: ProcessModel.Entity): Boolean =
+        queue.requestSelectionRule == null && movableResourcePool.canAllocate(resourceSelectionRule) &&
+                queue.nextRequestForResource(movableResourcePool) == null
+
+    override val decidesWhenQueued: Boolean
+        get() = queue.requestSelectionRule != null
+
+    override fun offerFreeUnitsAfterArrival() {
+        if (movableResourcePool.canAllocate(resourceSelectionRule)) queue.offerFreeUnitsUnderRule(movableResourcePool, "seize_trigger_arrived_not_chosen")
+    }
 
     override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int) = entity.enqueueMovablePoolRequest(
         movableResourcePool, queue, requestLocation ?: entity.currentLocation, resourceSelectionRule, resourceAllocationRule,
@@ -207,7 +226,7 @@ internal class MovableResourcePoolSeizeTrigger(
     )
 
     override fun canTakeNow(entity: ProcessModel.Entity, request: ProcessModel.Entity.MovableResourcePoolRequest) =
-        movableResourcePool.canAllocate(resourceSelectionRule)
+        movableResourcePool.canAllocate(resourceSelectionRule) && queue.nextRequestForResource(movableResourcePool) === request
 
     override suspend fun ProcessModel.Entity.ProcessCoroutine.take(
         request: ProcessModel.Entity.MovableResourcePoolRequest,
