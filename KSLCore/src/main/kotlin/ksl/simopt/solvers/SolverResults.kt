@@ -41,6 +41,7 @@ sealed class SolverResult {
         internal const val MAXIMUM_ITERATIONS_REACHED = "Maximum Iterations Reached"
         internal const val MAXIMUM_EXECUTION_TIME_REACHED = "Maximum Execution Time Reached"
         internal const val HALTED_BEFORE_COMPLETION = "Halted Before Completion"
+        internal const val ENDED_WITH_AN_ERROR = "Ended With An Error"
         internal const val NOT_FINISHED = "Not Finished"
     }
 

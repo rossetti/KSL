@@ -350,4 +350,23 @@ class ISCSolverTest {
             "ISC used all ${isc.iterationCounter} iterations; it did not stop when its phases finished"
         }
     }
+
+    @Test
+    fun aRunCappedByIterationsReportsOneConsistentEnding() {
+        // the clean-up after the main iterations marks the search done; the report must not then say the criteria
+        // were met beside a reason of maximum iterations
+        val pd = IscTestSupport.boxProblem(dim = 1, lb = 0.0, ub = 30.0, granularity = 1.0)
+        val evaluator = IscTestSupport.FunctionEvaluator(pd, { x -> (x[0] - 15.0) * (x[0] - 15.0) })
+        val isc = ISCSolver(
+            problemDefinition = pd, evaluator = evaluator, streamNum = 1,
+            replicationsPerEvaluation = 3, deltaC = 0.0, skipGlobalPhase = true
+        )
+        isc.maximumNumberIterations = 1
+        isc.runAllIterations()
+        val r = isc.solverResult as ksl.simopt.solvers.SolverResult.Completed
+        assertEquals(
+            r.terminationReason == ksl.simopt.solvers.SolverResult.STOPPING_CRITERIA_SATISFIED, r.isStoppingCriteriaMet,
+            "the reason (${r.terminationReason}) and the criteria row (${r.isStoppingCriteriaMet}) agree"
+        )
+    }
 }

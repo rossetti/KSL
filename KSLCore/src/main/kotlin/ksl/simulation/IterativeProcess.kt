@@ -175,6 +175,8 @@ abstract class IterativeProcess<T> @JvmOverloads constructor(
         logger.trace { "Initializing the process: $name" }
         stoppingMessage = null
         stopping = false
+        // a run starts unfinished, whatever ended the last one
+        endingStatus = UNFINISHED
         isDone = false
         isRunningStep = false
         isRunning = false

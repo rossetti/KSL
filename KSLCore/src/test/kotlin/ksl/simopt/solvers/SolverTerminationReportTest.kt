@@ -101,4 +101,61 @@ class SolverTerminationReportTest {
             assertFalse(text.contains("Maximum Iterations Reached", ignoreCase = true), text)
         }
     }
+
+    @Test
+    @DisplayName("a stepped run that uses every iteration and is then ended reports its maximum iterations, not a halt")
+    fun steppedRunUsingEveryIteration() {
+        val solver = climber(3)
+        solver.initialize()
+        while (solver.hasNextIteration()) solver.runNextIteration()
+        solver.endIterations()
+        val result = solver.solverResult as SolverResult.Completed
+        assertEquals(3, result.totalIterations)
+        assertEquals(SolverResult.MAXIMUM_ITERATIONS_REACHED, result.terminationReason)
+    }
+
+    @Test
+    @DisplayName("a stepped run ended before its last iteration is a halt")
+    fun steppedRunEndedEarly() {
+        val solver = climber(3)
+        solver.initialize()
+        solver.runNextIteration()
+        solver.endIterations()
+        val result = solver.solverResult as SolverResult.Completed
+        assertEquals(SolverResult.HALTED_BEFORE_COMPLETION, result.terminationReason)
+    }
+
+    @Test
+    @DisplayName("a run ended by an exception reports that it ended with an error")
+    fun runEndedByAnException() {
+        var armed = true
+        val solver = climber(5)
+        solver.solutionQualityEvaluator = SolutionQualityEvaluatorIfc { s ->
+            if (armed && s.iterationCounter == 2) {
+                armed = false
+                throw IllegalStateException("criterion broke")
+            }
+            false
+        }
+        val thrown = runCatching { solver.runAllIterations() }.exceptionOrNull()
+        assertTrue(thrown is IllegalStateException, "the exception reaches the caller")
+        val result = solver.solverResult as SolverResult.Completed
+        assertEquals(SolverResult.ENDED_WITH_AN_ERROR, result.terminationReason)
+        assertTrue(result.toReportString().contains("Ended With An Error"), result.toReportString())
+    }
+
+    @Test
+    @DisplayName("a result read after the run is a snapshot: the criteria are not asked again")
+    fun resultAfterTheRunIsASnapshot() {
+        var asked = 0
+        val solver = climber(3)
+        solver.solutionQualityEvaluator = SolutionQualityEvaluatorIfc { _ -> asked++; false }
+        solver.runAllIterations()
+        val first = solver.solverResult as SolverResult.Completed
+        val askedAfterRun = asked
+        val second = solver.solverResult as SolverResult.Completed
+        assertEquals(askedAfterRun, asked, "reading the result asks the criteria nothing")
+        assertEquals(first.isStoppingCriteriaMet, second.isStoppingCriteriaMet)
+        assertEquals(first.terminationReason, second.terminationReason)
+    }
 }

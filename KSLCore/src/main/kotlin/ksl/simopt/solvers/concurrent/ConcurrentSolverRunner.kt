@@ -184,10 +184,21 @@ class ConcurrentSolverRunner(
             }
             task.innerSolverDecorator?.invoke(solver, index)
             myLiveSolvers[index] = solver
-            // Close the race between the stop-flag check above and registration: a stop
-            // that arrived in between only saw an unregistered solver, so signal it here.
+            // Close the race between the stop-flag check above and registration: a stop that arrived in between
+            // only saw an unregistered solver. It is not run at all, as a member stopped before it started; a
+            // stop sent to it now would be cleared when its run initializes.
             if (myStopRequested.get()) {
-                runCatching { solver.stopIterations(myStopMessage) }
+                logger.debug { "Member $index (${task.label}) skipped: stop requested while it was set up" }
+                reusable = true
+                return SolverMemberResult(
+                    memberIndex = index,
+                    label = task.label,
+                    bestSolution = problemDefinition.badSolution(),
+                    numOracleCalls = 0,
+                    numReplicationsRequested = 0,
+                    solverResult = null,
+                    status = MemberStatus.STOPPED_BEFORE_START
+                )
             }
             logger.debug { "Member $index (${task.label}) starting" }
             // Bracket only the solver's run, on this worker thread, so the measurement excludes

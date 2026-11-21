@@ -214,4 +214,17 @@ class CompassSolverTest {
         assertTrue(solver.solverResult is ksl.simopt.solvers.SolverResult.NotExecuted,
             "a solver ended before it ran has no results")
     }
+
+    @Test
+    fun readingTheResultOfAFinishedRunSpendsNoReplications() {
+        // with deltaL > 0, asking whether the stopping criteria hold tops up replications; once the run has ended,
+        // the result reports what the run found instead of asking again
+        val solver = makeSolver(deltaL = 1.0, maxIterations = 3)
+        solver.runAllIterations()
+        val before = solver.evaluator.totalReplicationsRequested
+        val first = solver.solverResult as ksl.simopt.solvers.SolverResult.Completed
+        val second = solver.solverResult as ksl.simopt.solvers.SolverResult.Completed
+        assertEquals(before, solver.evaluator.totalReplicationsRequested, "reading the result twice spends nothing")
+        assertEquals(first.isStoppingCriteriaMet, second.isStoppingCriteriaMet)
+    }
 }

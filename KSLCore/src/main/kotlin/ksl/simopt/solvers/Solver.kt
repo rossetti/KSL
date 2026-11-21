@@ -344,14 +344,30 @@ abstract class Solver(
     var iterationCounter: Int = 0
         private set
 
-    /** True once a halt was asked for by [stopIterations] or [endIterations] during the current run. */
-    private var myHaltRequested: Boolean = false
+    /** Where a run of the solver is: not started, running (with what it has found so far), or ended and why. */
+    private sealed class RunState {
+        object NotStarted : RunState()
 
-    /** True once the stopping criteria were found satisfied after an iteration of the current run. */
-    private var myStoppingCriteriaMet: Boolean = false
+        class Running : RunState() {
+            /** A halt was asked for while the run could still have gone on. */
+            var haltRequested: Boolean = false
 
-    /** Why the last run ended, recorded when it ended; null while a run is in progress or before the first. */
-    private var myTerminationReason: String? = null
+            /** The stopping criteria were found satisfied after an iteration. */
+            var criteriaMet: Boolean = false
+        }
+
+        class Ended(val reason: String, val criteriaMet: Boolean) : RunState()
+    }
+
+    /** The state of the current or last run; set and changed only by the run's own steps. */
+    private var myRunState: RunState = RunState.NotStarted
+
+    /**
+     *  Whether the run in progress could go on: an iteration remains, and the process has not finished by itself
+     *  (out of steps, a stopping condition, or its time limit).
+     */
+    private fun runCouldGoOn(): Boolean =
+        iterationCounter < maximumNumberIterations && !myMainIterativeProcess.isDone
 
     /**
      *  The initial starting solution for the algorithm. It is the responsibility
@@ -501,6 +517,7 @@ abstract class Solver(
             myMainIterativeProcess.run()
         } catch (e: Exception) {
         // Catches anything that breaks the internal loop or initialization.
+            myRunState = RunState.Ended(SolverResult.ENDED_WITH_AN_ERROR, (myRunState as? RunState.Running)?.criteriaMet ?: false)
             lifeCycleEmitter.emit(SolverStatus.ERROR)
             // Re-throw so the framework user knows their run failed.
             throw e
@@ -515,7 +532,7 @@ abstract class Solver(
      */
     @Suppress("unused")
     fun stopIterations(msg: String? = null) {
-        myHaltRequested = true
+        (myRunState as? RunState.Running)?.haltRequested = true
         onStopRequested(msg)
         myMainIterativeProcess.stop(msg)
     }
@@ -540,7 +557,10 @@ abstract class Solver(
      */
     @Suppress("unused")
     fun endIterations(msg: String? = null) {
-        myHaltRequested = true
+        // a halt only if the run could have gone on: a stepped run that used every iteration, or reached its time
+        // limit, and is then ended was not cut short
+        val running = myRunState as? RunState.Running
+        if (running != null && runCouldGoOn()) running.haltRequested = true
         myMainIterativeProcess.end(msg)
     }
 
@@ -1137,9 +1157,14 @@ abstract class Solver(
                 bestSolution = this.bestSolution,
                 totalIterations = this.iterationCounter,
                 evaluatorMetrics = evalMetrics,
-                isStoppingCriteriaMet = this.isStoppingCriteriaSatisfied(),
+                // once the run has ended, what it found then; asking the criteria again could spend replications
+                // and contradict the recorded reason
+                isStoppingCriteriaMet = when (val state = myRunState) {
+                    is RunState.Ended -> state.criteriaMet
+                    else -> this.isStoppingCriteriaSatisfied()
+                },
                 executionTimeMillis = this.iterativeProcess.elapsedExecutionTime.inWholeMilliseconds
-            ).also { it.terminationReason = myTerminationReason ?: SolverResult.NOT_FINISHED }
+            ).also { it.terminationReason = (myRunState as? RunState.Ended)?.reason ?: SolverResult.NOT_FINISHED }
         }
 
     protected inner class MainIterativeProcess :
@@ -1148,9 +1173,7 @@ abstract class Solver(
         override fun initializeIterations() {
             super.initializeIterations()
             iterationCounter = 0
-            myHaltRequested = false
-            myStoppingCriteriaMet = false
-            myTerminationReason = null
+            myRunState = RunState.Running()
             //     numTimesBestSolutionUpdated = 0
             numOracleCalls = 0
             numReplicationsRequested = 0
@@ -1188,7 +1211,7 @@ abstract class Solver(
          */
         override fun checkStoppingCondition() {
             if (isStoppingCriteriaSatisfied()) {
-                myStoppingCriteriaMet = true
+                (myRunState as? RunState.Running)?.criteriaMet = true
                 stop()
             }
         }
@@ -1222,13 +1245,18 @@ abstract class Solver(
             logger.trace { "Executed mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
             // From what the run found as it went: the criteria are not asked again here, since a run ended before
             // it started has nothing they could read, and asking repeats what they report.
-            myTerminationReason = when {
-                myStoppingCriteriaMet -> SolverResult.STOPPING_CRITERIA_SATISFIED
-                myHaltRequested -> SolverResult.HALTED_BEFORE_COMPLETION
+            // a run ended before it started (not running) was halted
+            val running = myRunState as? RunState.Running
+            val criteriaMet = running?.criteriaMet ?: false
+            val reason = when {
+                running == null -> SolverResult.HALTED_BEFORE_COMPLETION
+                criteriaMet -> SolverResult.STOPPING_CRITERIA_SATISFIED
+                running.haltRequested -> SolverResult.HALTED_BEFORE_COMPLETION
                 iterationCounter >= maximumNumberIterations -> SolverResult.MAXIMUM_ITERATIONS_REACHED
                 endingStatus == IterativeProcessIfc.EndingStatus.EXCEEDED_EXECUTION_TIME -> SolverResult.MAXIMUM_EXECUTION_TIME_REACHED
                 else -> SolverResult.HALTED_BEFORE_COMPLETION
             }
+            myRunState = RunState.Ended(reason, criteriaMet)
             super.endIterations()
             logger.debug { "Ended: solver $name iterations." }
             lifeCycleEmitter.emit(SolverStatus.COMPLETED)

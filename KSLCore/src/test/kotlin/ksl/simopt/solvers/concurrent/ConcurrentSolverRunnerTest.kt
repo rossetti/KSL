@@ -241,6 +241,33 @@ class ConcurrentSolverRunnerTest {
         }
     }
 
+    @Test
+    @Timeout(30)
+    @DisplayName("a stop requested while a member is being set up keeps that member from running")
+    fun stopDuringSetUpSkipsTheMember() {
+        val pd = makeLKInventoryModelProblemDefinition()
+        lateinit var runner: ConcurrentSolverRunner
+        val ran = ConcurrentHashMap<Int, Boolean>()
+        val tasks = memberTasks(pd, 1, shcFactory(pd, iterations = 4)).map { task ->
+            task.copy(innerSolverDecorator = { solver, index ->
+                // the stop arrives after the runner's first check and before the member is registered
+                runner.requestStop("stop during set-up")
+                solver.iterationEmitter.attach { ran[index] = true }
+            })
+        }
+        runner = ConcurrentSolverRunner(
+            problemDefinition = pd,
+            tasks = tasks,
+            evaluatorFactory = StubMemberFactory(pd),
+            numWorkers = 1
+        )
+        runner.launchAll()
+        val results = runner.awaitAllMembers()
+        runner.shutdown()
+        assertEquals(MemberStatus.STOPPED_BEFORE_START, results.single().status)
+        assertTrue(ran.isEmpty()) { "the member ran ${ran.size} iteration(s)" }
+    }
+
     // ── Pooled factory integration (real simulation) ─────────────────────────
 
     private fun runWithPooledFactory(numWorkers: Int): List<SolverMemberResult> {
