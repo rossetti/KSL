@@ -36,7 +36,8 @@ import java.util.function.Predicate
  * added such that the priority is maintained from the smallest first to the largest
  * priority last using the compareTo method of the QObject. Ties in priority
  * give preference to time of creation, then to order of creation.
- * RANDOM causes the elements to be randomly selected (uniformly).
+ * RANDOM causes the elements to be randomly selected (uniformly). The random order is drawn when the queue
+ * changes and kept until it changes again, so the element peeked is the element removed.
  *
  * @param parent its parent
  * @param name The name of the queue
@@ -85,7 +86,7 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
         LIFO,
 
         /**
-         * randomly selected over the elements
+         * randomly selected over the elements; the draw is kept until the queue changes
          */
         RANDOM,
 
@@ -379,7 +380,7 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
 
     /**
      * The first QObject that satisfies the condition, in the queue discipline. It is the first item of
-     * filteredOrderedList(), found without testing the rest of the queue except under a random discipline.
+     * filteredOrderedList(), found without testing the rest of the queue.
      * The item is not removed from the queue.
      *
      * @param predicate the condition for the search
@@ -964,50 +965,64 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
         override fun firstMatching(predicate: (T) -> Boolean): T? = myList.firstOrNull(predicate)
     }
 
+    /**
+     *  Serves the items in a random order. The order is drawn when it is first needed after an item is added or
+     *  removed out of turn, and kept until then, so every look at the queue in between agrees: the item peeked is the one
+     *  removed, and the first match of a search is the first of the ordered list. Each draw is a uniform random
+     *  order of the items present, so the next item served is equally likely to be any of them.
+     */
     private inner class RandomDiscipline : QueueDiscipline() {
 
-        private var myNext = 0
+        /** The order drawn for the items, or null when none is drawn. */
+        private var myOrder: List<T>? = null
+
+        /** The queue's items, in the queue's own list order, when the order was drawn. */
+        private var myDrawnFrom: List<T> = emptyList()
 
         override fun add(qObject: T) {
             myList.add(qObject)
+            // a new item, or one put back, needs a fresh draw
+            myOrder = null
+            myDrawnFrom = emptyList()
         }
 
-        override fun peekNext(): T? {
-            if (myList.isEmpty()) {
-                return null
-            }
-            myNext = if (myList.size == 1) {
-                0
-            } else {
-                streamProvider.rnStream(initialStreamNumber).randInt(0, myList.size - 1)
-            }
-            return myList[myNext] // randomly pick it from the range available
+        /** The order for the items now in the queue: the one drawn, while the queue is as it was then. */
+        private fun order(): List<T> {
+            val drawn = myOrder
+            if (drawn != null && unchangedSinceDrawn()) return drawn
+            val fresh: List<T> = if (myList.size <= 1) myList.toList()
+                else myList.toMutableList().permute(streamProvider.rnStream(initialStreamNumber))
+            myOrder = fresh
+            myDrawnFrom = myList.toList()
+            return fresh
         }
+
+        private fun unchangedSinceDrawn(): Boolean =
+            myDrawnFrom.size == myList.size && myDrawnFrom.indices.all { myDrawnFrom[it] === myList[it] }
+
+        override fun peekNext(): T? = order().firstOrNull()
 
         override fun removeNext(): T? {
-            if (myList.isEmpty()) {
-                return null
-            }
-            peekNext() // sets the next randomly
-            return myList.removeAt(myNext) // now returns the next
+            val drawn = order()
+            val next = drawn.firstOrNull() ?: return null
+            myList.remove(next)
+            // the rest of a uniform random order is a uniform random order of the rest
+            myOrder = drawn.drop(1)
+            myDrawnFrom = myList.toList()
+            return next
         }
 
         override fun switchDiscipline() {
+            myOrder = null
         }
 
         override fun priorityChanged() {
         }
 
-        override fun orderedList(): List<T> {
-            return myList.toMutableList().permuteUnlessEmpty()
-        }
+        override fun orderedList(): List<T> = order().toList()
 
-        override fun filteredOrderedList(predicate: (T) -> Boolean): List<T> {
-            return myList.filter(predicate).toMutableList().permuteUnlessEmpty()
-        }
+        override fun filteredOrderedList(predicate: (T) -> Boolean): List<T> = order().filter(predicate)
 
-        // nothing to order is not an error here: permuting an empty list is
-        private fun MutableList<T>.permuteUnlessEmpty(): List<T> =
-            if (isEmpty()) this else permute(initialStreamNumber)
+        override fun firstMatching(predicate: (T) -> Boolean): T? = order().firstOrNull(predicate)
     }
 }

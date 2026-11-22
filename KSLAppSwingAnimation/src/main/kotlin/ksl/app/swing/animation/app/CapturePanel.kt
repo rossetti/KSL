@@ -87,8 +87,14 @@ class CapturePanel(private val controller: AnimationAppController) : JPanel(Bord
 
     private fun buildSelectorTabs(): JComponent {
         val tabs = JTabbedPane()
+        // the library's own entity types are not offered: what they do is part of what a replay shows, not the model's to leave out
+        val internal = controller.inventory.entityTypes.filter { it.isInternal }.map { it.typeName }.toSet()
         for (kind in ElementKind.entries) {
-            val names = controller.inventory.namesOf(kind)
+            val names = when (kind) {
+                ElementKind.ENTITY_TYPE -> controller.inventory.namesOf(kind).filterNot { it in internal }
+                ElementKind.PROCESS -> controller.inventory.namesOf(kind).filterNot { it.substringBefore('.') in internal }
+                else -> controller.inventory.namesOf(kind)
+            }
             if (names.isEmpty()) continue
             if (kind == ElementKind.RESPONSE) {
                 val tally = names.filterNot { controller.inventory.isTimeWeighted(it) }

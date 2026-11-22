@@ -357,6 +357,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
      *  The activation of the process is governed by an event that is scheduled
      *  to occur at the specified activation time.
      *
+     *  Asked for while the entities are terminated at the end of a replication (`isReplicationEnding`), as from a
+     *  termination hook, the activation is dropped: the event returned is not on the calendar, and the entity is
+     *  left as it was.
+     *
      * @param process the process to start for an entity
      * @param timeUntilActivation the time until the start of the process
      * @param priority the priority associated with the event to start the process
@@ -373,6 +377,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
     /** Cause the entity to start the process.
      *  The activation of the process is governed by an event that is scheduled
      *  to occur at the specified activation time.
+     *
+     *  Asked for while the entities are terminated at the end of a replication (`isReplicationEnding`), as from a
+     *  termination hook, the activation is dropped: the event returned is not on the calendar, and the entity is
+     *  left as it was.
      *
      * @param process the process to start for an entity
      * @param timeUntilActivation the time until the start the process
@@ -1506,17 +1514,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         /**
-         *  This function causes the process to immediately resume the captured continuation. An underlying state pattern
-         *  enforces that the process coroutine can only be resumed if it has been suspended. This function
-         *  allows the entity to immediately resume a suspended process with no simulated time delay. That is, no event is scheduled
-         *  and processed to perform the resumption. This is in contrast with the Entity.resumeProcess() function, which
-         *  forces (at least a 0.0) time delay and thus releases control back to the event loop to cause the process
-         *  to be resumed.  An understanding of when a process should be resumed within an event loop is necessary
-         *  to effectively use this function.  In some cases, resuming through the event loop will not provide
-         *  the fine-grained control for the sequence of calls necessary. Thus, this method can be used internally
-         *  when needed in those (rare) cases.
-         */
-        /**
          *  Refuses a second resume of the current suspension. A resume is an event, so a second one
          *  scheduled before the first has run would wake the entity from whatever it waits in next.
          */
@@ -1530,6 +1527,17 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             )
         }
 
+        /**
+         *  This function causes the process to immediately resume the captured continuation. An underlying state pattern
+         *  enforces that the process coroutine can only be resumed if it has been suspended. This function
+         *  allows the entity to immediately resume a suspended process with no simulated time delay. That is, no event is scheduled
+         *  and processed to perform the resumption. This is in contrast with the Entity.resumeProcess() function, which
+         *  forces (at least a 0.0) time delay and thus releases control back to the event loop to cause the process
+         *  to be resumed.  An understanding of when a process should be resumed within an event loop is necessary
+         *  to effectively use this function.  In some cases, resuming through the event loop will not provide
+         *  the fine-grained control for the sequence of calls necessary. Thus, this method can be used internally
+         *  when needed in those (rare) cases.
+         */
         internal fun immediateResume() {
             // who calls this?
             // called from 1) HoldQueue.removeAndImmediateResume()
@@ -1579,7 +1587,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  supply specific logic.  Termination happens immediately, with no time delay.
          *
          *  Calling this function when the entity is not currently executing a process, or when its process is
-         *  already being terminated, does nothing.
+         *  already being terminated, does nothing. At the end of a replication every entity still suspended is
+         *  terminated this way, and a wake-up or activation its termination asks for is dropped.
          *
          *  @param afterTermination a function to invoke after the process is successfully terminated.
          *  The entity supplied to it has already been released and may be given a new process.
@@ -1825,7 +1834,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  associated with the specified resource. If the resource has units of capacity available to satisfy
          *  the request, and the resource's queue would choose this request next (as for a seize arriving now),
          *  then the entity is resumed to allow the units to be allocated. Otherwise the entity stays suspended
-         *  within the resource's queue and will be processed as a normal request for the resource.
+         *  within the resource's queue and will be processed as a normal request for the resource. A waiting
+         *  preemptor moved here preempts at the new resource, under its rule, as one arriving there would.
          *
          *  The specified resource must not be associated with the request. The request must be queued and
          *  in the specified queue. The entity must currently be suspended and must be associated with
@@ -4325,6 +4335,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     requestPriority, requestResumePriority, suspensionName
                 )
                 // the entity owns what the transfer asks for or holds until the next conveyor's request is its own
+                te.worksFor = entity
                 entity.myTransferHelper = te
                 //tell the current entity to wait for the transfer to occur, waitFor activates the transfer process
                 waitFor(te.transferProcess, suspensionName = suspensionName)
@@ -4491,29 +4502,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
             }
 
-            /** This method is called from resumeWith to clean up the entity when
-             *  the process has been terminated.
-             *
-             *  If the entity is executing a process and the process is suspended, then
-             *  the process routine is terminated. This causes the currently suspended
-             *  process to exit, essentially with an error condition.  No further
-             *  processing within the process will execute. The process ends (is terminated).
-             *  All resources that the entity has allocated will be deallocated.  If the entity was
-             *  waiting in a queue, the entity is removed from the queue and no statistics
-             *  are collected on its queueing.  If the entity is experiencing a delay,
-             *  then the event associated with the delay is cancelled.
-             *
-             *  Finally the entity itself is released: unbound from the terminated process, its
-             *  suspension-kind fields cleared, and moved to the process-ended state, which is what
-             *  allows the hooks that run after this -- handleTerminatedProcess() and the
-             *  afterTermination callback -- to give it a new process.
-             *
-             *  If the entity has additional processes in
-             *  its process sequence they are not automatically executed. If the user
-             *  requires specific behavior to occur for the entity after termination, then
-             *  the user should override the Entity's handleTerminatedProcess() function to
-             *  supply specific logic.
-             */
             /**
              *  Gives up the entity's conveyors at its termination: its own request, granted or pending, and, for a
              *  transfer in progress, what the transfer has asked for or holds on the next conveyor. The references
@@ -4642,6 +4630,29 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
             }
 
+            /** This method is called from resumeWith to clean up the entity when
+             *  the process has been terminated.
+             *
+             *  If the entity is executing a process and the process is suspended, then
+             *  the process routine is terminated. This causes the currently suspended
+             *  process to exit, essentially with an error condition.  No further
+             *  processing within the process will execute. The process ends (is terminated).
+             *  All resources that the entity has allocated will be deallocated.  If the entity was
+             *  waiting in a queue, the entity is removed from the queue and no statistics
+             *  are collected on its queueing.  If the entity is experiencing a delay,
+             *  then the event associated with the delay is cancelled.
+             *
+             *  Finally the entity itself is released: unbound from the terminated process, its
+             *  suspension-kind fields cleared, and moved to the process-ended state, which is what
+             *  allows the hooks that run after this -- handleTerminatedProcess() and the
+             *  afterTermination callback -- to give it a new process.
+             *
+             *  If the entity has additional processes in
+             *  its process sequence they are not automatically executed. If the user
+             *  requires specific behavior to occur for the entity after termination, then
+             *  the user should override the Entity's handleTerminatedProcess() function to
+             *  supply specific logic.
+             */
             private fun afterTerminatedProcessCompletion() {
                 endMoves()
                 val guided = leaveGuidedJourneys()
@@ -5331,6 +5342,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         suspensionName: String? = null
     ) : Entity() {
         lateinit var transferRequest: Conveyor.ConveyorRequest
+
+        /** The entity whose transfer this helper makes. */
+        internal var worksFor: Entity? = null
 
         /** The entity this helper works for was terminated before the helper started. */
         private var myIsAbandoned = false

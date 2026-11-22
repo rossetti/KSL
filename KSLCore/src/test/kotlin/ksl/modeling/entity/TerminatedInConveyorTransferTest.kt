@@ -303,6 +303,27 @@ class TerminatedInConveyorTransferTest {
         }
     }
 
+    @Test
+    @DisplayName("boundary 2 by the queue: removeAndTerminate of the transfer's request ends V and hands V to the callback")
+    fun helperWaitingRemovedByItsQueue() {
+        for (type in types) {
+            val handed = mutableListOf<ProcessModel.Entity>()
+            val terminated = run(type) {
+                rider("V", 0.0)
+                rider("F1", 1.0, transfer = false)
+                atB("H2", 0.0, hold = 10.0, ride = false)
+                atB("F2", 8.0)
+                at(7.0) {
+                    val q = c2.accessQueueAt("B") as ConveyorQ
+                    val waiting = q.toList().single()
+                    q.removeAndTerminate(waiting) { handed.add(it) }
+                }
+            }
+            assertEquals(listOf<ProcessModel.Entity>(terminated.pair.actors.getValue("V")), handed, "$type: the callback is given V")
+            assertLeftAtOnce(type, "boundary 2 by the queue", terminated, reference(type, 7.0, h2Rides = false), f2Access = 10.0)
+        }
+    }
+
     // ---------- an item waiting to land, whose landing cell's occupant is terminated ----------
 
     @Test

@@ -284,7 +284,7 @@ private object AgvGuideSnippets {
     // -- §4 …abandon an outstanding request ------------------------------
 
     fun abandon(agv: AgvSystem, task: Dispatcher.Task) {
-        agv.dispatcher.cancel(task)
+        agv.dispatcher.removeAndTerminate(task)
     }
 
     // -- §4 …check the subsystem's own bookkeeping -----------------------

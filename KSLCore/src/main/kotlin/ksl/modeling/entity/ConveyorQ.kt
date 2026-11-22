@@ -29,7 +29,9 @@ class ConveyorQ @JvmOverloads constructor(
     Queue<Conveyor.ConveyorRequest>(parent, name, discipline) {
 
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
-     *  that was suspended because the entity's request was placed in the queue is immediately terminated.
+     *  that was suspended because the entity's request was placed in the queue is immediately terminated. A request
+     *  made by a transfer to this conveyor, still waiting for its entry, is the transferring entity's: that entity
+     *  is terminated, and it is the one given to [afterTermination].
      *
      * @param request the request to remove from the queue
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
@@ -41,8 +43,10 @@ class ConveyorQ @JvmOverloads constructor(
         waitStats: Boolean = false,
         afterTermination : ((entity: ProcessModel.Entity) -> Unit)? = null
     ) {
+        // a transfer waits for this conveyor's entry through a helper of the library's; the entity is the one it works for
+        val transferring = (request.entity as? ProcessModel.CTransferEntity)?.worksFor
         remove(request, waitStats)
-        request.entity.terminateProcess(afterTermination)
+        (transferring ?: request.entity).terminateProcess(afterTermination)
     }
 
     /**

@@ -257,6 +257,10 @@ sealed class AnimationEvent {
      * allocation but is held, and lent them to the entity [borrowerEntityId]. The units are drawn with the
      * borrower, whose `SeizeAllocated` counts them, until an [AnimationEvent.ResourceUnitsReturned] gives them back. A reader
      * that does not know this event skips it, and draws the lender at the units too.
+     *
+     * When the borrower releases and the units pass straight to a waiting preemptor that outranks the lender, no
+     * event says so: the lender's units stay lent, and the borrower's `Released` and the new borrower's
+     * `SeizeAllocated` move them to the new borrower. [borrowerEntityId] then no longer names who holds them.
      */
     @Serializable
     @SerialName("ResourceUnitsLent")

@@ -645,6 +645,21 @@ class NamedProcesses(parent: ModelElement) : ProcessModel(parent) {
     }
 }
 
+// ── §4 know what runs at the end of a replication ────────────────────────────────────────────────────
+
+class EndingHooks(parent: ModelElement) : ProcessModel(parent) {
+    private inner class Recovery : Entity() {
+        val script: KSLProcess = process { delay(1.0) }
+    }
+
+    private inner class Job : Entity() {
+        override fun handleTerminatedProcess(terminatedProcess: KSLProcess) {
+            if (isReplicationEnding) return
+            activate(Recovery().script)
+        }
+    }
+}
+
 // ── §4 read results ───────────────────────────────────────────────────────────────────────────────────
 
 fun readResults(server: ResourceWithQ, buffer: BlockingQueue<*>) {

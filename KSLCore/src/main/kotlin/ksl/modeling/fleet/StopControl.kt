@@ -47,7 +47,12 @@ sealed class StopInstruction {
      */
     data object Skip : StopInstruction()
 
-    /** Serve it, and end the tour there rather than going on. A short turn. */
+    /**
+     * Serve it, and end the tour there rather than going on. A short turn.
+     *
+     * Refused with a `FleetProtocolException` when a stop that collects or sets down a transport load is
+     * still ahead in the round: that load is suspended on the round and would never be carried.
+     */
     data object ServeAndEndTour : StopInstruction()
 }
 

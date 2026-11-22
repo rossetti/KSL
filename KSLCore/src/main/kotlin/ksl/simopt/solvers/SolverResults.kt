@@ -89,7 +89,10 @@ sealed class SolverResult {
 
         /**
          * Why the run ended: "Stopping Criteria Satisfied", "Maximum Iterations Reached", "Maximum Execution Time
-         * Reached", "Halted Before Completion", or "Not Finished" for a run read before it ended. The solver records
+         * Reached", "Halted Before Completion", "Ended With An Error" when an exception ended the run, or "Not
+         * Finished" for a run read before it ended. A run stepped with `runNextIteration` and then ended with
+         * `endIterations` is halted only if it could have gone on; one that had used every iteration, or reached its
+         * time limit, reports that limit. The solver records
          * it when the run ends, so a later change to the solver's settings does not alter it. A property of the body
          * rather than the constructor, so the constructor and `copy` keep their signatures; `copy` does not carry it,
          * and a result made directly reports the criteria or a halt.

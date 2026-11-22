@@ -223,9 +223,12 @@ interface KSLProcessBuilder {
      *  queue's itemsTrigger(). A trigger can fire at once when nothing is waiting ahead of it for the
      *  same thing and what it needs is there now; if any can, the wait ends without suspending, and
      *  the first of them in argument order wins. Otherwise the triggers register in argument order,
-     *  and one that is then served at once, ahead of requests already waiting because of its priority,
-     *  ends the wait without suspending. Otherwise the first to fire in time order wins, and the others
-     *  are withdrawn at that instant. A seize trigger that wins, but finds when the
+     *  except that a trigger whose turn is known only once its request is queued (a seize trigger whose
+     *  queue has a request selection rule, or an items trigger whose items are in the channel while other
+     *  requests wait) registers ahead of the others; one that its queue then serves at once, ahead of
+     *  requests already waiting, ends the wait without suspending. Otherwise the first to fire in time
+     *  order wins, and the others are withdrawn at that instant. Every trigger is checked before any can
+     *  fire or register: a released allocation's trigger fails the call, with nothing registered. A seize trigger that wins, but finds when the
      *  entity resumes that the units promised to it went away in the same instant, waits again with
      *  all the triggers, for the time left; any of them can then end the wait.
      *
@@ -434,6 +437,11 @@ interface KSLProcessBuilder {
      *  to complete before proceeding. Since the current process suspends (immediately) the time until
      *  activation of the specified process will be included in the total time until the specified
      *  process completes.
+     *
+     *  Termination reaches across the wait. If the specified process is terminated, the waiting process is
+     *  terminated with it. If the waiting process is terminated while the specified process is suspended, the
+     *  specified process is terminated too; if it is terminated before the specified process has started, within
+     *  the time until activation, the specified process still starts, and runs to its end on its own.
      *
      * @param process the process to start for an entity. The supplied process must be in the created state.
      * @param timeUntilActivation the time until the start of the process being activated.
@@ -1657,15 +1665,18 @@ interface KSLProcessBuilder {
      *  A delay that reports an interruption instead of freezing. It runs as `delay` does, but if units of an
      *  allocation it depends on go missing, to a failure or a preemption under `RESUME` or `RESTART`, it ends
      *  at once and returns `DelayResult.Interrupted`, saying which allocation, why, and how much time was left.
-     *  The units are still missing: the process decides what to do, for example wait for them with
-     *  `restoredTrigger()` on the allocation, release it and seize another, or carry on with what it holds.
+     *  The units are usually still missing when the process runs, but may have come back in the same instant;
+     *  the allocation's `hasMissingUnits` says which. The process decides what to do, for example wait for them
+     *  with `restoredTrigger()` on the allocation, release it and seize another, or carry on with what it holds.
      *  When it runs to its end it returns `DelayResult.Completed`.
      *
      *  It depends on [uses], or on every allocation the entity holds when [uses] is null; an empty collection
      *  means no resource can end it. If units of one it depends on are already missing when it is called, it
      *  returns `Interrupted` at once, with nothing done and no delay, even for a duration of 0. A process
      *  interrupt holds it as it holds any delay; units going missing while it is held end it at once. Units
-     *  going missing at the instant its end is due do not end it: it completes, as a plain delay does.
+     *  going missing at the instant its end is due do not end it: it completes, as a plain delay does. A delay
+     *  held by a process interrupt has no end due while held, so units going missing then end it, even when
+     *  no time was left on it when the interrupt came.
      *
      *  @param delayDuration the length of the delay, at least 0 and finite
      *  @param uses the allocations the work depends on, each allocated to this entity; null for all it holds

@@ -350,7 +350,16 @@ the queue's list order, which for a LIFO or random queue is not
 its discipline; sort the list to impose another order. When a member's
 units come free, the rule's choices for the member come before its
 choices for each pool the member belongs to. With no rule, the queue's
-discipline decides.
+discipline decides. The queue a rule sees still holds requests already
+woken to take their units, which no longer count as available; they are
+passed over, and if one leaves without taking its units they are offered
+again.
+
+**A pool seize waits its turn.** A seize of a pool or a movable resource
+pool, whether it arrives, is moved in, or is a trigger of `waitForFirst`,
+is served at once only when its queue would choose it next, as a seize of
+one resource is. With a request selection rule, it is judged by what the
+rule chooses for the pool.
 
 ### ...renege (give up waiting for a resource)
 
@@ -487,7 +496,10 @@ doctor.cyclicBehavior {
   releasing what it holds and running its `finally` blocks. The action given
   to `onBehaviorStopped` then puts back what the behavior changed (a stop in
   the middle of a break would otherwise leave the resource off shift).
-  `startBehavior()` starts it again, fresh. `isBehaviorActive` and
+  `startBehavior()` starts it again, fresh. A behavior whose process the
+  model terminates (as clearing a queue it waits in does) has ended too, and
+  can be started again; its `onBehaviorStopped` action runs only if a stop
+  had been asked for. `isBehaviorActive` and
   `isBehaviorStopRequested` are the checks. The control
   `behaviorActiveAtStart` decides whether each replication starts it, so an
   experiment can compare runs with and without it. Only a resource with a
@@ -622,8 +634,9 @@ private inner class Emergency : Entity() {
 - **The rule** is the resource's `interruptRule` unless the call names one.
   Under `RESUME` and `RESTART` the units are taken now and the holder's delay
   is held. Under `FINISH` nothing is taken in service: the preemptor is
-  promised the free units and takes the rest as units are released, ahead of
-  everyone waiting in the queue; several such preemptors take them in order
+  promised the free units, which stay idle and go to no one else while it
+  waits, and takes the rest as units are released, ahead of everyone waiting
+  in the queue; several such preemptors take them in order
   of priority, the earliest first among equals. A capacity decrease under
   WAIT that is short of idle units takes back units promised to one still
   collecting, which collects them again later. Under either rule, one that
@@ -1028,8 +1041,16 @@ when (r.trigger) {
   among the wait's seize triggers, as `seize` yields. Its value is the allocation; a
   losing seize request leaves its queue at the claim, recorded unless
   `recordRenegedWait = false`.
+- **Two items triggers on one queue.** Their requests wait in the queue's request queue
+  like any others, and the default selector serves only the request at the head. So a
+  request for red items at the head holds back the request for blue items behind it, even
+  one of the same wait, and the wait does not take a blue item that arrives. Set
+  `queue.receiverRequestSelector = queue.FirstFillableRequest()` to serve the first request
+  the channel can fill.
 - **Limits.** At least one trigger, each at most once, and at most one signal trigger,
-  because an entity can wait in only one queue.
+  because an entity can wait in only one queue. A released allocation's
+  `interruptedTrigger` or `restoredTrigger` is refused at the call, before anything is
+  registered, even when another trigger could end the wait at once.
 - With more than one trigger the entity reports `isWaitingForFirst` and the suspend type
   `WAIT_FOR_FIRST`. With one, it reports what the untimed wait reports.
 
@@ -1123,9 +1144,14 @@ says what the target was doing.
 A delay can be held for several reasons at once: a process interrupt, a
 failure, a preemption. It goes on only when the last one ends. If any of them
 asked for a restart, it starts again in full; otherwise it goes on with the
-time it had left. A process interrupt's own post time (the
-`postInterruptDelayTime` of `interruptDelay`) applies only when that interrupt
-is the last reason to end.
+time it had left. A process interrupt's own post time applies only when that
+interrupt is the last reason to end, and then it decides alone. Every process
+interrupt has one: `interruptDelay` takes it as `postInterruptDelayTime`,
+`interruptDelayAndContinue` uses the time left when the interrupt began, and
+`interruptDelayAndRestart` uses the delay's full duration. So an
+`interruptDelayAndContinue` that outlasts a failure under `RESTART` goes on
+with the time left when it began, not in full; to let the failure's rule
+decide, end the process interrupt first.
 
 ### ...declare multiple processes on one entity
 
@@ -1153,6 +1179,36 @@ class NamedProcesses(parent: ModelElement) : ProcessModel(parent) {
 Use `blockUntilCompleted(otherProcess)` from inside a process body when
 one process should wait for another (e.g. a main flow that waits on a
 recovery sub-process). `blockUntilAllCompleted(...)` waits on a list.
+
+### ...know what runs at the end of a replication
+
+When a replication's events end, every entity still suspended (in a delay,
+in a queue, waiting for a resource, a signal or the first of several
+things) is terminated. Its process does not go on past the suspension
+point: its `finally` blocks run, then its termination hooks, the entity's
+`handleTerminatedProcess` and any `afterTermination` callback. What it held
+is released and what it waited in it leaves, with no wait recorded.
+
+That code runs after the last event, so nothing it asks for can happen
+later. A wake-up or activation it asks for (clearing a blockage, signalling
+or resuming another entity, activating a recovery process) is dropped,
+without an error. While the entities are being terminated,
+`isReplicationEnding` on the process model is true, so a hook can skip
+building a recovery entity:
+
+```kotlin
+private inner class Job : Entity() {
+    override fun handleTerminatedProcess(terminatedProcess: KSLProcess) {
+        if (isReplicationEnding) return
+        activate(Recovery().script)
+    }
+}
+```
+
+An entity whose activation is still pending when a replication ends, one
+activated for a time after the end, cannot be activated in the next
+replication. A model that keeps entities in properties across replications
+makes new ones, with new processes, in `initialize()`.
 
 ### ...read results
 

@@ -52,6 +52,24 @@ class CapturePanelTest {
     }
 
     @Test
+    fun `the library's own entity types are not offered`() {
+        val controller = controller()
+        try {
+            val internal = controller.inventory.entityTypes.filter { it.isInternal }.map { it.typeName }
+            assertTrue(internal.isNotEmpty(), "a model with a resource has the library's own entity types")
+            val (types, processes) = onEdt {
+                val panel = CapturePanel(controller)
+                panel.namesShownForTest(ElementKind.ENTITY_TYPE) to panel.namesShownForTest(ElementKind.PROCESS)
+            }
+            assertTrue(types.none { it in internal }, "entity types offered: $types")
+            assertTrue(processes.none { p -> internal.any { p.startsWith("$it.") } }, "processes offered: $processes")
+            assertTrue(types.isNotEmpty(), "the model's own entity types are still offered")
+        } finally {
+            controller.close()
+        }
+    }
+
+    @Test
     fun `mode toggle routes to the controller`() {
         val controller = controller()
         try {

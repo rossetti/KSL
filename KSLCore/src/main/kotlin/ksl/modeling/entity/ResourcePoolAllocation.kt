@@ -57,7 +57,11 @@ class ResourcePoolAllocation(
      *  The time that the allocation was allocated to the pool
      */
     val timeAllocated: Double = resourcePool.time
-    var timeDeallocated: Double = Double.NaN //TODO not doing anything with these
+
+    /**
+     *  The time that the allocation was released with `release` of the pool allocation; NaN until then
+     */
+    var timeDeallocated: Double = Double.NaN
         internal set
 
     /**
@@ -67,7 +71,7 @@ class ResourcePoolAllocation(
         private set
 
     /**
-     *  The amount of the allocation representing the units allocated of the pool
+     *  The amount of the allocation representing the units allocated of the pool; zero once it is released with `release` of the pool allocation
      */
     var amount: Int = theAmount
         internal set(value) {

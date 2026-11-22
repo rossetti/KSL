@@ -270,6 +270,9 @@ open class ResourcePool @JvmOverloads constructor(
             ProcessModel.logger.trace { "Resource Pool $name is deallocating from resource ${allocation.myResource.name}" }
             allocation.myResource.deallocate(allocation)
         }
+        // recorded as an allocation of one resource records its release
+        poolAllocation.amount = 0
+        poolAllocation.timeDeallocated = time
     }
 
 }

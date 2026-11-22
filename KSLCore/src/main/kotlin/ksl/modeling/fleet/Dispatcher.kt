@@ -268,7 +268,7 @@ open class Dispatcher @JvmOverloads constructor(
             if (next == TaskState.CANCELLED) {
                 // Counted where the task is cancelled rather than where someone asked for it,
                 // because two different callers can ask: the dispatcher's own `cancel`, and
-                // `TaskQ.removeAndTerminate`, which is the *only* way to withdraw a transport
+                // `removeAndTerminate`, which is the *only* way to withdraw a transport
                 // request. Counting at the call site meant every load withdrawn by termination left
                 // the accounts one short -- posted, and then neither completed, nor cancelled, nor
                 // waiting anywhere. A count of how many tasks ended cancelled must not depend on
@@ -573,7 +573,7 @@ open class Dispatcher @JvmOverloads constructor(
      * model carries on as though the load had been delivered.
      *
      * `MovableResource` declines to offer cancellation for the same reason, so a modeller learns one
-     * rule rather than two. If a load must give up entirely, [TaskQ.removeAndTerminate] ends its
+     * rule rather than two. If a load must give up entirely, [removeAndTerminate] ends its
      * process outright -- blunt, but honest about being blunt, and it leaves nothing suspended.
      *
      * A [ServiceTask] is different in the way that matters: a vehicle raised it for itself, so
@@ -593,13 +593,36 @@ open class Dispatcher @JvmOverloads constructor(
                         "(${task.load.name}) is suspended waiting for it, and there is no outcome " +
                         "this subsystem can give that entity which a model is obliged to handle. " +
                         "MovableResource declines cancellation for the same reason. To make the " +
-                        "load give up entirely, use TaskQ.removeAndTerminate, which ends its " +
+                        "load give up entirely, use Dispatcher.removeAndTerminate, which ends its " +
                         "process and leaves nothing suspended."
             )
         }
         releaseAnyVehicleFrom(task)
         myTaskQ.remove(task, false)
         task.transitionTo(TaskState.CANCELLED)
+    }
+
+    /**
+     * Gives up a task waiting on the board and terminates the process of the load waiting for it: the task
+     * leaves the queue and ends cancelled, a vehicle already committed to it is released, and the load's
+     * process is terminated. The way for a model to withdraw a transport request; for a task nothing waits on,
+     * such as an errand, it cancels the task as [cancel] does. A load already aboard cannot be given up, since there is
+     * nowhere to set it down. It is not needed at the end of a replication, when every suspended entity is
+     * terminated anyway.
+     *
+     * @param task the task to give up; one of this dispatcher's
+     * @param waitStats if true the wait is recorded in the queue's time in queue. The default is false, because
+     *   a wait that was given up rather than served is not an observation of service.
+     * @param afterTermination invoked with the load once its process has been terminated
+     */
+    @JvmOverloads
+    fun removeAndTerminate(
+        task: Task,
+        waitStats: Boolean = false,
+        afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null
+    ) {
+        require(task.dispatcher === this) { "Task (${task.name}) does not belong to ${this.name}." }
+        myTaskQ.removeAndTerminate(task, waitStats, afterTermination)
     }
 
     /**

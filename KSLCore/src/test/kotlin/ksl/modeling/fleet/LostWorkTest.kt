@@ -196,7 +196,7 @@ class LostWorkTest {
             // give the suspended load that a model is obliged to handle.
             refusal = runCatching { agv.dispatcher.cancel(task) }.exceptionOrNull()?.message
             // The sanctioned alternative -- blunt, but it leaves nothing suspended.
-            (agv.dispatcher.taskQ as TaskQ).removeAndTerminate(task)
+            agv.dispatcher.removeAndTerminate(task)
             terminated = true
         }
     }

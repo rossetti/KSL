@@ -552,7 +552,8 @@ abstract class Solver(
     /**
      *  Note that the iterations can only be ended before running all iterations or
      *  before running the next iteration. Use stopIterations() to cause a graceful
-     *  completion of inner and outer iterations.
+     *  completion of inner and outer iterations. The run is recorded as halted only if it could have gone on: a
+     *  run that has used every iteration, or reached its time limit, records that limit as its reason.
      *  @param msg a message to capture for why the iterations were ended
      */
     @Suppress("unused")

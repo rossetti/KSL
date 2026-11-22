@@ -874,9 +874,8 @@ abstract class FleetSystem @JvmOverloads constructor(
          *
          * A list rather than a slot because a vehicle with capacity will hold several, and because
          * the readers that mean *any commitment at all* -- the fleet counts, the horizon
-         * diagnostic, `FracTimeOnTask` -- should say so rather than testing a slot for null. It
-         * never holds more than one today: `FleetVehicle` refuses a load capacity above one, so the
-         * plural storage is in place and unused, which is what makes this step inert.
+         * diagnostic, `FracTimeOnTask` -- should say so rather than testing a slot for null. A
+         * vehicle with a load capacity above one holds a commitment for each load of its round.
          *
          * Ordered, never a set: `C1` requires that declaration order cannot change an answer, and a
          * set would make the order of a vehicle's commitments an accident of hashing.
@@ -884,11 +883,8 @@ abstract class FleetSystem @JvmOverloads constructor(
         internal val assignments = mutableListOf<Assignment>()
 
         /**
-         * The one commitment this vehicle holds, or null.
-         *
-         * The control loop is written for a single assignment and stays that way until the tour
-         * becomes a plan over several. Reading and writing through here keeps that loop unchanged
-         * while the storage underneath it is already plural.
+         * The first commitment this vehicle holds, in the order they were made, or null: the one
+         * the vehicle reports as its current assignment.
          */
         internal val assignment: Assignment?
             get() = assignments.firstOrNull()

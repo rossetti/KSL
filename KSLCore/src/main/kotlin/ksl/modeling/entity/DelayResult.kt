@@ -48,8 +48,10 @@ sealed class DelayResult {
     }
 
     /**
-     *  The delay ended early, at the moment units of [by] went missing. The units are still missing: the
-     *  process decides what to do, for example wait for them with `by.restoredTrigger()`, release the
+     *  The delay ended early, at the moment units of [by] went missing. They are usually still missing when
+     *  the process runs, but may have come back in the same instant, by a repair or a return made before the
+     *  process resumed; `by.hasMissingUnits` says which. The process decides what to do, for example wait for
+     *  them with `by.restoredTrigger()` (which fires at once if they are back), release the
      *  allocation, or carry on with what it holds. Work that goes on after the units come back is best done
      *  in a loop that calls `delayOrInterrupt` again with what is left, as the entity guide shows: the units
      *  can be taken again before the process runs, and the next call then returns at once with nothing done.

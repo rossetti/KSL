@@ -24,9 +24,11 @@ import ksl.simulation.ModelElement
  *  The trigger of items from a blocking queue, made by `BlockingQueue.itemsTrigger` (an amount of
  *  matching items) or `BlockingQueue.anyItemsTrigger` (every matching item, at least one). It can
  *  fire at once when no request is waiting and the channel holds what it needs. With requests waiting,
- *  it places its request in the queue's request queue in argument order, and is filled at once if the
- *  queue's request selector chooses it, as the untimed receive is; otherwise the queue claims the wait
- *  when it later selects the request.
+ *  it places its request in the queue's request queue, and is filled at once if the queue's request
+ *  selector chooses it, as the untimed receive is; otherwise the queue claims the wait when it later
+ *  selects the request. When the channel already holds what it needs, its request is placed ahead of
+ *  the wait's other triggers, so that it can be filled at once; otherwise it is placed in argument
+ *  order with them.
  *
  *  @param amount the number of items wanted, or null for every matching item
  */

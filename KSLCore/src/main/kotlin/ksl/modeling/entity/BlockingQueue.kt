@@ -376,6 +376,11 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
      *
      *  A trigger holds no state of any wait, so it can be kept and used in any number of waits.
      *
+     *  Two such triggers of one wait on this queue place two requests, and under the default request
+     *  selector only the request at the head is served: one for items the channel lacks holds back one
+     *  behind it that the channel could fill. Set the receiverRequestSelector to [FirstFillableRequest]
+     *  to serve the first request the channel can fill.
+     *
      *  @param amount the number of items wanted; at least 1
      *  @param predicate selects the items wanted
      *  @param blockingPriority the request's priority in the request queue; null (the default)

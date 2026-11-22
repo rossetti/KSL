@@ -723,6 +723,13 @@ had reached — from wherever it now stands, if somebody moved it. Handing the
 task back would put a load on the board while a vehicle was still physically
 holding it, and two vehicles would then believe they had it.
 
+A vehicle that breaks down on a trip of its own, on its way home, to a
+parking place or to a charger, does not settle where it stopped. Once it is
+put right it is offered work again and, with none, its disposition policy
+decides afresh where it goes.
+A breakdown is never counted as stranding: `NumVehiclesStranded` and
+`NumTimesStranded` count only vehicles that ran out of charge.
+
 **What happens next is a policy, not a duration.** See *…do what a site
 actually does when a vehicle breaks down?* below. The default repairs the
 vehicle where it stands for the drawn repair time and nothing else.
@@ -977,12 +984,18 @@ worth being deliberate about.
 ### …abandon an outstanding request?
 
 ```kotlin
-agv.dispatcher.cancel(task)
+agv.dispatcher.removeAndTerminate(task)
 ```
 
 For a model that wants transport requests given up rather than left
-hanging. It is not needed for teardown: `ProcessModel.afterReplication`
-terminates every suspended entity without help from this subsystem.
+hanging. The load's process is waiting on the request, so giving it up
+ends that process: the task leaves the queue, a vehicle already committed
+to it is released, and the load's process is terminated. A load already
+aboard cannot be abandoned this way, since there is nowhere to set it
+down. `dispatcher.cancel` is for tasks nothing waits on, such as errands,
+and refuses a transport request, because nothing could resume the load that waits on it. Neither
+is needed for teardown: `ProcessModel.afterReplication` terminates every
+suspended entity without help from this subsystem.
 
 ### …ask what a vehicle is doing right now?
 
@@ -1318,6 +1331,10 @@ bus.stopControl = DispatcherStopControl()
 fleet.dispatcher.instruct(bus, StopInstruction.Skip)             // run it past the next stop
 fleet.dispatcher.instruct(bus, StopInstruction.ServeAndEndTour)  // short-turn it
 ```
+
+A short turn is refused, with a `FleetProtocolException`, when a stop that
+collects or sets down a transport load is still ahead in the round: that load waits
+on the round and would never be carried.
 
 The instruction is collected at the vehicle's next ask, not applied the instant it is left: a
 vehicle mid-leg is somewhere, and an instruction about nothing is not an instruction. Both

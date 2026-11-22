@@ -66,7 +66,7 @@ interface FleetVehicleCIfc {
     /** True when it could take work: in service, not failed, not on a charger, and not already committed. */
     val isAvailable: Boolean
 
-    /** The task it is committed to, or null. */
+    /** The first of the tasks it is committed to, in the order they were committed, or null. */
     val currentAssignment: Assignment?
 
     /** True when it has a task in hand. */
