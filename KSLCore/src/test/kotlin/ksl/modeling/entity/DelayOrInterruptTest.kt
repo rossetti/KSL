@@ -313,6 +313,49 @@ class DelayOrInterruptTest {
     }
 
     @Test
+    @DisplayName("held by a process interrupt from the instant its end was due, then units go missing: reported, with no time left")
+    fun heldAtTheEndInstantThenReport() {
+        lateinit var w: RModel.Actor
+        val m = run {
+            w = actor("W") {
+                val a = seize(r)
+                note("W", delayOrInterrupt(5.0, suspensionName = "work"), time)
+                release(a)
+            }
+            // the interrupt comes at 5, ahead of the delay's end event, and holds the delay until 7
+            actor("I") {
+                delay(5.0, delayPriority = 1)
+                interruptDelay(w.p, "work", interruptTime = 2.0, postInterruptDelayTime = 3.0)
+                log.add("interrupt over@$time")
+            }
+            at(6.0) { r.fail() }
+            at(20.0) { r.repair() }
+        }
+        assertEquals(listOf("W interrupted@6.0", "interrupt over@7.0"), m.log)
+        val i = assertIs<DelayResult.Interrupted>(m.results.single())
+        assertEquals(0.0, i.timeRemaining)
+        assertEquals(6.0, i.timeElapsed)
+    }
+
+    @Test
+    @DisplayName("a zero-length delayOrInterrupt whose units go missing at its instant: Completed, no report")
+    fun zeroLengthCompletes() {
+        val m = run {
+            actor("W") {
+                val a = seize(r)
+                delay(2.0, delayPriority = ProcessModel.DELAY_PRIORITY - 2)
+                note("W", delayOrInterrupt(0.0), time)
+                delay(1.0, uses = emptyList())
+                release(a)
+            }
+            // after the first delay ends and before the zero-length one's end event
+            at(2.0, priority = ProcessModel.DELAY_PRIORITY - 1) { r.fail() }
+            at(20.0) { r.repair() }
+        }
+        assertEquals(listOf("W completed@2.0"), m.log)
+    }
+
+    @Test
     @DisplayName("time remaining after a process interrupt's long post time, and after a restart: the time left, and never a negative time done")
     fun timeRemainingAfterProcessInterrupts() {
         lateinit var w: RModel.Actor

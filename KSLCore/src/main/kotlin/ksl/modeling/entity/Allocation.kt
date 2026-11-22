@@ -320,12 +320,17 @@ class Allocation internal constructor(
     internal val currentCause: InterruptCause
         get() = if (missingByFailure > 0) InterruptCause.FAILURE else InterruptCause.PREEMPTION
 
+    /** Refuses a wait on one of this allocation's triggers once it has been released: the wait would never end. */
+    internal fun requireHeldForTrigger(onRestore: Boolean) {
+        require(isAllocated) {
+            "Allocation $id of ${myResource.name} has been released (isAllocated is false); a wait on its " +
+                    "${if (onRestore) "restored" else "interrupted"} trigger would never end. Use the triggers of an allocation that is held."
+        }
+    }
+
     /** Registers a wait on one of this allocation's triggers; a released allocation refuses it. */
     internal fun registerTrigger(trigger: WaitTrigger<*>, group: WaitGroup, onRestore: Boolean): AllocationRegistration {
-        require(isAllocated) {
-            "Allocation $id of ${myResource.name} has been released; a wait on its ${if (onRestore) "restored" else "interrupted"} " +
-                    "trigger would never end. Use the triggers of an allocation that is held."
-        }
+        requireHeldForTrigger(onRestore)
         val registration = AllocationRegistration(trigger, group, this, onRestore)
         myTriggerRegistrations.add(registration)
         return registration

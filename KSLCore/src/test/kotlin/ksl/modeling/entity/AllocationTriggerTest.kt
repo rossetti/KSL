@@ -466,6 +466,56 @@ class AllocationTriggerTest {
         assertEquals(listOf("old trigger refused", "new@3.0 FAILURE", "released refused"), m.log)
     }
 
+    @Test
+    @DisplayName("a released allocation's trigger after others: refused at the call, with nothing of the wait left registered")
+    fun refusedAfterOtherTriggers() {
+        var message: String? = null
+        var queuedAfter = -1
+        var signalWaitersAfter = -1
+        val m = run {
+            // holds R until 5, so the seize trigger's request would queue
+            actor("HR") { val a = seize(r); delay(5.0); release(a) }
+            actor("W") {
+                val old = seize(other)
+                release(old)
+                delay(1.0)
+                try {
+                    waitForFirst(r.seizeTrigger(), signal.trigger(), old.restoredTrigger(), timeout = 2.0)
+                } catch (e: IllegalArgumentException) {
+                    message = e.message
+                    queuedAfter = r.waitingQ.size
+                    signalWaitersAfter = signal.waitingQ.size
+                }
+                delay(10.0)
+            }
+            actor("V") { delay(2.0); val a = seize(r); log.add("V got R@$time"); release(a) }
+        }
+        assertTrue(message?.contains("isAllocated") == true, "the refusal names isAllocated: $message")
+        assertEquals(0, queuedAfter, "no seize request of the refused wait is left in R's queue")
+        assertEquals(0, signalWaitersAfter, "the refused wait is not left in the signal's queue")
+        assertEquals(listOf("V got R@5.0"), m.log)
+    }
+
+    @Test
+    @DisplayName("a released allocation's trigger after one that fires at once: still refused at the call")
+    fun refusedEvenWhenAnEarlierTriggerFires() {
+        var refused = false
+        run {
+            actor("W") {
+                val old = seize(other)
+                release(old)
+                val seizing = r.seizeTrigger()
+                try {
+                    val result = waitForFirst(seizing, old.interruptedTrigger())
+                    release(result.valueOf(seizing))
+                } catch (e: IllegalArgumentException) {
+                    refused = true
+                }
+            }
+        }
+        assertTrue(refused, "a wrong call fails whether or not an earlier trigger could end the wait")
+    }
+
     // ---------- loans ----------
 
     @Test

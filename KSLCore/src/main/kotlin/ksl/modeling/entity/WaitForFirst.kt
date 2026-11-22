@@ -47,6 +47,13 @@ abstract class WaitTrigger<out T> internal constructor() {
     internal abstract fun canFireNow(entity: ProcessModel.Entity): Boolean
 
     /**
+     *  Checks that a wait by [entity] may use this trigger, throwing `IllegalArgumentException` if not. A wait
+     *  checks every trigger before any can fire or register, so a wrong call fails where it is made, with nothing
+     *  left behind. By default every trigger may be used.
+     */
+    internal open fun validate(entity: ProcessModel.Entity) {}
+
+    /**
      *  True when whether this trigger can fire at once is known only once its request is queued, as for a seize
      *  whose queue has a request selection rule. The fast path of a wait stops at such a trigger, so that the
      *  triggers are still decided in argument order: it and those after it register, and it claims the wait as it

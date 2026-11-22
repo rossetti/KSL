@@ -1016,12 +1016,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         /**
          *  Ends the current delayOrInterrupt because units of [by] went missing: records the report, cancels the
          *  delay's event, drops a process interrupt's hold on it, and schedules the resume. The first allocation
-         *  reported wins. Nothing is reported when the delay's end is due at this instant: it completes.
+         *  reported wins. Nothing is reported when the delay's end event is due at this instant: it completes.
+         *  A delay held by a process interrupt has no end event while held, so it is reported even when no
+         *  time was left on it when the interrupt came.
          */
         private fun reportInterruption(by: Allocation, restart: Boolean, cause: InterruptCause) {
             if (myDelayReport != null) return
             val remaining = delayTimeLeft
-            if (remaining == 0.0) return
+            if (remaining == 0.0 && !isDelayFrozen) return
             myDelayReport = DelayResult.Interrupted(
                 duration = myDelayDuration,
                 timeElapsed = processModel.time - myDelayStartTime,
@@ -2608,9 +2610,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         "it was given ${triggers.count { it is SignalTrigger }}."
                 }
                 requireTimeout(timeout)
+                for (trigger in triggers) trigger.validate(this@Entity)
                 val yieldAt = triggers.mapNotNull { it.yieldPriority }.minOrNull()
                 if (yieldAt != null) {
                     yield(yieldAt, "yield before waitForFirst: $suspensionName")
+                    // other events of this instant run during the yield, and may release an allocation checked above
+                    for (trigger in triggers) trigger.validate(this@Entity)
                 }
                 // Fast path: a trigger that can fire at once, in argument order, ends the wait without suspending.
                 for (trigger in triggers) {
@@ -2630,24 +2635,36 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // are ready. The triggers before the first queued one could not fire (the fast path above). The
                 // rest register last, in argument order.
                 val registered = mutableSetOf<WaitTrigger<*>>()
-                for (trigger in triggers) {
-                    if (trigger.decidesWhenQueued) {
-                        trigger.register(group)
-                        registered.add(trigger)
-                        if (group.claimed) break
-                    } else if (registered.isNotEmpty() && trigger.canFireNow(this@Entity)) {
-                        val value = trigger.fireNow(this)
-                        group.claim(null, null, ResumeSource.UNKNOWN_INTERNAL, RESUME_PRIORITY)
-                        logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst ended at once by $trigger, ($this)" }
-                        return WaitForFirstResult(triggers.toList(), trigger, value, 0.0)
-                    }
-                }
-                if (!group.claimed) {
+                try {
                     for (trigger in triggers) {
-                        if (trigger in registered) continue
-                        trigger.register(group)
-                        if (group.claimed) break
+                        if (trigger.decidesWhenQueued) {
+                            trigger.register(group)
+                            registered.add(trigger)
+                            if (group.claimed) break
+                        } else if (registered.isNotEmpty() && trigger.canFireNow(this@Entity)) {
+                            val value = trigger.fireNow(this)
+                            group.claim(null, null, ResumeSource.UNKNOWN_INTERNAL, RESUME_PRIORITY)
+                            logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst ended at once by $trigger, ($this)" }
+                            return WaitForFirstResult(triggers.toList(), trigger, value, 0.0)
+                        }
                     }
+                    if (!group.claimed) {
+                        for (trigger in triggers) {
+                            if (trigger in registered) continue
+                            trigger.register(group)
+                            if (group.claimed) break
+                        }
+                    }
+                } catch (e: Throwable) {
+                    // a registration that fails leaves none of the wait behind: the ones made are withdrawn,
+                    // recording nothing, the wait is closed so nothing can claim it, and the requests behind the
+                    // withdrawn ones are looked at again, once per source, as at a termination
+                    group.closeOnTermination()
+                    for (registration in group.registrations.toList()) registration.releaseOnTermination()
+                    group.registrations.filter { it.deferredNotificationSource != null }
+                        .distinctBy { it.deferredNotificationSource }
+                        .forEach { it.notifyDeferred() }
+                    throw e
                 }
                 try {
                     if (!group.claimed) {

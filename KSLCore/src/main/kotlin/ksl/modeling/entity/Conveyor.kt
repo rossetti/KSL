@@ -1529,6 +1529,13 @@ class Conveyor @JvmOverloads constructor(
     private fun rescheduleNonAccumulatingConveyorMovement() {
         val occupied = isOccupied()
         val blocked = hasBlockedCells()
+        if (!occupied && !blocked && hasItemPositionedToEnter()) {
+            // nothing is on the conveyor, but an item waits to enter: it moves to let the item on, as an
+            // accumulating conveyor does. The item's entry is made at the end of the cell move.
+            ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Non-accumulating: not occupied, has an item positioned to enter: movement scheduled" }
+            scheduleConveyorMovement()
+            return
+        }
         if (!occupied || blocked) {
             endCellTraversalEvent = null
             ProcessModel.logger.trace { "r = ${model.currentReplicationNumber} : $time > ... event executing : CONVEYOR (${this@Conveyor.name}): Non-accumulating: occupied = $occupied, blocked = $blocked: no movement scheduled" }

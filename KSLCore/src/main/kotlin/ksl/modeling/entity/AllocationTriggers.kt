@@ -28,6 +28,8 @@ internal class InterruptedTrigger(val allocation: Allocation) : WaitTrigger<Inte
 
     override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): InterruptCause = allocation.currentCause
 
+    override fun validate(entity: ProcessModel.Entity) = allocation.requireHeldForTrigger(onRestore = false)
+
     override fun register(group: WaitGroup): Registration = allocation.registerTrigger(this, group, onRestore = false)
 
     /** Waiting again, after a seize trigger's promise broke: an allocation released since waits on nothing. */
@@ -46,6 +48,8 @@ internal class RestoredTrigger(val allocation: Allocation) : WaitTrigger<Unit>()
     override fun canFireNow(entity: ProcessModel.Entity): Boolean = allocation.isAllocated && !allocation.hasMissingUnits
 
     override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine) {}
+
+    override fun validate(entity: ProcessModel.Entity) = allocation.requireHeldForTrigger(onRestore = true)
 
     override fun register(group: WaitGroup): Registration = allocation.registerTrigger(this, group, onRestore = true)
 
