@@ -1727,7 +1727,8 @@ interface KSLProcessBuilder {
      *    entities take released units in order of priority, the earliest first among equals.
      *
      *  The holder keeps its allocation. When the entity releases its allocation, the units it took go back
-     *  to their holders first, newest first, before the queue, unless a waiting entity outranks the holder
+     *  to their holders first, the last taken first (of one preemption's holders, the earliest allocated first,
+     *  since the most recently allocated was taken from first), before the queue, unless a waiting entity outranks the holder
      *  (below). A holder that releases while its units are
      *  taken ends that loan, and the units go to the queue when the entity releases them.
      *

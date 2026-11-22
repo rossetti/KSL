@@ -66,7 +66,10 @@ class AgentSignal(val name: String = "AgentSignal") {
      *  synchronously in the order they subscribed. If a handler
      *  triggers a transition that unsubscribes (or subscribes a
      *  different handler), only handlers active at the start of
-     *  [fire] are invoked for this call.
+     *  [fire] are invoked for this call. Once the replication's
+     *  events have ended (a signal fired from `replicationEnded()`),
+     *  nothing reacts: no statechart transitions and no waiting
+     *  process resumes.
      */
     fun fire() {
         if (subscribers.isEmpty()) return

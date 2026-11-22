@@ -975,6 +975,9 @@ open class AgentModel(
             val deregs = mutableListOf<() -> Unit>()
             for (sh in state.signalHandlers) {
                 val dereg = sh.signal.subscribe {
+                    // Once the replication's events have ended (a signal fired from replicationEnded()), nothing can
+                    // happen: a transition would schedule an event on an ended executive. The chart is stopped next.
+                    if (executive.isEnded) return@subscribe
                     // Guard 1: chain integrity.
                     if (state !in cachedActiveChain) return@subscribe
                     if (pendingTransitionTarget != null) return@subscribe

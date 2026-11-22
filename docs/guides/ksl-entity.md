@@ -655,8 +655,10 @@ private inner class Emergency : Entity() {
   and blocks no one; it is served, or reserves again, when the capacity
   returns.
 - **The units go back.** The holder keeps its allocation. When the preemptor
-  releases, the units it took go back to their holders first, newest first,
-  and only then to the queue, unless a waiting preemptor outranks the holder
+  releases, the units it took go back to their holders first, the last taken
+  first (a preemption takes from the most recently allocated holder first, so
+  of one preemption's holders the earliest allocated gets its units back
+  first), and only then to the queue, unless a waiting preemptor outranks the holder
   (above). Preemptions can nest; the units go back along
   the chain. A holder that releases or is terminated while its units are
   taken ends that loan, and the units go to the queue at the preemptor's
