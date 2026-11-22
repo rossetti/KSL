@@ -1293,14 +1293,21 @@ class BoardOnePerMinute(val stop: Stop) : TourStopActionIfc {
         val here = this@BoardOnePerMinute.stop
         with(context) {
             for (ride in here.waitingFor(onwardLocations)) {
-                if (vehicle.spareCapacity <= 0) break
+                // the seats left for riders, not the vehicle's spare room: later pickups may need some
+                if (seatsForRiders <= 0) break
                 delay(1.0)
-                takeAboard(ride)
+                // the list was taken before the delay: a rider may have left the line since
+                if (ride.isWaiting) takeAboard(ride)
             }
         }
     }
 }
 ```
+
+An action that suspends between reading the line and boarding, as this one does, checks
+`ride.isWaiting` again before each `takeAboard`: in the meantime a rider may have left the line (its
+process terminated), and `takeAboard` refuses a ride that is not waiting. It counts `seatsForRiders`,
+not `vehicle.spareCapacity`, so the places that pickups later in the round still need stay free.
 
 > **Move loads with the context's verbs, never by hand.** `takeAboard` and `setDown` are where every
 > per-load interval this subsystem reports is recorded. An action that puts something on a vehicle

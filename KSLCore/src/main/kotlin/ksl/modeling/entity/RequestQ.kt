@@ -333,7 +333,7 @@ class RequestQ @JvmOverloads constructor(
         resource: ResourceIfc,
         amountAvailable: Int
     ): Boolean = request.resource == resource &&
-            !request.resumePending && !request.isReserved &&
+            !request.isPassedOver &&
             request.amountRequested <= amountAvailable && poolCanServe(request)
 
     /**
@@ -400,7 +400,7 @@ class RequestQ @JvmOverloads constructor(
         val list = mutableListOf<ProcessModel.Entity.Request>()
         var remaining = amountAvailable
         for (request in candidates) {
-            if (request.resumePending || request.isReserved) continue
+            if (request.isPassedOver) continue
             if (request.amountRequested <= remaining) {
                 list.add(request)
                 remaining -= request.amountRequested
@@ -411,6 +411,13 @@ class RequestQ @JvmOverloads constructor(
         }
         return list
     }
+
+    /**
+     *  True when [first] is ahead of [second] in this queue's discipline: FIFO, LIFO, ranked, the random queue's
+     *  kept draw, or a discipline of the model's own. Both must be in this queue.
+     */
+    internal fun precedes(first: ProcessModel.Entity.Request, second: ProcessModel.Entity.Request): Boolean =
+        firstMatching { it === first || it === second } === first
 
     /**
      *  The first request in this queue, in its discipline, that units freed on [member] can serve now: one
@@ -424,7 +431,7 @@ class RequestQ @JvmOverloads constructor(
         val available = member.numAvailableUnits
         val rule = requestSelectionRule
         fun servable(request: ProcessModel.Entity.Request): Boolean =
-            if (request.resumePending || request.isReserved) {
+            if (request.isPassedOver) {
                 false
             } else {
                 val target = request.resource
@@ -555,8 +562,10 @@ class RequestQ @JvmOverloads constructor(
      *
      *  @return true if the request was in the queue
      */
-    internal fun removeLeaving(request: ProcessModel.Entity.Request, recordWait: Boolean): Boolean =
-        remove(request, recordWait && waitTimeStatOption)
+    internal fun removeLeaving(request: ProcessModel.Entity.Request, recordWait: Boolean): Boolean {
+        if (recordWait && waitTimeStatOption && contains(request)) request.registration?.let { it.group.noteRecorded(it.trigger, name) }
+        return remove(request, recordWait && waitTimeStatOption)
+    }
 
     /**
      *  The purpose of this function is to resume requests that have been selected for allocation.

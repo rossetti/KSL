@@ -504,8 +504,8 @@ open class Resource @JvmOverloads constructor(
     override val isBusy: Boolean
         get() = myState === myBusyState
 
-    /** True from a [fail] until the [repair] that follows it. */
-    override val isFailed: Boolean
+    /** True from a [fail] until the [repair] that follows it. Final: the resource's availability depends on it. */
+    final override val isFailed: Boolean
         get() = myState === myFailedState
 
     /** True when no units are allocated and the capacity is zero, as when a resource is off shift
@@ -1146,8 +1146,11 @@ open class Resource @JvmOverloads constructor(
      *  what was the repair time, that failure lasts until the model repairs it. The waiting is done by an entity
      *  of the resource's own, separate from a behavior it may have.
      *
-     *  On `BUSY_TIME`, the time counts only while at least one unit is busy and the resource is on shift
-     *  and not failed, so a failure comes due at the exact instant that much busy time has passed. On
+     *  On `BUSY_TIME`, the time counts while at least one unit is working, whatever the shift or a failure made
+     *  by [fail]: a unit finishing its work off shift, under a capacity schedule's zero-capacity item, or
+     *  through a `FINISH` failure is working; a unit a `RESUME` or `RESTART` failure takes from its holder is not. The time between failures starts at each repair, so a declared
+     *  failure's own repair time is not counted. A failure comes due at the exact instant that much busy time
+     *  has passed. On
      *  `USES`, [timeBetween] is rounded to a whole number of releases (at least 1), and the resource fails at
      *  the release that completes it, before the released units are offered to anyone waiting. On every
      *  basis the resource fails at the instant the failure comes due, so nothing is allocated in between.
@@ -1216,13 +1219,6 @@ open class Resource @JvmOverloads constructor(
         }
     }
 
-    /**
-     *  True once the run has ended. The releases that end-of-replication termination makes must then schedule
-     *  nothing, since the executive no longer accepts events.
-     */
-    internal val isRunEnded: Boolean
-        get() = executive.isEnded
-
     private fun countUse() {
         // a release made while the replication's entities are terminated completes no failure count
         if (myUsesLeft <= 0 || isRunEnded) return
@@ -1261,9 +1257,10 @@ open class Resource @JvmOverloads constructor(
     }
 
     /**
-     *  The busy time left before the next failure on `BUSY_TIME`. It runs while at least one unit is busy
-     *  and the resource is on shift and not failed: when it starts, it schedules the failure for the time
-     *  left; when it stops, it banks what is left and cancels the event.
+     *  The busy time left before the next failure on `BUSY_TIME`. It runs while at least one unit is working
+     *  (busy, and not taken from its holder by a failure), whatever the shift or a failure made by hand: when it starts, it schedules the failure for the time
+     *  left; when it stops, it banks what is left and cancels the event. It is armed only while the next
+     *  declared failure is awaited, so a declared failure's repair time is never counted.
      */
     private inner class BusyClock {
         private var armed = false
@@ -1290,7 +1287,9 @@ open class Resource @JvmOverloads constructor(
         fun update() {
             // once the run has ended, a shift's end or a repair in a finally block starts no clock
             if (!armed || isRunEnded) return
-            val shouldRun = numBusy > 0 && !isFailed && !isOffShift
+            // a unit is working while it is busy and not taken by a failure: a FINISH failure leaves the job
+            // running, while under RESUME or RESTART its units go missing and its work is held
+            val shouldRun = numBusy - allocations().sumOf { it.missingByFailure } > 0
             if (shouldRun && !running) {
                 running = true
                 since = time
@@ -1433,7 +1432,7 @@ open class Resource @JvmOverloads constructor(
 
     /**
      *  The number of consecutive cycles of a cyclic behavior that may end at the simulated time they
-     *  began before the behavior is taken to be looping without waiting, and throws. Large enough for a
+     *  began; one more is taken to be looping without waiting, and throws. Large enough for a
      *  legitimate burst, such as a cycle that takes each of many messages already waiting. Set while
      *  the model is not running; at least 1.
      */
@@ -1470,7 +1469,7 @@ open class Resource @JvmOverloads constructor(
      *  fresh every time while anything it captures from outside carries over between replications;
      *  state that must reset belongs inside the block.
      *
-     *  A cycle that ends at the time it began, [maxCyclesPerInstant] times in a row, throws, naming
+     *  More than [maxCyclesPerInstant] cycles in a row that end at the time they began throw, naming
      *  this resource: such a cycle never waits. Use [stopBehavior] and [startBehavior] to switch the
      *  behavior off and on during a replication, [onBehaviorStopped] to put back what a stopped
      *  behavior changed, and [behaviorActiveAtStart] to decide whether each replication starts it.
@@ -1866,7 +1865,7 @@ open class Resource @JvmOverloads constructor(
                 .filterIsInstance<ProcessModel.Entity.ResourceRequest>()
                 .filter { it.myResource === this && it.passedAllocation == null }
                 .filter { it.waitingPreemptRule.let { rule -> rule != null && rule != InterruptRule.FINISH } }
-                .filter { !it.resumePending && !it.isReserved && it.promises.isEmpty() }
+                .filter { !it.isPassedOver && it.promises.isEmpty() }
                 .filter { req -> returning.any { (lender, k) -> k > 0 && lender.myEntity.priority > req.entity.priority } }
                 .sortedWith(compareBy<ProcessModel.Entity.ResourceRequest> { it.entity.priority }.thenBy { it.timeEnteredQueue })
             var chosen: ProcessModel.Entity.ResourceRequest? = null
@@ -1952,7 +1951,7 @@ open class Resource @JvmOverloads constructor(
             r.passedAllocation != null || r.resource !== this || (r.queue as? RequestQ)?.contains(r) != true
         }
         val candidates = myWaitingPreemptors
-            .filter { !it.resumePending && !it.isReserved && it.promises.isEmpty() }
+            .filter { !it.isPassedOver && it.promises.isEmpty() }
             .sortedWith(compareBy<ProcessModel.Entity.ResourceRequest> { it.entity.priority }.thenBy { it.timeEnteredQueue })
         for (request in candidates) {
             val amount = request.amountRequested
@@ -2000,6 +1999,45 @@ open class Resource @JvmOverloads constructor(
         return true
     }
 
+    /**
+     *  For the invariant checks: a waiting preemptor passed over by a woken request it should have gone ahead of,
+     *  or null. A request is passed over when another request of its queue, no more urgent and behind it by the
+     *  queue's discipline, holds a promise of units that, with the units of the holders the preemptor outranks,
+     *  would have served it. Only the plain case is judged: the resource working and on shift, the preemptor not
+     *  under FINISH and with nothing promised, no reservation as urgent as it still collecting units, and the other
+     *  request not served through a reservation.
+     */
+    internal fun waitingPreemptorPassedOver(): String? {
+        if (isFailed || isInactive || isOffShift || isRunEnded) return null
+        for (preemptor in myWaitingPreemptors) {
+            if (preemptor.waitingPreemptRule == InterruptRule.FINISH || preemptor.resumePending || preemptor.isReserved ||
+                preemptor.promises.isNotEmpty() || preemptor.passedAllocation != null || preemptor.resource !== this) continue
+            val queue = preemptor.queue as? RequestQ ?: continue
+            if (!queue.contains(preemptor)) continue
+            val priority = preemptor.entity.priority
+            val needed = preemptor.amountRequested
+            if (needed > reachableCapacity) continue
+            if (myReservations.any { isCollecting(it) && it.request.entity.priority <= priority }) continue
+            val lendable = allocations().filter { it.myEntity.priority > priority }.sumOf { it.amount - it.missingByLoan }
+            for (other in queue) {
+                if (other === preemptor) continue
+                val promised = other.promises[this] ?: 0
+                // a reservation's units go to it by the FINISH preemptors' own rule, ahead of a waiting preemptor
+                if (promised == 0 || other.reservation != null || other.entity.priority < priority ||
+                    !queue.precedes(preemptor, other)) continue
+                val free = numAvailableUnits + promised
+                // taking only free units it is served as a seize is, and a selection rule may choose the other
+                if (free >= needed && queue.requestSelectionRule != null) continue
+                if (free + lendable >= needed) {
+                    return "the waiting preemptor request ${preemptor.id} of entity ${preemptor.entity.id} (priority $priority, " +
+                            "$needed units) was passed over by request ${other.id} of entity ${other.entity.id} (priority " +
+                            "${other.entity.priority}), behind it in ${queue.name}, which holds $promised promised units"
+                }
+            }
+        }
+        return null
+    }
+
     /** True when the request's queue has no request selection rule, or its rule chooses the request for this resource. */
     private fun chosenByItsRule(request: ProcessModel.Entity.ResourceRequest): Boolean {
         val queue = request.queue as? RequestQ ?: return true
@@ -2029,7 +2067,9 @@ open class Resource @JvmOverloads constructor(
     /**
      *  Whether [next], the request next in [queue], comes before the waiting [preemptor]: it is more urgent, or
      *  it is equally urgent and ahead of it (in the preemptor's own queue by the queue's discipline, in another
-     *  queue by the time it began to wait).
+     *  queue by the time it began to wait). In its own queue the two positions are compared: the request the
+     *  free units would serve next is not always ahead of the preemptor, which they skip when it needs more
+     *  units than are free.
      */
     private fun comesBefore(
         next: ProcessModel.Entity.Request,
@@ -2038,9 +2078,9 @@ open class Resource @JvmOverloads constructor(
     ): Boolean {
         val nextPriority = next.entity.priority
         val priority = preemptor.entity.priority
-        return nextPriority < priority ||
-                (nextPriority == priority &&
-                        (queue === preemptor.queue || next.timeEnteredQueue < preemptor.timeEnteredQueue))
+        if (nextPriority != priority) return nextPriority < priority
+        return if (queue === preemptor.queue) queue.precedes(next, preemptor)
+        else next.timeEnteredQueue < preemptor.timeEnteredQueue
     }
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
@@ -2506,6 +2546,7 @@ open class Resource @JvmOverloads constructor(
                 if (!replanBeforeNextRequest(priority, source, detail)) break
                 val (bestQueue, best) = nextByDefaultRule(queues) ?: break
                 if (!bestQueue.wake(best, this, priority, source, detail)) break
+                ResourceInvariants.checkAfterWake(this)
             }
         } else {
             val itr = requestQNotificationRule.ruleIterator(queues)
@@ -2515,6 +2556,7 @@ open class Resource @JvmOverloads constructor(
                     if (!replanBeforeNextRequest(priority, source, detail)) break
                     val candidate = q.nextRequestServableBy(this) ?: break
                     if (!q.wake(candidate, this, priority, source, detail)) break
+                    ResourceInvariants.checkAfterWake(this)
                 }
             }
         }

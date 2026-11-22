@@ -299,7 +299,7 @@ class ResourceFailureTest {
     }
 
     @Test
-    @DisplayName("BUSY_TIME: no busy time counts while off shift")
+    @DisplayName("BUSY_TIME: a unit finishing its job off shift is working, and its time counts")
     fun busyTimeOffShift() {
         val (_, m) = run(length = 30.0, configure = {
             r.capacityChangeRule = CapacityChangeRule.IGNORE
@@ -310,8 +310,55 @@ class ResourceFailureTest {
             at(2.0) { r.goOffShift() }
             at(4.0) { r.goOnShift() }
         }
-        // busy throughout, but off shift 2 to 4: the clock runs 0 to 2 and from 4, failing at 7
-        assertTrue("R fail@7.0" in m.log, m.log.toString())
+        // working throughout, off shift 2 to 4 included (the job is allocated and finishes): failing at 5
+        assertTrue("R fail@5.0" in m.log, m.log.toString())
+    }
+
+    @Test
+    @DisplayName("BUSY_TIME: a job that carries on through a FINISH failure made by hand is working, and its time counts")
+    fun busyTimeThroughAFinishFailureByHand() {
+        val (_, m) = run(length = 30.0, configure = {
+            r.failures(ConstantRV(10.0), ConstantRV(1.0), ResourceFailureBasis.BUSY_TIME)
+        }) {
+            watch(r)
+            job("A", r, 0.0, 30.0)
+            at(4.0) { r.fail(InterruptRule.FINISH) }
+            at(6.0) { r.repair() }
+        }
+        // A works 0 to 30 without a break, the hand failure 4 to 6 included: the declared failure comes at 10
+        assertTrue("R fail@10.0" in m.log, m.log.toString())
+    }
+
+    @Test
+    @DisplayName("BUSY_TIME: a job held by a RESUME failure made by hand is not working, and its time does not count")
+    fun busyTimeNotDuringAResumeFailureByHand() {
+        val (_, m) = run(length = 30.0, configure = {
+            r.failures(ConstantRV(10.0), ConstantRV(1.0), ResourceFailureBasis.BUSY_TIME)
+        }) {
+            watch(r)
+            job("A", r, 0.0, 30.0)
+            at(4.0) { r.fail(InterruptRule.RESUME) }
+            at(6.0) { r.repair() }
+        }
+        // A works 0 to 4 and from 6: ten units of work are done at 12
+        assertTrue("R fail@12.0" in m.log, m.log.toString())
+    }
+
+    @Test
+    @DisplayName("BUSY_TIME: a failure that comes due during a failure made by hand waits for that repair, and counts again from it")
+    fun busyTimeDueDuringAFailureByHand() {
+        val (_, m) = run(length = 30.0, configure = {
+            r.failures(ConstantRV(5.0), ConstantRV(1.0), ResourceFailureBasis.BUSY_TIME)
+        }) {
+            watch(r)
+            job("A", r, 0.0, 30.0)
+            at(4.0) { r.fail(InterruptRule.FINISH) }
+            at(8.0) { r.repair() }
+        }
+        // five units of work are done at 5, during the hand failure: no failure then; the count starts again at
+        // the repair at 8, and five more units of work are done at 13
+        val failures = m.log.filter { it.startsWith("R fail") }.take(2)
+        assertEquals(listOf("R fail@4.0", "R fail@13.0"), failures, m.log.toString())
     }
 
     @Test

@@ -80,6 +80,16 @@ internal class AllocationRegistration(
         allocation.myTriggerRegistrations.remove(this)
     }
 
+    /**
+     *  Held while a seize trigger's win was undecided, a change of the allocation's units passed it over: it claims
+     *  the wait now if its trigger would fire. A released allocation claims nothing.
+     */
+    override fun lookAgain(process: ProcessModel.Entity.ProcessCoroutine) {
+        if (!allocation.isAllocated || !trigger.canFireNow(group.entity)) return
+        allocation.myTriggerRegistrations.remove(this)
+        claimWait(trigger.fireNow(process), ResumeSource.ALLOCATION, ProcessModel.RESUME_PRIORITY)
+    }
+
     override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
         // the allocation removed this registration from its list when it claimed the wait
         markReleased()

@@ -326,10 +326,18 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
             this.priority = priority
         }
 
+        /**
+         *  True if the request can be filled at the time the property is accessed. A request whose wait is held,
+         *  while another trigger of its wait has won provisionally, cannot be filled until the wait is reopened.
+         */
         open val canBeFilled: Boolean
             get() {
-                return myChannelQ.filter(predicate).isNotEmpty()
+                return !isHeldInWait && myChannelQ.filter(predicate).isNotEmpty()
             }
+
+        /** True while the request's wait is held (`Registration.isHeld`): it keeps its place, and is passed over. */
+        internal val isHeldInWait: Boolean
+            get() = registration?.isHeld == true
 
         /**
          * True if the request can not be filled at the time the property is accessed
@@ -360,6 +368,7 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
          */
         override val canBeFilled: Boolean
             get() {
+                if (isHeldInWait) return false
                 val list = myChannelQ.filter(predicate)
                 return amountRequested <= list.size
             }
@@ -439,11 +448,12 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
      * can be used to define a default method for selecting the next receiver's request
      * to receive items from the channel. The default is to use the queue discipline. The
      * request at the head of the queue is selected if it can be filled. If it can't, no
-     * request is selected, whatever could be filled further back.
+     * request is selected, whatever could be filled further back. A request whose wait is held, while another
+     * trigger of its wait has won provisionally, is passed over as if it had left.
      */
     inner class RequestSelector<T : ModelElement.QObject> : RequestSelectorIfc<T> {
         override fun selectRequest(queue: Queue<BlockingQueue<T>.ChannelRequest>): BlockingQueue<T>.ChannelRequest? {
-            val nextRequest = queue.peekNext() ?: return null
+            val nextRequest = queue.firstMatching { !it.isHeldInWait } ?: return null
             if (nextRequest.canNotBeFilled){
                 return null
             }
@@ -467,7 +477,9 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     }
 
     /**
-     *  Interface for defining request selection
+     *  Interface for defining request selection. The queue given may hold a request whose wait for the first of
+     *  several things is held for an instant, while another trigger of that wait has won provisionally; such a
+     *  request reports that it cannot be filled.
      */
     interface RequestSelectorIfc<T : ModelElement.QObject> {
         fun selectRequest(queue: Queue<BlockingQueue<T>.ChannelRequest>): BlockingQueue<T>.ChannelRequest?
@@ -577,6 +589,7 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
         val requestedItems = list.take(request.amountRequested)
         takeFromChannel(requestedItems, channelQ.waitTimeStatOption)
+        noteRecorded(request)
         myRequestQ.remove(request)
         afterRequestLeft(request)
         return requestedItems
@@ -593,6 +606,7 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         // filter processes the queue in its current order and maintains that order in the returned list
         val list = myChannelQ.filter(request.predicate) // the items that meet the predicate
         takeFromChannel(list, channelQ.waitTimeStatOption)
+        noteRecorded(request)
         myRequestQ.remove(request)
         afterRequestLeft(request)
         return list
@@ -624,8 +638,21 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         check(myRequestBeingResumed !== request) {
             "$name: the request ${request.id} was released as a loser while the queue was resuming it."
         }
+        noteRecorded(request)
         myRequestQ.remove(request)
     }
+
+    /** For the invariant checks: the wait of a request of a wait for the first of several things is recorded. */
+    private fun noteRecorded(request: ChannelRequest) {
+        if (myRequestQ.waitTimeStatOption && myRequestQ.contains(request)) request.registration?.let { it.group.noteRecorded(it.trigger, myRequestQ.name) }
+    }
+
+    /**
+     *  For the invariant checks: each waiting request in queue order, with its priority and the time its wait
+     *  began (for a wait for the first of several things, the time the wait began).
+     */
+    internal fun requestWaitOrder(): List<Pair<Int, Double>> =
+        myRequestQ.map { Pair(it.priority, it.registration?.group?.startTime ?: it.timeEnteredQueue) }
 
     /**
      *  Removes the request of a wait whose process ended, recording nothing. The requests behind it are looked

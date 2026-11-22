@@ -142,7 +142,13 @@ interface StopContextIfc {
      * populates the same intervals with the same meanings, so a study may compare a fleet that is
      * hailed with one that is timetabled.
      *
-     * @throws ksl.modeling.fleet.exceptions.FleetProtocolException when the vehicle has no room
+     * A boarding action that takes a list of riders (`Stop.waitingFor`) and then suspends, as one that boards
+     * one rider a minute does, must check `Ride.isWaiting` again just before each `takeAboard`: in the meantime
+     * a rider may have left the line (its process terminated) or boarded another vehicle.
+     *
+     * @throws ksl.modeling.fleet.exceptions.FleetProtocolException when the vehicle has no room, or when the
+     * ride is not waiting to be carried (`Ride.isWaiting` is false): it has not yet begun to wait, has left
+     * the line, or is already aboard
      */
     suspend fun KSLProcessBuilder.takeAboard(ride: Stop.Ride)
 

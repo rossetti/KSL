@@ -549,8 +549,11 @@ not failed, throws).
   the state they give and its free units go to the waiting requests. The
   state is `<name>_Failed`, and it takes precedence over idle, busy and
   inactive.
-- **Work in service** follows the interrupt rule, the resource's
-  `interruptRule` unless `fail(rule)` names one:
+- **Work in service** follows the interrupt rule: for a failure made by hand,
+  the one `fail(rule)` names, or else the resource's `interruptRule`; for the
+  declared failures, the `rule` given to `failures(…)`, which is the
+  resource's `interruptRule` at the time `failures` is called unless it names
+  one:
   - `FINISH` (the default): holders complete their work, but the units they
     release are kept from the queue until the repair;
   - `RESUME`: a holder's delay is held, and goes on with the time it had left
@@ -564,12 +567,18 @@ not failed, throws).
   the resource is still failed, they go back to the holder still down, and
   the holder stays held until the repair.
 - **The bases** of `failures(…)`: `CALENDAR_TIME` counts simulated time;
-  `BUSY_TIME` counts time with a unit busy, on shift and not failed, so the
-  failure comes at the exact instant that much work has been done; `USES`
+  `BUSY_TIME` counts time with a unit working, whatever the shift or a failure
+  made by hand: a unit finishing its job off shift, under a capacity
+  schedule's zero-capacity item, or through a `FINISH` failure is working; a
+  unit a `RESUME` or `RESTART` failure takes from its holder is not. The
+  time between failures starts at each repair, so a declared failure's own
+  repair time is not counted. The failure comes at the exact instant that
+  much work has been done; `USES`
   fails at the release that completes the given number of uses, before the
   released unit can go to anyone waiting. A failure fails the resource at the
   instant it comes due, so nothing is allocated in between. A failure
-  that comes due while the resource is failed by hand waits for that repair.
+  that comes due while the resource is failed by hand does not happen then:
+  it waits for that repair, and the time to the next failure counts from it.
   A repair by hand during a declared failure ends it early, and the time to
   the next failure counts from that repair. The declared failures repair only
   a failure they started: one the model makes by hand lasts until the model
@@ -1043,6 +1052,16 @@ when (r.trigger) {
   among the wait's seize triggers, as `seize` yields. Its value is the allocation; a
   losing seize request leaves its queue at the claim, recorded unless
   `recordRenegedWait = false`.
+- **A seize trigger's win holds once its units are taken.** It is woken with units
+  promised, and takes them when the entity resumes, later in the same instant. Until
+  then the wait's other triggers keep their places, and each source passes the entity
+  over as if it had left: a message goes to the next receiver, `signalFirst` to the next
+  entity, items to the next request. When the units are taken, the other triggers are
+  withdrawn and their waits recorded, as for any win. If the promised units went away in
+  that instant (a failure, a capacity cut or a shift's end), the wait goes on with every
+  trigger still in its place, for the time left, and anything left for it in the
+  meantime (a message in the mailbox, items in the channel) ends it at once. Each wait is
+  recorded once, for its whole length.
 - **Two items triggers on one queue.** Their requests wait in the queue's request queue
   like any others, and the default selector serves only the request at the head. So a
   request for red items at the head holds back the request for blue items behind it, even

@@ -68,6 +68,28 @@ import ksl.utilities.random.rvariable.LognormalRV
 import ksl.utilities.random.rvariable.RVariableIfc
 
 /**
+ * The guide's custom boarding action ("Writing your own action"), kept outside the compile-only object so
+ * that `BoardOnePerMinuteTest` can run it as the guide shows it.
+ */
+internal class BoardOnePerMinute(val stop: Stop) : TourStopActionIfc {
+    override val servesStop = stop
+    override suspend fun KSLProcessBuilder.perform(context: StopContextIfc) {
+        // Name the place before entering the context: inside `with(context)`, `stop` is the
+        // context's own `TourStop` -- somewhere on this tour -- not the permanent `Stop`.
+        val here = this@BoardOnePerMinute.stop
+        with(context) {
+            for (ride in here.waitingFor(onwardLocations)) {
+                // the seats left for riders, not the vehicle's spare room: later pickups may need some
+                if (seatsForRiders <= 0) break
+                delay(1.0)
+                // the list was taken before the delay: a rider may have left the line since
+                if (ride.isWaiting) takeAboard(ride)
+            }
+        }
+    }
+}
+
+/**
  * Compile-only host for every code snippet in `docs/guides/ksl-fleet.md`.
  * Each `fun` body is a verbatim snippet (or its body); compiling this file
  * proves every example in the guide references real public APIs.
@@ -483,22 +505,6 @@ private object AgvGuideSnippets {
     }
 
     // -- §4 Writing your own stop action ----------------------------------
-
-    class BoardOnePerMinute(val stop: Stop) : TourStopActionIfc {
-        override val servesStop = stop
-        override suspend fun KSLProcessBuilder.perform(context: StopContextIfc) {
-            // Name the place before entering the context: inside `with(context)`, `stop` is the
-            // context's own `TourStop` -- somewhere on this tour -- not the permanent `Stop`.
-            val here = this@BoardOnePerMinute.stop
-            with(context) {
-                for (ride in here.waitingFor(onwardLocations)) {
-                    if (vehicle.spareCapacity <= 0) break
-                    delay(1.0)
-                    takeAboard(ride)
-                }
-            }
-        }
-    }
 
     // -- §4 Holding, running express, turning short -----------------------
 

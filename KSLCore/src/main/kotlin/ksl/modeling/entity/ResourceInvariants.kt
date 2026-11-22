@@ -49,8 +49,17 @@ import ksl.utilities.observers.ObserverIfc
  *    selection rule holds back, or that does not fit in the units available, is not one it could serve;
  *  - every request in one of its queues for a wait for the first of several things belongs to a wait that is
  *    still open, or is the one that ended it and has yet to resume.
+ *  - no waiting preemptor is passed over by a request the offer of freed units wakes behind it in its queue, no
+ *    more urgent, when that request's units and those of the holders the preemptor outranks would have served it
+ *    (judged at the wake, only for a working resource on shift, a preemptor not under FINISH, and no reservation
+ *    as urgent collecting).
  *
  *  For each blocking queue, it checks the last of these for the requests waiting for its items.
+ *
+ *  For each blocking queue's requests, each signal's waiting entities, and each mailbox's receivers (as they
+ *  join), it checks that they wait in the order their waits began, in a FIFO queue, or among equal priorities in a
+ *  ranked one; for a wait for the first of several things, that is when the wait began, even after it waits
+ *  again. And each such wait has its time recorded at most once in each queue it waits in.
  */
 internal object ResourceInvariants {
 
@@ -66,6 +75,7 @@ internal object ResourceInvariants {
             // rather than by walking the model after every event
             var resources: List<Resource> = emptyList()
             var blockingQueues: List<BlockingQueue<*>> = emptyList()
+            var signals: List<Signal> = emptyList()
 
             override fun onChange(newValue: KSLEvent<*>?) {
                 when (executive.status) {
@@ -73,10 +83,12 @@ internal object ResourceInvariants {
                         val elements = model.getModelElements()
                         resources = elements.filterIsInstance<Resource>()
                         blockingQueues = elements.filterIsInstance<BlockingQueue<*>>()
+                        signals = elements.filterIsInstance<Signal>()
                     }
                     Executive.Status.AFTER_EVENT -> {
                         for (resource in resources) check(resource)
                         for (queue in blockingQueues) check(queue)
+                        for (signal in signals) check(signal)
                     }
                     else -> {}
                 }
@@ -98,27 +110,73 @@ internal object ResourceInvariants {
     private fun endedWait(registration: Registration?, requestId: Long, entityId: Long, queueName: String): String? {
         if (registration == null) return null
         val group = registration.group
-        if (!registration.isReleased && (!group.claimed || registration === group.winnerRegistration)) return null
+        if (!registration.isReleased && (!group.claimed || registration === group.winnerRegistration || registration.isHeld)) return null
         return "request $requestId of entity $entityId waits in $queueName for a wait that has already ended"
     }
 
-    /** Checks every resource and blocking queue of [model]. */
+    /** Checks every resource, blocking queue and signal of [model]. */
     fun check(model: Model) {
         for (element in model.getModelElements()) {
             if (element is Resource) check(element)
             if (element is BlockingQueue<*>) check(element)
+            if (element is Signal) check(element)
         }
     }
 
     /**
      *  Checks that every request waiting in [queue] for its items belongs to a wait that is still open, or is the
-     *  one that ended it and has yet to resume.
+     *  one that ended it and has yet to resume, and that the requests wait in the order their waits began.
      */
     fun check(queue: BlockingQueue<*>) {
         for (request in queue.waitingRequests) {
             endedWait(request.registration, request.id, request.receiver.id, queue.waitingRequests.name)
                 ?.let { violation(queue, it) }
         }
+        val requests = queue.waitingRequests
+        waitOrderBroken(if (requests.disciplineSwitchedInReplication) null else requests.currentDiscipline, queue.requestWaitOrder())
+            ?.let { violation(queue, "its requests $it") }
+    }
+
+    /** Checks that the entities waiting for [signal] wait in the order their waits began. */
+    fun check(signal: Signal) {
+        waitOrderBroken(signal.holdDiscipline, signal.waitOrder())?.let {
+            throw IllegalStateException("Invariant broken at time ${signal.time} on signal ${signal.name}: its waiting entities $it")
+        }
+    }
+
+    /**
+     *  Null when the waiters, given in queue order as their priority and the time their wait began, are in the
+     *  order of a FIFO queue (by the time their waits began) or of a ranked one (by that time among equal
+     *  priorities); else what is out of order. LIFO and random queues are not judged, nor a queue whose discipline
+     *  was switched during the replication (null).
+     */
+    private fun waitOrderBroken(discipline: ksl.modeling.queue.Queue.Discipline?, order: List<Pair<Int, Double>>): String? {
+        val ranked = when (discipline) {
+            ksl.modeling.queue.Queue.Discipline.FIFO -> false
+            ksl.modeling.queue.Queue.Discipline.RANKED -> true
+            else -> return null
+        }
+        val latest = mutableMapOf<Int, Double>()
+        for ((index, entry) in order.withIndex()) {
+            val key = if (ranked) entry.first else 0
+            val before = latest[key]
+            if (before != null && entry.second < before) {
+                return "are out of the order their waits began: the one at position $index began at ${entry.second}, " +
+                        "behind one that began at $before"
+            }
+            latest[key] = maxOf(before ?: entry.second, entry.second)
+        }
+        return null
+    }
+
+    /**
+     *  When the checks are on, called by the offer of freed units just after it wakes a request: no waiting preemptor
+     *  is passed over by it. Judged at the wake, with the priorities of that moment; a later step of the same event
+     *  may change them.
+     */
+    fun checkAfterWake(resource: Resource) {
+        if (!enabled) return
+        resource.waitingPreemptorPassedOver()?.let { violation(resource, it) }
     }
 
     /** Checks [resource]; the message names the resource and what is out of balance. */
@@ -140,7 +198,7 @@ internal object ResourceInvariants {
                 violation(resource, "allocation ${a.id} has ${a.missingUnits} units missing of ${a.amount}")
             }
             for (registration in a.myTriggerRegistrations) {
-                if (registration.group.claimed) violation(resource, "allocation ${a.id} still lists a wait that has already ended")
+                if (registration.group.claimed && !registration.isHeld) violation(resource, "allocation ${a.id} still lists a wait that has already ended")
             }
             checkHolder(resource, a)
         }

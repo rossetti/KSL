@@ -23,6 +23,7 @@ import ksl.modeling.entity.KSLProcessBuilder
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.ProcessModel.Companion.TIMEOUT_PRIORITY
 import ksl.modeling.entity.Registration
+import ksl.modeling.entity.ResumeSource
 import ksl.modeling.entity.SuspendType
 import ksl.modeling.entity.WaitGroup
 import ksl.modeling.entity.WaitResult
@@ -215,6 +216,20 @@ internal class MessageRegistration<M : AgentMessage>(
             waiter.result = null
             messageTrigger.mailbox.handBack(handed)
         }
+    }
+
+    /**
+     *  Held while a seize trigger's win was undecided, a message may have been left in the mailbox for want of a
+     *  receiver: the reopened wait takes it, as a message trigger takes one already waiting.
+     */
+    override fun lookAgain(process: ProcessModel.Entity.ProcessCoroutine) {
+        val mailbox = messageTrigger.mailbox
+        if (!mailbox.hasMatch(messageTrigger.predicate)) return
+        val message = checkNotNull(mailbox.tryTake(messageTrigger.predicate))
+        mailbox.removeWaiter(waiter)
+        waiter.result = message
+        val claimed = claimWait(message, ResumeSource.MAILBOX, ProcessModel.RESUME_PRIORITY)
+        check(claimed) { "A reopened wait on the mailbox of ${mailbox.owner} was already claimed." }
     }
 
     override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {

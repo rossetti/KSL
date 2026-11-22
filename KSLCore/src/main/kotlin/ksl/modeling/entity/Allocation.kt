@@ -346,7 +346,8 @@ class Allocation internal constructor(
         // about to be terminated too, and no resume can be scheduled once the run has ended
         if (myResource.isRunEnded) return
         for (registration in myTriggerRegistrations.toList()) {
-            if (registration.onRestore != onRestore || registration.isReleased) continue
+            // a held registration keeps its place: its wait was won provisionally, and it looks again if reopened
+            if (registration.onRestore != onRestore || registration.isReleased || registration.isHeld) continue
             myTriggerRegistrations.remove(registration)
             registration.claimWait(value, ResumeSource.ALLOCATION, ProcessModel.RESUME_PRIORITY)
         }

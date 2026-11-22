@@ -422,6 +422,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         get() = model.isTerminatingEntities
 
     /**
+     *  True once the replication's events have ended, from `replicationEnded()` on: nothing can be resumed, so a
+     *  wait is claimed by nothing (see `WaitGroup.claim`), and the releases that end-of-replication termination
+     *  makes schedule nothing.
+     */
+    internal val isRunEnded: Boolean
+        get() = executive.isEnded
+
+    /**
      *  It is essential that subclasses that override this function call the super.
      *  This ensures that suspended entities are cleaned up after a replication
      */
@@ -1167,6 +1175,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             /** The request's place in a wait for the first of several things; null for an untimed seize. */
             internal var registration: Registration? = null
 
+            /**
+             *  True when the offers of units pass this request over: it was woken already (its units are promised and
+             *  it is on its way), it is a preemption's reservation, or its wait is held while another of its seize
+             *  triggers has won provisionally (`Registration.isHeld`).
+             */
+            internal val isPassedOver: Boolean
+                get() = resumePending || isReserved || registration?.isHeld == true
+
             internal var resumePending: Boolean = false
                 private set
             internal var resumePendingSource: ResumeSource? = null
@@ -1887,7 +1903,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             request.waitingPreemptRule?.let { rule -> resource.waitAsPreemptor(request, rule) }
             val detail = "request_id=${request.id}, moved_to_resource=${resource.name}, amount=${request.amountRequested}"
             // served at once when a seize arriving now would be: the resource can allocate and the new queue would
-            // choose this request next
+            // choose this request next. A request whose wait is held, while another trigger of its wait has won
+            // provisionally, is never chosen (it is passed over), so it only changes queues: it is offered units if
+            // its wait is reopened, and leaves if the win holds
             val canServe = resource.canAllocate(request.amountRequested) &&
                     newQ.nextRequestForResource(resource) === request
             if (wasWoken) {
@@ -1974,6 +1992,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // served at once when a pool seize arriving now would be: the pool can allocate and the new queue would
             // choose this request next
             val canAllocate = pool.canAllocate(resourceSelectionRule, request.amountRequested)
+            // a request whose wait is held is never chosen, so it only changes queues (see moveRequestToResource)
             val canServe = canAllocate && newQ.nextRequestForResource(pool) === request
             if (canServe) pool.promiseMembers(request)
             if (wasWoken) {
@@ -2043,6 +2062,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // served at once when a movable pool seize arriving now would be: the pool can allocate and the new queue
             // would choose this request next
             val canAllocate = pool.canAllocate(resourceSelectionRule)
+            // a request whose wait is held is never chosen, so it only changes queues (see moveRequestToResource)
             val canServe = canAllocate && newQ.nextRequestForResource(pool) === request
             if (canServe) pool.promiseMember(request)
             if (wasWoken) {
@@ -3223,6 +3243,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // out of the queue the request is in now: a moved request waits in its new queue, and must leave
                 // it here, keeping its promise, rather than be swept up as if its process had ended
                 val servedFrom = request.queue as? RequestQ ?: queue
+                if (servedFrom.waitTimeStatOption && servedFrom.contains(request)) request.registration?.let { it.group.noteRecorded(it.trigger, servedFrom.name) }
                 servedFrom.remove(request)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
                 if (request.myResource != resource) {
@@ -3279,14 +3300,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     val withdrawn = promises.toMap()
                     request.clearPromises()
                     request.clearResumePending()
+                    // a seize trigger's provisional win did not hold: its wait is reopened first, so that the wait's
+                    // other triggers are back in their places before the withdrawn units are offered on
+                    val seizeRegistration = request.registration as? SeizeRegistration<*, *>
+                    seizeRegistration?.reopenAfterBrokenPromise()
                     // a preemption's completed reservation collects its units again, still ahead of the queue
                     request.reservation?.reopen()
                     // a capacity decrease that waits for units takes the withdrawn ones first, as from a release
                     for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
                     // What was promised went away, but something else may be free now, such as another member of a
                     // pool. The release that freed it has already offered it, so waiting would strand the request
-                    // beside it until the next release: take it now instead.
-                    if (canAllocateNow() && chosen()) return true
+                    // beside it until the next release: take it now instead. A seize trigger wins its reopened wait
+                    // again, provisionally, so the take settles it.
+                    if (canAllocateNow() && chosen()) {
+                        seizeRegistration?.winAgain()
+                        return true
+                    }
                     // The units it withdrew are free again, and the release that freed them offered them only to
                     // this request: offer them to the requests behind it, as when a waiting request leaves. A request
                     // that held no promise and was not chosen offers the units of what it asks for, so the request its
@@ -3311,9 +3340,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             /**
-             *  Waits in a wait group whose registrations are made, outside `waitForFirst`: the re-wait of a seize
-             *  trigger whose promise broke between its wake and its resume. The group's timer runs for the time
-             *  left to its deadline, the entity takes the state `waitForFirst` gives a wait of the group's
+             *  Waits in a wait group whose registrations are made, outside `waitForFirst`: the reopened wait of a
+             *  seize trigger whose promise broke between its wake and its resume (`WaitGroup.reopen`). The group's
+             *  timer runs for the time left to its deadline, the entity takes the state `waitForFirst` gives a wait of the group's
              *  triggers, and the group's claims come from the same places as any. On termination the
              *  registrations are released as `waitForFirst` releases them.
              *

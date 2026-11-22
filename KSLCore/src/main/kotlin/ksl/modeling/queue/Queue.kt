@@ -149,8 +149,16 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
                 }
                 myDiscipline.switchDiscipline()
                 field = value
+                disciplineSwitchedInReplication = true
             }
         }
+
+    /**
+     *  True once the discipline has been switched while the model runs this replication: the items' order then
+     *  no longer follows one discipline from their arrival. The invariant checks of waiting order skip such a queue.
+     */
+    internal var disciplineSwitchedInReplication: Boolean = false
+        private set
 
     /**
      * The initial QueueDiscipline for this Queue.
@@ -187,6 +195,7 @@ open class Queue<T : ModelElement.QObject> @JvmOverloads constructor(
         if (currentDiscipline != initialDiscipline) {
             currentDiscipline = initialDiscipline
         }
+        disciplineSwitchedInReplication = false
     }
 
     override fun afterReplication() {

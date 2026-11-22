@@ -1441,11 +1441,16 @@ abstract class FleetSystem @JvmOverloads constructor(
                     )
                 }
                 if (!ride.isWaiting) {
+                    val why = when {
+                        ride.carriedBy != null -> "which is already aboard (${ride.carriedBy?.name})"
+                        ride !in ride.stop.waiting -> "which has left the line (its rider's process was terminated)"
+                        else -> "which has joined the line but is not yet waiting to be carried"
+                    }
                     throw FleetProtocolException(
                         "Vehicle (${vehicle.name}) was asked to board (${ride.rider.name}) at " +
-                                "(${ride.stop.name}), which has joined the line but is not yet " +
-                                "waiting to be carried. Check Ride.isWaiting first; Stop.waitingFor " +
-                                "lists only riders that are."
+                                "(${ride.stop.name}), $why. Check Ride.isWaiting just before takeAboard; " +
+                                "Stop.waitingFor lists only riders that are waiting, but a list taken " +
+                                "before a delay can hold riders that have since left or boarded."
                     )
                 }
                 // Out of the stop's line first, so the wait it reports ends at the instant the

@@ -102,10 +102,22 @@ class Signal @JvmOverloads constructor(
         myTimedHolds[entity] = registration
     }
 
+    /**
+     *  For the invariant checks: each waiting entity in queue order, with its priority and the time its wait began
+     *  (for a wait for the first of several things, the time the wait began).
+     */
+    internal fun waitOrder(): List<Pair<Int, Double>> =
+        holdQueue.map { Pair(it.priority, myTimedHolds[it]?.group?.startTime ?: it.timeEnteredQueue) }
+
+    /** The discipline of the hold queue, for the invariant checks; null when it was switched in this replication. */
+    internal val holdDiscipline: ksl.modeling.queue.Queue.Discipline?
+        get() = if (holdQueue.disciplineSwitchedInReplication) null else holdQueue.currentDiscipline
+
     /** Removes an entity held for a signal trigger's wait, if it is still held. */
     internal fun releaseTimed(entity: ProcessModel.Entity, waitStats: Boolean) {
-        myTimedHolds.remove(entity)
+        val registration = myTimedHolds.remove(entity)
         if (holdQueue.contains(entity)) {
+            if (waitStats && holdQueue.waitTimeStatOption) registration?.let { it.group.noteRecorded(it.trigger, holdQueue.name) }
             holdQueue.remove(entity, waitStats)
         }
     }
@@ -133,12 +145,15 @@ class Signal @JvmOverloads constructor(
     }
 
     /** Use this to signal a specific entity to move in its process.
-     *  The entity removes itself from the waiting condition.
+     *  The entity removes itself from the waiting condition. Once the replication's events have ended (a signal
+     *  sent from `replicationEnded()`), nothing can be resumed, and the signal does nothing.
      *  @param entity the entity to signal. The entity must be waiting for the signal.
      *  @param resumePriority to use to order resumptions that occur at the same time
      */
     fun signal(entity: ProcessModel.Entity, resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
-        if (!holdQueue.contains(entity)) {
+        // once the replication's events have ended (a signal from replicationEnded()) nothing can be resumed: the
+        // entities stay waiting until they are terminated
+        if (!holdQueue.contains(entity) || executive.isEnded) {
             return
         }
         // An entity already signalled stays in the hold queue until its resumed process leaves it,
@@ -165,7 +180,8 @@ class Signal @JvmOverloads constructor(
         if (holdQueue.isEmpty) {
             return
         }
-        signal(holdQueue.first(), resumePriority)
+        val first = waiting().firstOrNull() ?: return
+        signal(first, resumePriority)
     }
 
     /**
@@ -175,7 +191,8 @@ class Signal @JvmOverloads constructor(
         if (holdQueue.isEmpty) {
             return
         }
-        signal(holdQueue.last(), resumePriority)
+        val last = waiting().lastOrNull() ?: return
+        signal(last, resumePriority)
     }
 
     /** The entity removes itself from the waiting condition.
@@ -185,14 +202,11 @@ class Signal @JvmOverloads constructor(
      */
     fun signal(rank: Int = 0, resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
         require(rank >= 0) { "The rank of the desired entity must be >= 0" }
-        if (holdQueue.isEmpty) {
+        val waiting = waiting()
+        if (rank > waiting.size - 1) {
             return
         }
-        if (rank > holdQueue.size - 1) {
-            return
-        }
-        val entity = holdQueue[rank]
-        signal(entity, resumePriority)
+        signal(waiting[rank], resumePriority)
     }
 
     /** The entities remove themselves from the waiting condition.
@@ -202,13 +216,22 @@ class Signal @JvmOverloads constructor(
     fun signal(range: IntRange, resumePriority: Int = ProcessModel.RESUME_PRIORITY) {
         // The entities at the ranks are found first: a signal can end a wait whose other
         // registrations leave this queue, which would shift the ranks while signalling.
+        val waiting = waiting()
         val targets = mutableListOf<ProcessModel.Entity>()
         for (i in range) {
             require(i >= 0) { "The rank of the desired entity must be >= 0" }
-            if (i < holdQueue.size) targets.add(holdQueue[i])
+            if (i < waiting.size) targets.add(waiting[i])
         }
         signal(targets, resumePriority)
     }
+
+    /**
+     *  The entities waiting, in queue order, that a signal by position can reach: an entity whose wait for the first
+     *  of several things is held for an instant, while another trigger of that wait has won provisionally, keeps
+     *  its place but is passed over, as if it had left. The ranks count only these.
+     */
+    private fun waiting(): List<ProcessModel.Entity> =
+        holdQueue.filter { myTimedHolds[it]?.isHeld != true }
 
     /**
      *  All the entities are signaled to proceed in their process. The entities

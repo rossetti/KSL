@@ -165,6 +165,12 @@ val fastTest by tasks.registering(Test::class) {
 
 kotlin {
     jvmToolchain(21)
+    // The public API is listed in api/KSLCore.api; `check` (and so `build`) fails when the compiled API differs
+    // from it. A change to the API on purpose is made by running updateKotlinAbi and committing the new listing,
+    // so every change to what users see, including a member made final or open, shows in review. The DSL is
+    // marked experimental by the Kotlin Gradle plugin, hence the opt-in.
+    @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
+    abiValidation()
     // Users of KSLCore need Kotlin 2.4 or later, and these two settings say so. They are set explicitly,
     // rather than left to follow the compiler, so that upgrading the compiler cannot raise that minimum
     // without anyone deciding to. The published kotlin-stdlib dependency follows the compiler regardless,

@@ -228,9 +228,12 @@ interface KSLProcessBuilder {
      *  requests wait) registers ahead of the others; one that its queue then serves at once, ahead of
      *  requests already waiting, ends the wait without suspending. Otherwise the first to fire in time
      *  order wins, and the others are withdrawn at that instant. Every trigger is checked before any can
-     *  fire or register: a released allocation's trigger fails the call, with nothing registered. A seize trigger that wins, but finds when the
-     *  entity resumes that the units promised to it went away in the same instant, waits again with
-     *  all the triggers, for the time left; any of them can then end the wait.
+     *  fire or register: a released allocation's trigger fails the call, with nothing registered. A seize
+     *  trigger's win holds only once its units are taken, when the entity resumes. Until then the other
+     *  triggers keep their places (in a mailbox's receivers, a signal's queue, a request queue), and each
+     *  source passes the entity over as if it had left. If the units promised to it went away in that
+     *  instant, the wait goes on with all the triggers, each still in its place, for the time left; any of
+     *  them can then end it. Each trigger's wait is recorded once, when the wait ends.
      *
      *  @param triggers the things to wait for; at least one, each at most once
      *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY (the

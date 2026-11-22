@@ -435,7 +435,8 @@ streams managed by the model like any other. Declaring failures also adds two st
 
 The **basis** says what the time between failures counts:
 
-- `BUSY_TIME`, the time the machine is working, so an idle machine does not wear out;
+- `BUSY_TIME`, the time the machine is working, so an idle machine does not wear out. A job it is
+  finishing counts, even off shift or through a failure that lets the job finish;
 - `CALENDAR_TIME`, simulated time, whether the machine works or not;
 - `USES`, the number of jobs: the machine fails at the release that completes them.
 

@@ -294,6 +294,9 @@ open class AgentModel(
             val registration: Registration? = null,
         ) {
             var result: M? = null
+
+            /** When its wait began: for a message trigger, when the trigger's wait began. */
+            val waitBegan: Double = registration?.group?.startTime ?: time
         }
 
         private val pending: ArrayDeque<M> = ArrayDeque()
@@ -351,7 +354,10 @@ open class AgentModel(
          *  suspended in [receiveMessage] with a matching predicate,
          *  hand the message directly to that waiter and resume it.
          *  Otherwise queue the message in [pending] and fire any
-         *  registered arrival listeners.
+         *  registered arrival listeners. Once the replication's events
+         *  have ended (a message sent from `replicationEnded()`), nothing
+         *  can be resumed: the message is queued, and no waiter or arrival
+         *  listener is offered it.
          */
         fun deliver(message: M) {
             accept(message, atFront = false)
@@ -367,15 +373,18 @@ open class AgentModel(
          *  and no waiting receiver or arrival listener is offered it.
          */
         internal fun handBack(message: M) {
-            if (executive.isEnded) {
-                pending.addFirst(message)
-                notifyDelivered(message)
-                return
-            }
             accept(message, atFront = true)
         }
 
         private fun accept(message: M, atFront: Boolean) {
+            // Once the replication's events have ended (a message sent from replicationEnded(), or handed back as
+            // the entities are terminated), nothing can be resumed: the message waits in the mailbox, and no
+            // reservation, waiting receiver or arrival listener is offered it.
+            if (executive.isEnded) {
+                if (atFront) pending.addFirst(message) else pending.addLast(message)
+                notifyDelivered(message)
+                return
+            }
             // Reserved conversations capture matching messages first, in
             // isolation from every other consumer on this mailbox.
             val reservation = reservations.firstOrNull { it.predicate(message) }
@@ -385,8 +394,9 @@ open class AgentModel(
                 notifyConsumed(message)  // captured out of the public flow
                 return
             }
-            // First, try to satisfy a waiting receiver directly.
-            val waiterIdx = waiters.indexOfFirst { it.predicate(message) }
+            // First, try to satisfy a waiting receiver directly. A message trigger's waiter whose wait is held,
+            // while another trigger of that wait has won provisionally, keeps its place and is passed over.
+            val waiterIdx = waiters.indexOfFirst { it.predicate(message) && it.registration?.isHeld != true }
             if (waiterIdx >= 0) {
                 val waiter = waiters.removeAt(waiterIdx)
                 waiter.result = message
@@ -542,7 +552,7 @@ open class AgentModel(
             suspension: ProcessModel.Entity.Suspension,
         ): Waiter {
             val waiter = Waiter(predicate, suspension)
-            waiters.add(waiter)
+            addWaiter(waiter)
             return waiter
         }
 
@@ -556,8 +566,23 @@ open class AgentModel(
             registration: Registration,
         ): Waiter {
             val waiter = Waiter(predicate, null, registration)
-            waiters.add(waiter)
+            addWaiter(waiter)
             return waiter
+        }
+
+        /**
+         *  Adds [waiter] at the end of the receivers, who are served in the order they began to wait. With the
+         *  invariant checks on, a waiter whose wait began before that of the last one waiting breaks that order.
+         */
+        private fun addWaiter(waiter: Waiter) {
+            val last = waiters.lastOrNull()
+            if (ksl.modeling.entity.ResourceInvariants.enabled && last != null && waiter.waitBegan < last.waitBegan) {
+                throw IllegalStateException(
+                    "Invariant broken at time $time on the mailbox of $owner: a receiver whose wait began at " +
+                            "${waiter.waitBegan} joins behind one that began at ${last.waitBegan}"
+                )
+            }
+            waiters.add(waiter)
         }
 
         /**
