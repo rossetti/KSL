@@ -136,4 +136,20 @@ class RemoveAndTerminateTest {
         assertEquals("available=0, waiting=0", seen, "B is now the head and fits, and is offered the free unit")
         assertEquals(listOf("X1@0.0", "X2@0.0", "B@6.0"), m.log)
     }
+
+    @Test
+    @DisplayName("the hook of a removed and terminated request sees its promised unit already given to a waiting decrease")
+    fun hookSeesThePromiseHandedOn() {
+        var capacityInHook = -1
+        run {
+            r.capacityChangeRule = CapacityChangeRule.WAIT
+            customer("X", 0.0, hold = 5.0, afterRelease = {
+                // the release has just promised its unit to A; a cut to 0 waits for that unit
+                r.changeCapacity(r.CapacityChangeNotice(0))
+                r.myWaitingQ.removeAndTerminate(requestOf("A"), afterTermination = { capacityInHook = r.capacity })
+            })
+            customer("A", 1.0)
+        }
+        assertEquals(0, capacityInHook, "the withdrawn unit goes to the cut before the hook runs")
+    }
 }

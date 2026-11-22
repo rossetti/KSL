@@ -160,8 +160,10 @@ class RequestQ @JvmOverloads constructor(
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
      *  that was suspended because the entity's request was placed in the queue is immediately terminated.
      *
-     *  Units the request had been promised, because a release woke it and its entity had not yet resumed, are
-     *  then offered to whoever else is waiting for them, as when a waiting process is terminated. So are the
+     *  Units the request had been promised, because a release woke it and its entity had not yet resumed, go
+     *  back to the resource before the process is terminated, so the termination's hooks see them there (a
+     *  capacity decrease waiting for them has taken them). After the termination they are offered to whoever
+     *  else is waiting for them, as when a waiting process is terminated. So are the
      *  free units of what it requested: when the queue has a request selection rule, removing the request the
      *  rule had chosen can let it choose another, which is served at once rather than at the next release.
      *
@@ -179,8 +181,10 @@ class RequestQ @JvmOverloads constructor(
         val offerOn = LinkedHashSet<Resource>(withdrawn.keys)
         offerOn.addAll(membersOf(request.resource))
         remove(request, waitStats)
-        request.entity.terminateProcess(afterTermination)
+        // the promised units are handed on before the entity's termination runs its hooks, so a hook sees the
+        // resource with them back; the offer comes last, so a request a hook makes is offered the units too
         for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
+        request.entity.terminateProcess(afterTermination)
         offerOnward(offerOn, "removed_and_terminated_request_id=${request.id}")
         offerGuidedPool(request.resource)
     }

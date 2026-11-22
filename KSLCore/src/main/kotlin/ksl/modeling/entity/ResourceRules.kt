@@ -8,6 +8,12 @@ import ksl.utilities.random.rvariable.KSLRandom
  * An allocation listener is notified whenever the resource is allocated and when the resource
  * is deallocated. This allows general actions to occur when the resource's state changes
  * at these instances in time.
+ *
+ * A listener is told of a change once the whole change is complete, in the order of its steps: a
+ * release's listener sees the loans it ended returned and a capacity change it let finish, and a
+ * preemption's listener sees every victim's units lent. A listener that changes the resource itself,
+ * by failing or repairing it for example, makes a change of its own, whose notices are delivered
+ * when it completes.
  */
 interface AllocationListenerIfc {
 

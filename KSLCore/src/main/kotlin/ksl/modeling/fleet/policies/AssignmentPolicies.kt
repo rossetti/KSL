@@ -449,7 +449,9 @@ class ConsolidatingPolicy @JvmOverloads constructor(
  * because it has nothing with which to hold an opinion.
  *
  * Tasks are auctioned one at a time, in the order the selection rule chose, and a vehicle that wins
- * one is withdrawn before the next call goes out. That is a greedy sequence of auctions rather than
+ * one is withdrawn before the next call goes out. An award whose load is terminated, or whose vehicle stops or
+ * reaches a charger, while a later auction of the same pass is open is dropped when the auctions end;
+ * its task stays on the board for the next pass. That is a greedy sequence of auctions rather than
  * a combinatorial one: it can be beaten on a set of tasks that would be better matched jointly, and
  * a policy wanting that should collect bids for all of them and solve. The greedy form is here
  * because it is the one Contract-Net actually describes.
@@ -489,7 +491,13 @@ class ContractNetAssignmentPolicy(
             spokenFor.add(winning.vehicle)
             proposals.add(AssignmentProposal(winning.vehicle, task, terms = winning.value))
         }
-        return proposals
+        // A later auction took simulated time too, during which an earlier award may have gone stale: its load
+        // terminated, or its vehicle stopped or reached a charger. That award is dropped, its task stays on the
+        // board, and the dispatcher is asked to look again, as nothing else may wake it: the vehicle whose award
+        // was dropped may be free with nothing to do.
+        val kept = proposals.filter { it.task.state == TaskState.POSTED && it.vehicle.isAvailable }
+        if (kept.size < proposals.size) context.dispatcher.reconsider()
+        return kept
     }
 
     override fun toString(): String = "ContractNetAssignmentPolicy(deadline=$deadline)"

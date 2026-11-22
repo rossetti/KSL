@@ -192,32 +192,66 @@ open class Resource @JvmOverloads constructor(
         allocationListeners.remove(listener)
     }
 
+    /** How many changes to this resource's units are under way; nested calls count once each. */
+    private var myChangeDepth = 0
+
+    /** The listener notices of the change under way, delivered in order once it is complete. */
+    private val myDeferredNotices = ArrayDeque<() -> Unit>()
+
     /**
-     * Notifies any attached listeners when units are allocated.
+     *  Runs [block] as one change to this resource's units: the allocation listeners are told of it once it is
+     *  complete, in the order of its steps. A listener that changes the resource makes a change of its own, whose
+     *  notices are delivered when it completes, before the listener returns, so every notice is read against the
+     *  resource as the change it tells of left it. A change that throws tells nothing.
+     */
+    private inline fun <T> change(block: () -> T): T {
+        myChangeDepth++
+        val result = try {
+            block()
+        } catch (e: Throwable) {
+            myChangeDepth--
+            if (myChangeDepth == 0) myDeferredNotices.clear()
+            throw e
+        }
+        myChangeDepth--
+        if (myChangeDepth == 0 && myDeferredNotices.isNotEmpty()) deliverNotices()
+        return result
+    }
+
+    /** Delivers the notices of the change just completed; a listener's own change delivers its own. */
+    private fun deliverNotices() {
+        val notices = myDeferredNotices.toList()
+        myDeferredNotices.clear()
+        for (notice in notices) notice()
+    }
+
+    /** Tells the listeners [notice] once the change under way is complete; at once when none is. */
+    private fun tellListeners(notice: () -> Unit) {
+        if (myChangeDepth > 0) myDeferredNotices.addLast(notice) else notice()
+    }
+
+    /**
+     * Notifies any attached listeners when units are allocated, once the change is complete.
      */
     protected fun allocationNotification(allocation: Allocation) {
-        for (listener in allocationListeners) {
-            listener.allocate(allocation)
-        }
+        tellListeners { for (listener in allocationListeners.toList()) listener.allocate(allocation) }
     }
 
     /** Notifies the attached listeners that [amount] units of [lender] were lent to [borrower]. */
     private fun loanNotification(lender: Allocation, borrower: Allocation, amount: Int) {
-        for (listener in allocationListeners) listener.unitsLent(lender, borrower, amount)
+        tellListeners { for (listener in allocationListeners.toList()) listener.unitsLent(lender, borrower, amount) }
     }
 
     /** Notifies the attached listeners that [amount] lent units came back to [lender]. */
     private fun returnNotification(lender: Allocation, amount: Int) {
-        for (listener in allocationListeners) listener.unitsReturned(lender, amount)
+        tellListeners { for (listener in allocationListeners.toList()) listener.unitsReturned(lender, amount) }
     }
 
     /**
-     * Notifies any attached listeners when units are deallocated.
+     * Notifies any attached listeners when units are deallocated, once the change is complete.
      */
     protected fun deallocationNotification(allocation: Allocation) {
-        for (listener in allocationListeners) {
-            listener.deallocate(allocation)
-        }
+        tellListeners { for (listener in allocationListeners.toList()) listener.deallocate(allocation) }
     }
 
     protected val myCapacity: TWResponse =
@@ -646,7 +680,7 @@ open class Resource @JvmOverloads constructor(
      *  that the initial capacity is greater than 0 first. A resource that uses a capacity schedule takes
      *  its capacity from the schedule alone, and this throws too; [hasSchedule] is the check.
      */
-    fun goOffShift() {
+    fun goOffShift(): Unit = change {
         val shift = myShift ?: ShiftControl(this).also { myShift = it }
         shift.goOffShift()
         myFailureClock?.update()
@@ -657,9 +691,9 @@ open class Resource @JvmOverloads constructor(
      *  replication's first [goOffShift] was made. The requests waiting for it are offered the units as
      *  for any capacity increase. Nothing happens when the resource is on shift.
      */
-    fun goOnShift() {
-        val shift = myShift ?: return
-        if (!shift.isOffShift) return
+    fun goOnShift(): Unit = change {
+        val shift = myShift ?: return@change
+        if (!shift.isOffShift) return@change
         val capacityBefore = capacity
         shift.goOnShift()
         myFailureClock?.update()
@@ -807,7 +841,7 @@ open class Resource @JvmOverloads constructor(
         queue: RequestQ,
         rule: InterruptRule,
         allocationName: String?
-    ): Allocation {
+    ): Allocation = change {
         require(rule != InterruptRule.FINISH) { "Under FINISH nothing is taken from a holder of $name in service." }
         val allocation = Allocation(entity, this, amountNeeded, queue, allocationName)
         entityAllocations.getOrPut(entity) { mutableListOf() }.add(allocation)
@@ -822,7 +856,7 @@ open class Resource @JvmOverloads constructor(
         }
         numTimesPreempted++
         allocationNotification(allocation)
-        return allocation
+        allocation
     }
 
     /**
@@ -907,22 +941,22 @@ open class Resource @JvmOverloads constructor(
      *  what it was promised does. Promised units cannot be lent, so a waiting preemptor that outranks the request
      *  could not plan against them; now they are an allocation it may take from, and it plans again.
      */
-    internal fun afterSeizeTook(servedFrom: RequestQ) {
-        if (isRunEnded) return
+    internal fun afterSeizeTook(servedFrom: RequestQ): Unit = change {
+        if (isRunEnded) return@change
         // A request selection rule sees woken requests, which still wait in the queue with their units promised;
         // one serving strictly from the head chooses the woken head again and serves no one behind it. Now the head
         // has left, the units still free are offered again, so the request it chooses next is served at once.
         if (servedFrom.requestSelectionRule != null && numAvailableUnits > 0) {
             offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "woken_request_left_resource=$name")
-            return
+            return@change
         }
-        if (myWaitingPreemptors.isEmpty()) return
+        if (myWaitingPreemptors.isEmpty()) return@change
         replanWaitingPreemptors(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "promised_units_taken_resource=$name")
     }
 
     /** A waiting preemptor was moved here: the waiting preemptors plan, as on an arrival. */
-    internal fun preemptorMovedIn() {
-        if (isRunEnded) return
+    internal fun preemptorMovedIn(): Unit = change {
+        if (isRunEnded) return@change
         replanWaitingPreemptors(ProcessModel.RESUME_PRIORITY, ResumeSource.REQUEST_MOVED_TO_RESOURCE, "preemptor_moved_in_resource=$name")
     }
 
@@ -1017,7 +1051,7 @@ open class Resource @JvmOverloads constructor(
      *  listener that repairs it and fails the resource again by hand makes a failure of the model's own, which the
      *  declared failures leave alone.
      */
-    private fun failWith(rule: InterruptRule, declared: Boolean) {
+    private fun failWith(rule: InterruptRule, declared: Boolean): Unit = change {
         // nothing was available while inactive and nothing is while failed: no change to tell of
         val inactive = isInactive
         myQuietAvailabilityHooks = true
@@ -1042,7 +1076,7 @@ open class Resource @JvmOverloads constructor(
      *  units are offered to the waiting requests as for a capacity increase. A resource that is not failed
      *  throws; [isFailed] is the check.
      */
-    fun repair() {
+    fun repair(): Unit = change {
         check(isFailed) { "$name is not failed; check isFailed before calling repair()." }
         val failure = checkNotNull(myFailure) { "$name is failed with no failure in progress." }
         // a waiting preemptor can take back units in the offer below: a restored trigger fires only for the
@@ -1082,9 +1116,7 @@ open class Resource @JvmOverloads constructor(
     private var myQuietAvailabilityHooks: Boolean = false
 
     private fun failureNotification() {
-        for (listener in allocationListeners) {
-            listener.failureStateChanged(this)
-        }
+        tellListeners { for (listener in allocationListeners.toList()) listener.failureStateChanged(this) }
     }
 
     /** The failures declared by [failures]; null when none are. */
@@ -1636,7 +1668,7 @@ open class Resource @JvmOverloads constructor(
         amountNeeded: Int = 1,
         queue: RequestQ,
         allocationName: String? = null
-    ): Allocation {
+    ): Allocation = change {
         require(canAllocate(amountNeeded)) { "$this The amount requested, $amountNeeded cannot currently be allocated" }
         val allocation = Allocation(entity, this, amountNeeded, queue, allocationName)
         if (!entityAllocations.contains(entity)) {
@@ -1649,7 +1681,7 @@ open class Resource @JvmOverloads constructor(
         //need to put this allocation in Entity also
         entity.allocate(allocation)
         allocationNotification(allocation)
-        return allocation
+        allocation
     }
 
     /** Causes the resource to deallocate the amount associated with the allocation
@@ -1658,7 +1690,7 @@ open class Resource @JvmOverloads constructor(
      *
      * @param allocation the allocation to be deallocated
      */
-    open fun deallocate(allocation: Allocation) {
+    open fun deallocate(allocation: Allocation): Unit = change {
         require(allocation.amount >= 1) { "The allocation does not have any amount to deallocate" }
         require(allocation.myResource === this) { "The allocations was not on this resource." }
         require(entityAllocations.contains(allocation.myEntity)) { "The entity associated with the allocation is not using this resource." }
@@ -1866,7 +1898,7 @@ open class Resource @JvmOverloads constructor(
         priority: Int,
         source: ResumeSource,
         detail: String
-    ) {
+    ): Unit = change {
         val rule = request.waitingPreemptRule!!
         val queue = request.queue as RequestQ
         val allocation = Allocation(request.entity, this, request.amountRequested, queue, null)
@@ -2267,8 +2299,8 @@ open class Resource @JvmOverloads constructor(
      *  units to become idle. Without this the change would wait for the next release, and a later change,
      *  such as a shift's end, would wait behind it. Nothing is done once the run has ended.
      */
-    internal fun unitsWithdrawnFromPromise(amount: Int) {
-        if (amount <= 0 || !isPendingCapacityChange || isRunEnded) return
+    internal fun unitsWithdrawnFromPromise(amount: Int): Unit = change {
+        if (amount <= 0 || !isPendingCapacityChange || isRunEnded) return@change
         if (capacityChangeRule == CapacityChangeRule.IGNORE) {
             handleIgnoreRuleRelease(amount)
         } else if (capacityChangeRule == CapacityChangeRule.WAIT && myCurrentChangeNotice!!.changeEvent == null) {
@@ -2319,7 +2351,7 @@ open class Resource @JvmOverloads constructor(
      *
      *  @param notice the value to which the capacity should be set and the duration of the change
      */
-    fun changeCapacity(notice: CapacityChangeNotice) {
+    fun changeCapacity(notice: CapacityChangeNotice): Unit = change {
         if (myCapacitySchedule != null) {
             // then change must come from the attached schedule
             require(notice.capacitySchedule == myCapacitySchedule) { "The capacity notice did not come from the attached schedule!" }
@@ -2442,10 +2474,10 @@ open class Resource @JvmOverloads constructor(
         source: ResumeSource,
         detail: String?,
         alsoQueue: RequestQ? = null
-    ) {
+    ): Unit = change {
         // once the run has ended, units restored by the termination of the entities, as a shift's end in a
         // finally block, are offered to no one: nothing can be resumed
-        if (isInactive || isRunEnded || myFailureDueAtRelease) return
+        if (isInactive || isRunEnded || myFailureDueAtRelease) return@change
         // a waiting preemptor plans again first, even when no unit is free: units that came back to their
         // holders, at a repair or a return to shift, can be taken from them
         replanWaitingPreemptors(priority, source, detail)
@@ -2596,7 +2628,7 @@ open class Resource @JvmOverloads constructor(
      *
      * @param event the ending event
      */
-    protected fun capacityChangeAction(event: KSLEvent<CapacityChangeNotice>) {
+    protected fun capacityChangeAction(event: KSLEvent<CapacityChangeNotice>): Unit = change {
         val endingChangeNotice = event.message!!
         logger.trace { "$time > Resource: $name, notice $endingChangeNotice ended its duration" }
         if (capacityChangeRule == CapacityChangeRule.IGNORE) {

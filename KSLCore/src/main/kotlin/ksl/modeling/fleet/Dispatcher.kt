@@ -849,71 +849,19 @@ open class Dispatcher @JvmOverloads constructor(
      * itself stays in the loop.
      */
     internal fun applyProposals(proposals: List<AssignmentProposal>) {
-        // How many this pass has already given each vehicle. A vehicle with room may take several
-        // tasks in one pass and make one round of them; what it may not do is take more than it can
-        // carry, and `spareCapacity` alone would not notice because nothing is aboard yet.
+        // Every proposal is checked before any is applied, so a list that is refused leaves nothing
+        // half-made. How many the list has already given each vehicle: a vehicle with room may take
+        // several tasks in one pass and make one round of them; what it may not do is take more than
+        // it can carry, and `spareCapacity` alone would not notice because nothing is aboard yet.
+        val counted = mutableMapOf<FleetVehicle, Int>()
+        val proposed = mutableSetOf<Task>()
+        for (p in proposals) {
+            checkProposal(p, counted, proposed)
+            counted[p.vehicle] = (counted[p.vehicle] ?: 0) + 1
+            proposed.add(p.task)
+        }
         val takenThisPass = mutableMapOf<FleetVehicle, Int>()
         for (p in proposals) {
-            if (!myAvailable.contains(p.vehicle)) {
-                // Two quite different causes, and a modeller should not be told the wrong one. The
-                // ordinary case is a policy naming a vehicle it was never offered, which is a
-                // defect in the policy. The other is a policy that consumed simulated time -- an
-                // auction deadline, a batching window -- during which a vehicle it *was* offered
-                // stopped or reached a charger. That is nobody's mistake, and the message says so.
-                if (p.vehicle.isOutOfService) {
-                    throw FleetDispatchException(
-                        "Policy ($assignmentPolicy) proposed vehicle (${p.vehicle.name}) for task " +
-                                "(${p.task.name}), but that vehicle stopped while the policy was " +
-                                "deciding and is out of service. A policy that takes simulated time " +
-                                "to decide -- an auction deadline, a batching window -- must re-read " +
-                                "the available set before it proposes, because the fleet can change " +
-                                "under it. FleetVehicle.isOutOfService is the test."
-                    )
-                }
-                if (p.vehicle.isCharging) {
-                    throw FleetDispatchException(
-                        "Policy ($assignmentPolicy) proposed vehicle (${p.vehicle.name}) for task " +
-                                "(${p.task.name}), but that vehicle reached a charger while the policy " +
-                                "was deciding and isn't available until it is full. A policy that takes " +
-                                "simulated time to decide -- an auction deadline, a batching window -- " +
-                                "must re-read the available set before it proposes, because the fleet " +
-                                "can change under it. FleetVehicle.isAvailable is the test."
-                    )
-                }
-                throw FleetDispatchException(
-                    "Policy ($assignmentPolicy) proposed vehicle (${p.vehicle.name}) for task " +
-                            "(${p.task.name}), but that vehicle has not declared itself available. " +
-                            "A policy may only propose vehicles from the available set it was given (A6)."
-                )
-            }
-            if (p.task.isTerminal) {
-                throw FleetDispatchException(
-                    "Policy ($assignmentPolicy) proposed task (${p.task.name}) for vehicle " +
-                            "(${p.vehicle.name}), but that task has ended (${p.task.state}), as when its " +
-                            "load is terminated while the policy decides. A policy that takes simulated " +
-                            "time to decide -- an auction deadline, a batching window -- must re-check " +
-                            "that a task is still POSTED before it proposes it."
-                )
-            }
-            if (p.task.state != TaskState.POSTED) {
-                throw FleetDispatchException(
-                    "Policy ($assignmentPolicy) proposed task (${p.task.name}) for vehicle " +
-                            "(${p.vehicle.name}), but that task is ${p.task.state} and already has a " +
-                            "vehicle committed to it (A1)."
-                )
-            }
-            // A line cycle carries nobody of its own: its riders come aboard at its stops, as there is
-            // room. So a vehicle full of riders can still be given the next cycle. It still counts toward
-            // what the vehicle takes this pass, so nothing else is added to a vehicle with no room.
-            val roomLeft = p.vehicle.spareCapacity - (takenThisPass[p.vehicle] ?: 0)
-            if (p.task !is LineTask && roomLeft <= 0) {
-                throw FleetDispatchException(
-                    "Policy ($assignmentPolicy) proposed task (${p.task.name}) for vehicle " +
-                            "(${p.vehicle.name}), which already has everything it can carry this " +
-                            "pass. A vehicle holds ${p.vehicle.loadCapacity} load(s); use " +
-                            "DispatchContext.feasible, which excludes a vehicle with no room."
-                )
-            }
             val a = Assignment(p.vehicle, p.task, time, assignmentPolicy.toString(), p.terms)
             // The task STAYS in the queue: it is dequeued at pickup, not here.
             p.task.transitionTo(TaskState.ASSIGNED)
@@ -944,6 +892,81 @@ open class Dispatcher @JvmOverloads constructor(
         val leftover = myNewlyDeclared.toList()
         myNewlyDeclared.clear()
         for (v in leftover) resume(v, null)
+    }
+
+    /**
+     *  Refuses [p] if it cannot be applied: its vehicle has not declared itself available, its task is not posted
+     *  or is among the [proposed] tasks before it in the same list, or its vehicle has no room left for it after
+     *  the [counted] proposals before it.
+     */
+    private fun checkProposal(p: AssignmentProposal, counted: Map<FleetVehicle, Int>, proposed: Set<Task>) {
+        if (!myAvailable.contains(p.vehicle)) {
+            // Two quite different causes, and a modeller should not be told the wrong one. The
+            // ordinary case is a policy naming a vehicle it was never offered, which is a
+            // defect in the policy. The other is a policy that consumed simulated time -- an
+            // auction deadline, a batching window -- during which a vehicle it *was* offered
+            // stopped or reached a charger. That is nobody's mistake, and the message says so.
+            if (p.vehicle.isOutOfService) {
+                throw FleetDispatchException(
+                    "Policy ($assignmentPolicy) proposed vehicle (${p.vehicle.name}) for task " +
+                            "(${p.task.name}), but that vehicle stopped while the policy was " +
+                            "deciding and is out of service. A policy that takes simulated time " +
+                            "to decide -- an auction deadline, a batching window -- must re-read " +
+                            "the available set before it proposes, because the fleet can change " +
+                            "under it. FleetVehicle.isOutOfService is the test."
+                )
+            }
+            if (p.vehicle.isCharging) {
+                throw FleetDispatchException(
+                    "Policy ($assignmentPolicy) proposed vehicle (${p.vehicle.name}) for task " +
+                            "(${p.task.name}), but that vehicle reached a charger while the policy " +
+                            "was deciding and isn't available until it is full. A policy that takes " +
+                            "simulated time to decide -- an auction deadline, a batching window -- " +
+                            "must re-read the available set before it proposes, because the fleet " +
+                            "can change under it. FleetVehicle.isAvailable is the test."
+                )
+            }
+            throw FleetDispatchException(
+                "Policy ($assignmentPolicy) proposed vehicle (${p.vehicle.name}) for task " +
+                        "(${p.task.name}), but that vehicle has not declared itself available. " +
+                        "A policy may only propose vehicles from the available set it was given (A6)."
+            )
+        }
+        if (p.task.isTerminal) {
+            throw FleetDispatchException(
+                "Policy ($assignmentPolicy) proposed task (${p.task.name}) for vehicle " +
+                        "(${p.vehicle.name}), but that task has ended (${p.task.state}), as when its " +
+                        "load is terminated while the policy decides. A policy that takes simulated " +
+                        "time to decide -- an auction deadline, a batching window -- must re-check " +
+                        "that a task is still POSTED before it proposes it."
+            )
+        }
+        if (p.task in proposed) {
+            throw FleetDispatchException(
+                "Policy ($assignmentPolicy) proposed task (${p.task.name}) for vehicle " +
+                        "(${p.vehicle.name}), but an earlier proposal of the same pass makes it ASSIGNED " +
+                        "and gives it a vehicle (A1)."
+            )
+        }
+        if (p.task.state != TaskState.POSTED) {
+            throw FleetDispatchException(
+                "Policy ($assignmentPolicy) proposed task (${p.task.name}) for vehicle " +
+                        "(${p.vehicle.name}), but that task is ${p.task.state} and already has a " +
+                        "vehicle committed to it (A1)."
+            )
+        }
+        // A line cycle carries nobody of its own: its riders come aboard at its stops, as there is
+        // room. So a vehicle full of riders can still be given the next cycle. It still counts toward
+        // what the vehicle takes this pass, so nothing else is added to a vehicle with no room.
+        val roomLeft = p.vehicle.spareCapacity - (counted[p.vehicle] ?: 0)
+        if (p.task !is LineTask && roomLeft <= 0) {
+            throw FleetDispatchException(
+                "Policy ($assignmentPolicy) proposed task (${p.task.name}) for vehicle " +
+                        "(${p.vehicle.name}), which already has everything it can carry this " +
+                        "pass. A vehicle holds ${p.vehicle.loadCapacity} load(s); use " +
+                        "DispatchContext.feasible, which excludes a vehicle with no room."
+            )
+        }
     }
 
     private fun resume(vehicle: FleetVehicle, assignment: Assignment?) {
