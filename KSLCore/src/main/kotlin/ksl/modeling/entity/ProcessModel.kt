@@ -1835,7 +1835,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  the request, and the resource's queue would choose this request next (as for a seize arriving now),
          *  then the entity is resumed to allow the units to be allocated. Otherwise the entity stays suspended
          *  within the resource's queue and will be processed as a normal request for the resource. A waiting
-         *  preemptor moved here preempts at the new resource, under its rule, as one arriving there would.
+         *  preemptor moved here preempts at the new resource as one arriving there would, under the rule it was
+         *  called with: a `preempt` that named no rule keeps the rule of the resource it called for.
          *
          *  The specified resource must not be associated with the request. The request must be queued and
          *  in the specified queue. The entity must currently be suspended and must be associated with

@@ -130,7 +130,7 @@ open class Dispatcher @JvmOverloads constructor(
     val board: TaskBoard = TaskBoard(myTaskQ)
 
     // ---- the available set ---------------------------------------------------------------------
-    // A vehicle is available because it said so, never because the dispatcher worked it out (A6).
+    // A vehicle is available because it said so, never because the dispatcher worked it out.
     // `newlyDeclared` is drained on every pass: a vehicle that has declared and not been given work
     // is resumed once, with no assignment, which is its cue to consider a disposition. It then goes
     // dormant and stays in `available` until a task arrives for it.
@@ -952,7 +952,7 @@ open class Dispatcher @JvmOverloads constructor(
             throw FleetDispatchException(
                 "Policy ($assignmentPolicy) proposed vehicle (${p.vehicle.name}) for task " +
                         "(${p.task.name}), but that vehicle has not declared itself available. " +
-                        "A policy may only propose vehicles from the available set it was given (A6)."
+                        "A policy may only propose vehicles from the available set it was given."
             )
         }
         if (p.task.isTerminal) {
@@ -968,14 +968,14 @@ open class Dispatcher @JvmOverloads constructor(
             throw FleetDispatchException(
                 "Policy ($assignmentPolicy) proposed task (${p.task.name}) for vehicle " +
                         "(${p.vehicle.name}), but an earlier proposal of the same pass makes it ASSIGNED " +
-                        "and gives it a vehicle (A1)."
+                        "and gives it a vehicle."
             )
         }
         if (p.task.state != TaskState.POSTED) {
             throw FleetDispatchException(
                 "Policy ($assignmentPolicy) proposed task (${p.task.name}) for vehicle " +
                         "(${p.vehicle.name}), but that task is ${p.task.state} and already has a " +
-                        "vehicle committed to it (A1)."
+                        "vehicle committed to it."
             )
         }
         // A line cycle carries nobody of its own: its riders come aboard at its stops, as there is

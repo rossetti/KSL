@@ -402,7 +402,7 @@ private inline fun greedyByDistance(
  *
  * The extra tasks are taken in board order — that is, in whatever order the task selection rule
  * put them — and vehicles are considered by name, so the answer does not depend on the order the
- * inner policy happened to return its proposals in (`C1`).
+ * inner policy happened to return its proposals in.
  *
  * What it does *not* do is decide the order the vehicle visits the stops in. That is the tour
  * policy's decision and it is made later, once the vehicle knows everything it has been given.

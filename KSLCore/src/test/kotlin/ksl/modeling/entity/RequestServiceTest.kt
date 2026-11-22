@@ -41,10 +41,15 @@ class RequestServiceTest {
         return x
     }
 
-    /** A preempt waiting for R1 is moved to R2, whose only unit is held by a less urgent holder. */
-    private class MovedPreemptor(parent: ModelElement, val move: Boolean, val rule: InterruptRule) : ProcessModel(parent, "mp") {
+    /**
+     *  A preempt waiting for R1 is moved to R2, whose only unit is held by a less urgent holder. With [rule] null the
+     *  preempt names no rule, and R2's own rule is [r2Rule].
+     */
+    private class MovedPreemptor(
+        parent: ModelElement, val move: Boolean, val rule: InterruptRule?, r2Rule: InterruptRule = InterruptRule.FINISH
+    ) : ProcessModel(parent, "mp") {
         val r1 = ResourceWithQ(this, "R1")
-        val r2 = ResourceWithQ(this, "R2")
+        val r2 = ResourceWithQ(this, "R2").also { it.interruptRule = r2Rule }
         var servedAt = Double.NaN
 
         inner class Holder(val r: ResourceWithQ, pri: Int, val hold: Double) : Entity() {
@@ -62,7 +67,8 @@ class RequestServiceTest {
 
             val p: KSLProcess = process {
                 delay(if (move) 1.0 else 5.0)
-                val a = preempt(if (move) r1 else r2, rule = rule)
+                val target = if (move) r1 else r2
+                val a = if (rule != null) preempt(target, rule = rule) else preempt(target)
                 servedAt = time
                 delay(2.0); release(a)
             }
@@ -89,6 +95,17 @@ class RequestServiceTest {
             val moved = simulate { MovedPreemptor(it, move = true, rule = rule) }.servedAt
             assertEquals(arriving, moved, "$rule: moved at 5, as arriving at 5")
         }
+    }
+
+    @Test
+    @DisplayName("a preempt that names no rule keeps the rule of the resource it called for when it is moved")
+    fun movedPreemptorKeepsItsRule() {
+        // R1's rule is FINISH and R2's RESUME: arriving at R2 it takes the unit at once, under RESUME; moved there it
+        // reserves under FINISH and takes the unit at the holder's release
+        val arriving = simulate { MovedPreemptor(it, move = false, rule = null, r2Rule = InterruptRule.RESUME) }.servedAt
+        val moved = simulate { MovedPreemptor(it, move = true, rule = null, r2Rule = InterruptRule.RESUME) }.servedAt
+        assertEquals(5.0, arriving)
+        assertEquals(50.0, moved)
     }
 
     /** A plain seize waiting for R1 is moved to R2 and served there. */

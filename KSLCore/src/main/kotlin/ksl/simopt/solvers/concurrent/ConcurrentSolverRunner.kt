@@ -183,10 +183,12 @@ class ConcurrentSolverRunner(
                 solver.startingPoint = task.startingPoint
             }
             task.innerSolverDecorator?.invoke(solver, index)
+            // a stop that arrives after the check below and before the run initializes would be cleared by that
+            // initialization; the solver asks the runner as its run starts, so the stop still applies
+            solver.stopRequestedByRunner = { myStopRequested.get() }
             myLiveSolvers[index] = solver
             // Close the race between the stop-flag check above and registration: a stop that arrived in between
-            // only saw an unregistered solver. It is not run at all, as a member stopped before it started; a
-            // stop sent to it now would be cleared when its run initializes.
+            // only saw an unregistered solver. It is not run at all, as a member stopped before it started.
             if (myStopRequested.get()) {
                 logger.debug { "Member $index (${task.label}) skipped: stop requested while it was set up" }
                 reusable = true

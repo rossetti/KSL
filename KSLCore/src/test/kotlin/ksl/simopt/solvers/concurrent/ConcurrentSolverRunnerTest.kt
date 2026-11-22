@@ -268,6 +268,27 @@ class ConcurrentSolverRunnerTest {
         assertTrue(ran.isEmpty()) { "the member ran ${ran.size} iteration(s)" }
     }
 
+    @Test
+    @DisplayName("a member whose runner asked for a stop before its run began is halted as the run starts")
+    fun stopAskedBeforeTheRunStartsIsApplied() {
+        // A stop that reaches a member after the runner's last check but before its run initializes must not be
+        // cleared by that initialization. The member's solver asks its runner as the run starts.
+        val pd = makeLKInventoryModelProblemDefinition()
+        fun run(stopAsked: Boolean): Pair<String, Int> {
+            val solver = shcFactory(pd, iterations = 6).create(StubMemberFactory(pd).createEvaluator(0), 0, "member")
+            var iterations = 0
+            solver.iterationEmitter.attach { iterations++ }
+            solver.stopRequestedByRunner = { stopAsked }
+            solver.runAllIterations()
+            return (solver.solverResult as ksl.simopt.solvers.SolverResult.Completed).terminationReason to iterations
+        }
+        val (stoppedReason, stoppedIterations) = run(stopAsked = true)
+        val (fullReason, fullIterations) = run(stopAsked = false)
+        assertEquals(ksl.simopt.solvers.SolverResult.HALTED_BEFORE_COMPLETION, stoppedReason)
+        assertTrue(fullReason != ksl.simopt.solvers.SolverResult.HALTED_BEFORE_COMPLETION) { "unstopped: $fullReason" }
+        assertTrue(stoppedIterations < fullIterations) { "stopped ran $stoppedIterations, unstopped $fullIterations" }
+    }
+
     // ── Pooled factory integration (real simulation) ─────────────────────────
 
     private fun runWithPooledFactory(numWorkers: Int): List<SolverMemberResult> {

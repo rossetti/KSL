@@ -201,8 +201,8 @@ open class Resource @JvmOverloads constructor(
     /**
      *  Runs [block] as one change to this resource's units: the allocation listeners are told of it once it is
      *  complete, in the order of its steps. A listener that changes the resource makes a change of its own, whose
-     *  notices are delivered when it completes, before the listener returns, so every notice is read against the
-     *  resource as the change it tells of left it. A change that throws tells nothing.
+     *  notices are delivered when it completes, before the listener returns; the notices of the first change still
+     *  to be delivered then read the resource as the listener's change left it. A change that throws tells nothing.
      */
     private inline fun <T> change(block: () -> T): T {
         myChangeDepth++
@@ -1790,7 +1790,7 @@ open class Resource @JvmOverloads constructor(
         val returning = settlement.returning
         if (passOn && returning.isNotEmpty() && !isFailed && !isInactive && !isRunEnded) passLoansOn(returning)
         // a resource failed now, under RESUME or RESTART, has all its units down, however the failure began: one
-        // begun since the loans were settled, as by a listener told of this release, is not in the settlement
+        // whatever the settlement recorded of the releasing allocation's own units, those coming back are down too
         val failureRule = myFailure?.rule
         val allDown = isFailed && failureRule != null && failureRule != InterruptRule.FINISH
         for ((lender, back) in returning) {

@@ -525,6 +525,13 @@ abstract class Solver(
     }
 
     /**
+     *  For a solver run by a concurrent runner: asked as each run starts, after the run is initialized. True means
+     *  the runner has asked for a stop, and the run is halted as if `stopIterations` had been called during it. A
+     *  stop sent to the solver before its run began would otherwise be cleared by that initialization.
+     */
+    internal var stopRequestedByRunner: (() -> Boolean)? = null
+
+    /**
      *  Causes a graceful stopping of the iterative processes for the solver.
      *  The inner process will complete its current iteration, and then
      *  no more outer iterations will start.
@@ -1187,6 +1194,8 @@ abstract class Solver(
 //            println("best solutions size ${myBestSolutions.size}")
             logger.debug { "Initializing Iterations: Resetting solver evaluation counters for solver: $name" }
             this@Solver.initializeIterations()
+            // a stop its runner asked for before the run began, cleared above, still applies
+            if (stopRequestedByRunner?.invoke() == true) this@Solver.stopIterations("stop requested before the run began")
             if (::myInitialSolution.isInitialized) {
                 val solution = myInitialSolution
                 logger.debug { "Initialized solver $name : penalized objective function value: ${solution.recordedPenalizedObjFncValue}" }

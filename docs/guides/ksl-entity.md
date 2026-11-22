@@ -632,6 +632,8 @@ private inner class Emergency : Entity() {
   its queue first under the default notification rule, and the next in the
   queue being offered under a rule of the model's own.
 - **The rule** is the resource's `interruptRule` unless the call names one.
+  It is fixed when `preempt` is called: a waiting preemptor moved to another
+  resource keeps it.
   Under `RESUME` and `RESTART` the units are taken now and the holder's delay
   is held. Under `FINISH` nothing is taken in service: the preemptor is
   promised the free units, which stay idle and go to no one else while it

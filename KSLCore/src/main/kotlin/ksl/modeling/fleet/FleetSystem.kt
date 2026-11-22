@@ -877,7 +877,7 @@ abstract class FleetSystem @JvmOverloads constructor(
          * diagnostic, `FracTimeOnTask` -- should say so rather than testing a slot for null. A
          * vehicle with a load capacity above one holds a commitment for each load of its round.
          *
-         * Ordered, never a set: `C1` requires that declaration order cannot change an answer, and a
+         * Ordered, never a set: declaration order must not change an answer, and a
          * set would make the order of a vehicle's commitments an accident of hashing.
          */
         internal val assignments = mutableListOf<Assignment>()

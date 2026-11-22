@@ -32,7 +32,7 @@ class Assignment internal constructor(
             throw FleetAssignmentException(
                 "The assignment of task (${task.name}) to vehicle (${vehicle.name}) cannot be " +
                         "revoked: it is $state, and an assignment may only be revoked while the " +
-                        "vehicle is still on its way to collect the load (A4)."
+                        "vehicle is still on its way to collect the load."
             )
         }
     }
