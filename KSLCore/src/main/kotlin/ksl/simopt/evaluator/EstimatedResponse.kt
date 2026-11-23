@@ -371,7 +371,8 @@ data class EstimatedResponse(
     fun merge(e: EstimatedResponse): EstimatedResponse {
         require(this.name == e.name) { "The names of the responses to merge must be the same" }
         val n = count + e.count
-        val avg = ((average * count) + (e.average * e.count)) / n
+        // weighted by the shares of the count, each at most 1, so the products cannot overflow on the way
+        val avg = average * (count / n) + e.average * (e.count / n)
         val v = pooledVariance(e)
         return EstimatedResponse(this.name, avg, v, n)
     }
@@ -389,9 +390,10 @@ data class EstimatedResponse(
         val n = count + e.count
         val within1 = if (count > 1.0) ((count - 1.0) / (n - 1.0)) * variance else 0.0
         val within2 = if (e.count > 1.0) ((e.count - 1.0) / (n - 1.0)) * e.variance else 0.0
-        // (n1 n2 / (n (n - 1))) d^2, as (w |d|) |d|: the weight w is below 1, so nothing on the way exceeds the result
+        // (n1 n2 / (n (n - 1))) d^2, as (w |d|) |d|: the weight w = (n1 / n)(n2 / (n - 1)) is formed from two ratios,
+        // each at most 1, so neither the weight nor anything after it exceeds the result
         val d = abs(average - e.average)
-        val between = (count * e.count / (n * (n - 1.0))) * d * d
+        val between = ((count / n) * (e.count / (n - 1.0))) * d * d
         return within1 + within2 + between
     }
 

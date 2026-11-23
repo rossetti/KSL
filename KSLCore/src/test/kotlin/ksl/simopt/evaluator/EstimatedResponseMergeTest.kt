@@ -93,4 +93,24 @@ class EstimatedResponseMergeTest {
         val merged = EstimatedResponse("x", 0.0, 0.0, 4.0).merge(EstimatedResponse("x", 1.0e200, 0.0, 4.0))
         assertEquals(Double.POSITIVE_INFINITY, merged.variance)
     }
+
+    @Test
+    @DisplayName("large counts do not overflow the pooling: the average and variance are those of the combined sample")
+    fun largeCountsDoNotOverflow() {
+        // 1e155 observations averaging 0 and 1e155 averaging 2, each with variance 1: mean 1, pooled variance about 2
+        val a = EstimatedResponse("x", 0.0, 1.0, 1.0e155)
+        val b = EstimatedResponse("x", 2.0, 1.0, 1.0e155)
+        assertEquals(2.0, a.pooledVariance(b), 1e-12)
+        val merged = a.merge(b)
+        assertEquals(1.0, merged.average, 1e-12)
+        assertEquals(2.0, merged.variance, 1e-12)
+        assertEquals(2.0e155, merged.count, 2.0e155 * 1e-15)
+    }
+
+    @Test
+    @DisplayName("large averages with large counts do not overflow the merged average")
+    fun largeAveragesWithLargeCounts() {
+        val merged = EstimatedResponse("x", 1.0e200, 0.0, 1.0e150).merge(EstimatedResponse("x", 3.0e200, 0.0, 1.0e150))
+        assertEquals(2.0e200, merged.average, 2.0e200 * 1e-14)
+    }
 }

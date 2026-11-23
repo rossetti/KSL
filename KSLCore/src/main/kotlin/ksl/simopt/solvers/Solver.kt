@@ -363,6 +363,16 @@ abstract class Solver(
     private var myRunState: RunState = RunState.NotStarted
 
     /**
+     *  Ends the run, once, with the reason "Ended With An Error": an exception was thrown by its initialization, an
+     *  iteration or its stopping criteria. A later end of the iterations keeps that reason.
+     */
+    private fun recordRunFailure() {
+        if ((myRunState as? RunState.Ended)?.reason == SolverResult.ENDED_WITH_AN_ERROR) return
+        myRunState = RunState.Ended(SolverResult.ENDED_WITH_AN_ERROR, (myRunState as? RunState.Running)?.criteriaMet ?: false)
+        lifeCycleEmitter.emit(SolverStatus.ERROR)
+    }
+
+    /**
      *  Whether the run in progress could go on: an iteration remains, and the process has not finished by itself
      *  (out of steps, a stopping condition, or its time limit).
      */
@@ -501,6 +511,8 @@ abstract class Solver(
     /**
      *  Runs the next iteration. Only valid if the solver has been
      *  initialized and there are additional iterations to run.
+     *  An exception thrown by the iteration ends the run with the reason "Ended With An Error", as in
+     *  [runAllIterations], and is thrown on; asking for a step that does not exist is not such a failure.
      */
     @Suppress("unused")
     fun runNextIteration() {
@@ -516,9 +528,9 @@ abstract class Solver(
         try {
             myMainIterativeProcess.run()
         } catch (e: Exception) {
-        // Catches anything that breaks the internal loop or initialization.
-            myRunState = RunState.Ended(SolverResult.ENDED_WITH_AN_ERROR, (myRunState as? RunState.Running)?.criteriaMet ?: false)
-            lifeCycleEmitter.emit(SolverStatus.ERROR)
+            // Catches anything that breaks the internal loop or initialization; a failure of the solver's own
+            // steps was recorded where it happened
+            recordRunFailure()
             // Re-throw so the framework user knows their run failed.
             throw e
         }
@@ -1178,10 +1190,27 @@ abstract class Solver(
     protected inner class MainIterativeProcess :
         IterativeProcess<MainIterativeProcess>("${name}:SolverMainIterativeProcess") {
 
+        /** Runs [block], a part of the solver's own run; an exception thrown by it ends the run with an error. */
+        private inline fun <R> failsTheRun(block: () -> R): R {
+            try {
+                return block()
+            } catch (e: Exception) {
+                recordRunFailure()
+                // the step did not complete: the process is no longer running it
+                isRunningStep = false
+                isRunning = false
+                throw e
+            }
+        }
+
         override fun initializeIterations() {
             super.initializeIterations()
             iterationCounter = 0
             myRunState = RunState.Running()
+            failsTheRun { initializeRun() }
+        }
+
+        private fun initializeRun() {
             //     numTimesBestSolutionUpdated = 0
             numOracleCalls = 0
             numReplicationsRequested = 0
@@ -1220,7 +1249,7 @@ abstract class Solver(
          *  provide.
          */
         override fun checkStoppingCondition() {
-            if (isStoppingCriteriaSatisfied()) {
+            if (failsTheRun { isStoppingCriteriaSatisfied() }) {
                 (myRunState as? RunState.Running)?.criteriaMet = true
                 stop()
             }
@@ -1232,7 +1261,9 @@ abstract class Solver(
             } else this
         }
 
-        override fun runStep() {
+        override fun runStep() = failsTheRun { runIteration() }
+
+        private fun runIteration() {
             myCurrentStep = nextStep()
             logger.trace { "Executing beforeMainIteration(): iteration = $iterationCounter of solver $name" }
             beforeMainIteration()
@@ -1250,6 +1281,12 @@ abstract class Solver(
         }
 
         override fun endIterations() {
+            if ((myRunState as? RunState.Ended)?.reason == SolverResult.ENDED_WITH_AN_ERROR) {
+                // the run ended with an error: its reason stands, and it is not completed as a normal run is
+                super.endIterations()
+                logger.debug { "Ended: solver $name iterations, after an error." }
+                return
+            }
             logger.trace { "Executing mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
             mainIterationsEnded()
             logger.trace { "Executed mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
