@@ -653,8 +653,8 @@ private inner class Emergency : Entity() {
   queue, is served at once exactly when this order would serve it, and
   otherwise waits. The entities served
   resume at the priority of the release or capacity change that made the
-  units available, and at the default release priority otherwise (a
-  repair, a request leaving its queue).
+  units available; after any other change (a repair, a request leaving its
+  queue, an arrival), at a high priority of the library's own.
 - **The rule** is the resource's `interruptRule` unless the call names one.
   It is fixed when `preempt` is called: a waiting preemptor moved to another
   resource keeps it.

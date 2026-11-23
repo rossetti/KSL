@@ -1753,7 +1753,7 @@ interface KSLProcessBuilder {
      *  queues on the resource, the request next in line is the one that entered its queue first under the
      *  default notification rule. An arriving call is served at once exactly when this order would serve it.
      *  The entities served resume at the priority of the release or capacity change that made the units
-     *  available, and at the default release priority otherwise. A movable
+     *  available; after any other change, at a high priority of the library's own. A movable
      *  resource cannot be preempted; use `seize` for it.
      *
      *  @param resource the resource to take units of

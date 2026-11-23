@@ -212,4 +212,36 @@ class OfferOrderTest {
         assertTrue("W got@4.0" in m.log, m.log.toString())
         assertTrue(m.log.any { it.startsWith("F got@") }, m.log.toString())
     }
+
+    /**
+     *  R has 3 units, `RESUME`. A and B (priority 9) and X (priority 1) hold 1 each. M waits for the first of B's
+     *  interruption and a seize trigger on R. W (priority 1) preempts 3 at 1 and waits: it does not outrank X. N
+     *  (priority 3) preempts 2 at 2 and takes B's and A's units on arrival. Taking B's unit wakes M, whose seize trigger
+     *  leaves R's queue and asks for an offer while N is still taking A's; it is made once N has both. No unit is lent
+     *  twice, and W, which could take only N's 2 units, still waits.
+     */
+    @Test
+    @DisplayName("an offer asked for while an arriving preemptor takes its units is made once it has them")
+    fun offerAskedForDuringAnArrivingPreemptionWaitsForIt() {
+        val m = RuleModel("OfferDuringArrivingPreemption")
+        val r = ResourceWithQ(m, "R", capacity = 3)
+        r.interruptRule = InterruptRule.RESUME
+        var bAllocation: Allocation? = null
+        m.plan {
+            actor("A", 9) { val a = seize(r); delay(100.0); release(a) }
+            actor("B", 9) { delay(0.1); val a = seize(r); bAllocation = a; delay(100.0); release(a) }
+            actor("X", 1) { delay(0.2); val a = seize(r); delay(100.0); release(a) }
+            actor("M", 9) {
+                delay(0.5)
+                waitForFirst(bAllocation!!.interruptedTrigger(), r.seizeTrigger(), timeout = 1000.0)
+                log.add("M woke@$time")
+            }
+            actor("W", 1) { delay(1.0); val a = preempt(r, 3, rule = InterruptRule.RESUME); log.add("W got@$time"); delay(1.0); release(a) }
+            actor("N", 3) { delay(2.0); val a = preempt(r, 2, rule = InterruptRule.RESUME); log.add("N got@$time"); delay(1.0); release(a) }
+        }
+        m.simulate(300.0)
+        assertTrue("N got@2.0" in m.log, m.log.toString())
+        assertTrue("M woke@2.0" in m.log, m.log.toString())
+        assertFalse(m.log.any { it.startsWith("W got@2.") }, m.log.toString())
+    }
 }

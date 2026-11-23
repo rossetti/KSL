@@ -850,13 +850,25 @@ open class Resource @JvmOverloads constructor(
         numTimesSeized++
         mySeizeCounter.increment()
         entity.allocate(allocation)
-        for ((victim, k) in plan.takes) {
-            myLoans.add(Loan(victim, allocation, k))
-            victim.unitsGoMissing(byFailure = 0, byLoan = k, rule = rule)
-            loanNotification(victim, allocation, k)
+        // taking a holder's units can claim a wait on its interrupted trigger at once, and a request leaving then
+        // asks for an offer of this resource: it is held until every unit of the plan is taken, then made
+        myOfferDepth++
+        try {
+            for ((victim, k) in plan.takes) {
+                myLoans.add(Loan(victim, allocation, k))
+                victim.unitsGoMissing(byFailure = 0, byLoan = k, rule = rule)
+                loanNotification(victim, allocation, k)
+            }
+        } finally {
+            myOfferDepth--
         }
         numTimesPreempted++
         allocationNotification(allocation)
+        // the held offer, with the queues it named (the walk adds them, and clears them when it ends)
+        if (myOfferDepth == 0 && myOfferAgain) {
+            myOfferAgain = false
+            offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "offer_held_while_preempting_resource=$name")
+        }
         allocation
     }
 
