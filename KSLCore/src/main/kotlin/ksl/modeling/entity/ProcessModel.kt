@@ -761,13 +761,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
         }
 
         /**
-         *  True when a request just placed can take its units at once: the resource can allocate them and
-         *  the queue would choose this request next for that resource.
+         *  True when a request just placed can take its units at once: the resource's one walk of claimants
+         *  (`Resource.arrivalDecision`) reaches it and can serve it from the free units.
          */
-        internal fun canTakeResourceNow(request: ResourceRequest, queue: RequestQ): Boolean {
-            val resource = request.myResource
-            return resource.canAllocate(request.amountRequested) && queue.nextRequestForResource(resource) === request
-        }
+        internal fun canTakeResourceNow(request: ResourceRequest, queue: RequestQ): Boolean =
+            request.myResource.arrivalDecision(request) is Resource.ArrivalDecision.Take
 
         init {
             // Entity has come into existence: emit EntityCreated (only when animating).
@@ -1903,11 +1901,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             request.waitingPreemptRule?.let { rule -> resource.waitAsPreemptor(request, rule) }
             val detail = "request_id=${request.id}, moved_to_resource=${resource.name}, amount=${request.amountRequested}"
             // served at once when a seize arriving now would be: the resource can allocate and the new queue would
-            // choose this request next. A request whose wait is held, while another trigger of its wait has won
-            // provisionally, is never chosen (it is passed over), so it only changes queues: it is offered units if
-            // its wait is reopened, and leaves if the win holds
-            val canServe = resource.canAllocate(request.amountRequested) &&
-                    newQ.nextRequestForResource(resource) === request
+            // choose this request next, by the resource's walk of claimants (`Resource.arrivalDecision`). A request
+            // whose wait is held, while another trigger of its wait has won provisionally, is never chosen (it is
+            // passed over), so it only changes queues: it is offered units if its wait is reopened, and leaves if the
+            // win holds. A waiting preempt is not served here; it waits on as one, below.
+            val canServe = request.waitingPreemptRule == null && request.registration?.isHeld != true &&
+                    resource.arrivalDecision(request) is Resource.ArrivalDecision.Take
             if (wasWoken) {
                 // The resume already on the calendar carries the request: promise the new target's units if it
                 // can serve it now, and mark the request so nothing wakes it twice. When it resumes it takes the
@@ -3107,7 +3106,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 yield(seizePriority, "SEIZE yield for resource ${resource.name}")
                 val request = entity.enqueueResourceRequest(resource, amountNeeded, queue)
                 val allocation = try {
-                    waitForResource(request, resource, queue)
+                    // served at once when the resource's walk of claimants reaches it and can serve it; else it waits
+                    if (!entity.canTakeResourceNow(request, queue)) waitForResource(request, resource, queue)
                     takeResource(request, resource, queue, suspensionName, rewait = null)!!
                 } finally {
                     // Abnormal exit only. Termination resumes the continuation with a
@@ -3144,24 +3144,23 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 yield(seizePriority, "PREEMPT yield for resource ${resource.name}")
                 val request = entity.enqueueResourceRequest(resource, amountNeeded, queue)
                 val allocation = try {
-                    if (entity.canTakeResourceNow(request, queue)) {
-                        // the free units are enough: no one is preempted
-                        takeResource(request, resource, queue, suspensionName, rewait = null)!!
-                    } else {
-                        val plan = if (!resource.isFailed && !resource.isInactive) {
-                            resource.planPreemption(entity, amountNeeded, takesAtOnce = rule != InterruptRule.FINISH)
-                        } else null
-                        if (plan != null && rule != InterruptRule.FINISH) {
+                    // the resource's one walk of claimants decides: taken at once, reserved under FINISH, or waiting
+                    when (val decision = resource.arrivalDecision(request, rule)) {
+                        is Resource.ArrivalDecision.Take -> if (decision.plan.takes.isEmpty()) {
+                            // the free units are enough: no one is preempted
+                            takeResource(request, resource, queue, suspensionName, rewait = null)!!
+                        } else {
                             // taken at once: the request leaves its queue with a wait of zero
                             (request.queue as? RequestQ ?: queue).remove(request)
-                            val a = resource.allocateWithLoans(entity, amountNeeded, plan, queue, rule, suspensionName)
+                            val a = resource.allocateWithLoans(entity, amountNeeded, decision.plan, queue, rule, suspensionName)
                             logger.trace { "r = ${model.currentReplicationNumber} : $time > END: PREEMPT: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: allocation_id = ${a.id}" }
                             a
-                        } else {
-                            // under FINISH the victims' units are reserved as they release them. With no plan it
-                            // waits as a seize waits, and plans again whenever units come free or come back; it is
-                            // then resumed with its allocation made, or, under FINISH, reserves
-                            if (plan != null) resource.reserve(request, plan.free)
+                        }
+                        else -> {
+                            // under FINISH the victims' units are reserved as they release them. Otherwise it waits
+                            // as a seize waits, and is served by a later offer: resumed with its allocation made,
+                            // or, under FINISH, it reserves then
+                            if (decision is Resource.ArrivalDecision.Reserve) resource.reserve(request, decision.free)
                             else resource.waitAsPreemptor(request, rule)
                             waitForResource(request, resource, queue)
                             takeAsPreemptor(request, resource, queue, suspensionName)
@@ -3424,35 +3423,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 return true
             }
 
+            /**
+             *  Waits for a request the resource's walk of claimants did not serve at its arrival (`canTakeResourceNow`,
+             *  `Resource.arrivalDecision`): the walk has already offered the free units to whoever it reached, so the
+             *  request only waits, to be woken by a later offer.
+             */
             private suspend fun waitForResource(
                 request: ResourceRequest,
                 resource: Resource,
                 queue: RequestQ
             ) {
-                //TODO: This is where a partial allocation could be handled. The current implementation does not facilitate partial filling
-                if (!resource.canAllocate(request.amountRequested)) {
-                    // the resource can't allocate to the request, no need to consider it versus others waiting in the queue
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                    emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, resource.name) }
-                    entity.state.waitForResource()
-                    suspend()
-                    entity.state.activate()
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                } else {
-                    // can allocate it fully, but is it next?  this allows request selection rules to be invoked
-                    //val nextRequest = queue.nextRequest(resource.numAvailableUnits)
-                    val nextRequest = queue.nextRequestForResource(resource)
-                    // null means that no requests were picked, if it wasn't picked as next by the rule, then the request must wait
-                    if ((nextRequest == null) || nextRequest != request) {
-                        queue.offerFreeUnitsUnderRule(resource, "seize_arrived_not_chosen_request_id=${request.id}")
-                        logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                        emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, resource.name) }
-                        entity.state.waitForResource()
-                        suspend()
-                        entity.state.activate()
-                        logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
-                    }
-                }
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > \t SUSPENDED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
+                emitAnimation { AnimationEvent.SeizeWaiting(time, entity.id, resource.name) }
+                entity.state.waitForResource()
+                suspend()
+                entity.state.activate()
+                logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
             }
 
             override suspend fun seize(
@@ -3995,8 +3981,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
 
             override fun release(allocation: Allocation, releasePriority: Int) {
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: RELEASE : entity_id = ${entity.id}: ${allocation.amount} units of ${allocation.myResource.name}" }
-                // we cannot assume that a resource has a queue
-                allocation.myResource.deallocate(allocation)
+                // we cannot assume that a resource has a queue; the release's priority orders the resumes of any
+                // offer the release makes as it ends a loan
+                val resource = allocation.myResource
+                resource.myReleasePriority = releasePriority
+                try {
+                    resource.deallocate(allocation)
+                } finally {
+                    resource.myReleasePriority = RELEASE_PRIORITY
+                }
                 // get the queue from the allocation being released and process any waiting requests
                 // note that the released amount may allow multiple requests to proceed
                 // this may be a problem depending on how numAvailableUnits is defined

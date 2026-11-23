@@ -113,12 +113,13 @@ internal class ResourceSeizeTrigger(
 
     // A request selection rule chooses among queued requests, so with one the request must be queued before it can
     // be chosen: the wait then registers it, and serves it at once when the rule chooses it (canTakeNow).
+    // With a waiting preemptor or a reservation collecting, the resource's walk of claimants decides (canTakeNow).
     override fun canFireNow(entity: ProcessModel.Entity): Boolean =
-        queue.requestSelectionRule == null &&
+        queue.requestSelectionRule == null && !resource.hasPreemptionClaimants &&
                 resource.canAllocate(amountNeeded) && queue.nextRequestForResource(resource) == null
 
     override val decidesWhenQueued: Boolean
-        get() = queue.requestSelectionRule != null
+        get() = queue.requestSelectionRule != null || resource.hasPreemptionClaimants
 
     override fun offerFreeUnitsAfterArrival() {
         if (resource.canAllocate(amountNeeded)) queue.offerFreeUnitsUnderRule(resource, "seize_trigger_arrived_not_chosen")

@@ -26,8 +26,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A seize that finds free units asks the queue for the next request it can serve. That search stops at
- * the first one, under each ordered discipline.
+ * The queue's search for the next request a resource can serve (`RequestQ.nextRequestForResource`, used by a
+ * pool's arrival and a seize trigger's fast path) stops at the first one, under each ordered discipline. An arriving
+ * seize is served at once under each discipline.
  *
  * One of two units is held for the whole run, and nine entities wait for two units each. A tenth
  * arrives wanting one, and the free unit is its to take.
@@ -70,9 +71,13 @@ class NextRequestForResourceTest {
         inner class Late : Entity() {
             val p: KSLProcess = process {
                 delay(5.0)
+                // the search the queue makes for the next request the free unit can serve, with this one last in
+                val probe = enqueueResourceRequest(server, 1, line)
                 val before = server.comparisons
-                seize(server, 1, queue = line)
+                line.nextRequestForResource(server)
                 comparisonsBySeize = server.comparisons - before
+                line.remove(probe, false)
+                seize(server, 1, queue = line)
                 servedAt = time
                 waitingWhenServed = line.size
                 delay(1000.0)

@@ -881,51 +881,6 @@ open class Resource @JvmOverloads constructor(
     }
 
     /**
-     *  Gives the available units to the waiting reservations, the most urgent first and the oldest first
-     *  among equals, and resumes each one that has all it needs. At a loan's end, [returning] holds the units going
-     *  back to their lenders: a reservation that the free units leave short takes them, when those of lenders it
-     *  outranks complete it, and is resumed with its allocation made; the lenders stay held. The first reservation
-     *  still short stops the offer, so a less urgent one never takes units ahead of it.
-     */
-    private fun serveReservations(
-        priority: Int,
-        source: ResumeSource,
-        detail: String?,
-        returning: MutableMap<Allocation, Int> = mutableMapOf()
-    ) {
-        var withdrawn = 0
-        // a stable sort: the list is in the order the reservations were made
-        for (reservation in myReservations.sortedBy { it.request.entity.priority }) {
-            if (numAvailableUnits <= 0 && returning.values.none { it > 0 }) break
-            // one already woken to take its units keeps its place until it takes them
-            if (reservation.isComplete) continue
-            if (!isCollecting(reservation)) {
-                // more than the capacity heading to: it holds nothing, and collects when the capacity returns
-                val held = reservation.request.promises[this] ?: 0
-                if (held > 0) {
-                    reservation.request.withdrawPromise(this, held)
-                    reservation.stillNeeded += held
-                    withdrawn += held
-                }
-                continue
-            }
-            val k = minOf(reservation.stillNeeded, numAvailableUnits)
-            if (k > 0) reservation.request.promise(this, k)
-            reservation.stillNeeded -= k
-            if (reservation.stillNeeded > 0) {
-                if (!completeFromReturning(reservation, returning, priority, source, detail)) break
-                continue
-            }
-            reservation.isComplete = true
-            val request = reservation.request
-            val queue = request.queue as RequestQ
-            queue.resumeWoken(request, priority, source, "reservation_completed_resource=$name, request_id=${request.id}, $detail")
-        }
-        // a pending change counted the promised units it needs
-        if (withdrawn > 0) unitsWithdrawnFromPromise(withdrawn)
-    }
-
-    /**
      *  Completes [reservation] from the [returning] units of lenders its entity outranks, taken from the least urgent
      *  lender first and, among equals, the most recently allocated, when they are enough: its promised units and those
      *  become its allocation, the lenders stay held, and it is resumed. False, changing nothing, when they are too few.
@@ -1000,13 +955,13 @@ open class Resource @JvmOverloads constructor(
             return@change
         }
         if (myWaitingPreemptors.isEmpty()) return@change
-        replanWaitingPreemptors(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "promised_units_taken_resource=$name")
+        offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "promised_units_taken_resource=$name")
     }
 
     /** A waiting preemptor was moved here: the waiting preemptors plan, as on an arrival. */
     internal fun preemptorMovedIn(): Unit = change {
         if (isRunEnded) return@change
-        replanWaitingPreemptors(ProcessModel.RESUME_PRIORITY, ResumeSource.REQUEST_MOVED_TO_RESOURCE, "preemptor_moved_in_resource=$name")
+        offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.REQUEST_MOVED_TO_RESOURCE, "preemptor_moved_in_resource=$name")
     }
 
     /** Set when a reservation was given up by a decrease, so its units are offered once the change is applied. */
@@ -1787,9 +1742,11 @@ open class Resource @JvmOverloads constructor(
         // at this release; then they go back to their lenders, and the failure takes them with the rest in the
         // same step, so a restored trigger fires only for units still back once the failure is applied
         if (failing) {
+            // the failure first: the units of ending loans then go back to their lenders down in it, which stay held
+            // and are not interrupted a second time, as when the resource was failed before the release
             settlingRestores {
-                if (settlement != null) returnLoans(settlement, passOn = false)
                 applyDueFailure()
+                if (settlement != null) returnLoans(settlement, passOn = false)
             }
         } else if (settlement != null) {
             returnLoans(settlement, passOn = true, alsoQueue = allocation.myQueue)
@@ -1841,7 +1798,7 @@ open class Resource @JvmOverloads constructor(
         val returning = settlement.returning
         if (passOn && returning.values.any { it > 0 } && !isFailed && !isInactive && !isRunEnded) {
             offerFreedUnits(
-                ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE, "loan_ended_resource=$name",
+                myReleasePriority, ResumeSource.REQUEST_Q_RESOURCE_RELEASE, "loan_ended_resource=$name",
                 alsoQueue, returning
             )
         }
@@ -1965,84 +1922,6 @@ open class Resource @JvmOverloads constructor(
     }
 
     /**
-     *  Units have come free or come back: the waiting preemptors plan again, most urgent first and, among
-     *  equals, the one waiting longest, each as it would on arrival. One that can now take enough is given
-     *  its units, or, under `FINISH`, reserves them; then the next plans. So a holder never resumes ahead
-     *  of a waiting preemptor that outranks it, and free units go to a waiting preemptor ahead of the
-     *  requests it outranks. It takes no free unit ahead of a request or a reservation as urgent as it is
-     *  (see [mayTakeFreeUnits]): it stays waiting, and the units go to the reservations and the queue. The
-     *  offer of freed units calls this first, before each request it serves, and once more when it has served
-     *  any reservation or request.
-     */
-    private fun replanWaitingPreemptors(
-        priority: Int,
-        source: ResumeSource,
-        detail: String?,
-        returning: MutableMap<Allocation, Int> = mutableMapOf()
-    ) {
-        if (myWaitingPreemptors.isEmpty() || isFailed || isInactive || isRunEnded) return
-        // one that has its allocation, has left its queue, or has moved its request to another resource
-        myWaitingPreemptors.removeAll { r ->
-            r.passedAllocation != null || r.resource !== this || (r.queue as? RequestQ)?.contains(r) != true
-        }
-        val candidates = myWaitingPreemptors
-            .filter { !it.isPassedOver && it.promises.isEmpty() }
-            .sortedWith(compareBy<ProcessModel.Entity.ResourceRequest> { it.entity.priority }.thenBy { it.timeEnteredQueue })
-        for (request in candidates) {
-            val amount = request.amountRequested
-            val plan = if (amount <= numAvailableUnits) PreemptionPlan(amount, emptyList())
-                else planPreemption(request.entity, amount, returning, takesAtOnce = request.waitingPreemptRule != InterruptRule.FINISH) ?: continue
-            if (plan.free > 0 && !mayTakeFreeUnits(request)) continue
-            // taking only free units, it is served as a seize is, so its queue's selection rule must choose it, as
-            // it must on arrival
-            if (plan.takes.isEmpty() && !chosenByItsRule(request)) continue
-            myWaitingPreemptors.remove(request)
-            val why = "preemptor_replanned_resource=$name, request_id=${request.id}, ${detail ?: ""}"
-            // under FINISH nothing in service is taken: units going back from an ending loan to a held lender may be,
-            // when they are all it takes; otherwise it reserves the units of its victims
-            val takesOnlyReturning = plan.takes.all { (victim, k) -> k <= (returning[victim] ?: 0) }
-            // taking units now, it gives way to a FINISH reservation as urgent or more still collecting, as any
-            // preemptor that takes at once does
-            if (request.waitingPreemptRule == InterruptRule.FINISH && plan.takes.isNotEmpty() && takesOnlyReturning &&
-                myReservations.any { isCollecting(it) && it.request !== request && it.request.entity.priority <= request.entity.priority }
-            ) continue
-            if (request.waitingPreemptRule == InterruptRule.FINISH && plan.takes.isNotEmpty() && !takesOnlyReturning) {
-                reserve(request, plan.free)
-            } else {
-                giveToWaitingPreemptor(request, plan, returning, priority, source, why)
-            }
-        }
-    }
-
-    /**
-     *  Whether the waiting preemptor [request] may take free units now. It may not while something as urgent as it
-     *  is comes before it: a reservation still collecting units whose entity is equally or more urgent, or the
-     *  request the free units would go to next, when that request is more urgent, or is equally urgent and ahead of
-     *  it (in its own queue by the queue's discipline, in another queue by the time it began to wait). That request
-     *  is the one the offer would serve next: under the default notification rule, the one that entered its queue
-     *  first; under a rule of the model's own, the next of the first queue, in the rule's order, that has one the
-     *  units can serve. A request of lower priority does not hold it back. The offer asks again before each request
-     *  it serves, so the preemptor is compared with each in turn.
-     */
-    private fun mayTakeFreeUnits(request: ProcessModel.Entity.ResourceRequest): Boolean {
-        val priority = request.entity.priority
-        if (myReservations.any { isCollecting(it) && it.request.entity.priority <= priority }) return false
-        if (requestQNotificationRule === DefaultRequestQueueNotificationRule) {
-            val (nextQueue, next) = nextByDefaultRule(myCapacityChangeQSet) ?: return true
-            return next === request || !comesBefore(next, nextQueue, request)
-        }
-        // a rule of the model's own offers queue by queue, in its order: the next request is that of the first queue
-        // with one the units can serve, as the offer finds it
-        val itr = requestQNotificationRule.ruleIterator(myCapacityChangeQSet)
-        while (itr.hasNext()) {
-            val queue = itr.next()
-            val next = queue.nextRequestServableBy(this) ?: continue
-            return next === request || !comesBefore(next, queue, request)
-        }
-        return true
-    }
-
-    /**
      *  For the invariant checks: a waiting preemptor passed over by a woken request it should have gone ahead of,
      *  or null. A request is passed over when another request of its queue, no more urgent and behind it by the
      *  queue's discipline, holds a promise of units that, with the units of the holders the preemptor outranks,
@@ -2086,44 +1965,6 @@ open class Resource @JvmOverloads constructor(
         val queue = request.queue as? RequestQ ?: return true
         val rule = queue.requestSelectionRule ?: return true
         return rule.selectRequests(this, queue).any { it === request }
-    }
-
-    /**
-     *  Under the default notification rule, the request this resource would serve next from [queues]: of the
-     *  next request of each queue, the one that entered its queue first, with the queue it is in. Null when no
-     *  queue has a request the resource can serve. The offer of freed units and a waiting preemptor's check
-     *  both use it, so the two agree.
-     */
-    private fun nextByDefaultRule(queues: Set<RequestQ>): Pair<RequestQ, ProcessModel.Entity.Request>? {
-        var bestQueue: RequestQ? = null
-        var best: ProcessModel.Entity.Request? = null
-        for (queue in queues) {
-            val candidate = queue.nextRequestServableBy(this) ?: continue
-            if (best == null || candidate.timeEnteredQueue < best.timeEnteredQueue) {
-                bestQueue = queue
-                best = candidate
-            }
-        }
-        return if (best == null) null else Pair(bestQueue!!, best)
-    }
-
-    /**
-     *  Whether [next], the request next in [queue], comes before the waiting [preemptor]: it is more urgent, or
-     *  it is equally urgent and ahead of it (in the preemptor's own queue by the queue's discipline, in another
-     *  queue by the time it began to wait). In its own queue the two positions are compared: the request the
-     *  free units would serve next is not always ahead of the preemptor, which they skip when it needs more
-     *  units than are free.
-     */
-    private fun comesBefore(
-        next: ProcessModel.Entity.Request,
-        queue: RequestQ,
-        preemptor: ProcessModel.Entity.ResourceRequest
-    ): Boolean {
-        val nextPriority = next.entity.priority
-        val priority = preemptor.entity.priority
-        if (nextPriority != priority) return nextPriority < priority
-        return if (queue === preemptor.queue) queue.precedes(next, preemptor)
-        else next.timeEnteredQueue < preemptor.timeEnteredQueue
     }
 
     protected open inner class ResourceState(aName: String, stateStatistics: Boolean = false) :
@@ -2520,7 +2361,7 @@ open class Resource @JvmOverloads constructor(
         if (available <= 0) {
             logger.trace { "$time > Resource: $name, had 0 units available after the positive capacity change. No reason to notify entities." }
             // none is free, but a waiting preemptor may now take what it needs from lower-priority holders
-            if (!isRunEnded && !myFailureDueAtRelease) replanWaitingPreemptors(notice.priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "capacity_increase_resource=$name")
+            if (!isRunEnded && !myFailureDueAtRelease) offerFreedUnits(notice.priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "capacity_increase_resource=$name")
         } else if (myCapacityChangeQSet.isEmpty()) {
             // no queues are currently associated with this resource, no reason to notify
             logger.trace { "$time > Resource: $name, The resource is not associated with any capacity change queues. No queues were notified of the positive capacity change." }
@@ -2573,10 +2414,82 @@ open class Resource @JvmOverloads constructor(
         observer?.afterOffer(this)
     }
 
+    /**
+     *  The priority of the release in progress, which the offer of an ending loan's units schedules its resumes at. Set
+     *  by the release of an allocation for the length of `deallocate`; the default release priority otherwise.
+     */
+    internal var myReleasePriority: Int = ProcessModel.RELEASE_PRIORITY
+
+    /** What the walk decides for a request arriving at this resource (`arrivalDecision`). */
+    internal sealed class ArrivalDecision {
+        /** It waits. */
+        object Wait : ArrivalDecision()
+
+        /** It is served at once under [plan]: the free units and, for a preemption, the units of holders it outranks. */
+        class Take(val plan: PreemptionPlan) : ArrivalDecision()
+
+        /** A `FINISH` preemption reserves, promised [free] units now. */
+        class Reserve(val free: Int) : ArrivalDecision()
+    }
+
+    /** The request arriving, while `arrivalDecision` runs the walk for it; null otherwise. */
+    private var myNewcomer: ProcessModel.Entity.ResourceRequest? = null
+
+    /** The rule of an arriving `preempt`; null for a seize. */
+    private var myNewcomerRule: InterruptRule? = null
+
+    /** What the walk decided for the newcomer; null until it reached it. */
+    private var myNewcomerDecision: ArrivalDecision? = null
+
+    /** For tests observing offers: the request arriving while the walk runs for it, with its rule, and the decision. */
+    internal val arrivingRequest: ProcessModel.Entity.ResourceRequest? get() = myNewcomer
+    internal val arrivingRule: InterruptRule? get() = myNewcomerRule
+    internal val arrivalDecisionSoFar: ArrivalDecision? get() = myNewcomerDecision
+
+    /**
+     *  Decides by the one walk (`makeOffer`) whether [request], just placed in its queue, is served at once: it joins the
+     *  claimants (as a preemption claimant under [preemptRule], else as a queued request) and the walk runs with nothing
+     *  new on offer, serving any claimant ahead of it that can be served. When the walk reaches the newcomer and it can
+     *  be served, it stops there and the arrival takes what the decision says; otherwise the newcomer waits.
+     */
+    internal fun arrivalDecision(request: ProcessModel.Entity.ResourceRequest, preemptRule: InterruptRule? = null): ArrivalDecision {
+        if (isRunEnded) return ArrivalDecision.Wait
+        myNewcomer = request
+        myNewcomerRule = preemptRule
+        myNewcomerDecision = null
+        val decision: ArrivalDecision
+        try {
+            offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "arrival_request_id=${request.id}")
+        } finally {
+            decision = myNewcomerDecision ?: ArrivalDecision.Wait
+            myNewcomer = null
+            myNewcomerRule = null
+            myNewcomerDecision = null
+        }
+        return decision
+    }
+
+    /** True while a waiting preemptor or a `FINISH` reservation still collecting waits for this resource. */
+    internal val hasPreemptionClaimants: Boolean
+        get() = myWaitingPreemptors.isNotEmpty() || myReservations.any { isCollecting(it) }
+
     /** How deeply offers nest now; the offer observer is told only of the outermost. */
     private var myOfferDepth = 0
 
-    /** The offer itself; see `offerFreedUnits`. */
+    /**
+     *  The offer itself, the one place that decides who gets units that come free or come back; see `offerFreedUnits`.
+     *
+     *  The claimants are the waiting preemptors (any rule), the `FINISH` reservations still collecting, and the next
+     *  servable request of each queue, by the queue's own discipline or selection rule, across queues by the
+     *  notification rule. They are in one order (`isAhead`): preemption claimants among themselves by priority, then
+     *  the time they began to wait, then the order they began; a preemption claimant against a queued request by
+     *  priority, then position in a shared queue or the time of entry. The first claimant in that order that can be
+     *  served from what is on offer now is served, and the walk starts again, until no one can be. A claimant that
+     *  cannot be served holds nothing back, except that a reservation keeps the free units promised to it. What is on
+     *  offer: the free units; the [returning] units of ending loans, which a claimant takes only when it outranks the
+     *  lender and can then take all it needs; and, for a preemptor under `RESUME` or `RESTART`, the units of holders it
+     *  outranks (`planPreemption`). Resumes are scheduled at [priority].
+     */
     private fun makeOffer(
         priority: Int,
         source: ResumeSource,
@@ -2584,69 +2497,201 @@ open class Resource @JvmOverloads constructor(
         alsoQueue: RequestQ?,
         returning: MutableMap<Allocation, Int>
     ) {
-        // units going back from ending loans, counted as their lenders', which a claimant outranking a lender may take
-        val loansEnding = returning.values.any { it > 0 }
-        // a waiting preemptor plans again first, even when no unit is free: units that came back to their
-        // holders, at a repair or a return to shift, can be taken from them
-        replanWaitingPreemptors(priority, source, detail, returning)
-        val free = numAvailableUnits
-        if (free > 0 || loansEnding) {
-            // a preemption waiting for units its victims used takes them ahead of the queue
-            serveReservations(priority, source, detail, returning)
-            if (numAvailableUnits > 0) offerToQueues(priority, source, detail, alsoQueue, returning)
+        if (isFailed || isRunEnded) return
+        giveBackPromisesBeyondCapacity()
+        // a waiting preemptor that has its allocation, has left its queue, or has moved its request elsewhere
+        myWaitingPreemptors.removeAll { r ->
+            r.passedAllocation != null || r.resource !== this || (r.queue as? RequestQ)?.contains(r) != true
         }
-        // a preemptor that gave way to a reservation or a more urgent request takes what it can now that they are
-        // served: the units left, and those of the holders it outranks, and of lenders whose loans are ending
-        if ((numAvailableUnits != free || loansEnding) && myWaitingPreemptors.isNotEmpty()) {
-            replanWaitingPreemptors(priority, source, detail, returning)
-        }
-    }
-
-    /**
-     *  Offers the available units to the requests in the registered queues and [alsoQueue], by the notification
-     *  rule. A waiting preemptor plans again before each request is served, so it is compared with each in turn.
-     */
-    private fun offerToQueues(
-        priority: Int,
-        source: ResumeSource,
-        detail: String?,
-        alsoQueue: RequestQ?,
-        returning: MutableMap<Allocation, Int> = mutableMapOf()
-    ) {
         val queues: Set<RequestQ> =
             if (alsoQueue == null || alsoQueue in myCapacityChangeQSet) myCapacityChangeQSet
             else LinkedHashSet(myCapacityChangeQSet).apply { add(alsoQueue) }
-        if (queues.isEmpty()) return
-        if (requestQNotificationRule === DefaultRequestQueueNotificationRule) {
-            while (numAvailableUnits > 0) {
-                if (!replanBeforeNextRequest(priority, source, detail, returning)) break
-                val (bestQueue, best) = nextByDefaultRule(queues) ?: break
-                if (!bestQueue.wake(best, this, priority, source, detail)) break
-                ResourceInvariants.checkAfterWake(this)
-            }
-        } else {
-            val itr = requestQNotificationRule.ruleIterator(queues)
-            while (itr.hasNext() && numAvailableUnits > 0) {
-                val q = itr.next()
-                while (numAvailableUnits > 0) {
-                    if (!replanBeforeNextRequest(priority, source, detail, returning)) break
-                    val candidate = q.nextRequestServableBy(this) ?: break
-                    if (!q.wake(candidate, this, priority, source, detail)) break
-                    ResourceInvariants.checkAfterWake(this)
-                }
-            }
+        var served = 0
+        while (myNewcomerDecision == null && serveNext(queues, returning, priority, source, detail)) {
+            served++
+            check(served < 1_000_000) { "The offer of units of $name did not settle." }
         }
     }
 
-    /** Lets the waiting preemptors plan before the next request is served; false when no unit is left to offer. */
-    private fun replanBeforeNextRequest(
+    /** Serves the first claimant, in the one order, that can be served now; false when none can. */
+    private fun serveNext(
+        queues: Set<RequestQ>,
+        returning: MutableMap<Allocation, Int>,
         priority: Int,
         source: ResumeSource,
-        detail: String?,
-        returning: MutableMap<Allocation, Int> = mutableMapOf()
+        detail: String?
     ): Boolean {
-        if (myWaitingPreemptors.isNotEmpty()) replanWaitingPreemptors(priority, source, detail, returning)
-        return numAvailableUnits > 0
+        val preemption = preemptionClaimants()
+        val queued = nextQueuedRequest(queues)
+        // the preemption claimants that come before the queued request, each judged against it, in their own order;
+        // then the queued request; then the rest
+        val (ahead, behind) = if (queued == null) Pair(preemption, emptyList())
+            else preemption.partition { isAhead(it, queued.first, queued.second) }
+        for (claimant in ahead) {
+            if (servePreemptionClaimant(claimant, returning, priority, source, detail)) return true
+        }
+        if (queued != null) {
+            val (queue, request) = queued
+            if (request === myNewcomer) {
+                // an arriving seize the walk serves: it takes the free units itself, without waiting
+                myNewcomerDecision = ArrivalDecision.Take(PreemptionPlan(request.amountRequested, emptyList()))
+                return false
+            }
+            if (queue.wake(request, this, priority, source, detail)) {
+                ResourceInvariants.checkAfterWake(this)
+                return true
+            }
+        }
+        for (claimant in behind) {
+            if (servePreemptionClaimant(claimant, returning, priority, source, detail)) return true
+        }
+        return false
+    }
+
+    /**
+     *  The waiting preemptors and the `FINISH` reservations still collecting, in their order: priority; among equals a
+     *  reservation before a waiting preemptor (a preemptor gives way to a `FINISH` preemptor as urgent that is still
+     *  taking its units); then the time they began to wait, then the order they began.
+     */
+    private fun preemptionClaimants(): List<ProcessModel.Entity.ResourceRequest> {
+        val newcomer = myNewcomer?.takeIf { myNewcomerRule != null }
+        val waiting = myWaitingPreemptors.filter { !it.isPassedOver && it.promises.isEmpty() && it.passedAllocation == null } +
+                listOfNotNull(newcomer)
+        val reserving = myReservations.filter { isCollecting(it) }.map { it.request }
+            .filterIsInstance<ProcessModel.Entity.ResourceRequest>()
+        return (waiting + reserving).distinct().sortedWith(
+            compareBy<ProcessModel.Entity.ResourceRequest> { it.entity.priority }
+                .thenBy { if (it.reservation != null) 0 else 1 }
+                .thenBy { it.timeEnteredQueue }.thenBy { it.id }
+        )
+    }
+
+    /**
+     *  The queued request the free units would serve next, with its queue: the next servable request of each queue,
+     *  by its discipline or selection rule, not counting a waiting preemptor's or a reservation's; across queues, under
+     *  the default notification rule, the one that entered its queue first, else the first queue in the rule's order
+     *  that has one.
+     */
+    private fun nextQueuedRequest(queues: Set<RequestQ>): Pair<RequestQ, ProcessModel.Entity.Request>? {
+        if (numAvailableUnits <= 0 || isInactive) return null
+        val isPreemption = { r: ProcessModel.Entity.Request ->
+            r.waitingPreemptRule != null || r.reservation != null || (r === myNewcomer && myNewcomerRule != null)
+        }
+        if (requestQNotificationRule === DefaultRequestQueueNotificationRule) {
+            var best: Pair<RequestQ, ProcessModel.Entity.Request>? = null
+            for (queue in queues) {
+                val candidate = queue.nextRequestServableBy(this, isPreemption) ?: continue
+                val current = best?.second
+                if (current == null || candidate.timeEnteredQueue < current.timeEnteredQueue ||
+                    (candidate.timeEnteredQueue == current.timeEnteredQueue && candidate.id < current.id)
+                ) best = Pair(queue, candidate)
+            }
+            return best
+        }
+        val itr = requestQNotificationRule.ruleIterator(queues)
+        while (itr.hasNext()) {
+            val queue = itr.next()
+            val candidate = queue.nextRequestServableBy(this, isPreemption) ?: continue
+            return Pair(queue, candidate)
+        }
+        return null
+    }
+
+    /**
+     *  Whether the preemption claimant [claimant] comes before [request], the queued request next in [queue]: it is
+     *  more urgent, or equally urgent and ahead of it, by the queue's discipline in a shared queue, else by the time
+     *  each entered its queue, then the order.
+     */
+    private fun isAhead(
+        claimant: ProcessModel.Entity.ResourceRequest,
+        queue: RequestQ,
+        request: ProcessModel.Entity.Request
+    ): Boolean {
+        val p = claimant.entity.priority
+        val q = request.entity.priority
+        if (p != q) return p < q
+        if (claimant.queue === queue) return queue.precedes(claimant, request)
+        if (claimant.timeEnteredQueue != request.timeEnteredQueue) return claimant.timeEnteredQueue < request.timeEnteredQueue
+        return claimant.id < request.id
+    }
+
+    /**
+     *  Serves the preemption claimant [claimant] if it can be served now, and says whether anything changed.
+     *  - A reservation is promised the free units it still needs; when they are too few, the [returning] units of
+     *    lenders it outranks complete it if they can; otherwise it is promised the free units there are, and keeps
+     *    them. Complete, it is resumed to take its units.
+     *  - A waiting preemptor takes the free units when they are enough (its queue's selection rule must choose it);
+     *    otherwise it plans (`planPreemption`). Under `FINISH`, a plan that takes units in service reserves instead
+     *    of taking them; one that takes only units going back from ending loans takes them.
+     */
+    private fun servePreemptionClaimant(
+        claimant: ProcessModel.Entity.ResourceRequest,
+        returning: MutableMap<Allocation, Int>,
+        priority: Int,
+        source: ResumeSource,
+        detail: String?
+    ): Boolean {
+        val reservation = claimant.reservation
+        if (reservation != null) {
+            val free = numAvailableUnits
+            if (free >= reservation.stillNeeded) {
+                claimant.promise(this, reservation.stillNeeded)
+                reservation.stillNeeded = 0
+                reservation.isComplete = true
+                (claimant.queue as RequestQ).resumeWoken(
+                    claimant, priority, source, "reservation_completed_resource=$name, request_id=${claimant.id}, ${detail ?: ""}"
+                )
+                return true
+            }
+            if (free > 0) {
+                claimant.promise(this, free)
+                reservation.stillNeeded -= free
+            }
+            if (completeFromReturning(reservation, returning, priority, source, detail)) return true
+            return free > 0
+        }
+        val amount = claimant.amountRequested
+        val rule = (if (claimant === myNewcomer) myNewcomerRule else claimant.waitingPreemptRule) ?: return false
+        val plan = if (amount <= numAvailableUnits) {
+            PreemptionPlan(amount, emptyList())
+        } else {
+            planPreemption(claimant.entity, amount, returning, takesAtOnce = rule != InterruptRule.FINISH) ?: return false
+        }
+        // taking only free units, it is served as a seize is: its queue's selection rule must choose it
+        if (plan.takes.isEmpty() && !chosenByItsRule(claimant)) return false
+        if (claimant === myNewcomer) {
+            // an arriving preempt: it takes, or reserves, itself; the walk stops here
+            myNewcomerDecision = if (rule == InterruptRule.FINISH && plan.takes.isNotEmpty()) ArrivalDecision.Reserve(plan.free)
+                else ArrivalDecision.Take(plan)
+            return false
+        }
+        myWaitingPreemptors.remove(claimant)
+        val why = "preemptor_served_resource=$name, request_id=${claimant.id}, ${detail ?: ""}"
+        val takesOnlyReturning = plan.takes.all { (victim, k) -> k <= (returning[victim] ?: 0) }
+        if (rule == InterruptRule.FINISH && plan.takes.isNotEmpty() && !takesOnlyReturning) {
+            reserve(claimant, plan.free)
+        } else {
+            giveToWaitingPreemptor(claimant, plan, returning, priority, source, why)
+        }
+        return true
+    }
+
+    /**
+     *  A reservation for more units than the capacity the resource is heading to holds nothing and blocks no one: the
+     *  free units promised to it are given back, and it collects again when the capacity returns.
+     */
+    private fun giveBackPromisesBeyondCapacity() {
+        var withdrawn = 0
+        for (reservation in myReservations) {
+            if (reservation.isComplete || isCollecting(reservation)) continue
+            val held = reservation.request.promises[this] ?: 0
+            if (held <= 0) continue
+            reservation.request.withdrawPromise(this, held)
+            reservation.stillNeeded += held
+            withdrawn += held
+        }
+        // a pending change counted the promised units it needs
+        if (withdrawn > 0) unitsWithdrawnFromPromise(withdrawn)
     }
 
     protected fun negativeChangeNoPendingChangeIgnoreRule(notice: CapacityChangeNotice) {

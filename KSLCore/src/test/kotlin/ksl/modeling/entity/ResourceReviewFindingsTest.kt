@@ -127,7 +127,9 @@ class ResourceReviewFindingsTest {
             job("E1", 0.0, 1.0)
             job("E2", 1.0, 1.0)
         }
-        assertEquals(listOf("E1 got@1.0", "E2 got@1.0"), shop.log)
+        // both are served at 1, E1 first by the rule; E2, arriving, takes its units in its own event, so its line may
+        // come before E1's resume
+        assertEquals(setOf("E1 got@1.0", "E2 got@1.0"), shop.log.toSet())
     }
 
     @Test

@@ -427,11 +427,14 @@ class RequestQ @JvmOverloads constructor(
      *  that can be served, as for a seize arriving (`nextRequestForResource`), so an arrival and a release
      *  choose alike.
      */
-    internal fun nextRequestServableBy(member: Resource): ProcessModel.Entity.Request? {
+    internal fun nextRequestServableBy(
+        member: Resource,
+        skip: (ProcessModel.Entity.Request) -> Boolean = { false }
+    ): ProcessModel.Entity.Request? {
         val available = member.numAvailableUnits
         val rule = requestSelectionRule
         fun servable(request: ProcessModel.Entity.Request): Boolean =
-            if (request.isPassedOver) {
+            if (request.isPassedOver || skip(request)) {
                 false
             } else {
                 val target = request.resource
