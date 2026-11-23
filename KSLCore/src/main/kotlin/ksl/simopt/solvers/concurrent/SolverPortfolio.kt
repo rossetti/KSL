@@ -203,7 +203,7 @@ class SolverPortfolio @JvmOverloads constructor(
                 runner.awaitAllMembers()
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 // a member's failure is its own; the run's error is the one being thrown
             }
         } finally {

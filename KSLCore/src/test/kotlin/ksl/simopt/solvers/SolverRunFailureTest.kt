@@ -309,30 +309,26 @@ class SolverRunFailureTest {
     }
 
     @Test
-    @DisplayName("a run that fails before its initial solution does not report the previous run's")
-    fun failedRunDoesNotReportThePreviousInitialSolution() {
-        var failAtStart = false
+    @DisplayName("an interrupt that ends a run is restored before the run's ending, so it ends the waits there too")
+    fun interruptIsRestoredBeforeTheEnding() {
+        var interruptedAtEnding = false
         val solver = object : Solver(
             problemDefinition = ProblemDefinition(
                 modelIdentifier = "NoSimulation", objFnResponseName = "cost", inputNames = listOf("x")
             ).also { it.inputVariable("x", Interval(0.0, 1.0)) },
-            evaluator = NoEvaluations(), maximumIterations = 1, replicationsPerEvaluation = 2
+            evaluator = NoEvaluations(), maximumIterations = 2, replicationsPerEvaluation = 2
         ) {
-            override fun initializeIterations() {
-                if (failAtStart) throw IllegalStateException("no starting point")
-                myInitialSolution = problemDefinition.badSolution()
-            }
+            override fun initializeIterations() {}
             override fun startingPoint(): InputMap = currentPoint
             override fun nextPoint(): InputMap = currentPoint
-            override fun mainIteration() {}
+            override fun mainIteration() { throw InterruptedException("interrupted while waiting") }
+            override fun runEndedWithError() { interruptedAtEnding = Thread.currentThread().isInterrupted }
         }
-        solver.runAllIterations()
-        assertTrue(solver.initialSolution != null)
-        failAtStart = true
-        assertFailsWith<IllegalStateException> { solver.runAllIterations() }
-        val result = solver.solverResult as SolverResult.Completed
-        assertEquals(SolverResult.ENDED_WITH_AN_ERROR, result.terminationReason)
-        assertEquals(null, result.initialSolution)
+        try {
+            assertFailsWith<InterruptedException> { solver.runAllIterations() }
+            assertTrue(interruptedAtEnding, "the ending sees the interrupt")
+        } finally {
+            Thread.interrupted()
+        }
     }
 }
-

@@ -208,6 +208,44 @@ class ConcurrentSolverRunnerTest {
         assertTrue(2 !in factory.released.keys)
     }
 
+    @Test
+    @DisplayName("A member failing with an error yields a failed result, and its thread is left uninterrupted")
+    fun errorFailureIsolation() {
+        val pd = makeLKInventoryModelProblemDefinition()
+        val interruptedAtRelease = ConcurrentHashMap<Int, Boolean>()
+        val factory = object : MemberEvaluatorFactoryIfc {
+            override fun createEvaluator(memberIndex: Int): EvaluatorIfc = when (memberIndex) {
+                1 -> object : EvaluatorIfc by StubEvaluator(pd) {
+                    override fun evaluate(evaluationRequest: ksl.simopt.evaluator.EvaluationRequest) =
+                        TODO("member 1 is not written yet")
+                }
+                2 -> object : EvaluatorIfc by StubEvaluator(pd) {
+                    override fun evaluate(evaluationRequest: ksl.simopt.evaluator.EvaluationRequest) =
+                        throw InterruptedException("member 2 was interrupted")
+                }
+                else -> StubEvaluator(pd)
+            }
+            override fun release(memberIndex: Int, evaluator: EvaluatorIfc, reusable: Boolean) {
+                interruptedAtRelease[memberIndex] = Thread.currentThread().isInterrupted
+            }
+        }
+        val runner = ConcurrentSolverRunner(
+            problemDefinition = pd,
+            tasks = memberTasks(pd, 4, shcFactory(pd)),
+            evaluatorFactory = factory,
+            numWorkers = 2
+        )
+        runner.launchAll()
+        val results = runner.awaitAllMembers()
+        runner.shutdown()
+        assertEquals(MemberStatus.FAILED, results[1].status)
+        assertTrue(results[1].error is NotImplementedError)
+        assertEquals(MemberStatus.FAILED, results[2].status)
+        assertEquals(MemberStatus.COMPLETED, results[0].status)
+        assertEquals(MemberStatus.COMPLETED, results[3].status)
+        assertEquals(false, interruptedAtRelease[2], "the failed member's thread must not stay interrupted")
+    }
+
     // ── Stop propagation ──────────────────────────────────────────────────────
 
     @Test
