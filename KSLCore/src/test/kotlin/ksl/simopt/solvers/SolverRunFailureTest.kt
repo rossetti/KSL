@@ -250,5 +250,89 @@ class SolverRunFailureTest {
         assertTrue(solver.solverResult is SolverResult.NotExecuted)
         assertEquals(0, solver.errorHookCalls)
     }
+
+    @Test
+    @DisplayName("an observer failing on the error leaves the run ended, and the next run starts clean")
+    fun errorObserverFailureStillEndsTheRun() {
+        val solver = HookSolver(failIn = "end")
+        solver.lifeCycleEmitter.attach { status ->
+            if (status == SolverStatus.ERROR) throw IllegalArgumentException("observer failed")
+        }
+        val thrown = assertFailsWith<IllegalStateException> { solver.runAllIterations() }
+        assertTrue(thrown.suppressed.any { it is IllegalArgumentException }, "the observer's failure is attached")
+        assertEquals(SolverResult.ENDED_WITH_AN_ERROR, reason(solver))
+        assertEquals(1, solver.errorHookCalls)
+        assertTrue(solver.iterativeProcess.isEnded)
+    }
+
+    @Test
+    @DisplayName("an error that is not an exception ends the run as an exception does")
+    fun nonExceptionErrorIsRecorded() {
+        val solver = object : Solver(
+            problemDefinition = ProblemDefinition(
+                modelIdentifier = "NoSimulation", objFnResponseName = "cost", inputNames = listOf("x")
+            ).also { it.inputVariable("x", Interval(0.0, 1.0)) },
+            evaluator = NoEvaluations(), maximumIterations = 2, replicationsPerEvaluation = 2
+        ) {
+            override fun initializeIterations() {}
+            override fun startingPoint(): InputMap = currentPoint
+            override fun nextPoint(): InputMap = currentPoint
+            override fun mainIteration() { TODO("not written yet") }
+        }
+        assertFailsWith<NotImplementedError> { solver.runAllIterations() }
+        assertEquals(SolverResult.ENDED_WITH_AN_ERROR, reason(solver))
+        assertTrue(solver.iterativeProcess.isEnded)
+    }
+
+    @Test
+    @DisplayName("a run ended by an interrupt leaves the thread interrupted")
+    fun interruptIsRestored() {
+        val solver = object : Solver(
+            problemDefinition = ProblemDefinition(
+                modelIdentifier = "NoSimulation", objFnResponseName = "cost", inputNames = listOf("x")
+            ).also { it.inputVariable("x", Interval(0.0, 1.0)) },
+            evaluator = NoEvaluations(), maximumIterations = 2, replicationsPerEvaluation = 2
+        ) {
+            override fun initializeIterations() {}
+            override fun startingPoint(): InputMap = currentPoint
+            override fun nextPoint(): InputMap = currentPoint
+            // as a blocking wait does when its thread is interrupted: the flag is cleared and the exception thrown
+            override fun mainIteration() { throw InterruptedException("interrupted while waiting") }
+        }
+        try {
+            assertFailsWith<InterruptedException> { solver.runAllIterations() }
+            assertEquals(SolverResult.ENDED_WITH_AN_ERROR, reason(solver))
+            assertTrue(Thread.currentThread().isInterrupted, "the interrupt is restored for the caller")
+        } finally {
+            Thread.interrupted()
+        }
+    }
+
+    @Test
+    @DisplayName("a run that fails before its initial solution does not report the previous run's")
+    fun failedRunDoesNotReportThePreviousInitialSolution() {
+        var failAtStart = false
+        val solver = object : Solver(
+            problemDefinition = ProblemDefinition(
+                modelIdentifier = "NoSimulation", objFnResponseName = "cost", inputNames = listOf("x")
+            ).also { it.inputVariable("x", Interval(0.0, 1.0)) },
+            evaluator = NoEvaluations(), maximumIterations = 1, replicationsPerEvaluation = 2
+        ) {
+            override fun initializeIterations() {
+                if (failAtStart) throw IllegalStateException("no starting point")
+                myInitialSolution = problemDefinition.badSolution()
+            }
+            override fun startingPoint(): InputMap = currentPoint
+            override fun nextPoint(): InputMap = currentPoint
+            override fun mainIteration() {}
+        }
+        solver.runAllIterations()
+        assertTrue(solver.initialSolution != null)
+        failAtStart = true
+        assertFailsWith<IllegalStateException> { solver.runAllIterations() }
+        val result = solver.solverResult as SolverResult.Completed
+        assertEquals(SolverResult.ENDED_WITH_AN_ERROR, result.terminationReason)
+        assertEquals(null, result.initialSolution)
+    }
 }
 

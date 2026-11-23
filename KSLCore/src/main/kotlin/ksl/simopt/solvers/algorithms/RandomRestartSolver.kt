@@ -353,11 +353,18 @@ class RandomRestartSolver private constructor(
 
     override fun runEndedWithError() {
         // the run ended with an error: its members are asked to stop, and waited for (each ends after its current
-        // iteration and releases its evaluator), before the runner is released, as at a normal end
+        // iteration and releases its evaluator), before the runner is released, as at a normal end. An interrupt
+        // ends the wait, and is kept for the caller.
         val runner = myRunner ?: return
         try {
             runner.requestStop("the run ended with an error")
-            runCatching { runner.awaitAllMembers() }
+            try {
+                runner.awaitAllMembers()
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+            } catch (e: Exception) {
+                // a member's failure is its own; the run's error is the one being thrown
+            }
         } finally {
             runner.shutdown()
             myRunner = null
