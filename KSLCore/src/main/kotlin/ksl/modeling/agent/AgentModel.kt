@@ -511,11 +511,25 @@ open class AgentModel(
          *  short-circuit when a matching message is already queued.
          */
         internal fun tryTake(predicate: (M) -> Boolean): M? {
-            val idx = pending.indexOfFirst(predicate)
-            if (idx < 0) return null
-            val taken = pending.removeAt(idx)
+            val taken = takeUnannounced(predicate) ?: return null
             notifyConsumed(taken)
             return taken
+        }
+
+        /**
+         *  Removes and returns the first pending message matching [predicate], or null, without telling the
+         *  observers: the caller tells them (`announceConsumed`) once the taking is settled, so that an observer
+         *  acting on the notice sees the receiver's wait already ended.
+         */
+        internal fun takeUnannounced(predicate: (M) -> Boolean): M? {
+            val idx = pending.indexOfFirst(predicate)
+            if (idx < 0) return null
+            return pending.removeAt(idx)
+        }
+
+        /** Tells the observers that [message], taken by `takeUnannounced`, was consumed. */
+        internal fun announceConsumed(message: M) {
+            notifyConsumed(message)
         }
 
         /**

@@ -225,11 +225,14 @@ internal class MessageRegistration<M : AgentMessage>(
     override fun lookAgain(process: ProcessModel.Entity.ProcessCoroutine) {
         val mailbox = messageTrigger.mailbox
         if (!mailbox.hasMatch(messageTrigger.predicate)) return
-        val message = checkNotNull(mailbox.tryTake(messageTrigger.predicate))
+        // the wait is claimed before the observers hear of the message, as at a delivery to a waiting receiver: an
+        // observer that acts on the notice (fires a signal, sends a message) finds this wait already ended
+        val message = checkNotNull(mailbox.takeUnannounced(messageTrigger.predicate))
         mailbox.removeWaiter(waiter)
         waiter.result = message
         val claimed = claimWait(message, ResumeSource.MAILBOX, ProcessModel.RESUME_PRIORITY)
         check(claimed) { "A reopened wait on the mailbox of ${mailbox.owner} was already claimed." }
+        mailbox.announceConsumed(message)
     }
 
     override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
