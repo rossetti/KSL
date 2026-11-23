@@ -125,4 +125,43 @@ class SolverRunFailureTest {
         repeat(3) { assertEquals(SolverResult.MAXIMUM_ITERATIONS_REACHED, reason(solver)) }
         assertEquals(calls, solver.criteriaCalls)
     }
+
+    @Test
+    @DisplayName("a run ended by an error takes no further steps")
+    fun noStepsAfterAFailure() {
+        val solver = StepSolver(failAt = 2, maximum = 5)
+        solver.initialize()
+        solver.runNextIteration()
+        assertFailsWith<IllegalStateException> { solver.runNextIteration() }
+        val iterations = solver.iterationCounter
+        assertFailsWith<Exception> { solver.runNextIteration() }
+        assertEquals(iterations, solver.iterationCounter)
+        assertEquals(SolverResult.ENDED_WITH_AN_ERROR, reason(solver))
+    }
+
+    @Test
+    @DisplayName("a full run after one ended by an error starts clean, and ends normally")
+    fun rerunAfterAFailureStartsClean() {
+        var fail = true
+        val solver = object : Solver(
+            problemDefinition = ProblemDefinition(
+                modelIdentifier = "NoSimulation", objFnResponseName = "cost", inputNames = listOf("x")
+            ).also { it.inputVariable("x", Interval(0.0, 1.0)) },
+            evaluator = NoEvaluations(), maximumIterations = 3, replicationsPerEvaluation = 2
+        ) {
+            override fun initializeIterations() {}
+            override fun startingPoint(): InputMap = currentPoint
+            override fun nextPoint(): InputMap = currentPoint
+            override fun mainIteration() {
+                if (fail && iterationCounter == 2) throw IllegalStateException("iteration 2 failed")
+            }
+        }
+        assertFailsWith<IllegalStateException> { solver.runAllIterations() }
+        assertEquals(SolverResult.ENDED_WITH_AN_ERROR, reason(solver))
+        fail = false
+        solver.runAllIterations()
+        assertEquals(3, solver.iterationCounter)
+        assertEquals(SolverResult.MAXIMUM_ITERATIONS_REACHED, reason(solver))
+    }
 }
+

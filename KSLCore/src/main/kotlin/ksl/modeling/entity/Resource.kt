@@ -2040,7 +2040,8 @@ open class Resource @JvmOverloads constructor(
      * change supersedes it (a notice with an infinite duration, as shift changes use), or when its end
      * is not yet known because, under the WAIT rule, it is still waiting for busy units to be released.
      *
-     * Under the IGNORE rule, a decrease that arrives while another is pending must end strictly after it.
+     * Under the IGNORE rule, a decrease that arrives while another is pending must end strictly after it, when the
+     * pending one has a finite end; one that lasts until superseded accepts any.
      * Check against this time before requesting such a change.
      */
     val pendingCapacityChangeEndTime: Double

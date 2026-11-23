@@ -512,7 +512,8 @@ abstract class Solver(
      *  Runs the next iteration. Only valid if the solver has been
      *  initialized and there are additional iterations to run.
      *  An exception thrown by the iteration ends the run with the reason "Ended With An Error", as in
-     *  [runAllIterations], and is thrown on; asking for a step that does not exist is not such a failure.
+     *  [runAllIterations], and is thrown on: the run is over, and takes no further iteration until the solver is
+     *  initialized again. Asking for a step that does not exist is a misuse, not such a failure.
      */
     @Suppress("unused")
     fun runNextIteration() {
@@ -572,11 +573,14 @@ abstract class Solver(
      *  Note that the iterations can only be ended before running all iterations or
      *  before running the next iteration. Use stopIterations() to cause a graceful
      *  completion of inner and outer iterations. The run is recorded as halted only if it could have gone on: a
-     *  run that has used every iteration, or reached its time limit, records that limit as its reason.
+     *  run that has used every iteration, or reached its time limit, records that limit as its reason. A run that an
+     *  exception ended is over already, and this does nothing.
      *  @param msg a message to capture for why the iterations were ended
      */
     @Suppress("unused")
     fun endIterations(msg: String? = null) {
+        // a run an error ended is over already
+        if ((myRunState as? RunState.Ended)?.reason == SolverResult.ENDED_WITH_AN_ERROR && myMainIterativeProcess.isEnded) return
         // a halt only if the run could have gone on: a stepped run that used every iteration, or reached its time
         // limit, and is then ended was not cut short
         val running = myRunState as? RunState.Running
@@ -1196,9 +1200,12 @@ abstract class Solver(
                 return block()
             } catch (e: Exception) {
                 recordRunFailure()
-                // the step did not complete: the process is no longer running it
-                isRunningStep = false
-                isRunning = false
+                // the run is over: no further step is taken, and a new run starts from a fresh initialization
+                try {
+                    end("ended with an error: ${e.message}")
+                } catch (endFailure: Exception) {
+                    e.addSuppressed(endFailure)
+                }
                 throw e
             }
         }

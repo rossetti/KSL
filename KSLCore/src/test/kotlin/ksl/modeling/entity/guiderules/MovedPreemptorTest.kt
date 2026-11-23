@@ -134,4 +134,83 @@ class MovedPreemptorTest {
         assertEquals(4.0, shop.urgentStart)
         assertEquals(5.0, shop.newcomerStart)
     }
+
+    /**
+     *  A preemptor whose promise broke between its wake and its resume waits again; moved in the instant it is woken a
+     *  second time, it still decides at the new resource when it resumes. Source (2 units) is held until 1 by a holder
+     *  that then fails it: Urgent's completed reservation is broken, and it collects again. The repair at 2 completes it
+     *  again and wakes Urgent; in that instant Urgent's request is moved to Target, where a holder has 1 of 2 units
+     *  until 4. Urgent reserves the idle unit, so a newcomer seizing through a pool at 3 waits until Urgent is done.
+     */
+    @Test
+    @DisplayName("a preemptor woken again after a broken promise and then moved decides at the new resource")
+    fun movedAfterABrokenPromiseDecidesAtTheNewResource() {
+        val model = Model("MovedAfterBrokenPromise", autoCSVReports = false)
+        val shop = object : ProcessModel(model, "BrokenPromiseShop") {
+            val sourceQueue = RequestQ(this, "SourceQueue")
+            val source = ResourceWithQ(this, "Source", capacity = 2, queue = sourceQueue)
+            val target = ResourceWithQ(this, "Target", capacity = 2)
+            val targetPool = ResourcePoolWithQ(this, listOf(target), name = "TargetPool")
+            var urgentStart = Double.NaN
+            var newcomerStart = Double.NaN
+            val urgent = object : Entity("Urgent") {
+                init { priority = 1 }
+                val work = process {
+                    delay(0.1)
+                    val a = preempt(source, amountNeeded = 2, rule = InterruptRule.FINISH)
+                    urgentStart = time
+                    delay(1.0)
+                    release(a)
+                }
+
+                fun reroute() {
+                    val request = sourceQueue.peekNext()!! as ResourceRequest
+                    moveRequestToResource(request, sourceQueue, target, RELEASE_PRIORITY)
+                }
+            }
+            val sourceHolder = object : Entity("SourceHolder") {
+                init { priority = 10 }
+                val work = process {
+                    val a = seize(source, amountNeeded = 2)
+                    delay(1.0)
+                    release(a)
+                    // Urgent was woken by the release; the failure breaks its promise before it resumes
+                    source.fail()
+                    delay(1.0)
+                    source.repair()
+                    // the repair completed Urgent's reservation again and woke it; it has not resumed yet
+                    urgent.reroute()
+                }
+            }
+            val targetHolder = object : Entity("TargetHolder") {
+                init { priority = 10 }
+                val work = process {
+                    val a = seize(target)
+                    delay(4.0)
+                    release(a)
+                }
+            }
+            val newcomer = object : Entity("Newcomer") {
+                init { priority = 5 }
+                val work = process {
+                    delay(3.0)
+                    val a = seize(targetPool)
+                    newcomerStart = time
+                    delay(10.0)
+                    release(a)
+                }
+            }
+
+            override fun initialize() {
+                activate(sourceHolder.work)
+                activate(targetHolder.work)
+                activate(urgent.work)
+                activate(newcomer.work)
+            }
+        }
+        model.lengthOfReplication = 30.0
+        model.simulate()
+        assertEquals(4.0, shop.urgentStart)
+        assertEquals(5.0, shop.newcomerStart)
+    }
 }

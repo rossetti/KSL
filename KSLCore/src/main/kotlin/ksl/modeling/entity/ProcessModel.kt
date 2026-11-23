@@ -3236,6 +3236,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ): Allocation {
                 val amountNeeded = request.amountRequested
+                if (request.passedAllocation == null && !request.decidesOnResume) {
+                    // waits on while the promise cannot be taken, and stops as soon as an allocation is passed, or
+                    // when a resume finds the request moved
+                    waitUntilPromiseHonoured(request) {
+                        request.passedAllocation != null || request.myResource.canAllocate(amountNeeded)
+                    }
+                }
                 if (request.decidesOnResume) {
                     // moved to another resource in the instant it was woken: it decides there as one arriving would
                     request.decidesOnResume = false
@@ -3244,12 +3251,6 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     val target = request.myResource
                     target.stopWaitingAsPreemptor(request)
                     return preemptAsArriving(request, target, request.queue as RequestQ, request.waitingPreemptRule!!, suspensionName)
-                }
-                if (request.passedAllocation == null) {
-                    // waits on while the promise cannot be taken, and stops as soon as an allocation is passed
-                    waitUntilPromiseHonoured(request) {
-                        request.passedAllocation != null || request.myResource.canAllocate(amountNeeded)
-                    }
                 }
                 val passed = request.passedAllocation
                 if (passed != null) {
@@ -3316,6 +3317,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 canAllocateNow: () -> Boolean
             ): Boolean {
                 while (true) {
+                    // a preemptor moved in the instant it was woken decides at its new resource (its caller does)
+                    if (request.decidesOnResume) return true
                     val promises = request.promises
                     // nothing promised to a request the library woke (or moved while woken): the units are taken only
                     // if its queue would choose it now, as an arriving seize's. A resume the model asks for itself
