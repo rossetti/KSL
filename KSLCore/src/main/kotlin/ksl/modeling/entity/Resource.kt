@@ -1852,37 +1852,86 @@ open class Resource @JvmOverloads constructor(
 
     /**
      *  Gives units [returning] to their lenders from loans that are ending to the waiting preemptors that
-     *  outrank those lenders, most urgent first and, among equals, the one waiting longest. Each plans its
-     *  preemption as it would on arrival, counting the returning units as their lenders': the returning units
-     *  it takes pass to it as loans from the same lenders, who stay held and are not told; any other units it
-     *  takes are taken from their holders as at any preemption. It is resumed with its allocation made. The
-     *  units it does not take are left in [returning], to go back.
+     *  outrank those lenders, most urgent first and, among equals, the one waiting longest. A lender is held
+     *  already, so a holder never resumes ahead of a waiting preemptor that outranks it, whatever that
+     *  preemptor's rule. A preemptor under `RESUME` or `RESTART` plans its preemption as it would on arrival,
+     *  counting the returning units as their lenders': the returning units it takes pass to it as loans from the
+     *  same lenders, who stay held and are not told; any other units it takes are taken from their holders as at
+     *  any preemption. A `FINISH` preemptor's reservation still collecting takes returning units of lenders it
+     *  outranks when they complete it, with the free units it was promised; it takes nothing in service. Each is
+     *  resumed with its allocation made. The units not taken are left in [returning], to go back.
      */
     private fun passLoansOn(returning: MutableMap<Allocation, Int>) {
         while (returning.values.any { it > 0 }) {
+            val outranksALender = { req: ProcessModel.Entity.Request ->
+                returning.any { (lender, k) -> k > 0 && lender.myEntity.priority > req.entity.priority }
+            }
             val waiting = myCapacityChangeQSet.asSequence()
                 .flatMap { q -> q.asSequence() }
                 .filterIsInstance<ProcessModel.Entity.ResourceRequest>()
                 .filter { it.myResource === this && it.passedAllocation == null }
                 .filter { it.waitingPreemptRule.let { rule -> rule != null && rule != InterruptRule.FINISH } }
                 .filter { !it.isPassedOver && it.promises.isEmpty() }
-                .filter { req -> returning.any { (lender, k) -> k > 0 && lender.myEntity.priority > req.entity.priority } }
+                .filter(outranksALender)
+            val reserving = myReservations.asSequence()
+                .filter { isCollecting(it) && it.request.resource === this && outranksALender(it.request) }
+                .map { it.request }
+                .filterIsInstance<ProcessModel.Entity.ResourceRequest>()
+                .filter { it.passedAllocation == null }
+            val candidates = (waiting + reserving)
                 .sortedWith(compareBy<ProcessModel.Entity.ResourceRequest> { it.entity.priority }.thenBy { it.timeEnteredQueue })
             var chosen: ProcessModel.Entity.ResourceRequest? = null
             var plan: PreemptionPlan? = null
-            for (request in waiting) {
-                plan = planPreemption(request.entity, request.amountRequested, returning)
-                // units this release freed go to what is as urgent as it first, as at any re-planning
-                if (plan != null && plan.free > 0 && !mayTakeFreeUnits(request)) plan = null
+            for (request in candidates) {
+                plan = if (request.reservation != null) {
+                    reservationPlan(request, returning)
+                } else {
+                    planPreemption(request.entity, request.amountRequested, returning)
+                        // units this release freed go to what is as urgent as it first, as at any re-planning
+                        ?.takeIf { it.free == 0 || mayTakeFreeUnits(request) }
+                }
                 if (plan != null) {
                     chosen = request
                     break
                 }
             }
             val request = chosen ?: return
+            if (request.reservation != null) {
+                // its promised free units become part of the allocation; the reservation is done
+                val promised = request.promises[this] ?: 0
+                if (promised > 0) request.withdrawPromise(this, promised)
+                dropReservation(request)
+            }
             giveToWaitingPreemptor(request, plan!!, returning, ProcessModel.RELEASE_PRIORITY,
                 ResumeSource.REQUEST_Q_RESOURCE_RELEASE, "loan_passed_on_resource=$name, request_id=${request.id}")
         }
+    }
+
+    /**
+     *  For a `FINISH` preemptor's reservation still collecting: the plan that completes it from the free units
+     *  promised to it and the [returning] units of lenders its entity outranks, taken from the least urgent lender
+     *  first and, among equals, the most recently allocated; null when those are too few. Nothing in service is
+     *  taken.
+     */
+    private fun reservationPlan(
+        request: ProcessModel.Entity.ResourceRequest,
+        returning: Map<Allocation, Int>
+    ): PreemptionPlan? {
+        val reservation = request.reservation ?: return null
+        val free = request.promises[this] ?: 0
+        var short = reservation.stillNeeded
+        val lenders = returning.filter { (lender, k) -> k > 0 && lender.myEntity.priority > request.entity.priority }
+            .keys.sortedWith(
+                compareByDescending<Allocation> { it.myEntity.priority }.thenByDescending { it.timeAllocated }.thenByDescending { it.id }
+            )
+        val takes = mutableListOf<Pair<Allocation, Int>>()
+        for (lender in lenders) {
+            if (short == 0) break
+            val k = minOf(short, returning.getValue(lender))
+            takes.add(lender to k)
+            short -= k
+        }
+        return if (short > 0) null else PreemptionPlan(free, takes)
     }
 
     /**
@@ -1911,15 +1960,18 @@ open class Resource @JvmOverloads constructor(
             val passed = minOf(k, returning[victim] ?: 0)
             if (passed > 0) {
                 returning[victim] = returning.getValue(victim) - passed
-                victim.loanPassesOn(rule)
+                // a FINISH preemptor takes over a lender already held: its hold goes on as it was
+                if (rule != InterruptRule.FINISH) victim.loanPassesOn(rule)
             }
             if (k > passed) {
+                check(rule != InterruptRule.FINISH) { "Under FINISH nothing is taken from a holder of $name in service." }
                 victim.unitsGoMissing(byFailure = 0, byLoan = k - passed, rule = rule)
                 // units passed on from an ending loan were lent already, and are still not the victim's
                 loanNotification(victim, allocation, k - passed)
             }
         }
-        if (plan.takes.isNotEmpty()) numTimesPreempted++
+        // a FINISH preemption was counted when it reserved
+        if (plan.takes.isNotEmpty() && rule != InterruptRule.FINISH) numTimesPreempted++
         allocationNotification(allocation)
         request.passedAllocation = allocation
         queue.resumeWoken(request, priority, source, detail)

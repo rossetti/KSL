@@ -647,7 +647,9 @@ private inner class Emergency : Entity() {
   is held. Under `FINISH` nothing is taken in service: the preemptor is
   promised the free units, which stay idle and go to no one else while it
   waits, and takes the rest as units are released, ahead of everyone waiting
-  in the queue; several such preemptors take them in order
+  in the queue, including units going back from a loan to a holder it
+  outranks (that holder is held already, and stays held); several such
+  preemptors take them in order
   of priority, the earliest first among equals. A capacity decrease under
   WAIT that is short of idle units takes back units promised to one still
   collecting, which collects them again later. Under either rule, one that
