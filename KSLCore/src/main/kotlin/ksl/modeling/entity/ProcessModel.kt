@@ -1232,6 +1232,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              */
             internal var waitingPreemptRule: InterruptRule? = null
 
+            /**
+             *  True for a preemptor moved to another resource in the instant it was woken, before it resumed: the resume
+             *  already on the calendar carries it, and when it resumes it decides at its new resource as one arriving
+             *  there would.
+             */
+            internal var decidesOnResume: Boolean = false
+
             /** The allocation a waiting preemptor was given when a loan ended, which it takes when it resumes. */
             internal var passedAllocation: Allocation? = null
 
@@ -1850,7 +1857,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  then the entity is resumed to allow the units to be allocated. Otherwise the entity stays suspended
          *  within the resource's queue and will be processed as a normal request for the resource. A waiting
          *  preemptor moved here preempts at the new resource as one arriving there would, under the rule it was
-         *  called with: a `preempt` that named no rule keeps the rule of the resource it called for.
+         *  called with: a `preempt` that named no rule keeps the rule of the resource it called for. One moved in
+         *  the instant it was woken, before it resumed, does so when it resumes, in the same instant.
          *
          *  The specified resource must not be associated with the request. The request must be queued and
          *  in the specified queue. The entity must currently be suspended and must be associated with
@@ -1910,8 +1918,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             if (wasWoken) {
                 // The resume already on the calendar carries the request: promise the new target's units if it
                 // can serve it now, and mark the request so nothing wakes it twice. When it resumes it takes the
-                // promise, or finds none and waits on in the new queue.
+                // promise, or finds none and waits on in the new queue. A preemptor decides when it resumes, as one
+                // arriving at the new resource would: it takes, reserves under FINISH, or waits.
                 if (canServe) request.promise(resource, request.amountRequested)
+                if (request.waitingPreemptRule != null) request.decidesOnResume = true
                 request.markResumePending(ResumeSource.REQUEST_MOVED_TO_RESOURCE, detail)
                 // not chosen: the free units go to the request the new queue's rule chooses
                 if (!canServe && resource.canAllocate(request.amountRequested)) {
@@ -3144,28 +3154,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 yield(seizePriority, "PREEMPT yield for resource ${resource.name}")
                 val request = entity.enqueueResourceRequest(resource, amountNeeded, queue)
                 val allocation = try {
-                    // the resource's one walk of claimants decides: taken at once, reserved under FINISH, or waiting
-                    when (val decision = resource.arrivalDecision(request, rule)) {
-                        is Resource.ArrivalDecision.Take -> if (decision.plan.takes.isEmpty()) {
-                            // the free units are enough: no one is preempted
-                            takeResource(request, resource, queue, suspensionName, rewait = null)!!
-                        } else {
-                            // taken at once: the request leaves its queue with a wait of zero
-                            (request.queue as? RequestQ ?: queue).remove(request)
-                            val a = resource.allocateWithLoans(entity, amountNeeded, decision.plan, queue, rule, suspensionName)
-                            logger.trace { "r = ${model.currentReplicationNumber} : $time > END: PREEMPT: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: allocation_id = ${a.id}" }
-                            a
-                        }
-                        else -> {
-                            // under FINISH the victims' units are reserved as they release them. Otherwise it waits
-                            // as a seize waits, and is served by a later offer: resumed with its allocation made,
-                            // or, under FINISH, it reserves then
-                            if (decision is Resource.ArrivalDecision.Reserve) resource.reserve(request, decision.free)
-                            else resource.waitAsPreemptor(request, rule)
-                            waitForResource(request, resource, queue)
-                            takeAsPreemptor(request, resource, queue, suspensionName)
-                        }
-                    }
+                    preemptAsArriving(request, resource, queue, rule, suspensionName)
                 } finally {
                     // abnormal exit only, as for seize: a terminated preemptor's request, promise and
                     // reservation are dropped and what it was promised is offered on
@@ -3174,6 +3163,42 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendName = null
                 currentSuspendType = SuspendType.NONE
                 return allocation
+            }
+
+            /**
+             *  A preempt arriving at [resource], its [request] just placed in [queue]: the resource's one walk of
+             *  claimants decides whether it takes units at once, reserves them under `FINISH`, or waits; it then takes
+             *  its allocation, waiting first if it must.
+             */
+            private suspend fun preemptAsArriving(
+                request: ResourceRequest,
+                resource: Resource,
+                queue: RequestQ,
+                rule: InterruptRule,
+                suspensionName: String?
+            ): Allocation {
+                val amountNeeded = request.amountRequested
+                return when (val decision = resource.arrivalDecision(request, rule)) {
+                    is Resource.ArrivalDecision.Take -> if (decision.plan.takes.isEmpty()) {
+                        // the free units are enough: no one is preempted
+                        takeResource(request, resource, queue, suspensionName, rewait = null)!!
+                    } else {
+                        // taken at once: the request leaves its queue with a wait of zero
+                        (request.queue as? RequestQ ?: queue).remove(request)
+                        val a = resource.allocateWithLoans(entity, amountNeeded, decision.plan, queue, rule, suspensionName)
+                        logger.trace { "r = ${model.currentReplicationNumber} : $time > END: PREEMPT: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: allocation_id = ${a.id}" }
+                        a
+                    }
+                    else -> {
+                        // under FINISH the victims' units are reserved as they release them. Otherwise it waits
+                        // as a seize waits, and is served by a later offer: resumed with its allocation made,
+                        // or, under FINISH, it reserves then
+                        if (decision is Resource.ArrivalDecision.Reserve) resource.reserve(request, decision.free)
+                        else resource.waitAsPreemptor(request, rule)
+                        waitForResource(request, resource, queue)
+                        takeAsPreemptor(request, resource, queue, suspensionName)
+                    }
+                }
             }
 
             /**
@@ -3211,6 +3236,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ): Allocation {
                 val amountNeeded = request.amountRequested
+                if (request.decidesOnResume) {
+                    // moved to another resource in the instant it was woken: it decides there as one arriving would
+                    request.decidesOnResume = false
+                    // the resume that carried it has run; it holds nothing at the new resource yet
+                    request.clearResumePending()
+                    val target = request.myResource
+                    target.stopWaitingAsPreemptor(request)
+                    return preemptAsArriving(request, target, request.queue as RequestQ, request.waitingPreemptRule!!, suspensionName)
+                }
                 if (request.passedAllocation == null) {
                     // waits on while the promise cannot be taken, and stops as soon as an allocation is passed
                     waitUntilPromiseHonoured(request) {

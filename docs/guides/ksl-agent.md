@@ -1071,8 +1071,10 @@ on the Dokka pages.
   throughput. `ScheduledUtil` is the time-average number busy over the
   time-average capacity, the utilization of the capacity actually on
   shift. `InstantaneousUtil` averages busy over capacity at each moment
-  across all time, counting time with no capacity as zero. With a
-  constant capacity they agree; with shifts they do not.
+  across all time, taking it as 1 whenever the busy units reach the
+  capacity, so time off shift counts as zero when no unit is busy and as
+  one while units are still finishing. With a constant capacity they
+  agree; with shifts they generally do not, and either can be the larger.
 - **`seizePriority` orders seizes, not the queue.** It is the priority
   of the event that makes the request at that instant. Queue position
   comes from the entity's `priority`, and only when the queue's

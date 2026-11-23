@@ -492,14 +492,15 @@ open class Resource @JvmOverloads constructor(
     override val previousState: StateAccessorIfc
         get() = myPreviousState
 
-    /** True when no units are allocated and the capacity is greater than zero. A resource with zero
-     * capacity and nothing allocated is inactive, not idle (see isInactive).
+    /** True when no units are allocated, the capacity is greater than zero and the resource is not failed. A
+     * resource with zero capacity and nothing allocated is inactive, not idle (see isInactive).
      */
     override val isIdle: Boolean
         get() = myState === myIdleState
 
-    /** True when some units are allocated, whatever the capacity. A resource whose capacity has
-     * just gone to zero stays busy until its allocated units are released.
+    /** True when some units are allocated, whatever the capacity, and the resource is not failed. A resource
+     * whose capacity has just gone to zero stays busy until its allocated units are released. A failed resource is
+     * in the failed state even with units allocated (see isFailed), so it is neither busy nor idle.
      */
     override val isBusy: Boolean
         get() = myState === myBusyState
@@ -1934,6 +1935,11 @@ open class Resource @JvmOverloads constructor(
         myWaitingPreemptors.add(request)
     }
 
+    /** [request] no longer waits here as a preemptor; it is about to decide again, as one arriving. */
+    internal fun stopWaitingAsPreemptor(request: ProcessModel.Entity.ResourceRequest) {
+        myWaitingPreemptors.remove(request)
+    }
+
     /**
      *  For the invariant checks: a waiting preemptor passed over by a woken request it should have gone ahead of,
      *  or null. A request is passed over when another request of its queue, no more urgent and behind it by the
@@ -2034,7 +2040,7 @@ open class Resource @JvmOverloads constructor(
      * change supersedes it (a notice with an infinite duration, as shift changes use), or when its end
      * is not yet known because, under the WAIT rule, it is still waiting for busy units to be released.
      *
-     * Under the IGNORE rule, a decrease that arrives while another is pending must not end before it.
+     * Under the IGNORE rule, a decrease that arrives while another is pending must end strictly after it.
      * Check against this time before requesting such a change.
      */
     val pendingCapacityChangeEndTime: Double
@@ -2335,7 +2341,8 @@ open class Resource @JvmOverloads constructor(
                 if (pendingChangeEndTime.isFinite()) {
                     require(endTime > pendingChangeEndTime) {
                         "$time > Resource: $name, the incoming capacity decrease $notice would end at $endTime, " +
-                                "before the pending change $myCurrentChangeNotice ends at $pendingChangeEndTime. " +
+                                "not after the pending change $myCurrentChangeNotice, which ends at $pendingChangeEndTime: " +
+                                "it must end strictly later. " +
                                 "Check pendingCapacityChangeEndTime before requesting a decrease."
                     }
                 }

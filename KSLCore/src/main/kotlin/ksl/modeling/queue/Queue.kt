@@ -35,7 +35,7 @@ import java.util.function.Predicate
  * last-in, last-out behavior. RANKED ensures that each new element is
  * added such that the priority is maintained from the smallest first to the largest
  * priority last using the compareTo method of the QObject. Ties in priority
- * give preference to time of creation, then to order of creation.
+ * give preference to the earlier time of entry into the queue, then to order of creation.
  * RANDOM causes the elements to be randomly selected (uniformly). The random order is drawn when the queue
  * changes and kept until it changes again, so the element peeked is the element removed.
  *

@@ -138,6 +138,11 @@ enum class SuspendType {
  * modeling, identifying the suspension point can be useful for more advanced modeling involving the
  * cancellation or interrupting of a process.  The name can be used to determine which suspension point
  * is suspending the process when the process has many suspension points.
+ *
+ * The library implements this interface for every process: it is the receiver of a `process { }` block. It is not
+ * meant to be implemented outside the library, and new suspending functions are added to it as process modeling
+ * grows, as R1.9 added `preempt`, `delayOrInterrupt`, `waitForFirst`, `suspendForOrTimeout` and the forms of `delay`
+ * that name the allocations the work uses.
  */
 @RestrictsSuspension
 interface KSLProcessBuilder {

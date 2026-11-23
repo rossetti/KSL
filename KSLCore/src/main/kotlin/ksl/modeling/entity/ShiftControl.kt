@@ -28,7 +28,7 @@ package ksl.modeling.entity
  * pattern needs and capacity alone cannot supply.
  *
  * **Why the flag is kept rather than inferred from `capacity == 0`.** A resource legitimately
- * constructed with, or driven to, zero capacity is not off shift, and would otherwise be refused by
+ * driven to zero capacity, by a capacity schedule or a capacity change, is not off shift, and would otherwise be refused by
  * [goOffShift] and silently given capacity by [goOnShift]. The two are different facts and are kept
  * apart.
  *

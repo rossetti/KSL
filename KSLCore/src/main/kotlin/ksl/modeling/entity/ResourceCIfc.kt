@@ -69,9 +69,10 @@ interface ResourceCIfc : ResourceIfc, DefaultReportingOptionIfc {
      * This is the time average number of busy units divided by the time average
      * capacity: the utilization of the capacity actually on shift.
      *
-     * Compare `timeAvgInstantaneousUtil`, which averages busy over capacity at each moment across
-     * all time and counts time with no capacity as zero. With a constant capacity the two agree;
-     * with a capacity schedule they do not.
+     * Compare `timeAvgInstantaneousUtil`, which averages the instantaneous utilization across all time:
+     * busy over capacity at each moment, 0 when no unit is busy, and 1 when the busy units reach or exceed the
+     * capacity (as with no capacity while units are still finishing their work). With a constant capacity the two
+     * agree; with a capacity schedule they generally do not, and neither is always the larger.
      */
     val scheduledUtil: ResponseCIfc
 
@@ -108,8 +109,9 @@ interface ResourceCIfc : ResourceIfc, DefaultReportingOptionIfc {
     val instantaneousUtil: Double
 
     /**
-     * time average instantaneous utilization. Time with no capacity counts as zero, so under a
-     * capacity schedule this is lower than `scheduledUtil`, which divides by the capacity on shift.
+     * time average instantaneous utilization (see instantaneousUtil): time with no capacity counts as zero
+     * when no unit is busy, and as one while units are still busy. Under a capacity schedule it generally differs
+     * from `scheduledUtil`, which divides the average busy by the average capacity, and either can be the larger.
      */
     val timeAvgInstantaneousUtil: TWResponseCIfc
 
