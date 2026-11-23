@@ -23,6 +23,7 @@ import ksl.modeling.entity.ResourceWithQ
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  *  Cases of the entity guide's section on preemption: a holder of equal or higher priority is never preempted,
@@ -162,6 +163,56 @@ class EntityPreemptionCasesTest {
         }
         m.simulate(100.0)
         assertEquals(listOf("L got@0.0", "B got@1.0", "B done@6.0", "F got@6.0", "F done@7.0", "L done@26.0"), m.log)
+    }
+
+    /**
+     *  Units a release frees go to the most urgent claimant first, also when the release ends a loan. R has 4 units.
+     *  A (priority 10) holds 1 from 0 for 20; B (priority 9) holds 2 from 0.5 for 20. At 1, P (priority 5) preempts 2
+     *  under `RESUME` for 5, taking the free unit and A's. At 2, R1 (priority 2) preempts 3 under `FINISH` and
+     *  reserves; at 3, R2 (priority 3) preempts 2 under `FINISH` and reserves. At 6 P releases: one unit is freed and
+     *  A's goes back. The freed unit is R1's, the more urgent; with A's it still does not complete R1, so A's unit
+     *  goes back to A, and R2 may not take the freed unit. R1 completes at B's release, 20.5.
+     */
+    @Test
+    @DisplayName("freed units go to the more urgent FINISH reservation, not to a less urgent one that a loan's end would complete")
+    fun freedUnitsGoToTheMoreUrgentReservation() {
+        val m = RuleModel("TwoReservations")
+        val r = ResourceWithQ(m, "R", capacity = 4)
+        m.plan {
+            job("A", r, 0.0, 20.0, priority = 10)
+            job("B", r, 0.5, 20.0, priority = 9, n = 2)
+            urgent("P", r, 1.0, 5.0, priority = 5, n = 2, rule = InterruptRule.RESUME)
+            urgent("R1", r, 2.0, 1.0, priority = 2, n = 3, rule = InterruptRule.FINISH)
+            urgent("R2", r, 3.0, 30.0, priority = 3, n = 2, rule = InterruptRule.FINISH)
+        }
+        m.simulate(200.0)
+        val r1 = m.log.indexOfFirst { it.startsWith("R1 got") }
+        val r2 = m.log.indexOfFirst { it.startsWith("R2 got") }
+        assertEquals("R1 got@20.5", m.log[r1], m.log.toString())
+        assertTrue(r1 < r2, "R1 is served before R2; log = ${m.log}")
+    }
+
+    /**
+     *  As above, with a waiting `FINISH` preemptor that has not reserved yet. A and B as above; at 1, P (priority 3)
+     *  preempts 2 under `RESUME` for 5. At 2, F (priority 4) preempts 4 under `FINISH`: only B's 2 units are lendable
+     *  to it then, so it waits with nothing reserved. At 3, R (priority 6) preempts 2 under `FINISH` and reserves B's.
+     *  At 6 P releases: F, the more urgent, plans first and reserves the freed unit, A's and B's; R may not take the
+     *  freed unit. F completes at A's end, 25 (A held from 1 to 6).
+     */
+    @Test
+    @DisplayName("freed units go to a more urgent waiting FINISH preemptor, not to a less urgent reservation that a loan's end would complete")
+    fun freedUnitsGoToTheMoreUrgentWaitingPreemptor() {
+        val m = RuleModel("FinishWaiter")
+        val r = ResourceWithQ(m, "R", capacity = 4)
+        m.plan {
+            job("A", r, 0.0, 20.0, priority = 10)
+            job("B", r, 0.5, 20.0, priority = 9, n = 2)
+            urgent("P", r, 1.0, 5.0, priority = 3, n = 2, rule = InterruptRule.RESUME)
+            urgent("F", r, 2.0, 1.0, priority = 4, n = 4, rule = InterruptRule.FINISH)
+            urgent("R", r, 3.0, 30.0, priority = 6, n = 2, rule = InterruptRule.FINISH)
+        }
+        m.simulate(200.0)
+        assertEquals("F got@25.0", m.log.first { it.startsWith("F got") }, m.log.toString())
     }
 
     /**

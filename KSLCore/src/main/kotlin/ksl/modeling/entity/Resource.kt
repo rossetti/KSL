@@ -1887,8 +1887,9 @@ open class Resource @JvmOverloads constructor(
                     reservationPlan(request, returning)
                 } else {
                     planPreemption(request.entity, request.amountRequested, returning)
-                        // units this release freed go to what is as urgent as it first, as at any re-planning
-                        ?.takeIf { it.free == 0 || mayTakeFreeUnits(request) }
+                        // units this release freed go to what is as urgent as it first, as at any re-planning,
+                        // including a more urgent waiting FINISH preemptor, which is not a candidate here
+                        ?.takeIf { it.free == 0 || (mayTakeFreeUnits(request) && isFirstClaimantOfFreeUnits(request, returning)) }
                 }
                 if (plan != null) {
                     chosen = request
@@ -1908,8 +1909,32 @@ open class Resource @JvmOverloads constructor(
     }
 
     /**
+     *  True when nothing ahead of [request] claims the free units at a loan's end: no reservation still collecting,
+     *  and no waiting preemptor of any rule that could plan now, counting the [returning] units as their lenders',
+     *  is more urgent, or as urgent and waiting longer. A waiting preemptor that cannot plan holds no one back, as
+     *  when the waiting preemptors plan at a release.
+     */
+    private fun isFirstClaimantOfFreeUnits(
+        request: ProcessModel.Entity.ResourceRequest,
+        returning: Map<Allocation, Int>
+    ): Boolean {
+        val priority = request.entity.priority
+        fun ahead(other: ProcessModel.Entity.Request): Boolean =
+            other !== request && (other.entity.priority < priority ||
+                    (other.entity.priority == priority && other.timeEnteredQueue < request.timeEnteredQueue))
+        if (myReservations.any { isCollecting(it) && ahead(it.request) }) return false
+        return myWaitingPreemptors.none { w ->
+            w.passedAllocation == null && w.resource === this && (w.queue as? RequestQ)?.contains(w) == true &&
+                    !w.isPassedOver && w.promises.isEmpty() && ahead(w) &&
+                    planPreemption(w.entity, w.amountRequested, returning,
+                        takesAtOnce = w.waitingPreemptRule != InterruptRule.FINISH) != null
+        }
+    }
+
+    /**
      *  For a `FINISH` preemptor's reservation still collecting: the plan that completes it from the free units
-     *  promised to it, the units free now (a release that ends a loan may free others too), and the [returning]
+     *  promised to it, the units free now when it is first in line for them (a release that ends a loan may free
+     *  others too), and the [returning]
      *  units of lenders its entity outranks, taken from the least urgent lender first and, among equals, the most
      *  recently allocated; null when those are too few, and then the returning units go back. Nothing in service
      *  is taken.
@@ -1920,8 +1945,9 @@ open class Resource @JvmOverloads constructor(
     ): PreemptionPlan? {
         val reservation = request.reservation ?: return null
         val promised = request.promises[this] ?: 0
-        // a reservation ranks ahead of the queue for free units, as when units are released
-        val freeNow = minOf(numAvailableUnits, reservation.stillNeeded)
+        // free units go to the most urgent claimant first, as when units are released: a reservation counts them
+        // only when no more urgent reservation, and no more urgent waiting preemptor of any rule, waits for them
+        val freeNow = if (isFirstClaimantOfFreeUnits(request, returning)) minOf(numAvailableUnits, reservation.stillNeeded) else 0
         val free = promised + freeNow
         var short = reservation.stillNeeded - freeNow
         val lenders = returning.filter { (lender, k) -> k > 0 && lender.myEntity.priority > request.entity.priority }
