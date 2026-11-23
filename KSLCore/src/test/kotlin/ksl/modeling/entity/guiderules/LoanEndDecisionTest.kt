@@ -169,4 +169,90 @@ class LoanEndDecisionTest {
         val at4 = events.filter { it.endsWith("@4.0") }
         assertEquals(listOf("returned L 1 @4.0"), at4, "log=${m.log}, events=$events")
     }
+
+    private fun loanEvents(m: RuleModel, r: ResourceWithQ): MutableList<String> {
+        val events = mutableListOf<String>()
+        r.addAllocationListener(object : AllocationListenerIfc {
+            override fun allocate(allocation: Allocation) {}
+            override fun deallocate(allocation: Allocation) {}
+            override fun unitsLent(lender: Allocation, borrower: Allocation, amount: Int) {
+                events.add("lent ${lender.myEntity.name}->${borrower.myEntity.name} $amount @${m.time}")
+            }
+            override fun unitsReturned(lender: Allocation, amount: Int) {
+                events.add("returned ${lender.myEntity.name} $amount @${m.time}")
+            }
+        })
+        return events
+    }
+
+    /**
+     *  R has 4 units. L (priority 5) holds 2, H (priority 3) holds 1. B (priority 0) preempts 3 under `RESUME` at 0.2
+     *  (the free unit and L's 2) and releases at 3. V (priority 2, `FINISH`, 1 unit) reserves H's unit at 1. W
+     *  (priority 2, `RESUME`, 2 units) waits from 2, behind V's reservation. At 3 the freed unit completes V, and then
+     *  W takes L's 2 returning units: L stays held, its units passing straight from B to W, and is interrupted once.
+     */
+    @Test
+    @DisplayName("a waiting preemptor that gave way to a reservation at a loan's end then takes the returning units, the lender staying held")
+    fun returningUnitsAfterAReservationIsServed() {
+        val m = RuleModel("F1")
+        val r = ResourceWithQ(m, "R", capacity = 4)
+        val ev = loanEvents(m, r)
+        var held: Allocation? = null
+        m.plan {
+            ev.clear()
+            actor("L", 5) { val a = seize(r, 2); held = a; delay(100.0); release(a); log.add("L done@$time") }
+            actor("H", 3) { delay(0.1); val a = seize(r, 1); delay(100.0); release(a) }
+            actor("B", 0) { delay(0.2); val a = preempt(r, 3, rule = InterruptRule.RESUME); delay(2.8); release(a) }
+            actor("V", 2) { delay(1.0); val a = preempt(r, 1, rule = InterruptRule.FINISH); log.add("V got@$time"); delay(10.0); release(a) }
+            actor("W", 2) { delay(2.0); val a = preempt(r, 2, rule = InterruptRule.RESUME); log.add("W got@$time"); delay(1.0); release(a) }
+        }
+        m.simulate(300.0)
+        assertEquals(listOf("lent L->B 2 @0.2", "returned L 2 @4.0"), ev.filter { !it.contains("->W") }, "events=$ev")
+        assertEquals(1, held!!.timesInterrupted)
+    }
+
+    /**
+     *  As above with a request N (priority 1, 1 unit) in place of the reservation. R has 3 units; L holds 2; B
+     *  preempts 3 at 0.2 and releases at 3. At 3 N, more urgent, takes the freed unit, and W then takes L's returning
+     *  units: L is interrupted once.
+     */
+    @Test
+    @DisplayName("a waiting preemptor that gave way to a more urgent request at a loan's end then takes the returning units")
+    fun returningUnitsAfterAMoreUrgentRequestIsServed() {
+        val m = RuleModel("F2")
+        val r = ResourceWithQ(m, "R", capacity = 3)
+        val ev = loanEvents(m, r)
+        var held: Allocation? = null
+        m.plan {
+            ev.clear()
+            actor("L", 5) { val a = seize(r, 2); held = a; delay(100.0); release(a) }
+            actor("B", 0) { delay(0.2); val a = preempt(r, 3, rule = InterruptRule.RESUME); delay(2.8); release(a) }
+            actor("N", 1) { delay(1.0); val a = seize(r, 1); log.add("N got@$time"); delay(10.0); release(a) }
+            actor("W", 2) { delay(2.0); val a = preempt(r, 2, rule = InterruptRule.RESUME); log.add("W got@$time"); delay(1.0); release(a) }
+        }
+        m.simulate(300.0)
+        assertEquals(listOf("N got@3.0", "W got@3.0"), m.log.take(2), "events=$ev")
+        assertEquals(1, held!!.timesInterrupted, "events=$ev")
+    }
+
+    /**
+     *  R has 4 units. L (priority 5) holds 2, H (priority 2) holds 2. B (priority 0) preempts 2 under `RESUME` at 0.2
+     *  (L's 2) and releases at 3, freeing nothing. V (priority 1, `FINISH`, 2 units) reserves H's 2 at 1; W (priority 3,
+     *  `FINISH`, 2 units) waits from 2. At 3 L's 2 go back: V, more urgent, completes from them, and W waits.
+     */
+    @Test
+    @DisplayName("a FINISH waiter does not take returning units ahead of a more urgent FINISH reservation")
+    fun moreUrgentReservationTakesTheReturningUnits() {
+        val m = RuleModel("F3")
+        val r = ResourceWithQ(m, "R", capacity = 4)
+        m.plan {
+            actor("L", 5) { val a = seize(r, 2); delay(100.0); release(a) }
+            actor("H", 2) { delay(0.1); val a = seize(r, 2); delay(100.0); release(a) }
+            actor("B", 0) { delay(0.2); val a = preempt(r, 2, rule = InterruptRule.RESUME); delay(2.8); release(a) }
+            actor("V", 1) { delay(1.0); val a = preempt(r, 2, rule = InterruptRule.FINISH); log.add("V got@$time"); delay(1.0); release(a) }
+            actor("W", 3) { delay(2.0); val a = preempt(r, 2, rule = InterruptRule.FINISH); log.add("W got@$time"); delay(1.0); release(a) }
+        }
+        m.simulate(300.0)
+        assertEquals("V got@3.0", m.log.first { it.startsWith("V got") }, "log=${m.log}")
+    }
 }

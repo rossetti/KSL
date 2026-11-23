@@ -1792,7 +1792,7 @@ open class Resource @JvmOverloads constructor(
                 applyDueFailure()
             }
         } else if (settlement != null) {
-            returnLoans(settlement, passOn = true)
+            returnLoans(settlement, passOn = true, alsoQueue = allocation.myQueue)
         }
     }
 
@@ -1830,18 +1830,20 @@ open class Resource @JvmOverloads constructor(
     private class Settlement(val notFreed: Int, val returning: MutableMap<Allocation, Int>, val down: Map<Allocation, Int>)
 
     /**
-     *  Offers the units of ending loans, when [passOn], with the units the release freed, to the waiting preemptors
-     *  and then the reservations, by the same steps as any release (`replanWaitingPreemptors`, then
-     *  `serveReservations`), counting the returning units as their lenders': a claimant that outranks a lender and can
-     *  then take all it needs takes them, and the lender stays held. The rest go back to their lenders. A failed or
-     *  inactive resource lends nothing, as at a preemption's arrival, and once the run has ended nothing is resumed.
+     *  When [passOn], makes the whole offer of a release (`offerFreedUnits`) with the units the release freed and the
+     *  units of its ending loans, counted as their lenders': the waiting preemptors, the reservations and the queues
+     *  ([alsoQueue] too) are served in the order of any release, and a claimant that outranks a lender and can then
+     *  take all it needs takes its returning units, the lender staying held. Only the units no one takes go back to
+     *  their lenders, at the end. A failed or inactive resource lends nothing, as at a preemption's arrival, and once
+     *  the run has ended nothing is resumed.
      */
-    private fun returnLoans(settlement: Settlement, passOn: Boolean) {
+    private fun returnLoans(settlement: Settlement, passOn: Boolean, alsoQueue: RequestQ? = null) {
         val returning = settlement.returning
         if (passOn && returning.values.any { it > 0 } && !isFailed && !isInactive && !isRunEnded) {
-            val why = "loan_ended_resource=$name"
-            replanWaitingPreemptors(ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE, why, returning)
-            serveReservations(ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE, why, returning)
+            offerFreedUnits(
+                ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE, "loan_ended_resource=$name",
+                alsoQueue, returning
+            )
         }
         // a resource failed now, under RESUME or RESTART, has all its units down, however the failure began: one
         // whatever the settlement recorded of the releasing allocation's own units, those coming back are down too
@@ -1995,6 +1997,11 @@ open class Resource @JvmOverloads constructor(
             // under FINISH nothing in service is taken: units going back from an ending loan to a held lender may be,
             // when they are all it takes; otherwise it reserves the units of its victims
             val takesOnlyReturning = plan.takes.all { (victim, k) -> k <= (returning[victim] ?: 0) }
+            // taking units now, it gives way to a FINISH reservation as urgent or more still collecting, as any
+            // preemptor that takes at once does
+            if (request.waitingPreemptRule == InterruptRule.FINISH && plan.takes.isNotEmpty() && takesOnlyReturning &&
+                myReservations.any { isCollecting(it) && it.request !== request && it.request.entity.priority <= request.entity.priority }
+            ) continue
             if (request.waitingPreemptRule == InterruptRule.FINISH && plan.takes.isNotEmpty() && !takesOnlyReturning) {
                 reserve(request, plan.free)
             } else {
@@ -2545,37 +2552,48 @@ open class Resource @JvmOverloads constructor(
         priority: Int,
         source: ResumeSource,
         detail: String?,
-        alsoQueue: RequestQ? = null
+        alsoQueue: RequestQ? = null,
+        returning: MutableMap<Allocation, Int> = mutableMapOf()
     ): Unit = change {
         // once the run has ended, units restored by the termination of the entities, as a shift's end in a
         // finally block, are offered to no one: nothing can be resumed
         if (isInactive || isRunEnded || myFailureDueAtRelease) return@change
+        // units going back from ending loans, counted as their lenders', which a claimant outranking a lender may take
+        val loansEnding = returning.values.any { it > 0 }
         // a waiting preemptor plans again first, even when no unit is free: units that came back to their
         // holders, at a repair or a return to shift, can be taken from them
-        replanWaitingPreemptors(priority, source, detail)
+        replanWaitingPreemptors(priority, source, detail, returning)
         val free = numAvailableUnits
-        if (free > 0) {
+        if (free > 0 || loansEnding) {
             // a preemption waiting for units its victims used takes them ahead of the queue
-            serveReservations(priority, source, detail)
-            if (numAvailableUnits > 0) offerToQueues(priority, source, detail, alsoQueue)
+            serveReservations(priority, source, detail, returning)
+            if (numAvailableUnits > 0) offerToQueues(priority, source, detail, alsoQueue, returning)
         }
         // a preemptor that gave way to a reservation or a more urgent request takes what it can now that they are
-        // served: the units left, and those of the holders it outranks
-        if (numAvailableUnits != free && myWaitingPreemptors.isNotEmpty()) replanWaitingPreemptors(priority, source, detail)
+        // served: the units left, and those of the holders it outranks, and of lenders whose loans are ending
+        if ((numAvailableUnits != free || loansEnding) && myWaitingPreemptors.isNotEmpty()) {
+            replanWaitingPreemptors(priority, source, detail, returning)
+        }
     }
 
     /**
      *  Offers the available units to the requests in the registered queues and [alsoQueue], by the notification
      *  rule. A waiting preemptor plans again before each request is served, so it is compared with each in turn.
      */
-    private fun offerToQueues(priority: Int, source: ResumeSource, detail: String?, alsoQueue: RequestQ?) {
+    private fun offerToQueues(
+        priority: Int,
+        source: ResumeSource,
+        detail: String?,
+        alsoQueue: RequestQ?,
+        returning: MutableMap<Allocation, Int> = mutableMapOf()
+    ) {
         val queues: Set<RequestQ> =
             if (alsoQueue == null || alsoQueue in myCapacityChangeQSet) myCapacityChangeQSet
             else LinkedHashSet(myCapacityChangeQSet).apply { add(alsoQueue) }
         if (queues.isEmpty()) return
         if (requestQNotificationRule === DefaultRequestQueueNotificationRule) {
             while (numAvailableUnits > 0) {
-                if (!replanBeforeNextRequest(priority, source, detail)) break
+                if (!replanBeforeNextRequest(priority, source, detail, returning)) break
                 val (bestQueue, best) = nextByDefaultRule(queues) ?: break
                 if (!bestQueue.wake(best, this, priority, source, detail)) break
                 ResourceInvariants.checkAfterWake(this)
@@ -2585,7 +2603,7 @@ open class Resource @JvmOverloads constructor(
             while (itr.hasNext() && numAvailableUnits > 0) {
                 val q = itr.next()
                 while (numAvailableUnits > 0) {
-                    if (!replanBeforeNextRequest(priority, source, detail)) break
+                    if (!replanBeforeNextRequest(priority, source, detail, returning)) break
                     val candidate = q.nextRequestServableBy(this) ?: break
                     if (!q.wake(candidate, this, priority, source, detail)) break
                     ResourceInvariants.checkAfterWake(this)
@@ -2595,8 +2613,13 @@ open class Resource @JvmOverloads constructor(
     }
 
     /** Lets the waiting preemptors plan before the next request is served; false when no unit is left to offer. */
-    private fun replanBeforeNextRequest(priority: Int, source: ResumeSource, detail: String?): Boolean {
-        if (myWaitingPreemptors.isNotEmpty()) replanWaitingPreemptors(priority, source, detail)
+    private fun replanBeforeNextRequest(
+        priority: Int,
+        source: ResumeSource,
+        detail: String?,
+        returning: MutableMap<Allocation, Int> = mutableMapOf()
+    ): Boolean {
+        if (myWaitingPreemptors.isNotEmpty()) replanWaitingPreemptors(priority, source, detail, returning)
         return numAvailableUnits > 0
     }
 
