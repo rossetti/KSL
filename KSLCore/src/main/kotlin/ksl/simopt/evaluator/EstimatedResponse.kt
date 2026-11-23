@@ -9,6 +9,7 @@ import ksl.utilities.statistics
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.collections.iterator
+import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
@@ -380,15 +381,17 @@ data class EstimatedResponse(
      *  the same population: the sample variance (divisor n - 1) of all n = n1 + n2 observations, whatever the
      *  split,
      *  (n1 - 1) s1^2 + (n2 - 1) s2^2 + (n1 n2 / n)(x1 - x2)^2, all divided by n - 1,
-     *  where an estimate of a single observation contributes no within-sample term.
+     *  where an estimate of a single observation contributes no within-sample term. Each term is divided by n - 1
+     *  before it is formed, so a variance that fits in a Double is found without overflowing on the way; one too
+     *  large for a Double is infinite.
      */
     fun pooledVariance(e: EstimatedResponse): Double {
         val n = count + e.count
-        val within1 = if (count > 1.0) (count - 1.0) * variance else 0.0
-        val within2 = if (e.count > 1.0) (e.count - 1.0) * e.variance else 0.0
-        val d = average - e.average
-        val between = (count * e.count / n) * d * d
-        return (within1 + within2 + between) / (n - 1.0)
+        val within1 = if (count > 1.0) ((count - 1.0) / (n - 1.0)) * variance else 0.0
+        val within2 = if (e.count > 1.0) ((e.count - 1.0) / (n - 1.0)) * e.variance else 0.0
+        // (n1 n2 / (n (n - 1))) d^2, as a square of terms no larger than the result's square root
+        val scaledDifference = sqrt(count * e.count / (n * (n - 1.0))) * abs(average - e.average)
+        return within1 + within2 + scaledDifference * scaledDifference
     }
 
     fun instance(): EstimatedResponse {

@@ -4,6 +4,7 @@ import ksl.modeling.variable.CounterCIfc
 import ksl.modeling.variable.DefaultReportingOptionIfc
 import ksl.modeling.variable.ResponseCIfc
 import ksl.modeling.variable.TWResponseCIfc
+import ksl.utilities.statistic.State
 import ksl.utilities.statistic.StateAccessorIfc
 
 interface ResourceCIfc : ResourceIfc, DefaultReportingOptionIfc {
@@ -31,14 +32,17 @@ interface ResourceCIfc : ResourceIfc, DefaultReportingOptionIfc {
 
     /**
      * Access to the failed state. Failed means that no units of the resource can be allocated until it
-     * is repaired.
+     * is repaired. An implementation that cannot fail keeps the default, a state that is never entered.
      */
     val failedState: StateAccessorIfc
+        get() = NeverEnteredFailedState
 
     /**
-     *  True from a failure of the resource until its repair.
+     *  True from a failure of the resource until its repair. False by default, for an implementation that
+     *  cannot fail.
      */
     val isFailed: Boolean
+        get() = false
 
     /**
      *  Indicates if proportion of time spent in states (idle, busy, inactive) is automatically reported
@@ -120,3 +124,9 @@ interface ResourceCIfc : ResourceIfc, DefaultReportingOptionIfc {
      */
     val initialRequestQueueNotificationRule: RequestQueueNotificationRuleIfc
 }
+
+/**
+ *  The failed state of a resource that cannot fail: never entered, so it reports no time and no visits. Shared, and
+ *  exposed only through `StateAccessorIfc`, which cannot change it.
+ */
+private val NeverEnteredFailedState: StateAccessorIfc = State(name = "NeverFailed")

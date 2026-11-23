@@ -112,7 +112,12 @@ class FreePathBody internal constructor(
             "Load (${load.name}) is not aboard vehicle (${resource.name})."
         }
         myManifest.removeAll { it === load }
-        if (myManifest.isEmpty()) resource.isTransporting = false
+        if (myManifest.isEmpty()) {
+            resource.isTransporting = false
+            // the last load left part way through a journey (its process was terminated): the vehicle goes on
+            // moving empty, as a journey begun with no load does; the journey's end clears it
+            if (resource.isMoving) resource.isMovingEmpty = true
+        }
         observeCapacity()
         emitLoadChange(load, boarded = false)
     }

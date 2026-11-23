@@ -2988,11 +2988,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 blockingQ: BlockingQueue<T>,
                 request: BlockingQueue<T>.ChannelRequest
             ) {
-                // The arriving request might not be able to be filled, and might not be the next request selected.
-                val nextRequest = blockingQ.selectNextRequest()
-                if ((nextRequest == null) || (nextRequest != request)) {
-                    // A next request was not found or the incoming request is not the request that was selected.
-                    // The incoming request must wait until it selected to be filled.
+                // The arriving request might not be able to be filled, and might not be the one the selector chooses;
+                // the selector may now choose an earlier request, which is then served.
+                if (!blockingQ.requestJoined(request)) {
+                    // The incoming request must wait until it is selected to be filled.
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} blocked receiving to ${blockingQ.name} in process, ($this)" }
                     entity.state.blockedReceiving()
                     suspend()
@@ -4113,14 +4112,28 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(interruptTime >= 0.0) { "The interrupt time must be >= 0.0" }
                 require(postInterruptDelayTime >= 0.0) { "The post interrupt delay time must be >= 0.0" }
                 val target = interruptTarget(process, delayName) ?: return
+                holdDelayFor(target, restart = false, postTime = postInterruptDelayTime) { delay(interruptTime, interruptPriority) }
+            }
+
+            /**
+             *  Holds the delay of [target] while [interruption] runs, as one reason among any others. A restart is
+             *  recorded in the delay's frozen state, so it holds whichever reason ends last; an explicit [postTime]
+             *  is used only if this interruption is the last reason to end. The hold ends also when this process is
+             *  terminated mid-interruption, so the target is not left frozen.
+             */
+            private suspend fun holdDelayFor(
+                target: KSLProcess,
+                restart: Boolean,
+                postTime: Double?,
+                interruption: suspend KSLProcessBuilder.() -> Unit
+            ) {
                 val e = target.entity
                 val token = e.currentDelayToken
-                e.addFreezeReason(null, restart = false)
+                e.addFreezeReason(null, restart = restart)
                 try {
-                    delay(interruptTime, interruptPriority)
+                    this.interruption()
                 } finally {
-                    // also when this process is terminated mid-interrupt: the target is not left frozen
-                    e.removeFreezeReason(null, postInterruptDelayTime, token)
+                    e.removeFreezeReason(null, postTime, token)
                 }
             }
 
@@ -4130,8 +4143,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptTime: Double,
                 interruptPriority: Int
             ) {
+                require(interruptTime >= 0.0) { "The interrupt time must be >= 0.0" }
                 val target = interruptTarget(process, delayName) ?: return
-                interruptDelay(target, delayName, interruptTime, interruptPriority, target.entity.myDelayDuration)
+                // a restart asked for: it holds even if another reason, such as a failure, outlasts this interrupt
+                holdDelayFor(target, restart = true, postTime = null) { delay(interruptTime, interruptPriority) }
             }
 
             override suspend fun interruptDelayAndContinue(
@@ -4157,13 +4172,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 require(interruptingProcess != process) { "The interrupting process cannot be the same as the process being interrupted" }
                 require(postInterruptDelayTime >= 0.0) { "The post interrupt delay time must be >= 0.0" }
                 val target = interruptTarget(process, delayName) ?: return
-                val e = target.entity
-                val token = e.currentDelayToken
-                e.addFreezeReason(null, restart = false)
-                try {
+                holdDelayFor(target, restart = false, postTime = postInterruptDelayTime) {
                     waitFor(interruptingProcess, priority = interruptPriority)
-                } finally {
-                    e.removeFreezeReason(null, postInterruptDelayTime, token)
                 }
             }
 
@@ -4173,10 +4183,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 interruptingProcess: KSLProcess,
                 interruptPriority: Int
             ) {
+                require(this != interruptingProcess) { "This process cannot be used as the interrupting process" }
+                require(interruptingProcess != process) { "The interrupting process cannot be the same as the process being interrupted" }
                 val target = interruptTarget(process, delayName) ?: return
-                interruptDelayWithProcess(
-                    target, delayName, interruptingProcess, interruptPriority, target.entity.myDelayDuration
-                )
+                // a restart asked for: it holds even if another reason, such as a failure, outlasts this interrupt
+                holdDelayFor(target, restart = true, postTime = null) {
+                    waitFor(interruptingProcess, priority = interruptPriority)
+                }
             }
 
             override suspend fun interruptDelayWithProcessAndContinue(

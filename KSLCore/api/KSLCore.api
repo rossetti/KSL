@@ -9505,18 +9505,24 @@ public final class ksl/modeling/entity/Allocation : ksl/modeling/entity/Allocati
 public abstract interface class ksl/modeling/entity/AllocationIfc {
 	public abstract fun getAmount ()I
 	public abstract fun getAmountReleased ()I
-	public abstract fun getHasMissingUnits ()Z
+	public fun getHasMissingUnits ()Z
 	public abstract fun getId ()I
 	public abstract fun getName ()Ljava/lang/String;
 	public abstract fun getQueue ()Lksl/modeling/queue/QueueCIfc;
 	public abstract fun getResource ()Lksl/modeling/entity/ResourceCIfc;
 	public abstract fun getTimeAllocated ()D
 	public abstract fun getTimeDeallocated ()D
-	public abstract fun getTimeInterrupted ()D
-	public abstract fun getTimesInterrupted ()I
+	public fun getTimeInterrupted ()D
+	public fun getTimesInterrupted ()I
 	public abstract fun getTotalTimeAllocated ()D
 	public abstract fun isAllocated ()Z
 	public abstract fun isDeallocated ()Z
+}
+
+public final class ksl/modeling/entity/AllocationIfc$DefaultImpls {
+	public static fun getHasMissingUnits (Lksl/modeling/entity/AllocationIfc;)Z
+	public static fun getTimeInterrupted (Lksl/modeling/entity/AllocationIfc;)D
+	public static fun getTimesInterrupted (Lksl/modeling/entity/AllocationIfc;)I
 }
 
 public abstract interface class ksl/modeling/entity/AllocationListenerIfc {
@@ -11261,7 +11267,7 @@ public abstract interface class ksl/modeling/entity/ResourceAllocationRuleIfc {
 
 public abstract interface class ksl/modeling/entity/ResourceCIfc : ksl/modeling/entity/ResourceIfc, ksl/modeling/variable/DefaultReportingOptionIfc {
 	public abstract fun getBusyState ()Lksl/utilities/statistic/StateAccessorIfc;
-	public abstract fun getFailedState ()Lksl/utilities/statistic/StateAccessorIfc;
+	public fun getFailedState ()Lksl/utilities/statistic/StateAccessorIfc;
 	public abstract fun getHasBusyUnits ()Z
 	public abstract fun getIdleState ()Lksl/utilities/statistic/StateAccessorIfc;
 	public abstract fun getInactiveState ()Lksl/utilities/statistic/StateAccessorIfc;
@@ -11278,14 +11284,16 @@ public abstract interface class ksl/modeling/entity/ResourceCIfc : ksl/modeling/
 	public abstract fun getState ()Lksl/utilities/statistic/StateAccessorIfc;
 	public abstract fun getStateReportingOption ()Z
 	public abstract fun getTimeAvgInstantaneousUtil ()Lksl/modeling/variable/TWResponseCIfc;
-	public abstract fun isFailed ()Z
+	public fun isFailed ()Z
 	public abstract fun setInitialCapacity (I)V
 }
 
 public final class ksl/modeling/entity/ResourceCIfc$DefaultImpls {
+	public static fun getFailedState (Lksl/modeling/entity/ResourceCIfc;)Lksl/utilities/statistic/StateAccessorIfc;
 	public static fun getHasAvailableUnits (Lksl/modeling/entity/ResourceCIfc;)Z
 	public static fun getNumAvailableUnits (Lksl/modeling/entity/ResourceCIfc;)I
 	public static fun isBusy (Lksl/modeling/entity/ResourceCIfc;)Z
+	public static fun isFailed (Lksl/modeling/entity/ResourceCIfc;)Z
 	public static fun isIdle (Lksl/modeling/entity/ResourceCIfc;)Z
 }
 
@@ -11436,9 +11444,11 @@ public abstract interface class ksl/modeling/entity/ResourceWithQCIfc : ksl/mode
 }
 
 public final class ksl/modeling/entity/ResourceWithQCIfc$DefaultImpls {
+	public static fun getFailedState (Lksl/modeling/entity/ResourceWithQCIfc;)Lksl/utilities/statistic/StateAccessorIfc;
 	public static fun getHasAvailableUnits (Lksl/modeling/entity/ResourceWithQCIfc;)Z
 	public static fun getNumAvailableUnits (Lksl/modeling/entity/ResourceWithQCIfc;)I
 	public static fun isBusy (Lksl/modeling/entity/ResourceWithQCIfc;)Z
+	public static fun isFailed (Lksl/modeling/entity/ResourceWithQCIfc;)Z
 	public static fun isIdle (Lksl/modeling/entity/ResourceWithQCIfc;)Z
 	public static synthetic fun useSchedule$default (Lksl/modeling/entity/ResourceWithQCIfc;Lksl/modeling/entity/CapacitySchedule;Lksl/modeling/entity/CapacityChangeRule;ILjava/lang/Object;)V
 }
@@ -13369,9 +13379,11 @@ public abstract interface class ksl/modeling/guidedpath/GuidedTransporterCIfc : 
 }
 
 public final class ksl/modeling/guidedpath/GuidedTransporterCIfc$DefaultImpls {
+	public static fun getFailedState (Lksl/modeling/guidedpath/GuidedTransporterCIfc;)Lksl/utilities/statistic/StateAccessorIfc;
 	public static fun getHasAvailableUnits (Lksl/modeling/guidedpath/GuidedTransporterCIfc;)Z
 	public static fun getNumAvailableUnits (Lksl/modeling/guidedpath/GuidedTransporterCIfc;)I
 	public static fun isBusy (Lksl/modeling/guidedpath/GuidedTransporterCIfc;)Z
+	public static fun isFailed (Lksl/modeling/guidedpath/GuidedTransporterCIfc;)Z
 	public static fun isIdle (Lksl/modeling/guidedpath/GuidedTransporterCIfc;)Z
 }
 
@@ -14983,9 +14995,11 @@ public abstract interface class ksl/modeling/spatial/MoveableResourceCIfc : ksl/
 }
 
 public final class ksl/modeling/spatial/MoveableResourceCIfc$DefaultImpls {
+	public static fun getFailedState (Lksl/modeling/spatial/MoveableResourceCIfc;)Lksl/utilities/statistic/StateAccessorIfc;
 	public static fun getHasAvailableUnits (Lksl/modeling/spatial/MoveableResourceCIfc;)Z
 	public static fun getNumAvailableUnits (Lksl/modeling/spatial/MoveableResourceCIfc;)I
 	public static fun isBusy (Lksl/modeling/spatial/MoveableResourceCIfc;)Z
+	public static fun isFailed (Lksl/modeling/spatial/MoveableResourceCIfc;)Z
 	public static fun isIdle (Lksl/modeling/spatial/MoveableResourceCIfc;)Z
 }
 

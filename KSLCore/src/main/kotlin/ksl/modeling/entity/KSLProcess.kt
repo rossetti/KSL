@@ -2438,8 +2438,8 @@ interface KSLProcessBuilder {
      * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
      * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
      * of a delay that another process is already interrupting is ignored with a warning. A delay
-     * also held by a failure or a preemption goes on only when the last of its reasons ends, and the
-     * post-interrupt time given here applies only if this interrupt ends last. The calling process is the one
+     * also held by a failure or a preemption goes on only when the last of its reasons ends, and then starts again in
+     * full whichever reason ends last, since this interrupt asked for a restart. The calling process is the one
      * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues a delay using its original
@@ -2462,8 +2462,8 @@ interface KSLProcessBuilder {
      * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
      * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
      * of a delay that another process is already interrupting is ignored with a warning. A delay
-     * also held by a failure or a preemption goes on only when the last of its reasons ends, and the
-     * post-interrupt time given here applies only if this interrupt ends last. The calling process is the one
+     * also held by a failure or a preemption goes on only when the last of its reasons ends, and then starts again in
+     * full whichever reason ends last, since this interrupt asked for a restart. The calling process is the one
      * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted for the specified interrupt time.  After the interruption
      * time has elapsed, the process experiencing the original delay continues a delay using its original
@@ -2606,8 +2606,8 @@ interface KSLProcessBuilder {
      * experiencing a delay.  The supplied process must be in the named delay: if it is not, an
      * IllegalStateException is thrown, so check first with `isInDelay` on that process. An interrupt
      * of a delay that another process is already interrupting is ignored with a warning. A delay
-     * also held by a failure or a preemption goes on only when the last of its reasons ends, and the
-     * post-interrupt time given here applies only if this interrupt ends last. The calling process is the one
+     * also held by a failure or a preemption goes on only when the last of its reasons ends, and then starts again in
+     * full whichever reason ends last, since this interrupt asked for a restart. The calling process is the one
      * that waits while the target's delay is frozen.  If the supplied process is experiencing the named
      * delay, then its delay is interrupted while the interrupting process executes to completion.
      * After the interruption process has completed, the process experiencing the original delay

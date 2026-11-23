@@ -706,31 +706,55 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     }
 
     private fun notifyWaitingRequests() {
-        // a request already told to resume will look again when it has taken its items; once the run has
-        // ended, the removals come from terminating the waiting entities, and nothing can be resumed
-        if (myRequestBeingResumed != null || myRequestQ.isEmpty || executive.isEnded) {
+        val request = chosenRequest() ?: return
+        dispatch(request)
+    }
+
+    /**
+     *  The request the queue would serve now, if any: the one the request selector chooses (with one request
+     *  waiting there is no decision to make), when it can be filled. None while a request already told to resume has
+     *  yet to take its items, or once the run has ended, when the removals come from terminating the waiting entities.
+     */
+    private fun chosenRequest(): ChannelRequest? {
+        if (myRequestBeingResumed != null || myRequestQ.isEmpty || executive.isEnded) return null
+        val request = if (myRequestQ.size == 1) myRequestQ[0] else selectNextRequest()
+        return if (request != null && request.canBeFilled) request else null
+    }
+
+    /**
+     *  Serves the chosen [request]: claims the wait of a request of a wait for the first of several things (the claim
+     *  schedules the resume, or, while that wait is still registering, ends it at once), or schedules the resume of an
+     *  untimed receiver. The request is not removed here: its entity removes it as it takes the items.
+     */
+    private fun dispatch(request: ChannelRequest) {
+        val registration = request.registration
+        if (registration != null) {
+            // its wait is still open: a request whose wait has ended has left the queue, apart from one being
+            // resumed, and then nothing is chosen
+            claimSelected(request, registration)
             return
         }
-        // with one request waiting there is no decision to make
-        val request = if (myRequestQ.size == 1) myRequestQ[0] else selectNextRequest()
-        if (request != null && request.canBeFilled) {
-            // the request is not removed here: it is the entity that causes the request to be removed
-            val registration = request.registration
-            if (registration != null) {
-                // A request of a wait for the first of several things. Its wait is still open: a
-                // request whose wait has ended has left the queue, apart from one being resumed,
-                // and then nothing is selected. The claim schedules the resume.
-                claimSelected(request, registration)
-                return
-            }
-            myRequestBeingResumed = request
-            request.receiver.scheduleResumeProcess(
-                0.0,
-                requestQResumptionPriority,
-                ResumeSource.BLOCKING_QUEUE_RECEIVER,
-                "blocking_queue=$name, request_id=${request.id}"
-            )
-        }
+        myRequestBeingResumed = request
+        request.receiver.scheduleResumeProcess(
+            0.0,
+            requestQResumptionPriority,
+            ResumeSource.BLOCKING_QUEUE_RECEIVER,
+            "blocking_queue=$name, request_id=${request.id}"
+        )
+    }
+
+    /**
+     *  A request has just joined the queue: the selector chooses who is served now, as a change of the channel
+     *  would, and the arrival may change its choice. When it chooses the untimed [request] itself, the result is
+     *  true and the caller fills it at once, without suspending. Otherwise the chosen request, if any, is served as
+     *  a notification serves it (an earlier untimed receiver resumed, an earlier trigger's wait claimed, or
+     *  [request]'s own wait claimed if it is a trigger's), and the result is false.
+     */
+    internal fun requestJoined(request: ChannelRequest): Boolean {
+        val chosen = chosenRequest() ?: return false
+        if (chosen === request && request.registration == null) return true
+        dispatch(chosen)
+        return false
     }
 
     /**

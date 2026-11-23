@@ -85,17 +85,22 @@ interface AllocationIfc {
     val resource: ResourceCIfc
 
     /**
-     *  How many times the holder's work was interrupted: the stretches of time during which units of
+     *  How many times the holder's work was interrupted: the episodes during which units of
      *  this allocation were taken away (down in a failure, or lent to a more urgent request) under the
-     *  rule `RESUME` or `RESTART`, whether or not the holder was in a delay at the time.
+     *  rule `RESUME` or `RESTART`, whether or not the holder was in a delay at the time. Each separate episode of
+     *  missing units counts, even when one ends and another begins in the same instant (a repair followed at once
+     *  by a preemption counts twice). Zero by default, for an implementation whose units are never taken.
      */
     val timesInterrupted: Int
+        get() = 0
 
-    /** The total length of those stretches. */
+    /** The total length of those episodes. Zero by default. */
     val timeInterrupted: Double
+        get() = 0.0
 
-    /** True while units of this allocation are missing, to a failure or a preemption. */
+    /** True while units of this allocation are missing, to a failure or a preemption. False by default. */
     val hasMissingUnits: Boolean
+        get() = false
 }
 
 /**

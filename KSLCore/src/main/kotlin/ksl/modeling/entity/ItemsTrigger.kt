@@ -67,11 +67,10 @@ internal class ItemsTrigger<T : ModelElement.QObject>(
         // ranked by the priority when the wait began, whatever a trigger registered before it did to the entity's
         val request = newRequest(group.entity, registration, group.entityPriority)
         registration.request = request
-        if (blockingQ.selectNextRequest() === request) {
-            // It can be filled now, ahead of requests already waiting: as the untimed receive, it
-            // does not suspend. The wait is claimed while it registers, so no resume is scheduled.
-            blockingQ.claimSelected(request, registration)
-        }
+        // The selector chooses who is served now. If it chooses this request, the wait is claimed while it registers
+        // and goes on without suspending, as the untimed receive does; if it chooses an earlier request, even one
+        // of this same wait, that one is served.
+        blockingQ.requestJoined(request)
         return registration
     }
 

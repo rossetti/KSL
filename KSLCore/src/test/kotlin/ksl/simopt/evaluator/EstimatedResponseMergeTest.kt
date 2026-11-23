@@ -60,4 +60,35 @@ class EstimatedResponseMergeTest {
         val merged = estimate(3.0).merge(estimate(7.0))
         assertEquals(estimate(3.0, 7.0).variance, merged.variance, 1e-12)
     }
+
+    @Test
+    @DisplayName("a pooled variance that fits in a Double is computed without overflowing on the way")
+    fun largeButRepresentableVariance() {
+        // four observations of 0 and four of 1e154: mean 5e153, sample variance 8 (5e153)^2 / 7
+        val merged = EstimatedResponse("x", 0.0, 0.0, 4.0).merge(EstimatedResponse("x", 1.0e154, 0.0, 4.0))
+        val expected = (8.0 / 7.0) * 5.0e153 * 5.0e153
+        assertEquals(5.0e153, merged.average, 5.0e153 * 1e-14)
+        assertEquals(expected, merged.variance, expected * 1e-12)
+    }
+
+    @Test
+    @DisplayName("merging is symmetric, also with unequal counts and large close means")
+    fun symmetricWithUnequalCounts() {
+        val a = EstimatedResponse("x", 1.0e150, 4.0e298, 3.0)
+        val b = EstimatedResponse("x", 1.0e150 + 2.0e149, 9.0e298, 11.0)
+        val ab = a.merge(b)
+        val ba = b.merge(a)
+        assertEquals(ab.average, ba.average, ab.average * 1e-14)
+        assertEquals(ab.variance, ba.variance, ab.variance * 1e-12)
+        // (2 * 4e298 + 10 * 9e298 + (3 * 11 / 14) * (2e149)^2) / 13
+        val expected = (2.0 * 4.0e298 + 10.0 * 9.0e298 + (33.0 / 14.0) * 4.0e298) / 13.0
+        assertEquals(expected, ab.variance, expected * 1e-12)
+    }
+
+    @Test
+    @DisplayName("a pooled variance too large for a Double is infinite")
+    fun unrepresentableVarianceIsInfinite() {
+        val merged = EstimatedResponse("x", 0.0, 0.0, 4.0).merge(EstimatedResponse("x", 1.0e200, 0.0, 4.0))
+        assertEquals(Double.POSITIVE_INFINITY, merged.variance)
+    }
 }
