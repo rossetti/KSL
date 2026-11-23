@@ -2041,7 +2041,7 @@ open class Resource @JvmOverloads constructor(
      * is not yet known because, under the WAIT rule, it is still waiting for busy units to be released.
      *
      * Under the IGNORE rule, a decrease that arrives while another is pending must end strictly after it, when the
-     * pending one has a finite end; one that lasts until superseded accepts any.
+     * pending one has a finite end; a pending one that lasts until superseded accepts any decrease.
      * Check against this time before requesting such a change.
      */
     val pendingCapacityChangeEndTime: Double

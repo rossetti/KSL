@@ -3317,8 +3317,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 canAllocateNow: () -> Boolean
             ): Boolean {
                 while (true) {
-                    // a preemptor moved in the instant it was woken decides at its new resource (its caller does)
+                    // a preemptor moved in the instant it was woken decides at its new resource (its caller does), and
+                    // one passed its allocation takes it: its units are allocated, so there is nothing to choose
                     if (request.decidesOnResume) return true
+                    if ((request as? ResourceRequest)?.passedAllocation != null) return true
                     val promises = request.promises
                     // nothing promised to a request the library woke (or moved while woken): the units are taken only
                     // if its queue would choose it now, as an arriving seize's. A resume the model asks for itself

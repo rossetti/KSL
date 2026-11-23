@@ -366,6 +366,12 @@ abstract class Solver(
      *  Ends the run, once, with the reason "Ended With An Error": an exception was thrown by its initialization, an
      *  iteration or its stopping criteria. A later end of the iterations keeps that reason.
      */
+    /**
+     *  Called once when a run that an exception ended is ended, in place of `mainIterationsEnded`: releases what the
+     *  run holds, such as a runner of member solvers. The default does nothing.
+     */
+    internal open fun runEndedWithError() {}
+
     private fun recordRunFailure() {
         if ((myRunState as? RunState.Ended)?.reason == SolverResult.ENDED_WITH_AN_ERROR) return
         myRunState = RunState.Ended(SolverResult.ENDED_WITH_AN_ERROR, (myRunState as? RunState.Running)?.criteriaMet ?: false)
@@ -530,8 +536,15 @@ abstract class Solver(
             myMainIterativeProcess.run()
         } catch (e: Exception) {
             // Catches anything that breaks the internal loop or initialization; a failure of the solver's own
-            // steps was recorded where it happened
+            // steps was recorded, and the run ended, where it happened
             recordRunFailure()
+            if (!myMainIterativeProcess.isEnded) {
+                try {
+                    myMainIterativeProcess.end("ended with an error: ${e.message}")
+                } catch (endFailure: Exception) {
+                    e.addSuppressed(endFailure)
+                }
+            }
             // Re-throw so the framework user knows their run failed.
             throw e
         }
@@ -1159,7 +1172,9 @@ abstract class Solver(
             val pName = this.problemDefinition.name
 
             // 1. Return the informative "NotExecuted" state if no work has been done
-            if (iterationCounter == 0 && evaluator.totalEvaluatorCalls == 0) {
+            // a run an error ended reports the error, however early it came
+            val endedWithError = (myRunState as? RunState.Ended)?.reason == SolverResult.ENDED_WITH_AN_ERROR
+            if (!endedWithError && iterationCounter == 0 && evaluator.totalEvaluatorCalls == 0) {
                 return SolverResult.NotExecuted(sName, pName)
             }
 
@@ -1289,13 +1304,18 @@ abstract class Solver(
 
         override fun endIterations() {
             if ((myRunState as? RunState.Ended)?.reason == SolverResult.ENDED_WITH_AN_ERROR) {
-                // the run ended with an error: its reason stands, and it is not completed as a normal run is
-                super.endIterations()
+                // the run ended with an error: its reason stands, and it is not completed as a normal run is; what it
+                // holds is released
+                try {
+                    runEndedWithError()
+                } finally {
+                    super.endIterations()
+                }
                 logger.debug { "Ended: solver $name iterations, after an error." }
                 return
             }
             logger.trace { "Executing mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
-            mainIterationsEnded()
+            failsTheRun { mainIterationsEnded() }
             logger.trace { "Executed mainIterationsEnded(): iteration = $iterationCounter of $maximumNumberIterations" }
             // From what the run found as it went: the criteria are not asked again here, since a run ended before
             // it started has nothing they could read, and asking repeats what they report.

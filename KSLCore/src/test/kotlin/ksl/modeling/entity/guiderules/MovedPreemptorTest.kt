@@ -21,6 +21,7 @@ package ksl.modeling.entity.guiderules
 import ksl.modeling.entity.InterruptRule
 import ksl.modeling.entity.ProcessModel
 import ksl.modeling.entity.RequestQ
+import ksl.modeling.entity.RequestSelectionRuleIfc
 import ksl.modeling.entity.ResourcePoolWithQ
 import ksl.modeling.entity.ResourceWithQ
 import ksl.simulation.Model
@@ -213,4 +214,71 @@ class MovedPreemptorTest {
         assertEquals(4.0, shop.urgentStart)
         assertEquals(5.0, shop.newcomerStart)
     }
+
+    /**
+     *  A preemptor passed its allocation while it waits again after a broken promise takes it, whatever its queue's
+     *  selection rule. R (2 units, `RESUME`) has a rule serving the most urgent first, as many as the free units allow.
+     *  L and K (priority 9) hold 1 each; B (priority 4) preempts K's unit at 1 for 4 of work. F (priority 2, `FINISH`)
+     *  reserves 1 at 2. At 3 L releases, completing F's reservation and waking it, and fails R before F resumes, so F
+     *  waits again; the failure also holds B's work until the repair at 4. S (priority 1) seizes at 3.5 and at the
+     *  repair takes the free unit ahead of F. B releases at 6: K's unit comes back, F outranks K and needs only it, so
+     *  F is passed it, at 6.
+     */
+    @Test
+    @DisplayName("a preemptor passed its allocation while it waits again takes it, whatever the queue's rule")
+    fun passedAllocationIsTakenWhateverTheRule() {
+        val model = Model("PassedAllocationTaken", autoCSVReports = false)
+        val shop = object : ProcessModel(model, "PassedShop") {
+            val queue = RequestQ(this, "RQueue").also { q ->
+                q.requestSelectionRule = RequestSelectionRuleIfc { resource, requestQ ->
+                    var left = resource.numAvailableUnits
+                    requestQ.sortedBy { it.entity.priority }
+                        .filter { r -> (r.amountRequested <= left).also { if (it) left -= r.amountRequested } }
+                }
+            }
+            val r = ResourceWithQ(this, "R", capacity = 2, queue = queue).also { it.interruptRule = InterruptRule.RESUME }
+            var fStart = Double.NaN
+            private val l = object : Entity("L") {
+                init { priority = 9 }
+                val work = process {
+                    val a = seize(r)
+                    delay(3.0)
+                    release(a)
+                    r.fail()
+                    delay(1.0)
+                    r.repair()
+                }
+            }
+            private val k = object : Entity("K") {
+                init { priority = 9 }
+                val work = process { delay(0.1); val a = seize(r); delay(100.0); release(a) }
+            }
+            private val b = object : Entity("B") {
+                init { priority = 4 }
+                val work = process { delay(1.0); val a = preempt(r, 1); delay(4.0); release(a) }
+            }
+            private val f = object : Entity("F") {
+                init { priority = 2 }
+                val work = process {
+                    delay(2.0)
+                    val a = preempt(r, 1, rule = InterruptRule.FINISH)
+                    fStart = time
+                    delay(1.0)
+                    release(a)
+                }
+            }
+            private val s = object : Entity("S") {
+                init { priority = 1 }
+                val work = process { delay(3.5); val a = seize(r); delay(100.0); release(a) }
+            }
+
+            override fun initialize() {
+                for (e in listOf(l.work, k.work, b.work, f.work, s.work)) activate(e)
+            }
+        }
+        model.lengthOfReplication = 30.0
+        model.simulate()
+        assertEquals(6.0, shop.fStart)
+    }
 }
+

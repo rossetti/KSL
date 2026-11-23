@@ -163,5 +163,54 @@ class SolverRunFailureTest {
         assertEquals(3, solver.iterationCounter)
         assertEquals(SolverResult.MAXIMUM_ITERATIONS_REACHED, reason(solver))
     }
+
+    /** A solver whose iterations evaluate nothing, failing where [failIn] says, counting the error hook's calls. */
+    private class HookSolver(var failIn: String?) : Solver(
+        problemDefinition = ProblemDefinition(
+            modelIdentifier = "NoSimulation", objFnResponseName = "cost", inputNames = listOf("x")
+        ).also { it.inputVariable("x", Interval(0.0, 1.0)) },
+        evaluator = NoEvaluations(), maximumIterations = 2, replicationsPerEvaluation = 2
+    ) {
+        var errorHookCalls = 0
+        var endedNormally = 0
+        override fun initializeIterations() {
+            if (failIn == "initialize") throw IllegalStateException("initialization failed")
+        }
+        override fun startingPoint(): InputMap = currentPoint
+        override fun nextPoint(): InputMap = currentPoint
+        override fun mainIteration() {}
+        override fun mainIterationsEnded() {
+            if (failIn == "end") throw IllegalStateException("the end of the run failed")
+            endedNormally++
+        }
+        override fun runEndedWithError() {
+            errorHookCalls++
+        }
+    }
+
+    @Test
+    @DisplayName("an exception at the end of a run ends it with an error, and the next run starts clean")
+    fun failureAtTheEndOfARun() {
+        val solver = HookSolver(failIn = "end")
+        assertFailsWith<IllegalStateException> { solver.runAllIterations() }
+        assertEquals(SolverResult.ENDED_WITH_AN_ERROR, reason(solver))
+        assertEquals(1, solver.errorHookCalls)
+        assertFailsWith<Exception> { solver.runNextIteration() }
+        solver.failIn = null
+        solver.runAllIterations()
+        assertEquals(SolverResult.MAXIMUM_ITERATIONS_REACHED, reason(solver))
+        assertEquals(1, solver.endedNormally)
+        assertEquals(1, solver.errorHookCalls)
+    }
+
+    @Test
+    @DisplayName("a run that fails in its initialization reports the error, and releases what it holds once")
+    fun failureInInitialization() {
+        val solver = HookSolver(failIn = "initialize")
+        assertFailsWith<IllegalStateException> { solver.runAllIterations() }
+        assertEquals(SolverResult.ENDED_WITH_AN_ERROR, reason(solver))
+        assertEquals(1, solver.errorHookCalls)
+        assertEquals(0, solver.endedNormally)
+    }
 }
 
