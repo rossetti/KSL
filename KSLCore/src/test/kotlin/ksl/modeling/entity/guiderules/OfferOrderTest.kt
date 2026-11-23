@@ -153,4 +153,63 @@ class OfferOrderTest {
         assertEquals(1, held!!.timesInterrupted)
         assertEquals(7.0, held!!.timeInterrupted, 1e-9)
     }
+
+    /**
+     *  R has 4 units, `RESUME`. A and B (priority 9) hold 1 each, H (priority 5) holds 2 until 10.2. M waits for the
+     *  first of B's interruption and a seize trigger on R. F (priority 1, `FINISH`) reserves 1 at 1; W (priority 2)
+     *  preempts 3 at 2 and W2 (priority 3) preempts 1 at 3, both waiting while F collects. At H's release F completes
+     *  from a free unit and W takes the other with B's and A's. Taking B's unit wakes M, whose seize trigger leaves R's
+     *  queue; that asks for an offer while W is still being given its units. The offer is made after W has them all:
+     *  no unit is lent twice, and W2, outranked by every holder left, waits for F's release.
+     */
+    @Test
+    @DisplayName("an offer asked for while a claimant is being served is made once it has all its units")
+    fun offerAskedForDuringAServeWaitsForIt() {
+        val m = RuleModel("OfferDuringServe")
+        val r = ResourceWithQ(m, "R", capacity = 4)
+        r.interruptRule = InterruptRule.RESUME
+        var bAllocation: Allocation? = null
+        m.plan {
+            actor("A", 9) { val a = seize(r); delay(100.0); release(a) }
+            actor("B", 9) { delay(0.1); val a = seize(r); bAllocation = a; delay(100.0); release(a) }
+            actor("H", 5) { delay(0.2); val a = seize(r, 2); delay(10.0); release(a) }
+            actor("M", 9) {
+                delay(0.5)
+                waitForFirst(bAllocation!!.interruptedTrigger(), r.seizeTrigger(), timeout = 1000.0)
+                log.add("M woke@$time")
+            }
+            actor("F", 1) { delay(1.0); val a = preempt(r, 1, rule = InterruptRule.FINISH); log.add("F got@$time"); delay(1.0); release(a) }
+            actor("W", 2) { delay(2.0); val a = preempt(r, 3, rule = InterruptRule.RESUME); log.add("W got@$time"); delay(5.0); release(a) }
+            actor("W2", 3) { delay(3.0); val a = preempt(r, 1, rule = InterruptRule.RESUME); log.add("W2 got@$time"); delay(1.0); release(a) }
+        }
+        m.simulate(300.0)
+        assertTrue("F got@10.2" in m.log, m.log.toString())
+        assertTrue("W got@10.2" in m.log, m.log.toString())
+        assertTrue("M woke@10.2" in m.log, m.log.toString())
+        assertTrue("W2 got@11.2" in m.log, m.log.toString())
+    }
+
+    /**
+     *  R has 2 units. L and X (priority 9) hold 1 each; B (priority 4, `RESUME`) preempts X's unit at 1 and releases at
+     *  4. F (priority 2, `FINISH`) reserves 2 at 2 and is still short at 4. W (priority 3, `RESUME`) waits for 1 from
+     *  3. At B's release X's unit goes back; F cannot complete with it, and W outranks X and needs only that unit, so
+     *  W takes it: a collecting reservation keeps a less urgent preemptor from units in service, not from units going
+     *  back from a loan.
+     */
+    @Test
+    @DisplayName("a RESUME preemptor takes units going back from a loan that a short, more urgent reservation cannot use")
+    fun resumePreemptorTakesReturningUnitsAShortReservationCannotUse() {
+        val m = RuleModel("ReturningPastAShortReservation")
+        val r = ResourceWithQ(m, "R", capacity = 2)
+        m.plan {
+            actor("L", 9) { val a = seize(r); delay(50.0); release(a) }
+            actor("X", 9) { delay(0.5); val a = seize(r); delay(50.0); release(a) }
+            actor("B", 4) { delay(1.0); val a = preempt(r, 1, rule = InterruptRule.RESUME); delay(3.0); release(a) }
+            actor("F", 2) { delay(2.0); val a = preempt(r, 2, rule = InterruptRule.FINISH); log.add("F got@$time"); delay(1.0); release(a) }
+            actor("W", 3) { delay(3.0); val a = preempt(r, 1, rule = InterruptRule.RESUME); log.add("W got@$time"); delay(1.0); release(a) }
+        }
+        m.simulate(200.0)
+        assertTrue("W got@4.0" in m.log, m.log.toString())
+        assertTrue(m.log.any { it.startsWith("F got@") }, m.log.toString())
+    }
 }

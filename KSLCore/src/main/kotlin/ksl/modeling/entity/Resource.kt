@@ -789,9 +789,9 @@ open class Resource @JvmOverloads constructor(
      *  to a holder from a loan that is ending count as that holder's. Null when the free units are already
      *  enough, when the free and lendable units together are too few, when more is needed than the capacity the
      *  resource is heading to (its current change, and any change asked for and waiting, but not a capacity
-     *  schedule's item waiting its turn), or, for a preemption that takes units at once ([takesAtOnce], under
-     *  `RESUME` or `RESTART`), while a `FINISH` reservation of another entity, as urgent or more, is still collecting
-     *  its units.
+     *  schedule's item waiting its turn). For a preemption that takes units at once ([takesAtOnce], under `RESUME`
+     *  or `RESTART`), while a `FINISH` reservation of another entity, as urgent or more, is still collecting its
+     *  units, only the units [returning] from ending loans can be taken, none in service.
      */
     internal fun planPreemption(
         entity: ProcessModel.Entity,
@@ -803,16 +803,17 @@ open class Resource @JvmOverloads constructor(
         // are only finishing the work they were allocated for. Under the WAIT rule the capacity is cut only as busy
         // units are released, so a pending decrease counts at the capacity it is heading to, and off shift at none.
         if (amountNeeded > reachableCapacity) return null
-        // a FINISH preemption still collecting its units ranks its claim: units are not taken at once, under RESUME
-        // or RESTART, from holders ahead of one that is as urgent or more. Another FINISH preemption only reserves,
-        // and the reservations are served in order of priority.
-        if (takesAtOnce && myReservations.any { isCollecting(it) && it.request.entity !== entity && it.request.entity.priority <= entity.priority }) {
-            return null
-        }
+        // a FINISH preemption still collecting its units ranks its claim: units in service are not taken at once,
+        // under RESUME or RESTART, from holders ahead of one that is as urgent or more; only units going back from
+        // an ending loan, which no holder is using, can be. Another FINISH preemption only reserves, and the
+        // reservations are served in order of priority.
+        val onlyReturning = takesAtOnce &&
+            myReservations.any { isCollecting(it) && it.request.entity !== entity && it.request.entity.priority <= entity.priority }
         val free = numAvailableUnits
         var short = amountNeeded - free
         if (short <= 0) return null
-        fun lendable(a: Allocation) = a.amount - a.missingByLoan + (returning[a] ?: 0)
+        fun lendable(a: Allocation) =
+            if (onlyReturning) (returning[a] ?: 0) else a.amount - a.missingByLoan + (returning[a] ?: 0)
         val candidates = allocations()
             .filter { it.myEntity.priority > entity.priority && lendable(it) > 0 }
             .sortedWith(
@@ -2403,6 +2404,14 @@ open class Resource @JvmOverloads constructor(
         // once the run has ended, units restored by the termination of the entities, as a shift's end in a
         // finally block, are offered to no one: nothing can be resumed
         if (isInactive || isRunEnded || myFailureDueAtRelease) return@change
+        // an offer asked for while one is running, as when taking a holder's units claims a wait whose losing
+        // request leaves: the running walk serves one claimant at a time and goes round again with the state as
+        // that left it, so the offer is made there, after the claimant being served has all its units
+        if (myOfferDepth > 0 && returning.isEmpty()) {
+            myOfferAgain = true
+            if (alsoQueue != null) myOfferAlsoQueues.add(alsoQueue)
+            return@change
+        }
         val observer = ResourceInvariants.offerObserver?.takeIf { myOfferDepth == 0 }
         observer?.beforeOffer(this, returning.toMap())
         myOfferDepth++
@@ -2410,6 +2419,10 @@ open class Resource @JvmOverloads constructor(
             makeOffer(priority, source, detail, alsoQueue, returning)
         } finally {
             myOfferDepth--
+            if (myOfferDepth == 0) {
+                myOfferAgain = false
+                myOfferAlsoQueues.clear()
+            }
         }
         observer?.afterOffer(this)
     }
@@ -2454,6 +2467,11 @@ open class Resource @JvmOverloads constructor(
      */
     internal fun arrivalDecision(request: ProcessModel.Entity.ResourceRequest, preemptRule: InterruptRule? = null): ArrivalDecision {
         if (isRunEnded) return ArrivalDecision.Wait
+        // an arrival while an offer is running waits; the running walk goes round again and serves it in its turn
+        if (myOfferDepth > 0) {
+            myOfferAgain = true
+            return ArrivalDecision.Wait
+        }
         myNewcomer = request
         myNewcomerRule = preemptRule
         myNewcomerDecision = null
@@ -2475,6 +2493,12 @@ open class Resource @JvmOverloads constructor(
 
     /** How deeply offers nest now; the offer observer is told only of the outermost. */
     private var myOfferDepth = 0
+
+    /** True when an offer was asked for while one was running; the running walk goes round again. */
+    private var myOfferAgain = false
+
+    /** The unregistered queues of offers asked for while one was running, offered by the running walk. */
+    private val myOfferAlsoQueues = LinkedHashSet<RequestQ>()
 
     /**
      *  The offer itself, the one place that decides who gets units that come free or come back; see `offerFreedUnits`.
@@ -2503,14 +2527,18 @@ open class Resource @JvmOverloads constructor(
         myWaitingPreemptors.removeAll { r ->
             r.passedAllocation != null || r.resource !== this || (r.queue as? RequestQ)?.contains(r) != true
         }
-        val queues: Set<RequestQ> =
-            if (alsoQueue == null || alsoQueue in myCapacityChangeQSet) myCapacityChangeQSet
-            else LinkedHashSet(myCapacityChangeQSet).apply { add(alsoQueue) }
         var served = 0
-        while (myNewcomerDecision == null && serveNext(queues, returning, priority, source, detail)) {
-            served++
-            check(served < 1_000_000) { "The offer of units of $name did not settle." }
-        }
+        do {
+            myOfferAgain = false
+            val queues: Set<RequestQ> = LinkedHashSet(myCapacityChangeQSet).apply {
+                if (alsoQueue != null) add(alsoQueue)
+                addAll(myOfferAlsoQueues)
+            }
+            while (myNewcomerDecision == null && serveNext(queues, returning, priority, source, detail)) {
+                served++
+                check(served < 1_000_000) { "The offer of units of $name did not settle." }
+            }
+        } while (myOfferAgain && myNewcomerDecision == null && !isFailed && !isRunEnded)
     }
 
     /** Serves the first claimant, in the one order, that can be served now; false when none can. */

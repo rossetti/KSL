@@ -575,7 +575,8 @@ not failed, throws).
   repair time is not counted. The failure comes at the exact instant that
   much work has been done; `USES`
   fails at the release that completes the given number of uses, before the
-  released unit can go to anyone waiting. A failure fails the resource at the
+  released unit, or a unit going back from a loan at that release, can go to
+  anyone waiting. A failure fails the resource at the
   instant it comes due, so nothing is allocated in between. A failure
   that comes due while the resource is failed by hand does not happen then:
   it waits for that repair, and the time to the next failure counts from it.
@@ -622,37 +623,51 @@ private inner class Emergency : Entity() {
   needed (as off shift, or below a cut asked for and still waiting its turn;
   a capacity schedule's next item does not count until it starts), the
   resource is failed or inactive, or (for `RESUME` and `RESTART`) a `FINISH`
-  preemptor as urgent or more is still collecting its units, nothing is
-  taken: `preempt` waits like `seize`. It plans again whenever units come
+  preemptor as urgent or more is still collecting its units (then only
+  units going back from a loan can be taken, below), nothing is taken:
+  `preempt` waits like `seize`. It plans again whenever units come
   free or come back: at a release, at the end of a loan, at a repair, on a
-  return to shift and at a capacity increase. The most urgent waiting
-  preemptor plans first, as on arrival; one that can now take enough takes
-  its units (under `FINISH`, reserves them), and the holders stay held. So a
-  holder never resumes ahead of a waiting preemptor that outranks it and can
-  take what it needs, and
-  freed units go to a waiting preemptor ahead of the waiting requests it
-  outranks. The freed units are offered request by request, and before each
-  the preemptor is compared with the request they would go to next: it goes
-  ahead of one it outranks, and gives way to one that is more urgent, or
-  equally urgent and ahead of it, and to a `FINISH` preemptor, equally or
-  more urgent, that is still taking its units. A more urgent request further
-  back does not hold it back. Once the offer is over, it takes what it can:
-  the units left and those of the holders it outranks. With several request
-  queues on the resource, the request next in line is the one that entered
-  its queue first under the default notification rule, and the next in the
-  queue being offered under a rule of the model's own.
+  return to shift and at a capacity increase. So a holder never resumes
+  ahead of a waiting preemptor that outranks it and can take what it needs.
+- **Who is served first.** Whenever units come free or come back, and
+  whenever a request arrives, one order decides who gets them. The
+  claimants are the waiting preemptors, the `FINISH` preemptors still
+  collecting their units, and the request next in line in each request
+  queue: the first, in the queue's own order, that the free units can
+  serve. The preemptors are ranked by priority; among equals, one still
+  collecting comes before one that has not reserved, then the earliest to
+  begin waiting, then the first. Each is ranked against the request next in
+  line in the same way: it comes first when it is more urgent, or equally
+  urgent and ahead of it (by the queue's discipline in the same queue, else
+  by the time each entered its queue). The first claimant that can be
+  served now is served (it takes its units, or under `FINISH` reserves
+  them), and the order is walked again from the front, so a claimant passed
+  over can still be served once one before it has taken its share. A more
+  urgent request further back does not hold a preemptor back, and a
+  claimant that cannot be served holds nothing back, except the free units
+  promised to a `FINISH` preemptor (below). With several request queues on
+  the resource, the request next in line is the one that entered its queue
+  first under the default notification rule, and the next in the queue
+  being offered under a rule of the model's own. A newly arriving `seize`
+  or `preempt` of a resource, or a request for a resource moved into a
+  queue, is served at once exactly when this order would serve it, and
+  otherwise waits. The entities served
+  resume at the priority of the release or capacity change that made the
+  units available, and at the default release priority otherwise (a
+  repair, a request leaving its queue).
 - **The rule** is the resource's `interruptRule` unless the call names one.
   It is fixed when `preempt` is called: a waiting preemptor moved to another
   resource keeps it.
   Under `RESUME` and `RESTART` the units are taken now and the holder's delay
   is held. Under `FINISH` nothing is taken in service: the preemptor is
   promised the free units, which stay idle and go to no one else while it
-  waits, and takes the rest as units are released, ahead of everyone waiting
-  in the queue, including units going back from a loan to a holder it
+  waits, and takes the rest as units are released, ahead of the waiting
+  requests it outranks (above), including units going back from a loan to a holder it
   outranks when, with the free units, they complete what it needs (that
   holder is held already, and stays held; units that would complete only
-  part of it go back); several such preemptors take them in order
-  of priority, the earliest first among equals. A capacity decrease under
+  part of it go back); several such preemptors take them in the order
+  above, and one that is short does not keep units going back from one
+  behind it that they complete. A capacity decrease under
   WAIT that is short of idle units takes back units promised to one still
   collecting, which collects them again later. Under either rule, one that
   needs more units than the capacity the resource is heading to holds none
@@ -662,8 +677,9 @@ private inner class Emergency : Entity() {
   releases, the units it took go back to their holders first, the last taken
   first (a preemption takes from the most recently allocated holder first, so
   of one preemption's holders the earliest allocated gets its units back
-  first), and only then to the queue, unless a waiting preemptor outranks the holder
-  (above). Preemptions can nest; the units go back along
+  first), and only then to the queue, unless a waiting preemptor or a
+  `FINISH` preemptor still collecting outranks the holder and can then take
+  all it needs (above). Preemptions can nest; the units go back along
   the chain. A holder that releases or is terminated while its units are
   taken ends that loan, and the units go to the queue at the preemptor's
   release.

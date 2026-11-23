@@ -1723,30 +1723,37 @@ interface KSLProcessBuilder {
      *  - `RESUME` and `RESTART`: the units are taken now. The holder's delay that depends on them is held,
      *    and goes on with the time left, or starts again, when the units come back.
      *  - `FINISH`: nothing is taken in service. The entity is promised the free units and takes the rest as
-     *    units of the resource are released, ahead of the requests waiting in the queue, including units
+     *    units of the resource are released, ahead of the waiting requests it outranks, including units
      *    going back from a loan to a holder it outranks when, with the free units, they complete what it needs
      *    (the holder is held already and stays held; units completing only part of it go back). Several such
-     *    entities take released units in order of priority, the earliest first among equals.
+     *    entities take released units in the order below.
      *
      *  The holder keeps its allocation. When the entity releases its allocation, the units it took go back
      *  to their holders first, the last taken first (of one preemption's holders, the earliest allocated first,
      *  since the most recently allocated was taken from first), before the queue, unless a waiting entity outranks the holder
-     *  (below). A holder that releases while its units are
+     *  and can then take all it needs (below). A holder that releases while its units are
      *  taken ends that loan, and the units go to the queue when the entity releases them.
      *
      *  When the free units and the units of all lower-priority holders together are still too few, when the
      *  resource's capacity is less than [amountNeeded] (as off shift), or when the resource is failed or
      *  inactive, nothing is taken: the entity waits as a `seize` waits. It plans again whenever units come
      *  free or come back: at a release, at the end of a loan, at a repair, on a return to shift and at a
-     *  capacity increase. The waiting entities plan most urgent first, each as it would on arrival; at the
-     *  end of a loan of a lower-priority holder, the units going back count as the holder's. One that can
-     *  now take enough takes its units, and the holders stay held (under `FINISH`, it reserves them). So a
-     *  holder never resumes ahead of a waiting entity that outranks it, and freed units go to such a waiting
-     *  entity ahead of the waiting requests it outranks. It takes no freed unit ahead of a waiting request
-     *  that is more urgent, or equally urgent and ahead of it, nor ahead of a `FINISH` entity, equally or
-     *  more urgent, that is still taking its units: it goes on waiting in its queue and is served in its
-     *  turn. With several request queues on the resource, the waiting request it is compared with is the
-     *  one the freed units would go to, the one that entered its queue first across the queues. A movable
+     *  capacity increase; at the end of a loan of a lower-priority holder, the units going back count as the
+     *  holder's. So a holder never resumes ahead of a waiting entity that outranks it and can take what it needs.
+     *
+     *  Whenever units come free or come back, and whenever a request arrives, one order decides who gets them.
+     *  The claimants are the waiting entities that called `preempt`, the `FINISH` entities still collecting
+     *  their units, and the request next in line in each request queue of the resource (the first, in the
+     *  queue's own order, that the free units can serve). The preempting
+     *  entities are ranked by priority; among equals, one still collecting comes first, then the earliest to
+     *  begin waiting, then the first. Each comes before the request next in line when it is more urgent, or
+     *  equally urgent and ahead of it (by the queue's discipline in the same queue, else by the time each
+     *  entered its queue). The first claimant that can be served now is served, and the order is walked again
+     *  from the front. A more urgent request further back does not hold the entity back. With several request
+     *  queues on the resource, the request next in line is the one that entered its queue first under the
+     *  default notification rule. An arriving call is served at once exactly when this order would serve it.
+     *  The entities served resume at the priority of the release or capacity change that made the units
+     *  available, and at the default release priority otherwise. A movable
      *  resource cannot be preempted; use `seize` for it.
      *
      *  @param resource the resource to take units of
