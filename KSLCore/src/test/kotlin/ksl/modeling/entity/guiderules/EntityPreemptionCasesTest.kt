@@ -145,6 +145,51 @@ class EntityPreemptionCasesTest {
     }
 
     /**
+     *  R has 2 units. L (priority 9) holds 1 from 0 for 20. At 1, B (priority 3) preempts 2 under `RESUME` for 5,
+     *  taking the free unit and L's. At 2, F (priority 1) preempts 2 under `FINISH` and reserves B's two. At 6 B
+     *  releases: one unit is freed and one goes back from the loan to L, which F outranks; together they complete
+     *  F's reservation. F takes both at 6 and works to 7, and L, held from 1 to 7, ends at 26.
+     */
+    @Test
+    @DisplayName("a release that frees units and ends a loan: the freed and the returning units together complete a FINISH reservation")
+    fun freedAndReturningUnitsCompleteAReservation() {
+        val m = RuleModel("FreedAndReturning")
+        val r = ResourceWithQ(m, "R", capacity = 2)
+        m.plan {
+            job("L", r, 0.0, 20.0, priority = 9)
+            urgent("B", r, 1.0, 5.0, priority = 3, n = 2, rule = InterruptRule.RESUME)
+            urgent("F", r, 2.0, 1.0, priority = 1, n = 2, rule = InterruptRule.FINISH)
+        }
+        m.simulate(100.0)
+        assertEquals(listOf("L got@0.0", "B got@1.0", "B done@6.0", "F got@6.0", "F done@7.0", "L done@26.0"), m.log)
+    }
+
+    /**
+     *  A waiting preemptor takes units going back from an ending loan only when it can then take all it needs. R has
+     *  2 units. L1 (priority 9) holds 1 from 0 for 20, L2 (priority 9) 1 from 0.5 for 20. At 1, B (priority 3)
+     *  preempts 1 under `RESUME` for 5, taking L2's. At 2, F (priority 1) preempts 2 under `FINISH` and reserves L1's
+     *  and B's. At 6 B releases: its unit is one of the two F needs, so it goes back to L2, which resumes (ending at
+     *  25.5, held from 1 to 6). F collects L1's unit at 20 and L2's at 25.5.
+     */
+    @Test
+    @DisplayName("units going back from a loan that would only partly complete a FINISH reservation go back to their holder")
+    fun returningUnitsPartlyCompletingAReservationGoBack() {
+        val m = RuleModel("PartlyCompleting")
+        val r = ResourceWithQ(m, "R", capacity = 2)
+        m.plan {
+            job("L1", r, 0.0, 20.0, priority = 9)
+            job("L2", r, 0.5, 20.0, priority = 9)
+            urgent("B", r, 1.0, 5.0, priority = 3, n = 1, rule = InterruptRule.RESUME)
+            urgent("F", r, 2.0, 1.0, priority = 1, n = 2, rule = InterruptRule.FINISH)
+        }
+        m.simulate(100.0)
+        assertEquals(
+            listOf("L1 got@0.0", "L2 got@0.5", "B got@1.0", "B done@6.0", "L1 done@20.0", "L2 done@25.5", "F got@25.5", "F done@26.5"),
+            m.log
+        )
+    }
+
+    /**
      *  R has 3 units. At 1 its capacity is cut to 1. At 2, P (priority 1) preempts 2 units under `RESUME`: more than
      *  the 1 the resource is heading to, so it holds none. At 3, N (priority 5) seizes 1 and takes the free unit at
      *  once: P blocks no one. At 5 the capacity returns to 2, and P takes the free unit and N's: P works 5 to 6, and

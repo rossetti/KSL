@@ -59,6 +59,8 @@ class EstimatedResponseMergeTest {
     fun twoSingleObservations() {
         val merged = estimate(3.0).merge(estimate(7.0))
         assertEquals(estimate(3.0, 7.0).variance, merged.variance, 1e-12)
+        // exactly, as the direct formula gives it for small values
+        assertEquals(2.0, estimate(1.0).merge(estimate(3.0)).variance)
     }
 
     @Test

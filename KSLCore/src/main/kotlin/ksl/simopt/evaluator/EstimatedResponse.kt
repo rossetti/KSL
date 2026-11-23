@@ -389,9 +389,10 @@ data class EstimatedResponse(
         val n = count + e.count
         val within1 = if (count > 1.0) ((count - 1.0) / (n - 1.0)) * variance else 0.0
         val within2 = if (e.count > 1.0) ((e.count - 1.0) / (n - 1.0)) * e.variance else 0.0
-        // (n1 n2 / (n (n - 1))) d^2, as a square of terms no larger than the result's square root
-        val scaledDifference = sqrt(count * e.count / (n * (n - 1.0))) * abs(average - e.average)
-        return within1 + within2 + scaledDifference * scaledDifference
+        // (n1 n2 / (n (n - 1))) d^2, as (w |d|) |d|: the weight w is below 1, so nothing on the way exceeds the result
+        val d = abs(average - e.average)
+        val between = (count * e.count / (n * (n - 1.0))) * d * d
+        return within1 + within2 + between
     }
 
     fun instance(): EstimatedResponse {

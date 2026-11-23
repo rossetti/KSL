@@ -628,7 +628,8 @@ private inner class Emergency : Entity() {
   return to shift and at a capacity increase. The most urgent waiting
   preemptor plans first, as on arrival; one that can now take enough takes
   its units (under `FINISH`, reserves them), and the holders stay held. So a
-  holder never resumes ahead of a waiting preemptor that outranks it, and
+  holder never resumes ahead of a waiting preemptor that outranks it and can
+  take what it needs, and
   freed units go to a waiting preemptor ahead of the waiting requests it
   outranks. The freed units are offered request by request, and before each
   the preemptor is compared with the request they would go to next: it goes
@@ -648,8 +649,9 @@ private inner class Emergency : Entity() {
   promised the free units, which stay idle and go to no one else while it
   waits, and takes the rest as units are released, ahead of everyone waiting
   in the queue, including units going back from a loan to a holder it
-  outranks (that holder is held already, and stays held); several such
-  preemptors take them in order
+  outranks when, with the free units, they complete what it needs (that
+  holder is held already, and stays held; units that would complete only
+  part of it go back); several such preemptors take them in order
   of priority, the earliest first among equals. A capacity decrease under
   WAIT that is short of idle units takes back units promised to one still
   collecting, which collects them again later. Under either rule, one that

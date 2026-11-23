@@ -1852,13 +1852,13 @@ open class Resource @JvmOverloads constructor(
 
     /**
      *  Gives units [returning] to their lenders from loans that are ending to the waiting preemptors that
-     *  outrank those lenders, most urgent first and, among equals, the one waiting longest. A lender is held
-     *  already, so a holder never resumes ahead of a waiting preemptor that outranks it, whatever that
-     *  preemptor's rule. A preemptor under `RESUME` or `RESTART` plans its preemption as it would on arrival,
+     *  outrank those lenders, most urgent first and, among equals, the one waiting longest, when it can then take
+     *  all it needs. A lender is held already, so a holder never resumes ahead of a waiting preemptor that outranks
+     *  it and can take what it needs, whatever that preemptor's rule. A preemptor under `RESUME` or `RESTART` plans its preemption as it would on arrival,
      *  counting the returning units as their lenders': the returning units it takes pass to it as loans from the
      *  same lenders, who stay held and are not told; any other units it takes are taken from their holders as at
      *  any preemption. A `FINISH` preemptor's reservation still collecting takes returning units of lenders it
-     *  outranks when they complete it, with the free units it was promised; it takes nothing in service. Each is
+     *  outranks when they complete it, with the free units; it takes nothing in service. Each is
      *  resumed with its allocation made. The units not taken are left in [returning], to go back.
      */
     private fun passLoansOn(returning: MutableMap<Allocation, Int>) {
@@ -1909,17 +1909,21 @@ open class Resource @JvmOverloads constructor(
 
     /**
      *  For a `FINISH` preemptor's reservation still collecting: the plan that completes it from the free units
-     *  promised to it and the [returning] units of lenders its entity outranks, taken from the least urgent lender
-     *  first and, among equals, the most recently allocated; null when those are too few. Nothing in service is
-     *  taken.
+     *  promised to it, the units free now (a release that ends a loan may free others too), and the [returning]
+     *  units of lenders its entity outranks, taken from the least urgent lender first and, among equals, the most
+     *  recently allocated; null when those are too few, and then the returning units go back. Nothing in service
+     *  is taken.
      */
     private fun reservationPlan(
         request: ProcessModel.Entity.ResourceRequest,
         returning: Map<Allocation, Int>
     ): PreemptionPlan? {
         val reservation = request.reservation ?: return null
-        val free = request.promises[this] ?: 0
-        var short = reservation.stillNeeded
+        val promised = request.promises[this] ?: 0
+        // a reservation ranks ahead of the queue for free units, as when units are released
+        val freeNow = minOf(numAvailableUnits, reservation.stillNeeded)
+        val free = promised + freeNow
+        var short = reservation.stillNeeded - freeNow
         val lenders = returning.filter { (lender, k) -> k > 0 && lender.myEntity.priority > request.entity.priority }
             .keys.sortedWith(
                 compareByDescending<Allocation> { it.myEntity.priority }.thenByDescending { it.timeAllocated }.thenByDescending { it.id }

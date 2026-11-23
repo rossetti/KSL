@@ -1724,7 +1724,8 @@ interface KSLProcessBuilder {
      *    and goes on with the time left, or starts again, when the units come back.
      *  - `FINISH`: nothing is taken in service. The entity is promised the free units and takes the rest as
      *    units of the resource are released, ahead of the requests waiting in the queue, including units
-     *    going back from a loan to a holder it outranks, which is held already and stays held. Several such
+     *    going back from a loan to a holder it outranks when, with the free units, they complete what it needs
+     *    (the holder is held already and stays held; units completing only part of it go back). Several such
      *    entities take released units in order of priority, the earliest first among equals.
      *
      *  The holder keeps its allocation. When the entity releases its allocation, the units it took go back
