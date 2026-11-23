@@ -67,6 +67,23 @@ internal object ResourceInvariants {
     @JvmStatic
     var enabled: Boolean = System.getProperty("ksl.checkInvariants") == "true"
 
+    /**
+     *  For tests: told of each offer of units a resource makes (the outermost, when offers nest), with the state just
+     *  before it and just after it, so that a test can compare who was served with what its own reading of the rules
+     *  says. Null, the default, costs nothing.
+     */
+    interface OfferObserver {
+        /** Called as [resource] begins an offer; [returning] are the units of ending loans, by lender, if any. */
+        fun beforeOffer(resource: Resource, returning: Map<Allocation, Int>)
+
+        /** Called as the offer [beforeOffer] announced ends. */
+        fun afterOffer(resource: Resource)
+    }
+
+    /** The observer of offers, for tests; null when none. */
+    @JvmStatic
+    var offerObserver: OfferObserver? = null
+
     /** Attaches the check to [model]'s executive when [enabled]. */
     fun attachIfEnabled(model: Model, executive: Executive) {
         if (!enabled) return

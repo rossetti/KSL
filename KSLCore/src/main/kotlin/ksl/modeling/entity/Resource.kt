@@ -1951,6 +1951,10 @@ open class Resource @JvmOverloads constructor(
         queue.resumeWoken(request, priority, source, detail)
     }
 
+    /** For the invariant checks and tests: the preemptors waiting for this resource, in the order they began to wait. */
+    internal val waitingPreemptors: Collection<ProcessModel.Entity.ResourceRequest>
+        get() = myWaitingPreemptors
+
     /** The preemptors waiting for this resource, in the order they began to wait; some may have left since. */
     private val myWaitingPreemptors: MutableSet<ProcessModel.Entity.ResourceRequest> = LinkedHashSet()
 
@@ -2558,6 +2562,28 @@ open class Resource @JvmOverloads constructor(
         // once the run has ended, units restored by the termination of the entities, as a shift's end in a
         // finally block, are offered to no one: nothing can be resumed
         if (isInactive || isRunEnded || myFailureDueAtRelease) return@change
+        val observer = ResourceInvariants.offerObserver?.takeIf { myOfferDepth == 0 }
+        observer?.beforeOffer(this, returning.toMap())
+        myOfferDepth++
+        try {
+            makeOffer(priority, source, detail, alsoQueue, returning)
+        } finally {
+            myOfferDepth--
+        }
+        observer?.afterOffer(this)
+    }
+
+    /** How deeply offers nest now; the offer observer is told only of the outermost. */
+    private var myOfferDepth = 0
+
+    /** The offer itself; see `offerFreedUnits`. */
+    private fun makeOffer(
+        priority: Int,
+        source: ResumeSource,
+        detail: String?,
+        alsoQueue: RequestQ?,
+        returning: MutableMap<Allocation, Int>
+    ) {
         // units going back from ending loans, counted as their lenders', which a claimant outranking a lender may take
         val loansEnding = returning.values.any { it > 0 }
         // a waiting preemptor plans again first, even when no unit is free: units that came back to their
