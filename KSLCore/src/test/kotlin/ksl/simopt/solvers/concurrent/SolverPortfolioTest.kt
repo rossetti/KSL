@@ -2,7 +2,13 @@ package ksl.simopt.solvers.concurrent
 
 import ksl.examples.general.simopt.BuildLKModel
 import ksl.examples.general.simopt.makeLKInventoryModelProblemDefinition
+import ksl.simopt.cache.SolutionCacheIfc
+import ksl.simopt.evaluator.EstimatedResponse
+import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.Evaluator
+import ksl.simopt.evaluator.EvaluatorIfc
+import ksl.simopt.evaluator.ModelInputs
+import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.FixedReplicationsPerEvaluation
@@ -222,4 +228,68 @@ class SolverPortfolioTest {
             ))
         }
     }
+
+    /** An evaluator that simulates nothing: each evaluation sleeps, then reports a better value than the last. */
+    private class SleepingStubEvaluator(private val pd: ProblemDefinition, private val delayMillis: Long) : EvaluatorIfc {
+        override var totalEvaluatorCalls: Int = 0
+        override var totalDesignPointsEvaluated: Int = 0
+        override var totalOracleReplications: Int = 0
+        override var totalCachedReplications: Int = 0
+        override val cache: SolutionCacheIfc? = null
+        override fun evaluate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Solution> {
+            if (delayMillis > 0) Thread.sleep(delayMillis)
+            totalEvaluatorCalls++
+            return evaluationRequest.modelInputs.associateWith { mi ->
+                Solution(
+                    pd.toInputMap(mi.inputs.toMutableMap()),
+                    EstimatedResponse("TotalCost", -totalEvaluatorCalls.toDouble(), 1e-12, mi.numReplications.toDouble()),
+                    emptyList(),
+                    totalEvaluatorCalls
+                )
+            }
+        }
+    }
+
+    /** A member factory that counts the evaluators it hands out and those released. */
+    private class CountingMemberFactory(private val pd: ProblemDefinition) : MemberEvaluatorFactoryIfc {
+        val created = java.util.concurrent.atomic.AtomicInteger()
+        val released = java.util.concurrent.atomic.AtomicInteger()
+        override fun createEvaluator(memberIndex: Int): EvaluatorIfc {
+            created.incrementAndGet()
+            return SleepingStubEvaluator(pd, 5)
+        }
+        override fun release(memberIndex: Int, evaluator: EvaluatorIfc, reusable: Boolean) {
+            released.incrementAndGet()
+        }
+    }
+
+    @Test
+    @DisplayName("a portfolio run that ends with an error has stopped and released its members when it returns")
+    fun errorEndsMembersBeforeReturning() {
+        val pd = makeLKInventoryModelProblemDefinition()
+        val longShc = SolverFactoryIfc { evaluator, _, name ->
+            StochasticHillClimber(
+                problemDefinition = pd, evaluator = evaluator,
+                maximumIterations = 1_000_000, replicationsPerEvaluation = REPS, name = name
+            )
+        }
+        val factory = CountingMemberFactory(pd)
+        val portfolio = SolverPortfolio(
+            problemDefinition = pd,
+            evaluator = SleepingStubEvaluator(pd, 0),
+            members = listOf(SolverMemberTask(longShc, "a"), SolverMemberTask(longShc, "b")),
+            memberEvaluatorFactory = factory,
+            streamNum = 1
+        )
+        // the members are launched as the run is initialized; the first snapshot after that fails the run
+        portfolio.iterationEmitter.attach { _ ->
+            Thread.sleep(200)
+            throw IllegalStateException("observer failed")
+        }
+        assertThrows<IllegalStateException> { portfolio.runAllIterations() }
+        assertTrue(factory.created.get() > 0, "the members were launched")
+        assertEquals(factory.created.get(), factory.released.get(),
+            "every launched member must have finished and released its evaluator when the failed run returns")
+    }
 }
+

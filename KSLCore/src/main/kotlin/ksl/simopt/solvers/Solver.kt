@@ -363,19 +363,24 @@ abstract class Solver(
     private var myRunState: RunState = RunState.NotStarted
 
     /**
-     *  Ends the run, once, with the reason "Ended With An Error": an exception was thrown by its initialization, an
-     *  iteration or its stopping criteria. A later end of the iterations keeps that reason.
-     */
-    /**
-     *  Called once when a run that an exception ended is ended, in place of `mainIterationsEnded`: releases what the
-     *  run holds, such as a runner of member solvers. The default does nothing.
+     *  Called once when a run that an exception ended is ended: releases what the run holds, such as a runner of
+     *  member solvers, which a normal end releases in `mainIterationsEnded`. The default does nothing.
      */
     internal open fun runEndedWithError() {}
 
-    private fun recordRunFailure() {
-        if ((myRunState as? RunState.Ended)?.reason == SolverResult.ENDED_WITH_AN_ERROR) return
-        myRunState = RunState.Ended(SolverResult.ENDED_WITH_AN_ERROR, (myRunState as? RunState.Running)?.criteriaMet ?: false)
+    /**
+     *  Records that an exception ended the run in progress, by its initialization, an iteration, its stopping criteria
+     *  or `mainIterationsEnded`: the reason becomes "Ended With An Error" and the ERROR event is emitted. Only a run
+     *  in progress is so recorded, once; an exception after a run has ended (an observer of its completion) or before
+     *  any run began leaves the record as it is. Ending the process is the caller's.
+     *
+     *  @return true when the failure was recorded now
+     */
+    private fun recordRunFailure(): Boolean {
+        val running = myRunState as? RunState.Running ?: return false
+        myRunState = RunState.Ended(SolverResult.ENDED_WITH_AN_ERROR, running.criteriaMet)
         lifeCycleEmitter.emit(SolverStatus.ERROR)
+        return true
     }
 
     /**
@@ -532,13 +537,20 @@ abstract class Solver(
      */
     @Suppress("unused")
     fun runAllIterations() {
+        // a run stepped with runNextIteration is in progress: running all iterations now is a misuse, which leaves it
+        // as it is
+        if (myMainIterativeProcess.isStepCompleted) {
+            throw IllegalStateException(
+                "Solver $name: a run stepped with runNextIteration() is in progress; end it with endIterations() " +
+                        "before calling runAllIterations()."
+            )
+        }
         try {
             myMainIterativeProcess.run()
         } catch (e: Exception) {
             // Catches anything that breaks the internal loop or initialization; a failure of the solver's own
             // steps was recorded, and the run ended, where it happened
-            recordRunFailure()
-            if (!myMainIterativeProcess.isEnded) {
+            if (recordRunFailure() && !myMainIterativeProcess.isEnded) {
                 try {
                     myMainIterativeProcess.end("ended with an error: ${e.message}")
                 } catch (endFailure: Exception) {
@@ -1214,12 +1226,14 @@ abstract class Solver(
             try {
                 return block()
             } catch (e: Exception) {
-                recordRunFailure()
-                // the run is over: no further step is taken, and a new run starts from a fresh initialization
-                try {
-                    end("ended with an error: ${e.message}")
-                } catch (endFailure: Exception) {
-                    e.addSuppressed(endFailure)
+                // the run in progress is over: no further step is taken, and a new run starts from a fresh
+                // initialization. An exception outside a run (ending a solver that never ran) is only thrown on.
+                if (recordRunFailure()) {
+                    try {
+                        end("ended with an error: ${e.message}")
+                    } catch (endFailure: Exception) {
+                        e.addSuppressed(endFailure)
+                    }
                 }
                 throw e
             }

@@ -193,10 +193,12 @@ class SolverPortfolio @JvmOverloads constructor(
     }
 
     override fun runEndedWithError() {
-        // the run ended with an error: its members are stopped and the runner released, as at a normal end
+        // the run ended with an error: its members are asked to stop, and waited for (each ends after its current
+        // iteration and releases its evaluator), before the runner is released, as at a normal end
         val runner = myRunner ?: return
         try {
             runner.requestStop("the run ended with an error")
+            runCatching { runner.awaitAllMembers() }
         } finally {
             runner.shutdown()
             myRunner = null

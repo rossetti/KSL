@@ -260,6 +260,48 @@ class RandomRestartConcurrentTest {
             ImprovingStubEvaluator(pd, perEvaluationDelayMillis)
     }
 
+    /** A member factory that counts the evaluators it hands out and those released. */
+    private class CountingMemberFactory(
+        private val pd: ProblemDefinition,
+        private val perEvaluationDelayMillis: Long
+    ) : MemberEvaluatorFactoryIfc {
+        val created = java.util.concurrent.atomic.AtomicInteger()
+        val released = java.util.concurrent.atomic.AtomicInteger()
+        override fun createEvaluator(memberIndex: Int): EvaluatorIfc {
+            created.incrementAndGet()
+            return ImprovingStubEvaluator(pd, perEvaluationDelayMillis)
+        }
+        override fun release(memberIndex: Int, evaluator: EvaluatorIfc, reusable: Boolean) {
+            released.incrementAndGet()
+        }
+    }
+
+    @Test
+    @Timeout(30)
+    @DisplayName("a run that ends with an error has stopped and released its restarts when it returns")
+    fun errorEndsConcurrentRestartsBeforeReturning() {
+        val pd = makeLKInventoryModelProblemDefinition()
+        val members = CountingMemberFactory(pd, perEvaluationDelayMillis = 5)
+        val solver = RandomRestartSolver(
+            problemDefinition = pd,
+            evaluator = ImprovingStubEvaluator(pd, 0),
+            solverFactory = shcFactory(pd, iterations = 1_000_000),
+            memberEvaluatorFactory = members,
+            maxNumRestarts = 6,
+            concurrentRestarts = 2,
+            streamNum = 1
+        )
+        // the restarts are launched as the run is initialized; the first snapshot after that fails the run
+        solver.iterationEmitter.attach { _ ->
+            Thread.sleep(200)
+            throw IllegalStateException("observer failed")
+        }
+        assertThrows<IllegalStateException> { solver.runAllIterations() }
+        assertTrue(members.created.get() > 0, "the restarts were launched")
+        assertEquals(members.created.get(), members.released.get(),
+            "every launched restart must have finished and released its evaluator when the failed run returns")
+    }
+
     @Test
     @Timeout(30)
     @DisplayName("stopIterations on the outer solver ends in-flight restarts promptly")

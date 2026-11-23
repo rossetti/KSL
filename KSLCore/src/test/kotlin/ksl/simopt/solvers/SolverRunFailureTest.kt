@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  *  A solver run that an exception ends is recorded as "Ended With An Error", whichever way it is run, and the reason
@@ -211,6 +212,43 @@ class SolverRunFailureTest {
         assertEquals(SolverResult.ENDED_WITH_AN_ERROR, reason(solver))
         assertEquals(1, solver.errorHookCalls)
         assertEquals(0, solver.endedNormally)
+    }
+
+    @Test
+    @DisplayName("runAllIterations during a stepped run is a misuse: the stepped run goes on")
+    fun runAllDuringASteppedRunIsAMisuse() {
+        val solver = HookSolver(failIn = null)
+        solver.initialize()
+        solver.runNextIteration()
+        assertFailsWith<IllegalStateException> { solver.runAllIterations() }
+        assertEquals(0, solver.errorHookCalls)
+        solver.runNextIteration()
+        solver.endIterations()
+        assertEquals(SolverResult.MAXIMUM_ITERATIONS_REACHED, reason(solver))
+    }
+
+    @Test
+    @DisplayName("an observer failing on a run's completion does not make the run an error")
+    fun completedObserverFailureLeavesTheReason() {
+        val solver = HookSolver(failIn = null)
+        val statuses = mutableListOf<SolverStatus>()
+        solver.lifeCycleEmitter.attach { status ->
+            statuses.add(status)
+            if (status == SolverStatus.COMPLETED) throw IllegalStateException("observer failed")
+        }
+        assertFailsWith<IllegalStateException> { solver.runAllIterations() }
+        assertEquals(SolverResult.MAXIMUM_ITERATIONS_REACHED, reason(solver))
+        assertFalse(SolverStatus.ERROR in statuses)
+        assertEquals(0, solver.errorHookCalls)
+    }
+
+    @Test
+    @DisplayName("ending a solver that never ran, when its end step fails, does not record a run")
+    fun endingANeverRunSolverRecordsNoRun() {
+        val solver = HookSolver(failIn = "end")
+        assertFailsWith<IllegalStateException> { solver.endIterations() }
+        assertTrue(solver.solverResult is SolverResult.NotExecuted)
+        assertEquals(0, solver.errorHookCalls)
     }
 }
 
