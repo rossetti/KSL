@@ -2501,6 +2501,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 entity.state.schedule()
                 //logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} scheduling process $this to start at time ${time + timeUntilActivation}" }
                 val evt = myActivationAction.schedule(timeUntilActivation, this, priority)
+                myActivationEvent = evt
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} scheduling process $this to start at time ${time + timeUntilActivation} : Event : event_id = ${evt.id}" }
                 return evt
             }
@@ -2519,6 +2520,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              * first time.
              */
             private fun activateProcess() {
+                myActivationEvent = null
                 myPendingProcess = null
                 myPendingResume = null
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} activating and running process, ($this)" }
@@ -2554,6 +2556,22 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              */
             internal fun terminate(afterTermination: ((entity: Entity) -> Unit)? = null) {
                 state.terminate(afterTermination)
+            }
+
+            /** The event that will start this process, while it is scheduled and has not started. */
+            private var myActivationEvent: KSLEvent<KSLProcess>? = null
+
+            /**
+             *  Cancels the scheduled start of this process, which has not started: it stays created, and its
+             *  entity is left with no process, as at the end of one. Used when the process that called it ends
+             *  before it starts.
+             */
+            internal fun cancelActivation() {
+                val event = myActivationEvent ?: return
+                event.cancel = true
+                myActivationEvent = null
+                if (myPendingProcess === this) myPendingProcess = null
+                entity.state.processEnded()
             }
 
             @Deprecated(
@@ -4550,6 +4568,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                                 // since the called process is suspended, it will be in the suspendedEntities list
                                 // thus terminated entities may be in the suspendedEntities list
                                 calledProcess!!.terminate()
+                            } else if (calledProcess!!.isCreated) {
+                                // not started yet: its start is cancelled, so that it does not run with no one
+                                // waiting for it
+                                calledProcess!!.callingProcess = null
+                                calledProcess!!.cancelActivation()
                             }
                             calledProcess = null
                         }
