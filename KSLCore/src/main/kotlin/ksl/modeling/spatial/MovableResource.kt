@@ -234,6 +234,12 @@ open class MovableResource @JvmOverloads constructor(
         var returningHome : Boolean = false
             private set
 
+        override fun initialize() {
+            super.initialize()
+            // a return home that the previous replication's end cut short is not carried into this one
+            returningHome = false
+        }
+
         fun sendToHomeBase() {
             if ((homeBase != null) && !returningHome) {
                 val driver = Driver()
