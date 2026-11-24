@@ -2,19 +2,16 @@ package ksl.simopt.solvers.algorithms
 
 import ksl.examples.general.simopt.BuildLKModel
 import ksl.examples.general.simopt.makeLKInventoryModelProblemDefinition
-import ksl.simopt.cache.SolutionCacheIfc
-import ksl.simopt.evaluator.EstimatedResponse
-import ksl.simopt.evaluator.EvaluationRequest
 import ksl.simopt.evaluator.Evaluator
 import ksl.simopt.evaluator.EvaluatorIfc
-import ksl.simopt.evaluator.ModelInputs
 import ksl.simopt.evaluator.ParallelEvaluationOptions
-import ksl.simopt.evaluator.Solution
 import ksl.simopt.problem.InputMap
 import ksl.simopt.problem.ProblemDefinition
 import ksl.simopt.solvers.Solver
 import ksl.simopt.solvers.concurrent.ConcurrentRunOptions
 import ksl.simopt.solvers.concurrent.ConfirmationOptions
+import ksl.simopt.solvers.concurrent.CountingMemberFactory
+import ksl.simopt.solvers.concurrent.ImprovingStubEvaluator
 import ksl.simopt.solvers.concurrent.MemberEvaluatorFactoryIfc
 import ksl.simopt.solvers.concurrent.PooledMemberEvaluatorFactory
 import ksl.simopt.solvers.concurrent.SolverFactoryIfc
@@ -229,51 +226,12 @@ class RandomRestartConcurrentTest {
     // ── Stop propagation through the outer solver ─────────────────────────────
 
     /** Simulation-free evaluator with strictly improving values (never self-stops). */
-    private class ImprovingStubEvaluator(
-        private val pd: ProblemDefinition,
-        private val perEvaluationDelayMillis: Long
-    ) : EvaluatorIfc {
-        override var totalEvaluatorCalls: Int = 0
-        override var totalDesignPointsEvaluated: Int = 0
-        override var totalOracleReplications: Int = 0
-        override var totalCachedReplications: Int = 0
-        override val cache: SolutionCacheIfc? = null
-        override fun evaluate(evaluationRequest: EvaluationRequest): Map<ModelInputs, Solution> {
-            if (perEvaluationDelayMillis > 0) Thread.sleep(perEvaluationDelayMillis)
-            totalEvaluatorCalls++
-            return evaluationRequest.modelInputs.associateWith { mi ->
-                Solution(
-                    pd.toInputMap(mi.inputs.toMutableMap()),
-                    EstimatedResponse(OBJ_FN, -totalEvaluatorCalls.toDouble(), 1e-12, mi.numReplications.toDouble()),
-                    emptyList(),
-                    totalEvaluatorCalls
-                )
-            }
-        }
-    }
-
     private class StubMemberFactory(
         private val pd: ProblemDefinition,
         private val perEvaluationDelayMillis: Long
     ) : MemberEvaluatorFactoryIfc {
         override fun createEvaluator(memberIndex: Int): EvaluatorIfc =
             ImprovingStubEvaluator(pd, perEvaluationDelayMillis)
-    }
-
-    /** A member factory that counts the evaluators it hands out and those released. */
-    private class CountingMemberFactory(
-        private val pd: ProblemDefinition,
-        private val perEvaluationDelayMillis: Long
-    ) : MemberEvaluatorFactoryIfc {
-        val created = java.util.concurrent.atomic.AtomicInteger()
-        val released = java.util.concurrent.atomic.AtomicInteger()
-        override fun createEvaluator(memberIndex: Int): EvaluatorIfc {
-            created.incrementAndGet()
-            return ImprovingStubEvaluator(pd, perEvaluationDelayMillis)
-        }
-        override fun release(memberIndex: Int, evaluator: EvaluatorIfc, reusable: Boolean) {
-            released.incrementAndGet()
-        }
     }
 
     @Test
@@ -293,7 +251,7 @@ class RandomRestartConcurrentTest {
         )
         // the restarts are launched as the run is initialized; the first snapshot after that fails the run
         solver.iterationEmitter.attach { _ ->
-            Thread.sleep(200)
+            members.awaitFirstCreated()
             throw IllegalStateException("observer failed")
         }
         assertThrows<IllegalStateException> { solver.runAllIterations() }

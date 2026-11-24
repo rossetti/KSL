@@ -386,6 +386,27 @@ abstract class Solver(
         return true
     }
 
+    /** True once a run has been ended by an error. */
+    private val runEndedWithAnError: Boolean
+        get() = (myRunState as? RunState.Ended)?.reason == SolverResult.ENDED_WITH_AN_ERROR
+
+    /**
+     *  Ends the run in progress that [failure] broke: records it, ends the iterative process (a failure thrown while
+     *  ending is attached to [failure]), then announces it. A failure outside a run (ending a solver that never ran)
+     *  changes nothing here; it is only thrown on by the caller.
+     */
+    private fun failRun(failure: Throwable) {
+        if (!recordRunFailure(failure)) return
+        if (!myMainIterativeProcess.isEnded) {
+            try {
+                myMainIterativeProcess.end(ENDED_WITH_ERROR_MESSAGE)
+            } catch (endFailure: Throwable) {
+                attachEndFailure(failure, endFailure)
+            }
+        }
+        announceRunFailure(failure)
+    }
+
     /** Attaches [endFailure], thrown while ending a run that [failure] ended, to it; never to itself. */
     private fun attachEndFailure(failure: Throwable, endFailure: Throwable) {
         if (endFailure !== failure) failure.addSuppressed(endFailure)
@@ -578,16 +599,7 @@ abstract class Solver(
         } catch (e: Throwable) {
             // Catches anything that breaks the internal loop or initialization; a failure of the solver's own
             // steps was recorded, and the run ended, where it happened
-            if (recordRunFailure(e)) {
-                if (!myMainIterativeProcess.isEnded) {
-                    try {
-                        myMainIterativeProcess.end(ENDED_WITH_ERROR_MESSAGE)
-                    } catch (endFailure: Throwable) {
-                        attachEndFailure(e, endFailure)
-                    }
-                }
-                announceRunFailure(e)
-            }
+            failRun(e)
             // Re-throw so the framework user knows their run failed.
             throw e
         }
@@ -636,7 +648,7 @@ abstract class Solver(
     @Suppress("unused")
     fun endIterations(msg: String? = null) {
         // a run an error ended is over already
-        if ((myRunState as? RunState.Ended)?.reason == SolverResult.ENDED_WITH_AN_ERROR && myMainIterativeProcess.isEnded) return
+        if (runEndedWithAnError && myMainIterativeProcess.isEnded) return
         // a halt only if the run could have gone on: a stepped run that used every iteration, or reached its time
         // limit, and is then ended was not cut short
         val running = myRunState as? RunState.Running
@@ -1216,8 +1228,7 @@ abstract class Solver(
 
             // 1. Return the informative "NotExecuted" state if no work has been done
             // a run an error ended reports the error, however early it came
-            val endedWithError = (myRunState as? RunState.Ended)?.reason == SolverResult.ENDED_WITH_AN_ERROR
-            if (!endedWithError && iterationCounter == 0 && evaluator.totalEvaluatorCalls == 0) {
+            if (!runEndedWithAnError && iterationCounter == 0 && evaluator.totalEvaluatorCalls == 0) {
                 return SolverResult.NotExecuted(sName, pName)
             }
 
@@ -1258,15 +1269,8 @@ abstract class Solver(
                 return block()
             } catch (e: Throwable) {
                 // the run in progress is over: no further step is taken, and a new run starts from a fresh
-                // initialization. An exception outside a run (ending a solver that never ran) is only thrown on.
-                if (recordRunFailure(e)) {
-                    try {
-                        end(ENDED_WITH_ERROR_MESSAGE)
-                    } catch (endFailure: Throwable) {
-                        attachEndFailure(e, endFailure)
-                    }
-                    announceRunFailure(e)
-                }
+                // initialization
+                failRun(e)
                 throw e
             }
         }
@@ -1349,7 +1353,7 @@ abstract class Solver(
         }
 
         override fun endIterations() {
-            if ((myRunState as? RunState.Ended)?.reason == SolverResult.ENDED_WITH_AN_ERROR) {
+            if (runEndedWithAnError) {
                 // the run ended with an error: its reason stands, and it is not completed as a normal run is; what it
                 // holds is released
                 try {
@@ -1388,7 +1392,6 @@ abstract class Solver(
 
         /** The message an iterative process is ended with when an exception ended its run. */
         private const val ENDED_WITH_ERROR_MESSAGE = "ended with an error"
-
 
         /**
          *  Many algorithms compare solutions. This factor serves as the default precision

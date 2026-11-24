@@ -49,17 +49,21 @@ class SolverRunFailureTest {
             error("This solver does not request evaluations")
     }
 
-    /** A solver whose iterations evaluate nothing; with [failAt] its iteration of that number throws. */
-    private class StepSolver(private val failAt: Int?, maximum: Int = 3) : Solver(
+    /** A solver whose iterations evaluate nothing and stay at the starting point; each test supplies its iteration. */
+    private abstract class QuietSolver(maximum: Int) : Solver(
         problemDefinition = ProblemDefinition(
             modelIdentifier = "NoSimulation", objFnResponseName = "cost", inputNames = listOf("x")
         ).also { it.inputVariable("x", Interval(0.0, 1.0)) },
         evaluator = NoEvaluations(), maximumIterations = maximum, replicationsPerEvaluation = 2
     ) {
-        var criteriaCalls = 0
         override fun initializeIterations() {}
         override fun startingPoint(): InputMap = currentPoint
         override fun nextPoint(): InputMap = currentPoint
+    }
+
+    /** A solver whose iterations evaluate nothing; with [failAt] its iteration of that number throws. */
+    private class StepSolver(private val failAt: Int?, maximum: Int = 3) : QuietSolver(maximum) {
+        var criteriaCalls = 0
         override fun mainIteration() {
             if (iterationCounter == failAt) throw IllegalStateException("iteration $iterationCounter failed")
         }
@@ -144,15 +148,7 @@ class SolverRunFailureTest {
     @DisplayName("a full run after one ended by an error starts clean, and ends normally")
     fun rerunAfterAFailureStartsClean() {
         var fail = true
-        val solver = object : Solver(
-            problemDefinition = ProblemDefinition(
-                modelIdentifier = "NoSimulation", objFnResponseName = "cost", inputNames = listOf("x")
-            ).also { it.inputVariable("x", Interval(0.0, 1.0)) },
-            evaluator = NoEvaluations(), maximumIterations = 3, replicationsPerEvaluation = 2
-        ) {
-            override fun initializeIterations() {}
-            override fun startingPoint(): InputMap = currentPoint
-            override fun nextPoint(): InputMap = currentPoint
+        val solver = object : QuietSolver(maximum = 3) {
             override fun mainIteration() {
                 if (fail && iterationCounter == 2) throw IllegalStateException("iteration 2 failed")
             }
@@ -166,19 +162,12 @@ class SolverRunFailureTest {
     }
 
     /** A solver whose iterations evaluate nothing, failing where [failIn] says, counting the error hook's calls. */
-    private class HookSolver(var failIn: String?) : Solver(
-        problemDefinition = ProblemDefinition(
-            modelIdentifier = "NoSimulation", objFnResponseName = "cost", inputNames = listOf("x")
-        ).also { it.inputVariable("x", Interval(0.0, 1.0)) },
-        evaluator = NoEvaluations(), maximumIterations = 2, replicationsPerEvaluation = 2
-    ) {
+    private class HookSolver(var failIn: String?) : QuietSolver(maximum = 2) {
         var errorHookCalls = 0
         var endedNormally = 0
         override fun initializeIterations() {
             if (failIn == "initialize") throw IllegalStateException("initialization failed")
         }
-        override fun startingPoint(): InputMap = currentPoint
-        override fun nextPoint(): InputMap = currentPoint
         override fun mainIteration() {}
         override fun mainIterationsEnded() {
             if (failIn == "end") throw IllegalStateException("the end of the run failed")
@@ -268,15 +257,7 @@ class SolverRunFailureTest {
     @Test
     @DisplayName("an error that is not an exception ends the run as an exception does")
     fun nonExceptionErrorIsRecorded() {
-        val solver = object : Solver(
-            problemDefinition = ProblemDefinition(
-                modelIdentifier = "NoSimulation", objFnResponseName = "cost", inputNames = listOf("x")
-            ).also { it.inputVariable("x", Interval(0.0, 1.0)) },
-            evaluator = NoEvaluations(), maximumIterations = 2, replicationsPerEvaluation = 2
-        ) {
-            override fun initializeIterations() {}
-            override fun startingPoint(): InputMap = currentPoint
-            override fun nextPoint(): InputMap = currentPoint
+        val solver = object : QuietSolver(maximum = 2) {
             override fun mainIteration() { TODO("not written yet") }
         }
         assertFailsWith<NotImplementedError> { solver.runAllIterations() }
@@ -287,15 +268,7 @@ class SolverRunFailureTest {
     @Test
     @DisplayName("a run ended by an interrupt leaves the thread interrupted")
     fun interruptIsRestored() {
-        val solver = object : Solver(
-            problemDefinition = ProblemDefinition(
-                modelIdentifier = "NoSimulation", objFnResponseName = "cost", inputNames = listOf("x")
-            ).also { it.inputVariable("x", Interval(0.0, 1.0)) },
-            evaluator = NoEvaluations(), maximumIterations = 2, replicationsPerEvaluation = 2
-        ) {
-            override fun initializeIterations() {}
-            override fun startingPoint(): InputMap = currentPoint
-            override fun nextPoint(): InputMap = currentPoint
+        val solver = object : QuietSolver(maximum = 2) {
             // as a blocking wait does when its thread is interrupted: the flag is cleared and the exception thrown
             override fun mainIteration() { throw InterruptedException("interrupted while waiting") }
         }
@@ -312,15 +285,7 @@ class SolverRunFailureTest {
     @DisplayName("an interrupt that ends a run is restored before the run's ending, so it ends the waits there too")
     fun interruptIsRestoredBeforeTheEnding() {
         var interruptedAtEnding = false
-        val solver = object : Solver(
-            problemDefinition = ProblemDefinition(
-                modelIdentifier = "NoSimulation", objFnResponseName = "cost", inputNames = listOf("x")
-            ).also { it.inputVariable("x", Interval(0.0, 1.0)) },
-            evaluator = NoEvaluations(), maximumIterations = 2, replicationsPerEvaluation = 2
-        ) {
-            override fun initializeIterations() {}
-            override fun startingPoint(): InputMap = currentPoint
-            override fun nextPoint(): InputMap = currentPoint
+        val solver = object : QuietSolver(maximum = 2) {
             override fun mainIteration() { throw InterruptedException("interrupted while waiting") }
             override fun runEndedWithError() { interruptedAtEnding = Thread.currentThread().isInterrupted }
         }

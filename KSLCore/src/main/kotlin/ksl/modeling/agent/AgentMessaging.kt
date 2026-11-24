@@ -232,7 +232,7 @@ internal class MessageRegistration<M : AgentMessage>(
         waiter.result = message
         val claimed = claimWait(message, ResumeSource.MAILBOX, ProcessModel.RESUME_PRIORITY)
         check(claimed) { "A reopened wait on the mailbox of ${mailbox.owner} was already claimed." }
-        mailbox.announceConsumed(message)
+        mailbox.notifyConsumed(message)
     }
 
     override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {

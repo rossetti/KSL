@@ -3236,13 +3236,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 suspensionName: String?
             ): Allocation {
                 val amountNeeded = request.amountRequested
-                if (request.passedAllocation == null && !request.decidesOnResume) {
-                    // waits on while the promise cannot be taken, and stops as soon as an allocation is passed, or
-                    // when a resume finds the request moved
-                    waitUntilPromiseHonoured(request) {
-                        request.passedAllocation != null || request.myResource.canAllocate(amountNeeded)
-                    }
-                }
+                // waits on while the promise cannot be taken, and stops as soon as an allocation is passed (its units
+                // are allocated, so there is nothing to choose), or when a resume finds the request moved (it decides
+                // at its new resource, below)
+                waitUntilPromiseHonoured(
+                    request,
+                    settled = { request.decidesOnResume || request.passedAllocation != null }
+                ) { request.myResource.canAllocate(amountNeeded) }
                 if (request.decidesOnResume) {
                     // moved to another resource in the instant it was woken: it decides there as one arriving would
                     request.decidesOnResume = false
@@ -3309,18 +3309,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  A seize with a time limit passes [rewait], which waits again with the time left in place of the
              *  bare suspend; when it answers false, the time ran out and this returns false.
              *
-             *  @return true when what was promised can be taken; false only when [rewait] answered false
+             *  A caller whose request can be settled some other way passes [settled]; it is asked before each
+             *  wait, and when it holds, this returns true for the caller to finish the request.
+             *
+             *  @return true when what was promised can be taken, or [settled] holds; false only when [rewait]
+             *  answered false
              */
             private suspend fun waitUntilPromiseHonoured(
                 request: Request,
                 rewait: (suspend ProcessCoroutine.() -> Boolean)? = null,
+                settled: () -> Boolean = { false },
                 canAllocateNow: () -> Boolean
             ): Boolean {
                 while (true) {
-                    // a preemptor moved in the instant it was woken decides at its new resource (its caller does), and
-                    // one passed its allocation takes it: its units are allocated, so there is nothing to choose
-                    if (request.decidesOnResume) return true
-                    if ((request as? ResourceRequest)?.passedAllocation != null) return true
+                    if (settled()) return true
                     val promises = request.promises
                     // nothing promised to a request the library woke (or moved while woken): the units are taken only
                     // if its queue would choose it now, as an arriving seize's. A resume the model asks for itself
@@ -3348,8 +3350,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // What was promised went away, but something else may be free now, such as another member of a
                     // pool. The release that freed it has already offered it, so waiting would strand the request
                     // beside it until the next release: take it now instead. A seize trigger wins its reopened wait
-                    // again, provisionally, so the take settles it.
-                    if (canAllocateNow() && chosen()) {
+                    // again, provisionally, so the take settles it. Handing the withdrawn units back can also settle
+                    // the request (a preemptor may be passed its allocation), so that is asked again here.
+                    if ((settled() || canAllocateNow()) && chosen()) {
                         seizeRegistration?.winAgain()
                         return true
                     }

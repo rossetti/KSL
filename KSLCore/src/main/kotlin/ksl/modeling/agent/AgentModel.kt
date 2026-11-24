@@ -432,7 +432,8 @@ open class AgentModel(
             for (o in observers.toList()) o.onMessageDelivered(message, sz)
         }
 
-        private fun notifyConsumed(message: M) {
+        /** Tells the observers that [message] was consumed; `takeUnannounced`'s caller calls it once its taking is settled. */
+        internal fun notifyConsumed(message: M) {
             if (observers.isEmpty()) return
             val sz = pending.size
             for (o in observers.toList()) o.onMessageConsumed(message, sz)
@@ -518,7 +519,7 @@ open class AgentModel(
 
         /**
          *  Removes and returns the first pending message matching [predicate], or null, without telling the
-         *  observers: the caller tells them (`announceConsumed`) once the taking is settled, so that an observer
+         *  observers: the caller tells them (`notifyConsumed`) once the taking is settled, so that an observer
          *  acting on the notice sees the receiver's wait already ended.
          */
         internal fun takeUnannounced(predicate: (M) -> Boolean): M? {
@@ -526,12 +527,6 @@ open class AgentModel(
             if (idx < 0) return null
             return pending.removeAt(idx)
         }
-
-        /** Tells the observers that [message], taken by `takeUnannounced`, was consumed. */
-        internal fun announceConsumed(message: M) {
-            notifyConsumed(message)
-        }
-
         /**
          *  Register a [MailboxObserver] to receive notifications on
          *  every delivery and consumption.

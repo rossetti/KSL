@@ -35,7 +35,16 @@ import kotlin.test.assertEquals
  */
 class MovedPreemptorTest {
 
-    private class Shop(model: Model, val newcomerThroughPool: Boolean) : ProcessModel(model, "MovedPreemptorShop") {
+    /**
+     *  With [breakPromise], the source holder fails Source as it releases it and repairs it 1 later, so that Urgent's
+     *  promise breaks and Urgent is moved only when the repair wakes it again.
+     */
+    private class Shop(
+        model: Model,
+        val newcomerThroughPool: Boolean,
+        val newcomerDelay: Double = 2.0,
+        val breakPromise: Boolean = false
+    ) : ProcessModel(model, "MovedPreemptorShop") {
         val sourceQueue = RequestQ(this, "SourceQueue")
         val source = ResourceWithQ(this, "Source", capacity = 2, queue = sourceQueue)
         val target = ResourceWithQ(this, "Target", capacity = 2)
@@ -65,7 +74,14 @@ class MovedPreemptorTest {
                 val a = seize(source, amountNeeded = 2)
                 delay(1.0)
                 release(a)
-                // the release completed the urgent preemptor's reservation and woke it; it has not resumed yet
+                if (breakPromise) {
+                    // Urgent was woken by the release; the failure breaks its promise before it resumes
+                    source.fail()
+                    delay(1.0)
+                    source.repair()
+                }
+                // the release (or the repair) completed the urgent preemptor's reservation and woke it; it has not
+                // resumed yet
                 urgent.reroute()
                 freeAfterMove = target.numAvailableUnits
             }
@@ -81,7 +97,7 @@ class MovedPreemptorTest {
         private val newcomer = object : Entity("Newcomer") {
             init { priority = 5 }
             val work = process {
-                delay(2.0)
+                delay(newcomerDelay)
                 if (newcomerThroughPool) {
                     val a = seize(targetPool)
                     newcomerStart = time
@@ -147,68 +163,7 @@ class MovedPreemptorTest {
     @DisplayName("a preemptor woken again after a broken promise and then moved decides at the new resource")
     fun movedAfterABrokenPromiseDecidesAtTheNewResource() {
         val model = Model("MovedAfterBrokenPromise", autoCSVReports = false)
-        val shop = object : ProcessModel(model, "BrokenPromiseShop") {
-            val sourceQueue = RequestQ(this, "SourceQueue")
-            val source = ResourceWithQ(this, "Source", capacity = 2, queue = sourceQueue)
-            val target = ResourceWithQ(this, "Target", capacity = 2)
-            val targetPool = ResourcePoolWithQ(this, listOf(target), name = "TargetPool")
-            var urgentStart = Double.NaN
-            var newcomerStart = Double.NaN
-            val urgent = object : Entity("Urgent") {
-                init { priority = 1 }
-                val work = process {
-                    delay(0.1)
-                    val a = preempt(source, amountNeeded = 2, rule = InterruptRule.FINISH)
-                    urgentStart = time
-                    delay(1.0)
-                    release(a)
-                }
-
-                fun reroute() {
-                    val request = sourceQueue.peekNext()!! as ResourceRequest
-                    moveRequestToResource(request, sourceQueue, target, RELEASE_PRIORITY)
-                }
-            }
-            val sourceHolder = object : Entity("SourceHolder") {
-                init { priority = 10 }
-                val work = process {
-                    val a = seize(source, amountNeeded = 2)
-                    delay(1.0)
-                    release(a)
-                    // Urgent was woken by the release; the failure breaks its promise before it resumes
-                    source.fail()
-                    delay(1.0)
-                    source.repair()
-                    // the repair completed Urgent's reservation again and woke it; it has not resumed yet
-                    urgent.reroute()
-                }
-            }
-            val targetHolder = object : Entity("TargetHolder") {
-                init { priority = 10 }
-                val work = process {
-                    val a = seize(target)
-                    delay(4.0)
-                    release(a)
-                }
-            }
-            val newcomer = object : Entity("Newcomer") {
-                init { priority = 5 }
-                val work = process {
-                    delay(3.0)
-                    val a = seize(targetPool)
-                    newcomerStart = time
-                    delay(10.0)
-                    release(a)
-                }
-            }
-
-            override fun initialize() {
-                activate(sourceHolder.work)
-                activate(targetHolder.work)
-                activate(urgent.work)
-                activate(newcomer.work)
-            }
-        }
+        val shop = Shop(model, newcomerThroughPool = true, newcomerDelay = 3.0, breakPromise = true)
         model.lengthOfReplication = 30.0
         model.simulate()
         assertEquals(4.0, shop.urgentStart)

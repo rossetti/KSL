@@ -130,7 +130,6 @@ class ConcurrentSolverRunner(
     /**
      * Blocks until every member completes and returns all results in member order.
      */
-    @Suppress("unused")
     fun awaitAllMembers(): List<SolverMemberResult> {
         val deferred = checkNotNull(myDeferredResults) { "launchAll() must be called before awaiting" }
         return runBlocking { deferred.awaitAll() }
@@ -151,6 +150,28 @@ class ConcurrentSolverRunner(
         }
         for (solver in myLiveSolvers.values) {
             runCatching { solver.stopIterations(msg) }
+        }
+    }
+
+    /**
+     * Ends the members of a run that failed, as a normal end does: asks them to stop, waits for each to end after its
+     * current iteration and release its evaluator, then shuts the runner down. A member's own failure is not thrown,
+     * since the run's error is the one being reported; an interrupt ends the wait and is kept on the calling thread.
+     *
+     * @param msg a message describing why the run is stopping
+     */
+    internal fun stopAwaitAndShutdown(msg: String) {
+        try {
+            requestStop(msg)
+            try {
+                awaitAllMembers()
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+            } catch (e: Throwable) {
+                // a member's failure is its own; the run's error is the one being thrown
+            }
+        } finally {
+            shutdown()
         }
     }
 
