@@ -14868,7 +14868,7 @@ protected final class ksl/modeling/spatial/MovableResource$HomeBaseDriver : ksl/
 	public final fun sendToHomeBase ()V
 }
 
-public final class ksl/modeling/spatial/MovableResource$HomeBaseDriver$Driver : ksl/modeling/entity/ProcessModel$Entity {
+public final class ksl/modeling/spatial/MovableResource$HomeBaseDriver$MovableResourceHomeDriver : ksl/modeling/entity/ProcessModel$Entity {
 	public fun <init> (Lksl/modeling/spatial/MovableResource$HomeBaseDriver;)V
 	public final fun getReturnToHomeProcess ()Lksl/modeling/entity/KSLProcess;
 }

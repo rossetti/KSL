@@ -77,7 +77,9 @@ class ProcessStation(
     override val hasOnwardRouting: Boolean
         get() = myNextReceiver !== NotImplementedReceiver
 
-    private inner class Carrier(val item: QObject) : Entity() {
+    // Runs the model's activity, so the animation tools offer it as one of the model's entity types. Named so
+    // that a model's own entity type will not share its name: the inventory and the trace name types by it.
+    private inner class ProcessStationCarrier(val item: QObject) : Entity() {
         val script: KSLProcess = process { activity(item) }
 
         override fun afterRunningProcess(completedProcess: KSLProcess) {
@@ -88,7 +90,7 @@ class ProcessStation(
     override fun receive(arrivingQObject: QObject) {
         arrivingQObject.stationArriveTime = time
         myNumInStation.increment()
-        val carrier = Carrier(arrivingQObject)
+        val carrier = ProcessStationCarrier(arrivingQObject)
         activate(carrier.script)
     }
 

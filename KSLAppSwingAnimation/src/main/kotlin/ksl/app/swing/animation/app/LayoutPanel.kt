@@ -72,7 +72,7 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
     // Object-style rows: the types actually seen animating in the last trace once a run exists (so control-only
     // entities aren't offered), else the structural entity types from the inventory; recomputed on a new run.
     private var styleTypeNames: List<String> = controller.objectStyleTypeNames()
-    private val processNames: List<String> by lazy { controller.inventory.entityTypes.filterNot { it.isInternal }.flatMap { it.processes }.map { it.name }.distinct() }
+    private val processNames: List<String> by lazy { styledProcessNames(controller.inventory) }
     private var styleTableModel: javax.swing.table.AbstractTableModel? = null
     private var procTableModel: javax.swing.table.AbstractTableModel? = null
     private val conveyorListModel = javax.swing.DefaultListModel<String>()
@@ -3027,3 +3027,15 @@ class LayoutPanel(private val controller: AnimationAppController) : JPanel(Borde
         const val HIT_RADIUS_PX = 16.0
     }
 }
+
+/**
+ *  The processes the Process Colors tab offers: those of the model's own entity types that are animated, each
+ *  name once. The library's internal types, and a type or process marked not to be animated, are left out.
+ */
+internal fun styledProcessNames(inventory: ksl.animation.AnimationInventory): List<String> =
+    inventory.entityTypes
+        .filter { !it.isInternal && it.include }
+        .flatMap { it.processes }
+        .filter { it.include }
+        .map { it.name }
+        .distinct()

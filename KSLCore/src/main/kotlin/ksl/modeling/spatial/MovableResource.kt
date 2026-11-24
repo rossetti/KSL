@@ -246,16 +246,17 @@ open class MovableResource @JvmOverloads constructor(
 
         fun sendToHomeBase() {
             if ((homeBase != null) && !returningHome) {
-                val driver = Driver()
+                val driver = MovableResourceHomeDriver()
                 returningHome = true
                 activate(driver.returnToHomeProcess, priority = KSLEvent.VERY_HIGH_PRIORITY)
             }
         }
 
         // The home-base return is internal plumbing, not a domain entity/process — keep it out of the
-        // animation inventory's discovered types/processes (10.8/C6).
+        // animation inventory's discovered types/processes (10.8/C6). The inventory and the trace name entity
+        // types by their simple class name, so the name is one a model's own entity type will not have.
         @KSLAnimatedEntity(include = false)
-        inner class Driver() : Entity() {
+        inner class MovableResourceHomeDriver() : Entity() {
             @KSLAnimatedProcess(include = false)
             val returnToHomeProcess: KSLProcess = process {
                 require(homeBase != null) { "There is no home based defined for ${this@MovableResource.name}" }
