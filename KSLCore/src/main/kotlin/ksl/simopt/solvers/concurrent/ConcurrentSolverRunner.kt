@@ -42,9 +42,10 @@ import kotlin.math.min
  * consumed in member order — so for a fixed seed setup the run's results do not depend
  * on the worker count or thread timing.
  *
- * Failure discipline mirrors the parallel evaluation provider: a member that throws, an
- * exception or an error, yields a failed [SolverMemberResult] carrying the problem's bad
- * solution; sibling members are unaffected. Cooperative cancellation exceptions propagate.
+ * Failure discipline: a member that throws an exception, or an error short of a failing JVM
+ * (a TODO, an assertion), yields a failed [SolverMemberResult] carrying the problem's bad
+ * solution; sibling members are unaffected. Cooperative cancellation exceptions, and a JVM
+ * error (out of memory, a stack overflow), propagate to whoever awaits the member.
  *
  * Thread-safety expectations on shared problem objects: members share the (read-only)
  * problem definition. Its configuration must not be mutated while a run is in flight,
@@ -221,6 +222,9 @@ class ConcurrentSolverRunner(
                 cpuTimeMillis = cpuMillis
             )
         } catch (e: CancellationException) {
+            throw e
+        } catch (e: VirtualMachineError) {
+            // the JVM itself is failing (out of memory, a stack overflow): thrown on to whoever awaits the member
             throw e
         } catch (e: Throwable) {
             // an error (a TODO, an assertion) fails the member as an exception does; and an interrupt its run kept for

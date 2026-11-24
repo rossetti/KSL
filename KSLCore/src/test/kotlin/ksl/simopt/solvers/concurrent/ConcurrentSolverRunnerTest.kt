@@ -246,6 +246,33 @@ class ConcurrentSolverRunnerTest {
         assertEquals(false, interruptedAtRelease[2], "the failed member's thread must not stay interrupted")
     }
 
+    @Test
+    @DisplayName("A member failing with a fatal JVM error is not turned into a failed result: the error is thrown on")
+    fun fatalErrorIsThrownOn() {
+        val pd = makeLKInventoryModelProblemDefinition()
+        val factory = object : MemberEvaluatorFactoryIfc {
+            override fun createEvaluator(memberIndex: Int): EvaluatorIfc = when (memberIndex) {
+                1 -> object : EvaluatorIfc by StubEvaluator(pd) {
+                    override fun evaluate(evaluationRequest: ksl.simopt.evaluator.EvaluationRequest) =
+                        throw StackOverflowError("member 1 overflowed")
+                }
+                else -> StubEvaluator(pd)
+            }
+        }
+        val runner = ConcurrentSolverRunner(
+            problemDefinition = pd,
+            tasks = memberTasks(pd, 2, shcFactory(pd)),
+            evaluatorFactory = factory,
+            numWorkers = 2
+        )
+        runner.launchAll()
+        try {
+            org.junit.jupiter.api.assertThrows<StackOverflowError> { runner.awaitAllMembers() }
+        } finally {
+            runner.shutdown()
+        }
+    }
+
     // ── Stop propagation ──────────────────────────────────────────────────────
 
     @Test
