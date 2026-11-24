@@ -126,6 +126,17 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
         return (numTrials * probOfSuccess * (1.0 - probOfSuccess))
     }
 
+    /**
+     * A loss function at a whole number above the mean, summed over the tail: see `upperTailLoss`. Zero from
+     * the number of trials on, where no outcome is above x.
+     */
+    private fun upperTail(x: Double, order: Int): Double {
+        if (x >= numTrials) return 0.0
+        val n = numTrials
+        val odds = probOfSuccess / (1.0 - probOfSuccess)
+        return upperTailLoss(x, order, pmf(x.toInt() + 1)) { j -> (n - j) / (j + 1.0) * odds }
+    }
+
     override fun invCDF(p: Double): Double {
         return binomialInvCDF(p, numTrials, probOfSuccess, useRecursiveAlgorithm).toDouble()
     }
@@ -142,6 +153,7 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
         if (!isWholeNumber(x)) {
             return interpolatedFirstOrderLoss(this, x)
         }
+        if (x > mean()) return upperTail(x, 1)
         return if (x < 0.0) {
             floor(abs(x)) + mean()
         } else if (x > 0.0) {
@@ -163,6 +175,7 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
             return interpolatedSecondOrderLoss(this, x)
         }
         val mu: Double = mean()
+        if (x > mu) return upperTail(x, 2)
         val g2: Double = 0.5 * (variance() + mu * mu - mu) // 1/2 the 2nd binomial moment
         return if (x < 0.0) {
             var s = 0.0
@@ -196,6 +209,7 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
         if (!isWholeNumber(x)) {
             return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
         }
+        if (x > mean()) return upperTail(x, 3)
         val n = numTrials.toDouble()
         val p = probOfSuccess
         // C(n,3) * p^3, the third binomial moment, zero when there are fewer than 3 trials.

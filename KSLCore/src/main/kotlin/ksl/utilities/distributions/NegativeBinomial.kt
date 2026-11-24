@@ -190,6 +190,7 @@ class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, na
             return interpolatedFirstOrderLoss(this, x)
         }
         val mu = mean()
+        if (x > mu) return upperTail(x, 1)
         return if (x < 0.0) {
             floor(abs(x)) + mu
         } else if (x > 0.0) {
@@ -217,6 +218,7 @@ class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, na
             return interpolatedSecondOrderLoss(this, x)
         }
         val mu = mean()
+        if (x > mu) return upperTail(x, 2)
         val sbm = 0.5 * (variance() + mu * mu - mu) // 1/2 the 2nd binomial moment
         return if (x < 0.0) {
             var s = 0.0
@@ -254,10 +256,18 @@ class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, na
         if (!isWholeNumber(x)) {
             return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
         }
+        if (x > mean()) return upperTail(x, 3)
         val r = this@NegativeBinomial.numSuccesses
         val b = (1.0 - probOfSuccess) / probOfSuccess
         val tbm = r * (r + 1.0) * (r + 2.0) * b * b * b / 6.0
         return accumulatedThirdOrderLoss(this, x, tbm)
+    }
+
+    /** A loss function at a whole number above the mean, summed over the tail: see `upperTailLoss`. */
+    private fun upperTail(x: Double, order: Int): Double {
+        val r = this@NegativeBinomial.numSuccesses
+        val q = 1.0 - probOfSuccess
+        return upperTailLoss(x, order, pmf(x.toInt() + 1)) { j -> (j + r) / (j + 1.0) * q }
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): NegativeBinomialRV {
