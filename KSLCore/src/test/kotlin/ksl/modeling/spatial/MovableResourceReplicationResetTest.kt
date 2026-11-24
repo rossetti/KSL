@@ -105,4 +105,14 @@ class MovableResourceReplicationResetTest {
         assertEquals(listOf(false, false), (yard.seen[2]!![0] as List<*>).take(2))
         assertEquals(listOf(true, true), (yard.seen[2]!![1] as List<*>).take(2))
     }
+
+    @Test
+    @DisplayName("an empty move or a transport left unfinished at a replication's end is not reported at the next")
+    fun movingFlagsAreResetEachReplication() {
+        val yard = run(movesEmptyInFirst = true)
+        // replication 1, at 0.5: moving empty
+        assertEquals(listOf(true, false), (yard.seen[1]!![0] as List<*>).drop(2))
+        // replication 2, at 0.5: neither
+        assertEquals(listOf(false, false), (yard.seen[2]!![0] as List<*>).drop(2))
+    }
 }

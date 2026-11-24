@@ -164,6 +164,10 @@ open class MovableResource @JvmOverloads constructor(
         initializeSpatialElement()
         myLivePosition = mySpatialElement.currentLocation
         towVelocity = null
+        // a journey or a transport the previous replication's end cut short is not carried into this one
+        // (each setter records a time-weighted value, so only one that was left set is written)
+        if (isMovingEmpty) isMovingEmpty = false
+        if (isTransporting) isTransporting = false
     }
 
     override fun initializeSpatialElement() {
