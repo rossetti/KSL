@@ -675,6 +675,9 @@ open class Dispatcher @JvmOverloads constructor(
         // A vehicle standing at the pickup waiting for the load is let go: it finds the task no
         // longer its own and goes on with its round.
         (assignment.task as? TransportTask)?.let { system.releaseVehicleAwaiting(it) }
+        // A vehicle holding at a stop, for a load or for a departure time, is let go too: it finds, as it
+        // wakes, whether the stop is still its own, and boards nothing more for a task that is not.
+        system.releaseVehicleHolding(assignment.vehicle)
     }
 
     /**

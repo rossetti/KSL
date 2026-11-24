@@ -7,6 +7,8 @@ R Agv:AwaitingLoadHoldQ:NumInQ n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
 R Agv:AwaitingLoadHoldQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
 R Agv:AwaitingPickupHoldQ:NumInQ n=20.0 avg=1.7084824556440878 sd=0.5253313465914382 min=1.0600218953375165 max=2.960691840887751
 R Agv:AwaitingPickupHoldQ:TimeInQ n=20.0 avg=67.90663353755855 sd=18.522979833731693 min=46.09643796156865 max=114.02821569042834
+R Agv:DepartureHoldQ:NumInQ n=20.0 avg=0.0 sd=0.0 min=0.0 max=0.0
+R Agv:DepartureHoldQ:TimeInQ n=0.0 avg=NaN sd=NaN min=Infinity max=-Infinity
 R Agv:Dispatcher:TaskQ:NumInQ n=20.0 avg=1.7084824556440878 sd=0.5253313465914382 min=1.0600218953375165 max=2.960691840887751
 R Agv:Dispatcher:TaskQ:TimeInQ n=20.0 avg=67.90663353755855 sd=18.522979833731693 min=46.09643796156865 max=114.02821569042834
 R Agv:Dispatcher:WaitForAssignment n=20.0 avg=55.94861740112295 sd=18.626380994476776 min=33.874424557410215 max=102.29055297533893

@@ -115,6 +115,14 @@ interface StopContextIfc {
         get() = vehicle.spareCapacity
 
     /**
+     * True while this stop is still the vehicle's to serve: false once the task it serves has been cancelled or
+     * taken back from the vehicle, as a line's cycle can be while the vehicle holds here. An action that holds
+     * the vehicle asks this each time it wakes, and stops, boarding nothing more. True when nothing else is known.
+     */
+    val isStillServing: Boolean
+        get() = true
+
+    /**
      * Takes [task]'s load aboard: waits out the loading delay, puts it on the manifest, marks the
      * instant its ride begins, tells the dispatcher the vehicle has possession, and releases the
      * load from its wait.
@@ -320,6 +328,8 @@ data class HoldUntilFull @JvmOverloads constructor(
         with(context) {
             var taken = 0
             while (true) {
+                // the cycle this hold is for may have been cancelled while the vehicle held here
+                if (!isStillServing) break
                 for (ride in here.waitingFor(onwardLocations)) {
                     if (taken >= most || seatsForRiders <= 0) break
                     takeAboard(ride)

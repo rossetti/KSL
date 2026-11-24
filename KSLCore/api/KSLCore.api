@@ -12526,6 +12526,7 @@ public abstract interface class ksl/modeling/fleet/StopContextIfc {
 	public abstract fun getTour ()Lksl/modeling/fleet/Tour;
 	public abstract fun getVehicle ()Lksl/modeling/fleet/FleetVehicle;
 	public abstract fun holdAt (Lksl/modeling/entity/KSLProcessBuilder;Lksl/modeling/fleet/Stop;DLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun isStillServing ()Z
 	public abstract fun setDown (Lksl/modeling/entity/KSLProcessBuilder;Lksl/modeling/fleet/Dispatcher$TransportTask;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun setDown (Lksl/modeling/entity/KSLProcessBuilder;Lksl/modeling/fleet/Stop$Ride;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun takeAboard (Lksl/modeling/entity/KSLProcessBuilder;Lksl/modeling/fleet/Dispatcher$TransportTask;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -12534,6 +12535,7 @@ public abstract interface class ksl/modeling/fleet/StopContextIfc {
 
 public final class ksl/modeling/fleet/StopContextIfc$DefaultImpls {
 	public static fun getSeatsForRiders (Lksl/modeling/fleet/StopContextIfc;)I
+	public static fun isStillServing (Lksl/modeling/fleet/StopContextIfc;)Z
 }
 
 public abstract interface class ksl/modeling/fleet/StopControlIfc {

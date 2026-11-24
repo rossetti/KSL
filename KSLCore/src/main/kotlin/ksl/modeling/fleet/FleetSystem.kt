@@ -228,6 +228,44 @@ abstract class FleetSystem @JvmOverloads constructor(
      */
     internal val awaitingLoadHoldQ = HoldQueue(this, "${this.name}:AwaitingLoadHoldQ")
 
+    /**
+     * Where a vehicle told to depart a stop not before an instant (`StopInstruction.Serve.departNotBefore`)
+     * stands until then. A hold rather than a delay, so that a vehicle whose task is cancelled or taken back
+     * while it stands here is let go at once. Its departure is the same event a delay's end would be: scheduled
+     * as the hold begins, at a delay's priority, resuming the vehicle within it.
+     */
+    internal val departureHoldQ = HoldQueue(this, "${this.name}:DepartureHoldQ")
+
+    /** The event that ends each standing vehicle's hold for a departure time. */
+    private val myDepartureEvents = mutableMapOf<VehicleAgent, ksl.simulation.KSLEvent<VehicleAgent>>()
+
+    /** Schedules the end of [agent]'s hold for a departure at [instant]; it then holds in `departureHoldQ`. */
+    internal fun departAt(agent: VehicleAgent, instant: Double) {
+        myDepartureEvents[agent] = schedule(
+            this::departureDue, instant - time,
+            message = agent, priority = ProcessModel.DELAY_PRIORITY
+        )
+    }
+
+    private fun departureDue(event: ksl.simulation.KSLEvent<VehicleAgent>) {
+        val agent = event.message ?: return
+        myDepartureEvents.remove(agent)
+        if (departureHoldQ.contains(agent)) departureHoldQ.removeAndImmediateResume(agent)
+    }
+
+    /**
+     * Resumes [vehicle] if it is holding at a stop, for a load or for a departure time: called when one of its
+     * commitments is taken back or cancelled. It finds, as it wakes, whether the stop is still its own.
+     */
+    internal fun releaseVehicleHolding(vehicle: FleetVehicle) {
+        val agent = vehicle.agent ?: return
+        if (departureHoldQ.contains(agent)) {
+            myDepartureEvents.remove(agent)?.let { if (it.isScheduled) it.cancel = true }
+            departureHoldQ.removeAndResume(agent)
+        }
+        for (s in stops) if (s.vehiclesHolding.contains(agent)) s.vehiclesHolding.removeAndResume(agent)
+    }
+
     /** Resumes the vehicle, if any, standing at the pickup of [task] waiting for its load. */
     internal fun releaseVehicleAwaiting(task: Dispatcher.TransportTask) {
         val agent = task.vehicleAwaitingLoad?.agent ?: return
@@ -311,7 +349,7 @@ abstract class FleetSystem @JvmOverloads constructor(
 
     private fun switchOwnHoldQueues(option: Boolean) {
         val queues = listOf(
-            awaitingPickupHoldQ, awaitingBoardingHoldQ, inTransitHoldQ, awaitingLoadHoldQ,
+            awaitingPickupHoldQ, awaitingBoardingHoldQ, inTransitHoldQ, awaitingLoadHoldQ, departureHoldQ,
             availabilityQ, dispatcherIdleQ, outOfServiceQ
         )
         for (q in queues) {
@@ -643,6 +681,8 @@ abstract class FleetSystem @JvmOverloads constructor(
         }
         refreshFleetCounts()
         myLastVehicleState.clear()
+        // a departure the last replication's end cut short left its event behind
+        myDepartureEvents.clear()
         for (v in myVehicles) emitVehicleState(v)
     }
 
@@ -1215,9 +1255,14 @@ abstract class FleetSystem @JvmOverloads constructor(
                     // statement about leaving and a vehicle that has not served the stop has not
                     // arrived in any sense that matters. An instant already past holds nothing,
                     // which is what a service running late does.
-                    if (instruction is StopInstruction.Serve && time < instruction.departNotBefore) {
-                        delay(instruction.departNotBefore - time,        // SUSPENDS
-                            suspensionName = "${vehicle.name}:holdingFor:${stop.location}")
+                    // A task cancelled or taken back while the vehicle stands here lets it go at once.
+                    if (instruction is StopInstruction.Serve) {
+                        // woken early when another of its commitments is taken back, it stands again
+                        while (time < instruction.departNotBefore && stillOurs(stop)) {
+                            departAt(this@VehicleAgent, instruction.departNotBefore)
+                            hold(departureHoldQ,                      // SUSPENDS
+                                suspensionName = "${vehicle.name}:holdingFor:${stop.location}")
+                        }
                     }
                     t.advance()
                     // A short turn ends the round here. Whatever it had left is discharged below,
@@ -1329,6 +1374,9 @@ abstract class FleetSystem @JvmOverloads constructor(
 
             override val vehicle: FleetVehicle
                 get() = this@VehicleAgent.vehicle
+
+            override val isStillServing: Boolean
+                get() = stillOurs(stop)
 
             override val onwardLocations: Set<String>
                 get() = if (tour.cyclic) {
