@@ -2042,7 +2042,8 @@ open class Resource @JvmOverloads constructor(
      *
      * Under the IGNORE rule, a decrease that arrives while another is pending must end strictly after it, when the
      * pending one has a finite end; a pending one that lasts until superseded accepts any decrease.
-     * Check against this time before requesting such a change.
+     * Check against this time before requesting such a change. A decrease that waits behind the pending one and
+     * whose duration ends while it still waits is never applied.
      */
     val pendingCapacityChangeEndTime: Double
         get() {
@@ -2849,9 +2850,15 @@ open class Resource @JvmOverloads constructor(
         logger.trace { "$time > Resource: $name, notice $endingChangeNotice ended its duration" }
         if (capacityChangeRule == CapacityChangeRule.IGNORE) {
             // if ending notice is same as current notice, we can stop the change associated with the current notice
-            // if it was not the current, then the ending change notice was previously completed, nothing to do
             if (myCurrentChangeNotice == endingChangeNotice) {
                 startNextWaitingChangeIgnoreRule()
+            } else {
+                // a decrease whose duration ran out while it waited its turn is over: it is never applied. The
+                // capacity it held out of reach can be reached again, so the claimants it blocked are offered the
+                // units. Otherwise the ending change notice was previously completed, and there is nothing to do.
+                if (myWaitingChangeNotices.remove(endingChangeNotice) && !isRunEnded) {
+                    offerFreedUnits(endingChangeNotice.priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "waiting_decrease_ended_resource=$name")
+                }
             }
         } else if (capacityChangeRule == CapacityChangeRule.WAIT) {
             // finished processing the current change notice; start the next one, if any
