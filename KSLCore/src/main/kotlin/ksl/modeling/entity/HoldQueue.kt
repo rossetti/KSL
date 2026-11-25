@@ -99,6 +99,10 @@ class HoldQueue @JvmOverloads constructor(
     /** Removes the entity from the queue and tells it to terminate its process.  The process
      *  that was suspended because the entity was placed in the queue is immediately terminated.
      *
+     *  An entity is in the queue while its process still runs, from when it is placed until the process suspends,
+     *  and the queue's listeners can see it then. A running process cannot be terminated, so this throws, before
+     *  anything is removed; check that the entity's `currentProcess` is not running first.
+     *
      * @param entity the entity to remove from the queue
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue. The default is false.
      */
@@ -106,6 +110,11 @@ class HoldQueue @JvmOverloads constructor(
         entity: ProcessModel.Entity,
         waitStats: Boolean = false
     ) {
+        check(entity.currentProcess?.isRunning != true) {
+            "The entity ${entity.name} in $name cannot be removed and terminated: its process is running now, as " +
+                    "when this is called from code run while it is placed, and a running process cannot be " +
+                    "terminated. Check that the entity's currentProcess is not running first."
+        }
         remove(entity, waitStats)
         entity.terminateProcess()
     }
