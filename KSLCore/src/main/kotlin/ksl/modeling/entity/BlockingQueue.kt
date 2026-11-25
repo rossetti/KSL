@@ -240,6 +240,12 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
      *  that was suspended because the entity's request was placed in the queue is immediately terminated.
      *
+     *  A request is in the queue while its receiver's process still runs, from when it is placed until the
+     *  process suspends: the queue's listeners, and a mailbox observer or allocation listener run in that step (as
+     *  while a wait for the first of several things registers), can see it. A running process cannot be
+     *  terminated, so this throws, before anything is removed; check that the receiver's `currentProcess` is not
+     *  running first.
+     *
      * @param request the request to remove from the queue
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
      * The default is false.
@@ -248,6 +254,12 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         request: ChannelRequest,
         waitStats: Boolean = false
     ) {
+        check(request.receiver.currentProcess?.isRunning != true) {
+            "The request of ${request.receiver.name} at $name cannot be removed and terminated: the receiver's " +
+                    "process is running now, as when this is called from code run while the request is placed, and a " +
+                    "running process cannot be terminated. Check that the receiver's currentProcess is not " +
+                    "running first."
+        }
         myRequestQ.remove(request, waitStats)
         request.receiver.terminateProcess()
         afterRequestLeft(request)

@@ -167,6 +167,11 @@ class RequestQ @JvmOverloads constructor(
      *  free units of what it requested: when the queue has a request selection rule, removing the request the
      *  rule had chosen can let it choose another, which is served at once rather than at the next release.
      *
+     *  A request is in the queue while its entity's process still runs, from when it is placed until the process
+     *  suspends: the queue's listeners, and a mailbox observer or allocation listener run in that step (as while
+     *  a wait for the first of several things registers), can see it. A running process cannot be terminated, so
+     *  this throws, before anything is removed; check that the entity's `currentProcess` is not running first.
+     *
      * @param request the request to remove from the queue
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
      * The default is false.
@@ -177,6 +182,12 @@ class RequestQ @JvmOverloads constructor(
         waitStats: Boolean = false,
         afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null
     ) {
+        check(request.entity.currentProcess?.isRunning != true) {
+            "The request ${request.id} of entity ${request.entity.name} cannot be removed and terminated: the " +
+                    "entity's process is running now, as when this is called from code run while the request is placed, " +
+                    "and a running process cannot be terminated. Check that the entity's currentProcess " +
+                    "is not running first."
+        }
         val withdrawn = request.promises.toMap()
         val offerOn = LinkedHashSet<Resource>(withdrawn.keys)
         offerOn.addAll(membersOf(request.resource))
