@@ -187,14 +187,15 @@ class ResourceAccountingCharacterizationTest {
     }
 
     @Test
-    @DisplayName("a holder terminated in its delay releases its unit, which the waiting request is offered at once")
+    @DisplayName("a holder terminated in its delay releases its unit, which the waiting request is served at once")
     fun holderTerminatedInDelay() {
         val m = runHolders {
             val h = actor("H") { val x = seize(r); delay(100.0); release(x) }
             actor("W") { delay(1.0); val x = seize(r); log.add("W:served@$time"); release(x) }
             at(5.0) { h.terminateProcess(); log.add("after termination busy=${r.numBusy}") }
         }
-        assertEquals(listOf("after termination busy=0", "W:served@5.0"), m.log)
+        // W is served within the termination's release: the unit is allocated to it before the termination returns
+        assertEquals(listOf("after termination busy=1", "W:served@5.0"), m.log)
     }
 
     @Test

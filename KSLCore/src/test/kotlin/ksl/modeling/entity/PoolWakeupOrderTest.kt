@@ -280,16 +280,17 @@ class PoolWakeupOrderTest {
             shift.initialize()
             activate(Holder().work)
             activate(Waiter().work, 1.0)
-            // after the release at 10, before the woken waiter resumes at low priority
+            // after the release at 10 has served the waiter, before it resumes at low priority
             activate(Supervisor().work, 10.0, KSLEvent.MEDIUM_LOW_PRIORITY)
         }
     }
 
     @Test
-    @DisplayName("A woken waiter whose promise cannot be kept waits again rather than failing")
-    fun brokenPromiseWaitsAgain() {
+    @DisplayName("A waiter served at a release holds its unit when its resource goes off shift before it resumes")
+    fun servedWaiterHoldsThroughTheShift() {
         val m = simulate("promiseBroken") { PromiseBroken(it) }
-        assertEquals(20.0, m.servedAt, 1e-9)
+        // served as the holder releases at 10, before the supervisor takes the resource off shift
+        assertEquals(10.0, m.servedAt, 1e-9)
     }
 
     /**

@@ -260,8 +260,8 @@ class FailureInteractionTest {
     }
 
     @Test
-    @DisplayName("a timed seize woken with a promise whose resource fails before it resumes re-waits to its original deadline")
-    fun wokenTimedSeizeWhoseUnitFails() {
+    @DisplayName("a timed seize served at a release holds its unit when the resource fails before it resumes")
+    fun servedTimedSeizeWhoseResourceFails() {
         for (repairAt in listOf(8.0, 20.0)) {
             val (_, m) = run {
                 actor("W") { val a = seize(r); delay(5.0); release(a); r.fail() }
@@ -273,7 +273,9 @@ class FailureInteractionTest {
                 }
                 at(repairAt) { r.repair(); log.add("repaired busy=${r.numBusy}") }
             }
-            val expected = if (repairAt == 8.0) listOf("repaired busy=0", "T got@8.0") else listOf("T timed out@11.0", "repaired busy=0")
+            // T is allocated the unit as W releases it, before the failure: it is served at 5, and under FINISH its
+            // work goes on through the failure; nothing is busy at the repair, whenever it comes
+            val expected = listOf("T got@5.0", "repaired busy=0")
             assertEquals(expected, m.log, "repair at $repairAt")
         }
     }

@@ -126,10 +126,11 @@ class SeizeWithdrawnTraceTest {
         )
     }
 
-    // A seize trigger's win holds once its units are taken, as the entity resumes; the wait's other triggers are
-    // withdrawn then, in the same instant, so the losing seize is withdrawn after the winner is allocated.
+    // A seize trigger wins as its queue serves it: its units are allocated and its claim on the wait is final, so the
+    // wait's other triggers are withdrawn in that step. The resource tells of the allocation once its change is
+    // complete, so in the trace the losing seize is withdrawn just before the winner's allocation, in the same instant.
     @Test
-    @DisplayName("of two seizes in one wait, the one served is allocated and then the other withdrawn")
+    @DisplayName("of two seizes in one wait, the other is withdrawn as the one served is allocated, in the same instant")
     fun losesToAnotherSeize() {
         lateinit var w: ProcessModel.Entity
         val sink = run {
@@ -143,7 +144,7 @@ class SeizeWithdrawnTraceTest {
             }
         }
         assertEquals(
-            listOf("queued Bed in Bed:Q@0.0", "queued Chair in Chair:Q@0.0", "allocated Chair@4.0", "withdrawn Bed from Bed:Q@4.0"),
+            listOf("queued Bed in Bed:Q@0.0", "queued Chair in Chair:Q@0.0", "withdrawn Bed from Bed:Q@4.0", "allocated Chair@4.0"),
             sink.seizesOf(w)
         )
     }

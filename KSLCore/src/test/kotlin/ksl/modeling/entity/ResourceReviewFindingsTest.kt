@@ -118,8 +118,8 @@ class ResourceReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("a rule that chooses requests once two are waiting serves them both when the second arrives, beside free units")
-    fun ruleDependingOnWhatIsQueued() {
+    @DisplayName("a rule sees only the requests not yet served: one that chooses only when two wait serves the first of two")
+    fun ruleSeesOnlyUnservedRequests() {
         val shop = run(2, rule = RequestSelectionRuleIfc { res, q ->
             val mine = q.filter { it.resource == res }
             if (mine.size >= 2) mine else emptyList()
@@ -127,9 +127,9 @@ class ResourceReviewFindingsTest {
             job("E1", 0.0, 1.0)
             job("E2", 1.0, 1.0)
         }
-        // both are served at 1, E1 first by the rule; E2, arriving, takes its units in its own event, so its line may
-        // come before E1's resume
-        assertEquals(setOf("E1 got@1.0", "E2 got@1.0"), shop.log.toSet())
+        // E2's arrival at 1 lets the rule choose both; E1, first, is served and leaves the queue, and the rule, asked
+        // again, sees E2 alone and chooses no one, so E2 waits beside the free unit for good
+        assertEquals(listOf("E1 got@1.0"), shop.log)
     }
 
     @Test

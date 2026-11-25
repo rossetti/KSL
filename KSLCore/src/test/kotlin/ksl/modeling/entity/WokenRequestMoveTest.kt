@@ -29,20 +29,18 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 /**
- *  Moving a request that has already been woken: its resume is on the calendar, so the move must
- *  not schedule another. The move promises the new target's units when it can serve the request,
- *  and the pending resume carries the request there; when the target cannot serve it yet, the
- *  request finds no promise when it resumes and waits on in the new queue. Either way the entity
- *  is resumed once, so its next wait is not cut short.
+ *  A request the library serves is allocated its units at that moment and leaves its queue, so in the instant
+ *  before its entity resumes there is no request left to move: it is served where it was chosen, whatever a model
+ *  tries to do with the queue then. Each kind of request is checked: of a resource, a pool and a movable pool.
  */
 class WokenRequestMoveTest {
 
     enum class Kind { RESOURCE, POOL, MOVABLE_POOL }
 
     /**
-     *  A holder has the source from time 0 to 5; at 5 it releases it, which wakes the mover, and
-     *  at once moves the mover's woken request to the target. The target is free, or held until 8.
-     *  The mover, when served, logs the time, waits 10, logs again and releases.
+     *  A holder has the source from time 0 to 5; at 5 it releases it, which serves the mover, and at once
+     *  looks for the mover's request in the source queue, to move it to the target. The target is free, or held
+     *  until 8. The mover, when served, logs where from and the time, waits 10, logs again and releases.
      */
     private class WokenModel(parent: ModelElement, val kind: Kind, val targetFree: Boolean, val behind: Boolean = false) : ProcessModel(parent, "woken") {
         private val speed = ConstantRV(10.0)
@@ -91,32 +89,32 @@ class WokenRequestMoveTest {
                 entity.currentLocation = locA
                 delay(1.0)
                 when (kind) {
-                    Kind.RESOURCE -> { val a = seize(r1); served(); delay(10.0); log.add("after@$time"); release(a) }
-                    Kind.POOL -> { val a = seize(p1); served(); delay(10.0); log.add("after@$time"); release(a) }
-                    Kind.MOVABLE_POOL -> { val a = seize(f1, requestLocation = locA); served(); delay(10.0); log.add("after@$time"); release(a) }
+                    Kind.RESOURCE -> { val a = seize(r1); served(a.myResource.name); delay(10.0); log.add("after@$time"); release(a) }
+                    Kind.POOL -> { val a = seize(p1); served(a.allocations.single().myResource.name); delay(10.0); log.add("after@$time"); release(a) }
+                    Kind.MOVABLE_POOL -> { val a = seize(f1, requestLocation = locA); served(a.myResource.name); delay(10.0); log.add("after@$time"); release(a) }
                 }
             }
 
-            private fun served() {
-                val busy = when (kind) {
-                    Kind.RESOURCE -> if (r2.numBusy > 0) "target" else "source"
-                    Kind.POOL -> if (p2.numBusy > 0) "target" else "source"
-                    Kind.MOVABLE_POOL -> if (f2.numBusy > 0) "target" else "source"
-                }
-                log.add("served from $busy@$time")
+            /** Logs whether the unit came from the source (R1, RA, T1) or the target. */
+            private fun served(resourceName: String) {
+                val from = if (resourceName in setOf("R1", "RA", "T1")) "source" else "target"
+                log.add("served from $from@$time")
             }
 
-            fun moveWoken() {
-                val request = sourceQ.peekNext()!!
-                log.add("moving woken=${request.resumePending}@$time")
-                when (kind) {
-                    Kind.RESOURCE -> moveRequestToResource(request as ResourceRequest, sourceQ, r2, RESUME_PRIORITY)
-                    Kind.POOL -> moveRequestToResourcePool(
-                        request as ResourcePoolRequest, sourceQ, p2, p2.defaultResourceSelectionRule, RESUME_PRIORITY
-                    )
-                    Kind.MOVABLE_POOL -> moveRequestToMovableResourcePool(
-                        request as MovableResourcePoolRequest, sourceQ, f2, f2.defaultMovableResourceSelectionRule, RESUME_PRIORITY
-                    )
+            /** Looks for this entity's request in the source queue, as a model moving it would, and moves it if found. */
+            fun tryToMove() {
+                val request = sourceQ.firstOrNull { it.entity === this }
+                log.add("mover queued=${request != null}@$time")
+                if (request != null) {
+                    when (kind) {
+                        Kind.RESOURCE -> moveRequestToResource(request as ResourceRequest, sourceQ, r2, RESUME_PRIORITY)
+                        Kind.POOL -> moveRequestToResourcePool(
+                            request as ResourcePoolRequest, sourceQ, p2, p2.defaultResourceSelectionRule, RESUME_PRIORITY
+                        )
+                        Kind.MOVABLE_POOL -> moveRequestToMovableResourcePool(
+                            request as MovableResourcePoolRequest, sourceQ, f2, f2.defaultMovableResourceSelectionRule, RESUME_PRIORITY
+                        )
+                    }
                 }
             }
         }
@@ -137,7 +135,7 @@ class WokenRequestMoveTest {
         override fun initialize() {
             log.clear()
             mover = Mover()
-            activate(Holder(target = false, hold = 5.0) { mover.moveWoken() }.p)
+            activate(Holder(target = false, hold = 5.0) { mover.tryToMove() }.p)
             if (!targetFree) activate(Holder(target = true, hold = 8.0).p)
             activate(mover.p)
             if (behind) activate(Behind().p)
@@ -154,27 +152,22 @@ class WokenRequestMoveTest {
     }
 
     @Test
-    @DisplayName("a woken request moved to a target with units free is served there by its one resume")
-    fun targetFree() {
-        for (kind in Kind.entries) {
-            assertEquals(listOf("moving woken=true@5.0", "served from target@5.0", "after@15.0"), run(kind, targetFree = true), "$kind")
+    @DisplayName("a request served at a release is out of its queue at once and served where it was chosen, the target free or busy")
+    fun servedRequestIsNotMoved() {
+        for (kind in Kind.entries) for (targetFree in listOf(true, false)) {
+            assertEquals(
+                listOf("mover queued=false@5.0", "served from source@5.0", "after@15.0"), run(kind, targetFree),
+                "$kind, target free = $targetFree"
+            )
         }
     }
 
     @Test
-    @DisplayName("a woken request moved to a busy target finds no promise when it resumes and waits there")
-    fun targetBusy() {
-        for (kind in Kind.entries) {
-            assertEquals(listOf("moving woken=true@5.0", "served from target@8.0", "after@18.0"), run(kind, targetFree = false), "$kind")
-        }
-    }
-
-    @Test
-    @DisplayName("a woken request moved away leaves its promised units to the request waiting behind it at the source")
-    fun sourceUnitsGoToTheNextWaiter() {
+    @DisplayName("a request served at a release keeps the source's unit: the request behind it waits for the next release")
+    fun theRequestBehindWaits() {
         for (kind in Kind.entries) {
             val log = run(kind, targetFree = true, behind = true)
-            assertEquals(listOf("moving woken=true@5.0", "served from target@5.0", "behind served@5.0"), log.filter { !it.startsWith("after") }, "$kind")
+            assertEquals(listOf("mover queued=false@5.0", "served from source@5.0", "after@15.0", "behind served@15.0"), log, "$kind")
         }
     }
 }

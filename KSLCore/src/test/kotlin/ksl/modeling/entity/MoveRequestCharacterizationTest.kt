@@ -196,10 +196,10 @@ class MoveRequestCharacterizationTest {
     }
 
     /**
-     *  A release wakes the waiting request; in the same instant its resource's capacity drops to
-     *  zero, the resource goes inactive, and the entity's override moves the woken request to a
-     *  resource with a unit free. The resume already pending carries the request: the move promises
-     *  the new resource's unit and schedules no second resume.
+     *  A release serves the waiting request, and in the same instant its resource's capacity drops to zero and
+     *  the resource goes inactive. The request was allocated its unit as it was served and left the queue, so the
+     *  entity's override for a request waiting at an inactive resource is not called and nothing is moved: the
+     *  capacity cut meets the entity as a holder, and under the IGNORE rule its work goes on.
      */
     private class WokenMoveModel(parent: ModelElement) : ProcessModel(parent, "wokenMove") {
         val r1 = ResourceWithQ(this, "R1")
@@ -242,15 +242,15 @@ class MoveRequestCharacterizationTest {
     }
 
     @Test
-    @DisplayName("moving a woken request: the resume already pending carries it to the new resource, once")
-    fun movingAWokenRequest() {
+    @DisplayName("a request served in the instant its resource goes inactive is not moved: it holds the unit it was served")
+    fun servedRequestIsNotMovedWhenItsResourceGoesInactive() {
         val model = Model("WokenMove${System.nanoTime()}", autoCSVReports = false)
         val m = WokenMoveModel(model)
         model.numberOfReplications = 1
         model.lengthOfReplication = 50.0
         model.simulate()
         assertEquals(
-            listOf("moving, resumePending=true@5.0", "holder done@5.0", "served by R2@5.0", "after its next wait@15.0"),
+            listOf("holder done@5.0", "served by R1@5.0", "after its next wait@15.0"),
             m.log
         )
     }

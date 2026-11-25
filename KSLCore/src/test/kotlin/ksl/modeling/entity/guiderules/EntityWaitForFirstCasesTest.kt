@@ -36,8 +36,8 @@ import kotlin.test.assertEquals
  *  ends every process waiting on it, alone, with a time limit or beside other triggers, and only those already
  *  waiting; an items trigger, a mailbox trigger and a pool's seize trigger each serve several entities waiting at
  *  once; a win by an agent signal or by an allocation's trigger withdraws the other registrations, each recorded
- *  as its source records an ending wait; a promise broken by a shift's end leaves every trigger in place for the
- *  time left, with each wait recorded once; and the limits on the triggers a wait may take.
+ *  as its source records an ending wait; a seize trigger served in the instant its resource goes off shift holds its
+ *  unit, and each wait is recorded once; and the limits on the triggers a wait may take.
  */
 class EntityWaitForFirstCasesTest {
 
@@ -214,14 +214,12 @@ class EntityWaitForFirstCasesTest {
 
     /**
      *  R has one unit, held by H from 0 to 5. At 1, W waits up to 20 for the first of a seize trigger of R and a
-     *  trigger of Sig. At 5 H releases R, which wakes W's seize trigger with the unit promised, and in the same step
-     *  takes R off shift, so the promised unit goes away. W's wait goes on with both triggers in place, until its
-     *  original deadline: the signal at 10 ends it (`ending` "signal"); with no signal, R back on shift at 15 lets the
-     *  seize trigger win ("on shift"); with neither, it times out at 21 ("none"). Each wait is recorded once, for its
-     *  whole length: the wait in Sig's queue, and W's request in R's queue beside H's wait of 0.
+     *  trigger of Sig. At 5 H releases R, which serves W's seize trigger, and in the same step takes R off shift. Then,
+     *  by `ending`: the signal at 10 ("signal"), R back on shift at 15 ("on shift"), or nothing ("none"). The log ends
+     *  with each queue's recorded waits at 22: the wait in Sig's queue, and W's request in R's queue beside H's of 0.
      */
-    private fun promiseBrokenByShiftEnd(rule: CapacityChangeRule, ending: String): List<String> {
-        val m = RuleModel("ShiftBreaksPromise")
+    private fun seizeServedAsShiftEnds(rule: CapacityChangeRule, ending: String): List<String> {
+        val m = RuleModel("ShiftAsSeizeServed")
         val r = ResourceWithQ(m, "R")
         r.capacityChangeRule = rule
         val sig = Signal(m, "Sig")
@@ -257,29 +255,20 @@ class EntityWaitForFirstCasesTest {
     }
 
     /**
-     *  Under the default `IGNORE` rule, going off shift takes the promised unit at once, so the promise breaks. (Under
-     *  `WAIT` a promised unit is not idle: the shift's end waits for it and the promise holds, so there is no broken
-     *  promise to test.)
+     *  The release at 5 serves W's seize trigger, which is allocated the unit before the resource goes off shift: the
+     *  wait ends with the seize, the shift's end meets W as a holder, and what happens later (a signal, the shift's
+     *  return, nothing) does not matter. The seize and the signal each record W's wait once, of 4.
      */
     @Test
-    @DisplayName("a promise broken by a shift's end: the wait goes on with every trigger in place for the time left, each wait recorded once")
-    fun promiseBrokenByAShiftsEnd() {
-        val rule = CapacityChangeRule.IGNORE
-        assertEquals(
-            listOf("W signal@10.0 waited=9.0", "t22 sigQ=0:1.0/9.0 rQ=0:2.0/9.0"),
-            promiseBrokenByShiftEnd(rule, "signal"),
-            "signal"
-        )
-        assertEquals(
-            listOf("W seize@15.0 waited=14.0", "t22 sigQ=0:1.0/14.0 rQ=0:2.0/14.0"),
-            promiseBrokenByShiftEnd(rule, "on shift"),
-            "back on shift"
-        )
-        assertEquals(
-            listOf("W timed out@21.0 waited=20.0", "t22 sigQ=0:1.0/20.0 rQ=0:2.0/20.0"),
-            promiseBrokenByShiftEnd(rule, "none"),
-            "nothing"
-        )
+    @DisplayName("a seize trigger served in the instant its resource goes off shift wins and holds its unit, each wait recorded once")
+    fun seizeServedAsTheShiftEnds() {
+        for (ending in listOf("signal", "on shift", "none")) {
+            assertEquals(
+                listOf("W seize@5.0 waited=4.0", "t22 sigQ=0:1.0/4.0 rQ=0:2.0/4.0"),
+                seizeServedAsShiftEnds(CapacityChangeRule.IGNORE, ending),
+                ending
+            )
+        }
     }
 
     /**

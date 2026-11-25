@@ -231,27 +231,14 @@ class TimedSeizeTest {
     // ── A broken promise ────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("a promised unit going away between the wake and the resume: the re-wait keeps the original deadline")
-    fun brokenPromiseTimesOut() {
-        var seen = ""
+    @DisplayName("a capacity cut in the instant a timed seize is served: the request holds its unit, and the time limit no longer applies")
+    fun capacityCutAsTheRequestIsServed() {
         val m = run {
+            // X's release serves T before the cut to 0, which then meets T as a holder
             holder("X", hold = 5.0, after = { r.changeCapacity(r.CapacityChangeNotice(capacity = 0)) })
             timed("T", 1.0, timeout = 6.0)
-            at(7.5) { seen = stats() }
         }
-        assertEquals(listOf("T:timedOut waited=6.0@7.0"), m.log)
-        assertEquals("waiting=0, waits=2", seen)
-    }
-
-    @Test
-    @DisplayName("a promised unit going away, then capacity back before the deadline: the re-wait is served")
-    fun brokenPromiseServedLater() {
-        val m = run {
-            holder("X", hold = 5.0, after = { r.changeCapacity(r.CapacityChangeNotice(capacity = 0)) })
-            timed("T", 1.0, timeout = 6.0)
-            at(6.0) { r.changeCapacity(r.CapacityChangeNotice(capacity = 1)) }
-        }
-        assertEquals(listOf("T:served by R waited=5.0@6.0"), m.log)
+        assertEquals(listOf("T:served by R waited=4.0@5.0"), m.log)
     }
 
     // ── Queues, rules and moves ─────────────────────────────────────────────
@@ -397,20 +384,6 @@ class TimedSeizeTest {
             untimed("B", 2.0)
         }
         assertEquals(listOf("B:served@5.0"), m.log)
-    }
-
-    @Test
-    @DisplayName("termination during the re-wait: the request leaves and nothing fires at the deadline")
-    fun terminationDuringRewait() {
-        var seen = ""
-        val m = run {
-            holder("X", hold = 5.0, after = { r.changeCapacity(r.CapacityChangeNotice(capacity = 0)) })
-            val t = timed("T", 1.0, timeout = 6.0)
-            at(6.0) { t.terminateProcess() }
-            at(7.5) { seen = stats() + ", group=${t.myWaitGroup}" }
-        }
-        assertEquals(emptyList(), m.log)
-        assertEquals("waiting=0, waits=1, group=null", seen)
     }
 
     @Test

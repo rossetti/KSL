@@ -527,8 +527,8 @@ class PreemptionTest {
     }
 
     @Test
-    @DisplayName("a waiting preemptor whose promise breaks is given one allocation, and takes it, on one unit or two")
-    fun preemptorWhosePromiseBrokeTakesOneAllocation() {
+    @DisplayName("a waiting preemptor beside a request served as its resource fails is given one allocation, on one unit or two")
+    fun preemptorBesideARequestServedAtAFailure() {
         for (two in listOf(true, false)) {
             val (_, m) = run {
                 val q = if (two) r2 else r
@@ -536,7 +536,7 @@ class PreemptionTest {
                 actor("H") {
                     val a = seize(q, n)
                     delay(10.0)
-                    // the release wakes S with a promise, and the failure breaks it in the same step
+                    // the release serves S, and the failure in the same step meets S as a holder
                     release(a)
                     q.fail(InterruptRule.FINISH)
                     delay(5.0)
@@ -554,10 +554,11 @@ class PreemptionTest {
                 }
                 actor("K") { delay(12.0); s.terminateProcess() }
             }
-            // with one unit: S, woken at 10, is terminated at 12; at the repair at 15 P is given the unit and takes it.
-            // With two, P takes at 10 the unit S's wake leaves free, once the offer has served S
+            // S is served at 10, as H releases, and under FINISH works through the failure. With one unit, S's release at
+            // 11 is kept from the queue until the repair at 15, where P is given the unit. With two, P takes at 10 the
+            // unit the offer leaves free once it has served S. Either way P ends holding nothing.
             val got = if (two) "P got@10.0" else "P got@15.0"
-            assertEquals(listOf(got, "P holds 0, busy 0"), m.log, if (two) "two units" else "one unit")
+            assertEquals(listOf("S got@10.0", got, "P holds 0, busy 0"), m.log, if (two) "two units" else "one unit")
         }
     }
 

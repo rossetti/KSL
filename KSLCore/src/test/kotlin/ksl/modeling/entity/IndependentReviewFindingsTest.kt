@@ -72,17 +72,14 @@ class IndependentReviewFindingsTest {
 
             /** Moves this entity's waiting request for [from] to [to], as a model's own code might; false if it may not. */
             fun reroute(from: ResourceWithQ, to: ResourceWithQ): Boolean {
-                val request = from.myWaitingQ.firstOrNull { it.entity === this } as ResourceRequest
+                val request = from.myWaitingQ.firstOrNull { it.entity === this } as? ResourceRequest ?: return false
                 if (!canMoveRequestToResource(request)) return false
                 moveRequestToResource(request, from.myWaitingQ, to, RESUME_PRIORITY)
                 return true
             }
 
-            /** Moves the request without checking first. */
-            fun rerouteUnchecked(from: ResourceWithQ, to: ResourceWithQ) {
-                val request = from.myWaitingQ.firstOrNull { it.entity === this } as ResourceRequest
-                moveRequestToResource(request, from.myWaitingQ, to, RESUME_PRIORITY)
-            }
+            /** Whether this entity has a request in [queue]. */
+            fun isQueuedIn(queue: RequestQ): Boolean = queue.any { it.entity === this }
         }
 
         fun actor(tag: String, priority: Int = 5, body: suspend KSLProcessBuilder.(Actor) -> Unit) =
@@ -149,21 +146,20 @@ class IndependentReviewFindingsTest {
     }
 
     @Test
-    @DisplayName("a preemptor given its allocation in this instant is not moved: the check says so, and the move is refused")
+    @DisplayName("a preemptor given its allocation in this instant has left its queue: there is nothing to move")
     fun moveOfAPreemptorWithAPassedAllocation() {
         val (shop, error) = run {
             lateinit var p: Shop.Actor
             actor("H", 1) {
                 val a = seize(r); delay(5.0); release(a)
-                // in the step of the release, which has just passed P its allocation of R
+                // in the step of the release, which has just given P its allocation of R
+                log.add("queued=${p.isQueuedIn(r.myWaitingQ)}")
                 log.add("moved=${p.reroute(r, target)}")
-                val refused = runCatching { p.rerouteUnchecked(r, target) }.exceptionOrNull()
-                log.add("refused=${refused is IllegalArgumentException}")
             }
             p = actor("P", 2) { delay(1.0); val a = preempt(r, rule = InterruptRule.RESUME); log.add("P got ${a.resource.name}@$time"); release(a) }
         }
         assertNull(error, "the run stopped: $error")
-        assertEquals(listOf("moved=false", "refused=true", "P got R@5.0"), shop.log)
+        assertEquals(listOf("queued=false", "moved=false", "P got R@5.0"), shop.log)
     }
 
     @Test

@@ -374,47 +374,4 @@ class RequestServiceTest {
         val moved = simulate { MovedIntoARuledPool(it, move = true) }.served
         assertEquals(arriving["W"], moved["W"])
     }
-
-    /**
-     *  As `MovedIntoARuledPool`, but N waits at PA from 1 and is woken there at 5, when HA releases, and is moved into
-     *  PB in that instant, before it resumes. PB's rule chooses W, which has waited since 2.
-     */
-    private class WokenMovedIntoARuledPool(parent: ModelElement, val move: Boolean) : ProcessModel(parent, "wm") {
-        val ra = Resource(this, "RA")
-        val rb = Resource(this, "RB", capacity = 2)
-        val pa = ResourcePoolWithQ(this, listOf(ra), name = "PA")
-        val pb = ResourcePoolWithQ(this, listOf(rb), name = "PB")
-        val served = mutableMapOf<String, Double>()
-
-        override fun initialize() {
-            served.clear()
-            pb.myWaitingQ.requestSelectionRule = RequestSelectionRuleIfc { _, requestQ ->
-                if (requestQ.size >= 2) requestQ.take(1) else emptyList()
-            }
-            // the release at 5 wakes N to resume at priority 20000
-            activate(object : Entity("HA") { val p: KSLProcess = process { val a = seize(pa); delay(5.0); release(a, releasePriority = 20000) } }.p)
-            activate(object : Entity("W") { val p: KSLProcess = process { delay(2.0); val a = seize(pb); served["W"] = time; delay(1.0); release(a) } }.p)
-            val nEntity = object : Entity("N") {
-                val p: KSLProcess = process {
-                    delay(if (move) 1.0 else 5.0)
-                    val a = seize(if (move) pa else pb); served["N"] = time; delay(1.0); release(a)
-                }
-
-                fun moveIn() = moveRequestToResourcePool(
-                    pa.myWaitingQ.peekNext() as ResourcePoolRequest, pa.myWaitingQ, pb, pb.defaultResourceSelectionRule, RESUME_PRIORITY
-                )
-            }
-            activate(nEntity.p)
-            // after HA's release at 5 has woken N, before N resumes
-            if (move) schedule(EventActionIfc<Nothing> { nEntity.moveIn() }, 5.0, priority = 15000)
-        }
-    }
-
-    @Test
-    @DisplayName("a woken request moved into a queue with a rule is served only if the rule chooses it, as one arriving there")
-    fun wokenRequestMovedIntoARuledPool() {
-        val arriving = simulate { WokenMovedIntoARuledPool(it, move = false) }.served
-        val moved = simulate { WokenMovedIntoARuledPool(it, move = true) }.served
-        assertEquals(arriving["W"], moved["W"], "W, which the rule chooses, is served at 5")
-    }
 }

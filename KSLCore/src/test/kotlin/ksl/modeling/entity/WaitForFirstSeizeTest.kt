@@ -336,20 +336,6 @@ class WaitForFirstSeizeTest {
         }
     }
 
-    @Test
-    @DisplayName("a seize trigger whose promise is broken, and whose wait another trigger then wins, leaves no request in the queue, in either argument order")
-    fun brokenPromiseThenAnotherTriggerWins() {
-        for (itemsFirst in listOf(true, false)) {
-            val model = Model("BrokenPromise${System.nanoTime()}", autoCSVReports = false)
-            val m = BrokenPromise(model, itemsFirst)
-            model.numberOfReplications = 1
-            model.lengthOfReplication = 20.0
-            model.simulate()
-            // the capacity comes back at 8: a request left in the queue would be woken for a wait that has ended
-            assertEquals(listOf("T:items@5.0 waiting=0", "restored@8.0 waiting=0 busy=0"), m.log, "items first = $itemsFirst")
-        }
-    }
-
     /**
      *  A wait on a seize trigger for both units of R and on an allocation trigger of another entity's
      *  allocation of Other, with a time limit. The allocation is released at 3; at 5 the seize is woken by
@@ -414,16 +400,4 @@ class WaitForFirstSeizeTest {
         }
     }
 
-    @Test
-    @DisplayName("a seize trigger that waits again beside a trigger of an allocation released meanwhile goes on to its time limit")
-    fun rewaitBesideAReleasedAllocationsTrigger() {
-        for (restored in listOf(false, true)) {
-            val model = Model("Rewait${System.nanoTime()}", autoCSVReports = false)
-            val m = RewaitModel(model, restored)
-            model.numberOfReplications = 1
-            model.lengthOfReplication = 100.0
-            model.simulate()
-            assertEquals(listOf("timed out@51.0"), m.outcome, if (restored) "restored trigger" else "interrupted trigger")
-        }
-    }
 }

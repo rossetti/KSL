@@ -30,20 +30,16 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
 /**
- *  A waiting preemptor moved to another resource preempts there as one arriving there would, including one moved in
- *  the instant it was woken, before it resumed.
+ *  A waiting preemptor moved to another resource preempts there as one arriving there would. A preemptor its resource
+ *  has given its units has left its queue, and takes them when it resumes.
  */
 class MovedPreemptorTest {
 
-    /**
-     *  With [breakPromise], the source holder fails Source as it releases it and repairs it 1 later, so that Urgent's
-     *  promise breaks and Urgent is moved only when the repair wakes it again.
-     */
+    /** Urgent's request is moved from Source to Target at 0.5, while it waits. */
     private class Shop(
         model: Model,
         val newcomerThroughPool: Boolean,
-        val newcomerDelay: Double = 2.0,
-        val breakPromise: Boolean = false
+        val newcomerDelay: Double = 2.0
     ) : ProcessModel(model, "MovedPreemptorShop") {
         val sourceQueue = RequestQ(this, "SourceQueue")
         val source = ResourceWithQ(this, "Source", capacity = 2, queue = sourceQueue)
@@ -64,7 +60,7 @@ class MovedPreemptorTest {
             }
 
             fun reroute() {
-                val request = sourceQueue.peekNext()!! as ResourceRequest
+                val request = sourceQueue.first { it.entity === this } as ResourceRequest
                 moveRequestToResource(request, sourceQueue, target, RELEASE_PRIORITY)
             }
         }
@@ -72,18 +68,12 @@ class MovedPreemptorTest {
             init { priority = 10 }
             val work = process {
                 val a = seize(source, amountNeeded = 2)
-                delay(1.0)
-                release(a)
-                if (breakPromise) {
-                    // Urgent was woken by the release; the failure breaks its promise before it resumes
-                    source.fail()
-                    delay(1.0)
-                    source.repair()
-                }
-                // the release (or the repair) completed the urgent preemptor's reservation and woke it; it has not
-                // resumed yet
+                delay(0.5)
+                // Urgent reserved both units at 0.1 and waits for them
                 urgent.reroute()
                 freeAfterMove = target.numAvailableUnits
+                delay(0.5)
+                release(a)
             }
         }
         private val targetHolder = object : Entity("TargetHolder") {
@@ -130,14 +120,13 @@ class MovedPreemptorTest {
 
     /**
      *  Source has 2 units, held until 1 by a holder of priority 10. Urgent (priority 1) preempts both at 0.1 under
-     *  `FINISH` and reserves them. At 1 the release completes the reservation and wakes Urgent; in that instant the
-     *  holder moves Urgent's request to Target, where a holder of priority 10 has 1 of 2 units until 4. Urgent decides
-     *  at Target as one arriving there: it reserves the idle unit, so a newcomer (priority 5) seizing at 2 waits. Urgent
-     *  starts at 4 and releases at 5, and the newcomer starts at 5.
+     *  `FINISH` and reserves them. At 0.5, while it waits, the holder moves Urgent's request to Target, where a holder of
+     *  priority 10 has 1 of 2 units until 4. Urgent decides at Target as one arriving there: it reserves the idle unit,
+     *  so a newcomer (priority 5) seizing at 2 waits. Urgent starts at 4 and releases at 5, and the newcomer starts at 5.
      */
     @Test
-    @DisplayName("a FINISH preemptor moved in the instant it was woken reserves at the new resource (newcomer through a pool)")
-    fun movedWokenFinishPreemptorReservesThroughPool() {
+    @DisplayName("a waiting FINISH preemptor moved to another resource reserves there (newcomer through a pool)")
+    fun movedWaitingFinishPreemptorReservesThroughPool() {
         val shop = run(newcomerThroughPool = true)
         assertEquals(4.0, shop.urgentStart)
         assertEquals(5.0, shop.newcomerStart)
@@ -145,43 +134,23 @@ class MovedPreemptorTest {
 
     /** As above, with the newcomer seizing Target directly. */
     @Test
-    @DisplayName("a FINISH preemptor moved in the instant it was woken reserves at the new resource (newcomer direct)")
-    fun movedWokenFinishPreemptorReservesDirect() {
+    @DisplayName("a waiting FINISH preemptor moved to another resource reserves there (newcomer direct)")
+    fun movedWaitingFinishPreemptorReservesDirect() {
         val shop = run(newcomerThroughPool = false)
         assertEquals(4.0, shop.urgentStart)
         assertEquals(5.0, shop.newcomerStart)
     }
 
     /**
-     *  A preemptor whose promise broke between its wake and its resume waits again; moved in the instant it is woken a
-     *  second time, it still decides at the new resource when it resumes. Source (2 units) is held until 1 by a holder
-     *  that then fails it: Urgent's completed reservation is broken, and it collects again. The repair at 2 completes it
-     *  again and wakes Urgent; in that instant Urgent's request is moved to Target, where a holder has 1 of 2 units
-     *  until 4. Urgent reserves the idle unit, so a newcomer seizing through a pool at 3 waits until Urgent is done.
+     *  A FINISH preemptor whose reservation completes is given its allocation then, whatever its queue's selection rule,
+     *  and holds it from that instant. R (2 units, `RESUME`) has a rule serving the most urgent first, as many as the
+     *  free units allow. L and K (priority 9) hold 1 each; B (priority 4) preempts K's unit at 1 for 4 of work. F
+     *  (priority 2, `FINISH`) reserves 1 at 2. At 3 L releases, completing F's reservation: F is given the unit and starts
+     *  at 3, and the failure L then causes meets it as a holder.
      */
     @Test
-    @DisplayName("a preemptor woken again after a broken promise and then moved decides at the new resource")
-    fun movedAfterABrokenPromiseDecidesAtTheNewResource() {
-        val model = Model("MovedAfterBrokenPromise", autoCSVReports = false)
-        val shop = Shop(model, newcomerThroughPool = true, newcomerDelay = 3.0, breakPromise = true)
-        model.lengthOfReplication = 30.0
-        model.simulate()
-        assertEquals(4.0, shop.urgentStart)
-        assertEquals(5.0, shop.newcomerStart)
-    }
-
-    /**
-     *  A preemptor passed its allocation while it waits again after a broken promise takes it, whatever its queue's
-     *  selection rule. R (2 units, `RESUME`) has a rule serving the most urgent first, as many as the free units allow.
-     *  L and K (priority 9) hold 1 each; B (priority 4) preempts K's unit at 1 for 4 of work. F (priority 2, `FINISH`)
-     *  reserves 1 at 2. At 3 L releases, completing F's reservation and waking it, and fails R before F resumes, so F
-     *  waits again; the failure also holds B's work until the repair at 4. S (priority 1) seizes at 3.5 and at the
-     *  repair takes the free unit ahead of F. B releases at 6: K's unit comes back, F outranks K and needs only it, so
-     *  F is passed it, at 6.
-     */
-    @Test
-    @DisplayName("a preemptor passed its allocation while it waits again takes it, whatever the queue's rule")
-    fun passedAllocationIsTakenWhateverTheRule() {
+    @DisplayName("a FINISH preemptor whose reservation completes is given its allocation then, whatever the queue's rule")
+    fun completedReservationIsAllocatedWhateverTheRule() {
         val model = Model("PassedAllocationTaken", autoCSVReports = false)
         val shop = object : ProcessModel(model, "PassedShop") {
             val queue = RequestQ(this, "RQueue").also { q ->
@@ -233,7 +202,7 @@ class MovedPreemptorTest {
         }
         model.lengthOfReplication = 30.0
         model.simulate()
-        assertEquals(6.0, shop.fStart)
+        assertEquals(3.0, shop.fStart)
     }
 }
 

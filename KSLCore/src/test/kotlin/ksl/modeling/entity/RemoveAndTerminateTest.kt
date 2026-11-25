@@ -104,17 +104,17 @@ class RemoveAndTerminateTest {
     }
 
     @Test
-    @DisplayName("removeAllAndTerminate on a queue holding a woken request offers its unit to a request waiting in another queue")
-    fun removeAllOffersOnward() {
+    @DisplayName("removeAllAndTerminate in the instant a release serves a request leaves it served: it has left the queue")
+    fun removeAllLeavesTheServedRequest() {
         val m = run {
             customer("X", 0.0, hold = 5.0, afterRelease = {
-                // the release has just woken A, the earliest waiter; A has not yet resumed
+                // the release has just served A, the earliest waiter; A has not yet resumed
                 r.myWaitingQ.removeAllAndTerminate()
             })
             customer("A", 1.0)
             customer("B", 2.0, inOther = true)
         }
-        assertEquals(listOf("X@0.0", "B@5.0"), m.log)
+        assertEquals(listOf("X@0.0", "A@5.0", "B@6.0"), m.log)
     }
 
     @Test
@@ -138,18 +138,18 @@ class RemoveAndTerminateTest {
     }
 
     @Test
-    @DisplayName("the hook of a removed and terminated request sees its promised unit already given to a waiting decrease")
-    fun hookSeesThePromiseHandedOn() {
+    @DisplayName("terminating an entity in the instant its request is served releases the unit to a waiting decrease")
+    fun terminatedServedRequestReleasesToTheDecrease() {
         var capacityInHook = -1
         run {
             r.capacityChangeRule = CapacityChangeRule.WAIT
             customer("X", 0.0, hold = 5.0, afterRelease = {
-                // the release has just promised its unit to A; a cut to 0 waits for that unit
+                // the release has just served A, which holds the unit; a cut to 0 waits for it
                 r.changeCapacity(r.CapacityChangeNotice(0))
-                r.myWaitingQ.removeAndTerminate(requestOf("A"), afterTermination = { capacityInHook = r.capacity })
+                customers["A"]!!.terminateProcess(afterTermination = { capacityInHook = r.capacity })
             })
             customer("A", 1.0)
         }
-        assertEquals(0, capacityInHook, "the withdrawn unit goes to the cut before the hook runs")
+        assertEquals(0, capacityInHook, "the released unit goes to the cut before the hook runs")
     }
 }

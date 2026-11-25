@@ -208,8 +208,8 @@ class TimedPoolSeizeTest {
     }
 
     @Test
-    @DisplayName("the promised member going away with no other free: the re-wait keeps the deadline; served if it comes back in time")
-    fun brokenPromiseOfOneMember() {
+    @DisplayName("a member taken away in the instant a timed pool seize is served: the request holds it, whether it comes back or not")
+    fun memberTakenAwayAsTheRequestIsServed() {
         fun scenario(backAt: Double?): List<String> = run {
             holdMember("Y", b, hold = 20.0)
             actor("X") {
@@ -221,8 +221,9 @@ class TimedPoolSeizeTest {
             timed("T", 1.0, timeout = 6.0)
             if (backAt != null) at(backAt) { a.changeCapacity(a.CapacityChangeNotice(capacity = 1)) }
         }.log
-        assertEquals(listOf("T:timedOut waited=6.0@7.0"), scenario(null))
-        assertEquals(listOf("T:served by [A] waited=5.0@6.0"), scenario(6.0))
+        // X's release serves T with A before the cut to 0: T holds A, and the cut waits for it under IGNORE's rule
+        assertEquals(listOf("T:served by [A] waited=4.0@5.0"), scenario(null))
+        assertEquals(listOf("T:served by [A] waited=4.0@5.0"), scenario(6.0))
     }
 
     @Test

@@ -338,18 +338,20 @@ class ReviewFixesTest {
         }
     }
 
-    // ---------- a reservation and a broken promise ----------
+    // ---------- a reservation completed at a release ----------
 
     @Test
-    @DisplayName("a FINISH preemption whose reservation is complete, but whose promise breaks in that instant, keeps its place ahead of the queue")
-    fun reservationKeptThroughABrokenPromise() {
+    @DisplayName("a FINISH preemption whose reservation a release completes is served then, and a failure in that instant meets it as a holder")
+    fun reservationServedAtTheRelease() {
         val m = run {
             actor("L", 9) { val a = seize(r); delay(10.0); release(a); r.fail() }
             actor("N", 5) { delay(1.0); val a = seize(r); log.add("N got@$time"); delay(1.0); release(a) }
             actor("U", 1) { delay(2.0); val a = preempt(r, rule = InterruptRule.FINISH); log.add("U got@$time"); delay(1.0); release(a) }
             at(20.0) { r.repair() }
         }
-        assertEquals(listOf("U got@20.0", "N got@21.0"), m.log)
+        // U is allocated the unit as L's release completes its reservation, before the failure: it holds the unit
+        // through the failure (under FINISH its work goes on), and N waits for the repair
+        assertEquals(listOf("U got@10.0", "N got@20.0"), m.log)
     }
 
     // ---------- declared failures and hand repairs ----------
@@ -517,8 +519,9 @@ class ReviewFixesTest {
             at(3.0) { log.add("at 3 loans=${p1.loans.size}"); LoansAndFreezesCheck.check(p1, p2) }
             actor("N", 5) { delay(3.0); val pa = seize(pool); log.add("N got ${pa.allocations.single().myResource.name}@$time"); release(pa) }
         }
-        // L is held 2 to 5 while P1 is lent, so it ends at 13; N, waiting for the pool from 3, then gets a member
-        assertEquals(listOf("L got@0.0", "U got@2.0", "at 3 loans=1", "U done@5.0", "L done@13.0 busy=0", "N got P1@13.0"), m.log)
+        // L is held 2 to 5 while P1 is lent, so it ends at 13; N, waiting for the pool from 3, is served by L's release,
+        // so a member is busy again as L logs
+        assertEquals(listOf("L got@0.0", "U got@2.0", "at 3 loans=1", "U done@5.0", "L done@13.0 busy=1", "N got P1@13.0"), m.log)
     }
 
     @Test

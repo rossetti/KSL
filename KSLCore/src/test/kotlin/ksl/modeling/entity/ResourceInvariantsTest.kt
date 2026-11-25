@@ -86,7 +86,10 @@ class ResourceInvariantsTest {
         }
 
         inner class Big : Entity() {
-            val p: KSLProcess = process("big") { delay(1.0); seizeOrTimeout(r, amountNeeded = 2, timeout = 10.0) }
+            val p: KSLProcess = process("big") {
+                delay(1.0)
+                seizeOrTimeout(r, amountNeeded = 2, timeout = 10.0).valueOrNull()?.let { release(it) }
+            }
         }
 
         override fun initialize() {

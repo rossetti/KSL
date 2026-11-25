@@ -191,6 +191,7 @@ class ResourceFailureTest {
     @Test
     @DisplayName("a failure while off shift, and shift changes while failed: the repair leaves the state the shift gives")
     fun failuresAndShifts() {
+        // the repair at 15 serves N within its own step, so the state it leaves is busy
         val (_, m) = run {
             fun note(label: String) = log.add("$label ${r.state.name.substringAfter("_")}")
             at(2.0) { r.goOffShift(); note("off") }
@@ -206,7 +207,7 @@ class ResourceFailureTest {
         assertEquals(
             listOf(
                 "off Inactive", "fail Failed", "repair Inactive", "on Idle",
-                "fail Failed", "off Failed", "on Failed", "repair Idle", "N got@15.0", "N done@16.0"
+                "fail Failed", "off Failed", "on Failed", "repair Busy", "N got@15.0", "N done@16.0"
             ),
             m.log
         )
@@ -227,17 +228,18 @@ class ResourceFailureTest {
         assertTrue(errors[1].contains("already failed"), errors[1])
     }
 
-    // ---------- a promise broken by a failure ----------
+    // ---------- a failure in the instant a request is served ----------
 
     @Test
-    @DisplayName("a release wakes a request with a promise and the resource fails at the same instant: the request waits for repair")
-    fun promiseBrokenByAFailure() {
+    @DisplayName("a release serves a request and the resource fails in the same instant: the request holds its unit as any holder")
+    fun failureInTheInstantARequestIsServed() {
         val (_, m) = run {
             actor("W") { val a = seize(r); delay(5.0); release(a); r.fail() }
             job("N", r, 1.0, 1.0)
             at(8.0) { r.repair() }
         }
-        assertEquals(listOf("N got@8.0", "N done@9.0"), m.log)
+        // N is allocated the unit as W releases it, before the failure; under FINISH its work goes on through it
+        assertEquals(listOf("N got@5.0", "N done@6.0"), m.log)
     }
 
     // ---------- a resource with a behavior ----------

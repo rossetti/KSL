@@ -148,22 +148,23 @@ class SeizeQueueCharacterizationTest {
         assertEquals(listOf("X@0.0", "A@7.0"), m.log)
     }
 
-    // ── removeAndTerminate on a woken request ───────────────────────────
+    // ── a request served in the instant ────────────────────────────────
 
     @Test
-    @DisplayName("removeAndTerminate on a request woken in the same instant offers its unit to the next waiter")
-    fun removeAndTerminateWokenRequest() {
+    @DisplayName("a request served at a release has left its queue; terminating its entity then gives its unit to the next waiter")
+    fun terminateServedRequest() {
         var seen = ""
         val m = run {
             customer("X", 0.0, hold = 5.0, afterRelease = {
-                // the release has just woken A; A has not yet resumed
-                q.removeAndTerminate(requestOf("A"))
+                // the release has just served A, which holds the unit; A has not yet resumed
+                check(q.none { it.entity.name == "A" }) { "A's request is still queued" }
+                customers["A"]!!.terminateProcess()
             })
             customer("A", 1.0)
             customer("B", 2.0)
             at(5.5) { seen = state }
         }
-        assertEquals("available=0, waiting=0", seen, "the unit promised to A goes to B")
+        assertEquals("available=0, waiting=0", seen, "the unit A held goes to B")
         assertEquals(listOf("X@0.0", "B@5.0"), m.log)
     }
 
