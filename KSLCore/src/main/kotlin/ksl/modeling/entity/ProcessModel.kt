@@ -3284,7 +3284,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 val passed = request.passedAllocation
                 if (passed != null) {
-                    (request.queue as? RequestQ ?: queue).remove(request)
+                    val servedFrom = request.queue as? RequestQ ?: queue
+                    servedFrom.remove(request)
+                    // a selection rule may have chosen this request again while it waited to resume, holding back the
+                    // ones behind it; now it has left, the units still free are offered again, as after a seize
+                    passed.myResource.afterSeizeTook(servedFrom)
                     return passed
                 }
                 return completeResourceSeize(request, resource, queue, suspensionName)
