@@ -194,7 +194,10 @@ interface KSLProcessBuilder {
      *  Causes the suspension to be resumed at the current time (i.e. without any delay).
      *  Errors will result if the suspension is not associated with a suspending entity
      *  via the suspend(suspension: Suspension) function or if the suspension has already
-     *  been resumed.
+     *  been resumed. Once the replication's events have ended, a resume is dropped while the replication's entities
+     *  are terminated, or once the process was terminated at the suspension, and refused with an exception before
+     *  the termination, as from `replicationEnded()`. The suspension's `canResume` is true exactly when a resume
+     *  would wake its process; check it before resuming.
      *
      * @param priority the priority associated with the resume. Can be used
      * to order resumptions that occur at the same time.

@@ -10966,6 +10966,7 @@ public final class ksl/modeling/entity/ProcessModel$Entity$ResourceRequest : ksl
 public final class ksl/modeling/entity/ProcessModel$Entity$Suspension : ksl/utilities/IdentityIfc {
 	public fun <init> (Lksl/modeling/entity/ProcessModel$Entity;Ljava/lang/String;Lksl/modeling/entity/SuspendType;)V
 	public synthetic fun <init> (Lksl/modeling/entity/ProcessModel$Entity;Ljava/lang/String;Lksl/modeling/entity/SuspendType;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getCanResume ()Z
 	public fun getId ()I
 	public fun getLabel ()Ljava/lang/String;
 	public fun getName ()Ljava/lang/String;

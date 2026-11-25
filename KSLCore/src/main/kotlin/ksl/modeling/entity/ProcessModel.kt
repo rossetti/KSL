@@ -1079,10 +1079,12 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
          *  True when the entity's process is suspended and may be resumed with resumeProcess(): it is
          *  not in a delay, which ends on its own (use `interruptDelay` to end one early), nor in a wait
          *  with a time limit or for the first of several things, which must be ended through one of the
-         *  things it waits for, and no resume is already scheduled for it.
+         *  things it waits for, and no resume is already scheduled for it. False once the replication's events
+         *  have ended (as in `replicationEnded()`), when nothing can be resumed.
          */
         val canResumeProcess: Boolean
-            get() = isSuspended && currentSuspendType != SuspendType.DELAY && myWaitGroup == null && myPendingResume == null
+            get() = isSuspended && currentSuspendType != SuspendType.DELAY && myWaitGroup == null &&
+                myPendingResume == null && !isRunEnded
 
         /**
          *  The resume scheduled for the entity's current suspension and not yet carried out; null when
@@ -1495,6 +1497,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             check(currentSuspendType != SuspendType.DELAY) {
                 "Entity ${name} (id = $id) is in a DELAY (suspension name = $currentSuspendName), which ends on its own; " +
                     "resumeProcess() cannot end it, at once or later. Use interruptDelay to end a delay early. " +
+                    "Check canResumeProcess before calling resumeProcess()."
+            }
+            // while the replication's entities are terminated the resume is dropped (scheduleResumeProcess); at any
+            // other time after the replication's events have ended, it is refused here, before anything is recorded
+            check(!isRunEnded || model.isTerminatingEntities) {
+                "Entity ${name} (id = $id) cannot be resumed: the replication's events have ended, and the entity " +
+                    "is about to be terminated. Resume it before the end of the replication. " +
                     "Check canResumeProcess before calling resumeProcess()."
             }
             scheduleResumeProcess(
@@ -5017,13 +5026,25 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 private set
 
             /**
+             *  True when resume() would wake the process waiting on this suspension: a process is suspended on it,
+             *  it has not already been resumed, and the replication's events have not ended. False otherwise, when
+             *  resume() either fails (nothing waits on it, it was already resumed, or the replication's events have
+             *  ended, as in `replicationEnded()`) or does nothing (its process was terminated at it, or the
+             *  replication's entities are being terminated). Check it before resuming.
+             */
+            val canResume: Boolean
+                get() = !isResumed && !isAbandoned && suspendedEntity != null && !isRunEnded
+
+            /**
              *  Causes the suspension to be resumed at the current time (i.e. without any delay).
              *  Errors will result if the suspension is not associated with a suspending entity
              *  via the suspend(suspension: Suspension) function or if the suspension has already
              *  been resumed. If the suspension was abandoned because its entity's process ended at
              *  this suspension point, the resumption is dropped and logged rather than treated as an
              *  error: whoever holds the suspension cannot be expected to know that the waiting process
-             *  was terminated.
+             *  was terminated. Once the replication's events have ended, a resume is dropped the same way while the
+             *  entities are terminated, and refused with an exception before the termination (as from
+             *  `replicationEnded()`), timed or not: nothing can be resumed then.
              *
              * @param priority the priority associated with the resume. Can be used
              * to order resumptions that occur at the same time.
@@ -5041,6 +5062,20 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     } else {
                         "The suspension with label $label and type $type associated with entity ${myEntity.name} is not associated with a suspended entity."
                     }
+                }
+                if (isRunEnded) {
+                    // As any wake-up asked for once the replication's events have ended, timed or not: dropped
+                    // while its entities are terminated, and left for the termination to abandon; a misuse at any
+                    // other time (from replicationEnded(), say), which would otherwise mark it resumed for nothing.
+                    if (model.isTerminatingEntities) {
+                        logger.warn { "r = ${model.currentReplicationNumber} : $time > RESUME DROPPED : the suspension with label $label and type $type was resumed while the replication's entities are terminated." }
+                        return
+                    }
+                    throw IllegalStateException(
+                        "The suspension with label $label and type $type associated with entity ${myEntity.name} cannot be " +
+                            "resumed: the replication's events have ended, and the entity is about to be terminated. " +
+                            "Resume it before the end of the replication. Check canResume before resuming."
+                    )
                 }
                 val group = myTimedGroup
                 if (group != null) {
