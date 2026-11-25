@@ -3622,8 +3622,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         resourceSelectionRule, resourceAllocationRule, suspensionName
                     )
                 }
-                // as for a seize of one resource: a waiting preemptor of a member may now take from this allocation
-                for (a in allocation.allocations) a.myResource.afterSeizeTook(servedFrom)
+                // as for a seize of one resource: a waiting preemptor of a member may now take from this allocation, and
+                // a selection rule that chose this request again while it waited to resume held back the ones behind
+                // it; now it has left, every member is offered again, since the units still free may be another's
+                for (m in thePool.resources) (m as? Resource)?.afterSeizeTook(servedFrom)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated $amountNeeded units of ${thePool.name} : allocation_id = ${allocation.id}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: RESOURCE POOL: ${thePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 return allocation
@@ -3723,6 +3725,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         suspensionName
                     )
                 }
+                // a selection rule that chose this request again while it waited to resume held back the ones behind
+                // it; now it has left, every member is offered again, since the units still free may be another's
+                for (m in thePool.resources) (m as? Resource)?.afterSeizeTook(servedFrom)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id}: allocated 1 unit of ${thePool.name} : allocation_id = ${allocation.id}" }
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > END : SEIZE: MOVABLE RESOURCE POOL: ${thePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 return allocation
