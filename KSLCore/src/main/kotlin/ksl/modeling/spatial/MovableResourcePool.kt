@@ -191,7 +191,7 @@ open class MovableResourcePool(
         return allocation
     }
 
-    /** Allocates the given member, as it was promised to a waiting request when it was woken. */
+    /** Allocates the given member, as `memberToAllocate` chose it for a waiting request. */
     internal fun allocateMember(
         entity: ProcessModel.Entity,
         member: MovableResource,
@@ -229,20 +229,18 @@ open class MovableResourcePool(
     )
 
     /**
-     * Promises a member to a waiting request, chosen by the rules and from the location its seize named
+     * The member to allocate to a waiting request now, chosen by the rules and from the location its seize named
      * (or the pool's defaults), as it would be chosen if it allocated now.
      *
-     * @return false when no member is available, in which case nothing is promised
+     * @return null when no member is available
      */
-    internal fun promiseMember(request: ProcessModel.Entity.MovableResourcePoolRequest): Boolean {
+    internal fun memberToAllocate(request: ProcessModel.Entity.MovableResourcePoolRequest): MovableResource? {
         val list = selectMovableResources(request.selectionRule ?: defaultMovableResourceSelectionRule)
-        if (list.isEmpty()) return false
-        val location = request.requestLocation ?: return false
-        val member = selectMovableResourceForAllocation(
+        if (list.isEmpty()) return null
+        val location = request.requestLocation ?: return null
+        return selectMovableResourceForAllocation(
             location, request.allocationRule ?: defaultMovableResourceAllocationRule, list
         )
-        request.promise(member, 1)
-        return true
     }
 
     fun deallocate(allocation: Allocation) {

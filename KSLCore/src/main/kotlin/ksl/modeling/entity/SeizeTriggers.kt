@@ -42,11 +42,10 @@ internal abstract class SeizeTrigger<V, R : ProcessModel.Entity.Request>(
     /** True when the request just placed can take its units at once, as the untimed seize decides. */
     abstract fun canTakeNow(entity: ProcessModel.Entity, request: R): Boolean
 
-    /** Takes the units after any wait; null when the re-wait timed out. */
+    /** Takes the allocation the library made when it served the request, or the units after any wait. */
     abstract suspend fun ProcessModel.Entity.ProcessCoroutine.take(
         request: R,
-        suspensionName: String?,
-        rewait: (suspend ProcessModel.Entity.ProcessCoroutine.() -> Boolean)?
+        suspensionName: String?
     ): V?
 
     /** Takes the units of a request that can be served now, without waiting. */
@@ -78,11 +77,11 @@ internal abstract class SeizeTrigger<V, R : ProcessModel.Entity.Request>(
         val request = enqueue(entity, group.entityPriority)
         registration.attach(request)
         if (canTakeNow(entity, request)) {
-            // It can take its units now. They are promised to it, as a wake promises them, so nothing else takes
-            // them before the wait goes on to allocate; the claim is made while the wait registers, so it
-            // schedules no resume.
-            check(queue.promiseUnits(request, request.resource)) { "The units of $seizedName could not be promised to request ${request.id}." }
-            queue.resumeWoken(request, ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "seize trigger served at once")
+            // It can take its units now: it is served as at a wake, and its claim, made while the wait registers,
+            // schedules no resume
+            check(queue.serve(request, ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "seize trigger served at once")) {
+                "The units of $seizedName could not be allocated to request ${request.id}."
+            }
         } else {
             entity.emitAnimation { AnimationEvent.SeizeWaiting(queue.time, entity.id, seizedName) }
             offerFreeUnitsAfterArrival()
@@ -133,9 +132,8 @@ internal class ResourceSeizeTrigger(
 
     override suspend fun ProcessModel.Entity.ProcessCoroutine.take(
         request: ProcessModel.Entity.ResourceRequest,
-        suspensionName: String?,
-        rewait: (suspend ProcessModel.Entity.ProcessCoroutine.() -> Boolean)?
-    ): Allocation? = takeResource(request, resource, queue, suspensionName, rewait)
+        suspensionName: String?
+    ): Allocation? = takeResource(request, resource, queue, suspensionName)
 
     override fun ProcessModel.Entity.ProcessCoroutine.complete(request: ProcessModel.Entity.ResourceRequest): Allocation =
         completeResourceSeize(request, resource, queue, null)
@@ -181,9 +179,8 @@ internal class ResourcePoolSeizeTrigger(
 
     override suspend fun ProcessModel.Entity.ProcessCoroutine.take(
         request: ProcessModel.Entity.ResourcePoolRequest,
-        suspensionName: String?,
-        rewait: (suspend ProcessModel.Entity.ProcessCoroutine.() -> Boolean)?
-    ): ResourcePoolAllocation? = takePool(request, resourcePool, queue, suspensionName, rewait)
+        suspensionName: String?
+    ): ResourcePoolAllocation? = takePool(request, resourcePool, queue, suspensionName)
 
     override fun ProcessModel.Entity.ProcessCoroutine.complete(request: ProcessModel.Entity.ResourcePoolRequest): ResourcePoolAllocation =
         completePoolSeize(request, resourcePool, queue, null)
@@ -231,9 +228,8 @@ internal class MovableResourcePoolSeizeTrigger(
 
     override suspend fun ProcessModel.Entity.ProcessCoroutine.take(
         request: ProcessModel.Entity.MovableResourcePoolRequest,
-        suspensionName: String?,
-        rewait: (suspend ProcessModel.Entity.ProcessCoroutine.() -> Boolean)?
-    ): Allocation? = takeMovablePool(request, movableResourcePool, queue, suspensionName, rewait)
+        suspensionName: String?
+    ): Allocation? = takeMovablePool(request, movableResourcePool, queue, suspensionName)
 
     override fun ProcessModel.Entity.ProcessCoroutine.complete(request: ProcessModel.Entity.MovableResourcePoolRequest): Allocation =
         completeMovablePoolSeize(request, movableResourcePool, queue, null)
@@ -242,15 +238,12 @@ internal class MovableResourcePoolSeizeTrigger(
 }
 
 /**
- *  A seize trigger's request in one wait. The winner takes its units after the resume, as `seize`
- *  does. Its win is provisional (`winsProvisionally`): what it was promised can go away in the instant between
- *  its wake and its resume, so the wait's other registrations are held in place until the units are taken, and
- *  are released then. If the promise broke, the wait is reopened: it goes on with the same request, for every
- *  trigger, each still in its place, and for the time left; another trigger that ends the reopened wait ends
- *  the whole wait. A loser leaves the queue when it is released, its wait recorded unless the trigger says not
- *  to and its leaving announced to the animation, and the free units of what it asked for are offered on once
- *  the release is over. While held, it is passed over by the offers as a woken request is. Termination removes
- *  the request as termination removes any waiting request.
+ *  A seize trigger's request in one wait. The library serves the request as it serves any waiting request
+ *  (`RequestQ.serve`): its units are allocated when it is chosen, and its claim on the wait is final, so the wait's
+ *  other registrations are released at once. The winner's process takes the allocation passed to it when it
+ *  resumes. A loser leaves the queue when it is released, its wait recorded unless the trigger says not to and its
+ *  leaving announced to the animation, and the free units of what it asked for are offered on once the release is
+ *  over. Termination removes the request as termination removes any waiting request.
  */
 internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
     private val seizeTrigger: SeizeTrigger<V, R>,
@@ -267,9 +260,6 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
         this.request = request
         request.registration = this
     }
-
-    override val winsProvisionally: Boolean
-        get() = true
 
     override fun onReleaseAsLoser() {
         val queue = request.queue as? RequestQ ?: return
@@ -294,83 +284,12 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
         leftQueue?.offerFreeUnitsOf(request.resource, "request_id=${request.id} left without service")
     }
 
-    /** Held while another seize trigger's win was undecided, the request may have been passed over: offer to it. */
-    override fun lookAgain(process: ProcessModel.Entity.ProcessCoroutine) {
-        val queue = request.queue as? RequestQ ?: return
-        queue.offerFreeUnitsOf(request.resource, "request_id=${request.id} waits again")
-    }
-
-    /**
-     *  The promise of this winner's units broke before it could take them: reopens its wait, so that the other
-     *  registrations are no longer held and can be served where they stand, and marks this one waiting again.
-     *  Called before the withdrawn units are offered on. Does nothing for a wait this registration has not won
-     *  provisionally.
-     */
-    fun reopenAfterBrokenPromise() {
-        if (!group.isProvisional || group.winnerRegistration !== this) return
-        group.reopen()
-        markWaitingAgain()
-    }
-
-    /**
-     *  After a reopening, the request can take other units that are free now: it wins the reopened wait again,
-     *  provisionally, holding the other registrations until the take settles it. Does nothing if something
-     *  else claimed the wait meanwhile.
-     */
-    fun winAgain() {
-        if (group.claimed) return
-        claimWait(null, ResumeSource.UNKNOWN_INTERNAL, ProcessModel.RESUME_PRIORITY)
-    }
-
-    /** Set when another trigger of the wait ended a reopened wait: what the wait ends with instead. */
-    private var otherWinner: AfterResume.Other? = null
-
+    /** The request was served when the library chose it; the resume takes the allocation passed to it. */
     override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
         markReleased()
-        otherWinner = null
-        val value = with(seizeTrigger) { take(request, group.suspensionName, rewait = { rewait() }) }
-        if (value != null) {
-            // the units are taken: the win holds, and the other registrations are released as losers
-            group.settle()
-            return AfterResume.Value(value)
+        val value = checkNotNull(with(seizeTrigger) { take(request, group.suspensionName) }) {
+            "The seize trigger's request ${request.id} resumed with nothing allocated to it."
         }
-        return otherWinner ?: AfterResume.TimedOut
-    }
-
-    /**
-     *  Waits again after the promise broke, for the time left to the original deadline. The wait was reopened
-     *  before the withdrawn units were offered on (`reopenAfterBrokenPromise`), and that offer may already have
-     *  served another of its triggers. Otherwise the other registrations are still in place: each source is asked, in argument order, to look at its
-     *  registration again (a message already in the mailbox, items now in the blocking queue, units free for
-     *  another seize trigger, an allocation now whole), and the first that can serve it claims the wait. A
-     *  trigger that was never registered, because this one won while the wait was registering, registers now.
-     *  Otherwise the wait suspends again. This request's own units were offered on as the promise was withdrawn.
-     *
-     *  @return true when this seize trigger claimed the reopened wait; false when the timer did, or another
-     *  trigger, whose result is then kept for [afterWinningResume]
-     */
-    private suspend fun ProcessModel.Entity.ProcessCoroutine.rewait(): Boolean {
-        // reopened already, before the withdrawn units were offered (reopenAfterBrokenPromise); that offer may
-        // have served another trigger of the wait, which then claimed it
-        reopenAfterBrokenPromise()
-        if (!group.claimed) {
-            val byTrigger = group.registrations.associateBy { it.trigger }
-            for (trigger in group.triggers) {
-                if (trigger === seizeTrigger) continue
-                val registration = byTrigger[trigger]
-                if (registration == null) trigger.registerAgain(group) else registration.lookAgain(this)
-                if (group.claimed) break
-            }
-        }
-        if (!group.claimed) waitAgain(group)
-        if (group.timedOut) return false
-        val winner = group.winnerRegistration ?: return false
-        if (winner === this@SeizeRegistration) return true
-        otherWinner = when (val after = with(winner) { afterWinningResume() }) {
-            is AfterResume.Value -> AfterResume.Other(winner.trigger, after.value)
-            is AfterResume.Other -> after
-            AfterResume.TimedOut -> null
-        }
-        return false
+        return AfterResume.Value(value)
     }
 }

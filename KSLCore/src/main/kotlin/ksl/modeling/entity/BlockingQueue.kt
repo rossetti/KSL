@@ -349,7 +349,7 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
 
         /**
          *  True if the request can be filled at the time the property is accessed. A request whose wait is held,
-         *  while another trigger of its wait has won provisionally, cannot be filled until the wait is reopened.
+         *  while a ready trigger of its wait fires, cannot be filled: it leaves with its wait.
          */
         open val canBeFilled: Boolean
             get() {
@@ -469,8 +469,8 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
      * can be used to define a default method for selecting the next receiver's request
      * to receive items from the channel. The default is to use the queue discipline. The
      * request at the head of the queue is selected if it can be filled. If it can't, no
-     * request is selected, whatever could be filled further back. A request whose wait is held, while another
-     * trigger of its wait has won provisionally, is passed over as if it had left.
+     * request is selected, whatever could be filled further back. A request whose wait is held, while a
+     * ready trigger of its wait fires, is passed over as if it had left.
      */
     inner class RequestSelector<T : ModelElement.QObject> : RequestSelectorIfc<T> {
         override fun selectRequest(queue: Queue<BlockingQueue<T>.ChannelRequest>): BlockingQueue<T>.ChannelRequest? {
@@ -499,8 +499,8 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
 
     /**
      *  Interface for defining request selection. The queue given may hold a request whose wait for the first of
-     *  several things is held for an instant, while another trigger of that wait has won provisionally; such a
-     *  request reports that it cannot be filled.
+     *  several things is held for an instant, while a ready trigger of that wait fires; such a request reports
+     *  that it cannot be filled.
      */
     interface RequestSelectorIfc<T : ModelElement.QObject> {
         fun selectRequest(queue: Queue<BlockingQueue<T>.ChannelRequest>): BlockingQueue<T>.ChannelRequest?

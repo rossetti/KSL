@@ -325,7 +325,8 @@ class RequestQ @JvmOverloads constructor(
     }
 
     /**
-     *  For a request of this queue resuming with nothing promised (moved while woken, or its promise broke): whether
+     *  For a request of this queue that the library woke and that resumes with nothing promised (a guided
+     *  transporter pool's request whose promise broke): whether
      *  the queue's request selection rule would choose it now, the first of the rule's list that can be served,
      *  counting the request itself as waiting. With no rule, true: the discipline was applied when it was woken.
      */
@@ -381,24 +382,6 @@ class RequestQ @JvmOverloads constructor(
         } else {
             resource.numAvailableUnits - pendingResumeAmountFor(resource)
         }
-    }
-
-    /**
-     * Promises a woken request the units it will take when it resumes, so that nothing else takes them
-     * first. A request for a guided transporter pool is not promised anything; that pool counts its own.
-     *
-     * @return false when the units are no longer there to promise
-     */
-    internal fun promiseUnits(request: ProcessModel.Entity.Request, target: ResourceIfc): Boolean = when {
-        request is ProcessModel.Entity.ResourceRequest && target is Resource -> {
-            if (target.numAvailableUnits >= request.amountRequested) {
-                request.promise(target, request.amountRequested); true
-            } else false
-        }
-        request is ProcessModel.Entity.ResourcePoolRequest && target is ResourcePool -> target.promiseMembers(request)
-        request is ProcessModel.Entity.MovableResourcePoolRequest && target is MovableResourcePool ->
-            target.promiseMember(request)
-        else -> true
     }
 
     private fun selectWithinAvailable(
@@ -526,9 +509,9 @@ class RequestQ @JvmOverloads constructor(
     }
 
     /**
-     *  Wakes [request]: promises it the units it will take and schedules its resumption.
+     *  Serves [request], which the offer of [freed]'s units has chosen (see [serve]).
      *
-     *  @return false when the units could not be promised, in which case it is not woken
+     *  @return false when the units are not there to allocate, in which case nothing changes
      */
     internal fun wake(
         request: ProcessModel.Entity.Request,
@@ -537,16 +520,68 @@ class RequestQ @JvmOverloads constructor(
         resumeSource: ResumeSource,
         resumeDetail: String?
     ): Boolean {
-        if (!promiseUnits(request, request.resource)) return false
         val detail = "queue=$name, resource=${request.resource.name}, freed=${freed.name}, request_id=${request.id}, " +
                 "entity_id=${request.entity.id}, amount=${request.amountRequested}, $resumeDetail"
-        resumeWoken(request, resumePriority, resumeSource, detail)
-        return true
+        return serve(request, resumePriority, resumeSource, detail)
     }
 
     /**
-     *  Resumes a request that has just been promised its units: the one step every wake of a waiting
-     *  request ends with. The request is marked as having a resume pending, so nothing wakes it twice.
+     *  Serves [request] at the moment the library decides to: its units are allocated now, from the resource it
+     *  asks for, or from the members its pool's rules choose; it leaves this queue, its wait recorded; and the
+     *  allocation is passed to it. Its resume is then scheduled, or, for a request of a wait for the first of several
+     *  things, its wait is claimed. When its process resumes it takes the allocation passed to it. Between the two,
+     *  in the same instant, it is a holder like any other: a failure, a capacity change or a shift meets it as one.
+     *
+     *  Every way the library serves a waiting request of a resource, a resource pool or a movable resource pool
+     *  comes here: an offer of units, a move into a queue that would serve it at once, and a seize trigger that can
+     *  take its units as it registers. A waiting preemptor and a FINISH reservation are served by their resource.
+     *
+     *  @return false when the units are not there to allocate, in which case nothing changes
+     */
+    internal fun serve(
+        request: ProcessModel.Entity.Request,
+        resumePriority: Int,
+        resumeSource: ResumeSource,
+        resumeDetail: String?
+    ): Boolean {
+        val entity = request.entity
+        when (request) {
+            is ProcessModel.Entity.ResourceRequest -> {
+                val resource = request.resource as Resource
+                check(request.waitingPreemptRule == null && request.reservation == null) {
+                    "Request ${request.id} is a preemptor's; its resource serves it."
+                }
+                if (resource.numAvailableUnits < request.amountRequested) return false
+                leaveServed(request)
+                request.passedAllocation = resource.allocate(entity, request.amountRequested, this, entity.currentSuspendName)
+            }
+            is ProcessModel.Entity.ResourcePoolRequest -> {
+                val pool = request.myResourcePool
+                val members = pool.membersToAllocate(request) ?: return false
+                leaveServed(request)
+                request.passedPoolAllocation = pool.allocateFrom(entity, members, this, entity.currentSuspendName)
+            }
+            is ProcessModel.Entity.MovableResourcePoolRequest -> {
+                val pool = request.myMovableResourcePool
+                val member = pool.memberToAllocate(request) ?: return false
+                leaveServed(request)
+                request.passedAllocation = pool.allocateMember(entity, member, this, entity.currentSuspendName)
+            }
+            else -> error("Request ${request.id} for ${request.resource.name} is not served through its queue.")
+        }
+        resumeWoken(request, resumePriority, resumeSource, resumeDetail)
+        return true
+    }
+
+    /** Takes a request being served out of this queue, recording its wait, for its wait group too, as a seize does. */
+    private fun leaveServed(request: ProcessModel.Entity.Request) {
+        if (waitTimeStatOption && contains(request)) request.registration?.let { it.group.noteRecorded(it.trigger, name) }
+        remove(request)
+    }
+
+    /**
+     *  Resumes a request that has just been served, or a guided transporter pool's request it has woken: the one
+     *  step every wake of a waiting request ends with. The request is marked as having a resume pending, so nothing wakes it twice.
      *  A request of an untimed seize then has its entity's resume scheduled. A request of a wait for
      *  the first of several things has its wait claimed instead, which withdraws the wait's other
      *  registrations, cancels its timer and schedules the resume.
@@ -619,7 +654,6 @@ class RequestQ @JvmOverloads constructor(
         for (request in selected) {
             val detail = "queue=$name, resource=${resource.name}, request_id=${request.id}, " +
                     "entity_id=${request.entity.id}, amount=${request.amountRequested}, $resumeDetail"
-            if (!promiseUnits(request, resource)) continue
             resumeWoken(request, resumePriority, resumeSource, detail)
             sum = sum + request.amountRequested
         }

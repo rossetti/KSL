@@ -227,8 +227,8 @@ class Signal @JvmOverloads constructor(
 
     /**
      *  The entities waiting, in queue order, that a signal by position can reach: an entity whose wait for the first
-     *  of several things is held for an instant, while another trigger of that wait has won provisionally, keeps
-     *  its place but is passed over, as if it had left. The ranks count only these.
+     *  of several things is held for an instant, while a ready trigger of that wait fires, keeps its place but
+     *  is passed over, as if it had left. The ranks count only these.
      */
     private fun waiting(): List<ProcessModel.Entity> =
         holdQueue.filter { myTimedHolds[it]?.isHeld != true }

@@ -218,23 +218,6 @@ internal class MessageRegistration<M : AgentMessage>(
         }
     }
 
-    /**
-     *  Held while a seize trigger's win was undecided, a message may have been left in the mailbox for want of a
-     *  receiver: the reopened wait takes it, as a message trigger takes one already waiting.
-     */
-    override fun lookAgain(process: ProcessModel.Entity.ProcessCoroutine) {
-        val mailbox = messageTrigger.mailbox
-        if (!mailbox.hasMatch(messageTrigger.predicate)) return
-        // the wait is claimed before the observers hear of the message, as at a delivery to a waiting receiver: an
-        // observer that acts on the notice (fires a signal, sends a message) finds this wait already ended
-        val message = checkNotNull(mailbox.takeUnannounced(messageTrigger.predicate))
-        mailbox.removeWaiter(waiter)
-        waiter.result = message
-        val claimed = claimWait(message, ResumeSource.MAILBOX, ProcessModel.RESUME_PRIORITY)
-        check(claimed) { "A reopened wait on the mailbox of ${mailbox.owner} was already claimed." }
-        mailbox.notifyConsumed(message)
-    }
-
     override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
         // The delivery has already removed the waiter and given the message to the claim.
         markReleased()

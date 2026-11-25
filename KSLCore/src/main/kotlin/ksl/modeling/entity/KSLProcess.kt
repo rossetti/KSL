@@ -237,11 +237,9 @@ interface KSLProcessBuilder {
      *  requests already waiting, ends the wait without suspending. Otherwise the first to fire in time
      *  order wins, and the others are withdrawn at that instant. Every trigger is checked before any can
      *  fire or register: a released allocation's trigger fails the call, with nothing registered. A seize
-     *  trigger's win holds only once its units are taken, when the entity resumes. Until then the other
-     *  triggers keep their places (in a mailbox's receivers, a signal's queue, a request queue), and each
-     *  source passes the entity over as if it had left. If the units promised to it went away in that
-     *  instant, the wait goes on with all the triggers, each still in its place, for the time left; any of
-     *  them can then end it. Each trigger's wait is recorded once, when the wait ends.
+     *  trigger wins as its units are allocated, when its queue serves it, and the entity holds them from that
+     *  instant, as any holder does; its process takes the allocation when it resumes. Each trigger's wait is
+     *  recorded once, when the wait ends.
      *
      *  @param triggers the things to wait for; at least one, each at most once
      *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY (the
@@ -1051,8 +1049,9 @@ interface KSLProcessBuilder {
      *  the result is timed out. While it waits, the request is in the queue exactly as a `seize`
      *  request, so it is served in the same order and counted in the same way. A release at the very
      *  instant the time runs out serves it at the default priorities: the timer runs late in the
-     *  instant. If a unit promised to it goes away between its wake and its resume, it waits again for
-     *  the time left. A model counts its own reneges, from `timedOut`.
+     *  instant. A request is served as its units are allocated, when its queue serves it; from then it holds
+     *  them, and a failure or a capacity change in the same instant meets it as a holder. A model counts its
+     *  own reneges, from `timedOut`.
      *
      *  [recordRenegedWait] decides whether a request that leaves without service records its wait in the
      *  queue's time in queue. With false, the queue's number in queue has counted the request while its
@@ -1300,7 +1299,7 @@ interface KSLProcessBuilder {
      *  Seizes units of the resource pool, as `seize` does, but waits for at most [timeout] time units.
      *  As `seizeOrTimeout` for a resource: the result is satisfied with the allocation if the units
      *  are allocated in time, or timed out; a request that leaves without service records its wait
-     *  unless [recordRenegedWait] is false; a broken promise waits again for the time left.
+     *  unless [recordRenegedWait] is false.
      *
      *  @param resourcePool the pool to seize from
      *  @param amountNeeded the number of units wanted; at least 1
@@ -1366,7 +1365,7 @@ interface KSLProcessBuilder {
      *  Seizes a movable resource of the pool, as `seize` does, but waits for at most [timeout] time units.
      *  As `seizeOrTimeout` for a resource: the result is satisfied with the allocation if the units
      *  are allocated in time, or timed out; a request that leaves without service records its wait
-     *  unless [recordRenegedWait] is false; a broken promise waits again for the time left.
+     *  unless [recordRenegedWait] is false.
      *
      *  @param movableResourcePool the pool to seize from
      *  @param timeout the longest time to wait; zero or more, or Double.POSITIVE_INFINITY for no limit

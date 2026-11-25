@@ -75,13 +75,6 @@ abstract class WaitTrigger<out T> internal constructor() {
     internal abstract fun register(group: WaitGroup): Registration
 
     /**
-     *  Registers this trigger again for a wait that began earlier and now waits a second time, as a seize
-     *  trigger's wait does when its promise breaks. By default it registers as for a new wait. A trigger whose
-     *  source may have ended since the wait began answers with a registration that waits on nothing.
-     */
-    internal open fun registerAgain(group: WaitGroup): Registration = register(group)
-
-    /**
      *  If not null, the wait yields once at this priority before it registers, as a seize does
      *  before it joins its queue.
      */
@@ -230,10 +223,6 @@ class WaitForFirstResult internal constructor(
  */
 internal sealed class AfterResume {
     class Value(val value: Any?) : AfterResume()
-    object TimedOut : AfterResume()
-
-    /** A seize trigger's re-wait was ended by [winner], another trigger of the same wait, with [value]. */
-    class Other(val winner: WaitTrigger<*>, val value: Any?) : AfterResume()
 }
 
 /**
@@ -300,33 +289,14 @@ internal abstract class Registration(val trigger: WaitTrigger<*>, val group: Wai
         isReleased = true
     }
 
-    /** Marks a registration whose win did not hold as waiting again, when its wait is reopened. */
-    protected fun markWaitingAgain() {
-        isReleased = false
-    }
-
     /**
-     *  True when a win by this registration is provisional: what it won may still go away before the entity
-     *  resumes, as a seize trigger's promised units can. Its wait's other registrations are then held, not
-     *  released, until the win is settled (`WaitGroup.settle`) or the wait reopened (`WaitGroup.reopen`).
-     */
-    open val winsProvisionally: Boolean
-        get() = false
-
-    /**
-     *  True while this registration is held: its wait was won provisionally by another of its registrations. It
-     *  keeps its place with its source and records nothing, and its source passes over it, making the choice it
-     *  would make if the registration had left. A claim through it is refused.
+     *  True while this registration is held: another trigger of its wait, ready at once, is firing after the wait
+     *  was closed for it (`WaitGroup.claimAround`). It keeps its place with its source and records nothing, and its
+     *  source passes over it, making the choice it would make if the registration had left. A claim through it is
+     *  refused.
      */
     val isHeld: Boolean
-        get() = group.isProvisional && !isReleased && this !== group.winnerRegistration
-
-    /**
-     *  Asks this registration's source to look at it again, after its wait was reopened: anything that could have
-     *  served it while it was held now claims the wait, as it would have had the registration been waiting. A
-     *  source with nothing to look at (a signal, which is an event) does nothing.
-     */
-    open fun lookAgain(process: ProcessModel.Entity.ProcessCoroutine) {}
+        get() = group.isFiring && !isReleased && this !== group.winnerRegistration
 
     protected abstract fun onReleaseAsLoser()
 
@@ -344,24 +314,9 @@ internal abstract class Registration(val trigger: WaitTrigger<*>, val group: Wai
 
     /**
      *  Runs in the resumed process when this registration's trigger won: leaves the thing waited on
-     *  and produces the value. It extends the process because a step that suspends again (a seize's
-     *  re-wait) may call the process's suspending functions only from within the process.
+     *  and produces the value. It extends the process, so a step may call the process's suspending functions.
      */
     abstract suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume
-}
-
-/**
- *  The registration of a trigger that can no longer fire, in a wait that goes on for its other triggers and
- *  its time limit. It holds nothing, so there is nothing to release, and it never wins.
- */
-internal class EndedRegistration(trigger: WaitTrigger<*>, group: WaitGroup) : Registration(trigger, group) {
-
-    override fun onReleaseAsLoser() {}
-
-    override fun onReleaseOnTermination() {}
-
-    override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume =
-        error("The trigger $trigger can no longer fire, so its registration cannot win a wait.")
 }
 
 /**
@@ -407,10 +362,10 @@ internal class WaitGroup(
         private set
 
     /**
-     *  True while the wait is won provisionally (`Registration.winsProvisionally`): it is claimed, and its other
-     *  registrations are held where they are, until the win is settled or the wait reopened.
+     *  True while a trigger ready at once fires after the wait was closed for it (`claimAround`): the wait is
+     *  claimed, and its other registrations are held where they are until the firing is over.
      */
-    var isProvisional: Boolean = false
+    var isFiring: Boolean = false
         private set
 
     /** Closes the wait without a winner, because its process ended: nothing can claim it afterwards. */
@@ -437,7 +392,7 @@ internal class WaitGroup(
     /** When the wait's time limit runs out; infinite when it has none. */
     var deadline: Double = Double.POSITIVE_INFINITY
 
-    /** The priority of the wait's timer, kept for a re-wait that needs a timer of its own. */
+    /** The priority of the wait's timer. */
     var timeoutPriority: Int = ProcessModel.TIMEOUT_PRIORITY
 
     /** The timer's event, when the wait has a finite time limit. */
@@ -498,11 +453,11 @@ internal class WaitGroup(
         check(!claimed && !entity.processModel.isRunEnded) { "A wait is claimed around a firing only while it is open." }
         claimed = true
         // held while the trigger fires: every source passes over a held registration
-        isProvisional = true
+        isFiring = true
         val value = try {
             fire()
         } finally {
-            isProvisional = false
+            isFiring = false
         }
         completeClaim(null, value, source, resumePriority)
         return value
@@ -514,12 +469,8 @@ internal class WaitGroup(
         winnerRegistration = by
         this.value = value
         timedOut = source == ResumeSource.TIMEOUT
-        // a provisional win holds the other registrations in place; they are released when it is settled
-        isProvisional = by?.winsProvisionally == true
-        if (!isProvisional) {
-            for (registration in registrations) {
-                if (registration !== by) registration.releaseAsLoser()
-            }
+        for (registration in registrations) {
+            if (registration !== by) registration.releaseAsLoser()
         }
         if (timedOut) {
             suspension?.endLinkOnTimeout()
@@ -527,7 +478,7 @@ internal class WaitGroup(
         } else {
             cancelTimer()
         }
-        val deferred = if (isProvisional) emptyList() else registrations.filter { it !== by && it.deferredNotificationSource != null }
+        val deferred = registrations.filter { it !== by && it.deferredNotificationSource != null }
             .distinctBy { it.deferredNotificationSource }
         if (isSuspending) {
             val what = when {
@@ -542,40 +493,6 @@ internal class WaitGroup(
         for (registration in deferred) {
             registration.notifyDeferred()
         }
-    }
-
-    /**
-     *  Settles a provisional win: what was won has been taken. The other registrations are released as losers,
-     *  as a final claim releases them, recording their waits, and the requests behind them are looked at again,
-     *  once per source. Does nothing when the win was not provisional.
-     */
-    fun settle() {
-        if (!isProvisional) return
-        isProvisional = false
-        val winnerReg = winnerRegistration
-        val losers = registrations.filter { it !== winnerReg }
-        for (registration in losers) registration.releaseAsLoser()
-        losers.filter { it.deferredNotificationSource != null }
-            .distinctBy { it.deferredNotificationSource }
-            .forEach { it.notifyDeferred() }
-    }
-
-    /**
-     *  Reopens a provisionally won wait whose win did not hold: what was won went away before it could be taken.
-     *  The claim is cleared, so the held registrations can be claimed again where they stand, and the wait keeps
-     *  its start and deadline. The caller registers the winner again and waits.
-     */
-    fun reopen() {
-        check(isProvisional) { "Only a provisionally won wait can be reopened." }
-        isProvisional = false
-        claimed = false
-        winner = null
-        winnerRegistration = null
-        value = null
-        timedOut = false
-        isSuspending = false
-        resumedNormally = false
-        timerEvent = null
     }
 
     /** Cancels the timer if it is still on the calendar. */

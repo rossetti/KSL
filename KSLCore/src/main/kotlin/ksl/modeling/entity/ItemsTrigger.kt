@@ -121,11 +121,6 @@ internal class ItemsRegistration<T : ModelElement.QObject>(
         itemsTrigger.blockingQ.notifyAfterDeferredRemoval()
     }
 
-    /** Held while a seize trigger's win was undecided, the request may have been passed over: the queue looks again. */
-    override fun lookAgain(process: ProcessModel.Entity.ProcessCoroutine) {
-        itemsTrigger.blockingQ.notifyAfterDeferredRemoval()
-    }
-
     override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
         markReleased()
         return AfterResume.Value(fill(itemsTrigger.blockingQ, request))

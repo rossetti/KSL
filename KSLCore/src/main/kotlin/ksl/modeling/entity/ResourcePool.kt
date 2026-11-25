@@ -198,7 +198,7 @@ open class ResourcePool @JvmOverloads constructor(
     }
 
     /**
-     * Allocates exactly the given members, as they were promised to a waiting request when it was woken.
+     * Allocates exactly the given members, as `membersToAllocate` chose them for a waiting request.
      * The amounts must currently be allocatable from those members.
      */
     internal fun allocateFrom(
@@ -249,20 +249,17 @@ open class ResourcePool @JvmOverloads constructor(
     )
 
     /**
-     * Promises members' units to a waiting request, chosen by the selection and allocation rules the request's
-     * seize named (or the pool's defaults), as they would be chosen if it allocated now.
+     * The members' units to allocate to a waiting request now, chosen by the selection and allocation rules the
+     * request's seize named (or the pool's defaults), as they would be chosen if it allocated now.
      *
-     * @return false when the pool cannot supply the request now, in which case nothing is promised
+     * @return null when the pool cannot supply the request now
      */
-    internal fun promiseMembers(request: ProcessModel.Entity.ResourcePoolRequest): Boolean {
+    internal fun membersToAllocate(request: ProcessModel.Entity.ResourcePoolRequest): Map<Resource, Int>? {
         val selection = request.selectionRule ?: defaultResourceSelectionRule
         val allocation = request.allocationRule ?: defaultResourceAllocationRule
         val list = selectResources(selection, request.amountRequested)
-        if (list.isEmpty()) return false
-        for ((resource, amt) in makeAllocations(allocation, request.amountRequested, list)) {
-            request.promise(resource, amt)
-        }
-        return true
+        if (list.isEmpty()) return null
+        return makeAllocations(allocation, request.amountRequested, list)
     }
 
     fun deallocate(poolAllocation: ResourcePoolAllocation) {

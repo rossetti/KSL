@@ -379,16 +379,15 @@ open class Resource @JvmOverloads constructor(
     }
 
     /**
-     * Units promised to entities that have been woken to take them and have not yet resumed. A waiting
-     * entity is not given its units when it is woken; it takes them when it resumes, at the same instant.
-     * In between, the units are promised to it, so that nothing else, another queue, another pool or a
-     * new arrival, can take them first.
+     * Units held for a request that is not yet allocated them: a `FINISH` preemption's reservation still
+     * collecting its units, which nothing else may take. A request the library serves is allocated its units at
+     * once, so it holds none of these.
      */
     internal var myPromisedUnits: Int = 0
 
     /**
-     * The units that can be allocated now: the capacity less the busy units and less any units promised
-     * to a waiting entity that has been woken to take them. None while the resource is failed.
+     * The units that can be allocated now: the capacity less the busy units and less any units held for a
+     * reservation still collecting them. None while the resource is failed.
      */
     override val numAvailableUnits: Int
          get() = if (isFailed) 0 else maxOf(0, capacity - numBusy - myPromisedUnits)
@@ -1918,6 +1917,8 @@ open class Resource @JvmOverloads constructor(
         // a reservation's preemption was counted when it reserved
         if (plan.takes.isNotEmpty() && !alreadyCounted) numTimesPreempted++
         allocationNotification(allocation)
+        // the preemptor leaves its queue now, as any request the library serves does
+        queue.remove(request)
         request.passedAllocation = allocation
         queue.resumeWoken(request, priority, source, detail)
     }
@@ -2684,11 +2685,14 @@ open class Resource @JvmOverloads constructor(
         if (reservation != null) {
             val free = numAvailableUnits
             if (free >= reservation.stillNeeded) {
-                claimant.promise(this, reservation.stillNeeded)
-                reservation.stillNeeded = 0
-                reservation.isComplete = true
-                (claimant.queue as RequestQ).resumeWoken(
-                    claimant, priority, source, "reservation_completed_resource=$name, request_id=${claimant.id}, ${detail ?: ""}"
+                // the reservation is complete: its units are allocated now, as for one a loan's end completes
+                val promised = claimant.promises[this] ?: 0
+                if (promised > 0) claimant.withdrawPromise(this, promised)
+                dropReservation(claimant)
+                giveToWaitingPreemptor(
+                    claimant, PreemptionPlan(claimant.amountRequested, emptyList()), returning, priority, source,
+                    "reservation_completed_resource=$name, request_id=${claimant.id}, ${detail ?: ""}",
+                    alreadyCounted = true
                 )
                 return true
             }

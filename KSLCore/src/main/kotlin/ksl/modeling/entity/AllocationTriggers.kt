@@ -32,10 +32,6 @@ internal class InterruptedTrigger(val allocation: Allocation) : WaitTrigger<Inte
 
     override fun register(group: WaitGroup): Registration = allocation.registerTrigger(this, group, onRestore = false)
 
-    /** Waiting again, after a seize trigger's promise broke: an allocation released since waits on nothing. */
-    override fun registerAgain(group: WaitGroup): Registration =
-        if (allocation.isAllocated) register(group) else EndedRegistration(this, group)
-
     override fun toString(): String = "InterruptedTrigger(allocation ${allocation.id} of ${allocation.myResource.name})"
 }
 
@@ -52,10 +48,6 @@ internal class RestoredTrigger(val allocation: Allocation) : WaitTrigger<Unit>()
     override fun validate(entity: ProcessModel.Entity) = allocation.requireHeldForTrigger(onRestore = true)
 
     override fun register(group: WaitGroup): Registration = allocation.registerTrigger(this, group, onRestore = true)
-
-    /** Waiting again, after a seize trigger's promise broke: an allocation released since waits on nothing. */
-    override fun registerAgain(group: WaitGroup): Registration =
-        if (allocation.isAllocated) register(group) else EndedRegistration(this, group)
 
     override fun toString(): String = "RestoredTrigger(allocation ${allocation.id} of ${allocation.myResource.name})"
 }
@@ -78,16 +70,6 @@ internal class AllocationRegistration(
 
     override fun onReleaseOnTermination() {
         allocation.myTriggerRegistrations.remove(this)
-    }
-
-    /**
-     *  Held while a seize trigger's win was undecided, a change of the allocation's units passed it over: it claims
-     *  the wait now if its trigger would fire. A released allocation claims nothing.
-     */
-    override fun lookAgain(process: ProcessModel.Entity.ProcessCoroutine) {
-        if (!allocation.isAllocated || !trigger.canFireNow(group.entity)) return
-        allocation.myTriggerRegistrations.remove(this)
-        claimWait(trigger.fireNow(process), ResumeSource.ALLOCATION, ProcessModel.RESUME_PRIORITY)
     }
 
     override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
