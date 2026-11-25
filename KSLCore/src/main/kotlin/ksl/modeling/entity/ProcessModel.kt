@@ -2700,8 +2700,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             registered.add(trigger)
                             if (group.claimed) break
                         } else if (registered.isNotEmpty() && trigger.canFireNow(this@Entity)) {
-                            val value = trigger.fireNow(this)
-                            group.claim(null, null, ResumeSource.UNKNOWN_INTERNAL, RESUME_PRIORITY)
+                            // the wait is closed while it fires, so that nothing its firing sets off can claim it
+                            // for a queued trigger it beat, and the queued requests are let go only afterwards
+                            val value = group.claimAround(ResumeSource.UNKNOWN_INTERNAL, RESUME_PRIORITY) {
+                                trigger.fireNow(this)
+                            }
                             logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst ended at once by $trigger, ($this)" }
                             return WaitForFirstResult(triggers.toList(), trigger, value, 0.0)
                         }

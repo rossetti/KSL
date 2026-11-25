@@ -481,6 +481,35 @@ internal class WaitGroup(
     fun claim(by: Registration?, value: Any?, source: ResumeSource, resumePriority: Int): Boolean {
         if (claimed || entity.processModel.isRunEnded) return false
         claimed = true
+        completeClaim(by, value, source, resumePriority)
+        return true
+    }
+
+    /**
+     *  Claims the wait for a trigger that can fire at once, met after a queued trigger has registered, and fires
+     *  it: [fire] takes what the trigger won. The wait is closed first, with the other registrations held, so that
+     *  nothing the firing sets off (a mailbox observer, an allocation listener) can claim it for a queued trigger;
+     *  only after the firing are they released and the requests behind them looked at again, so that those looks
+     *  cannot take what the trigger found free.
+     *
+     *  @return what [fire] returned, which is also the wait's value
+     */
+    fun <T> claimAround(source: ResumeSource, resumePriority: Int, fire: () -> T): T {
+        check(!claimed && !entity.processModel.isRunEnded) { "A wait is claimed around a firing only while it is open." }
+        claimed = true
+        // held while the trigger fires: every source passes over a held registration
+        isProvisional = true
+        val value = try {
+            fire()
+        } finally {
+            isProvisional = false
+        }
+        completeClaim(null, value, source, resumePriority)
+        return value
+    }
+
+    /** The rest of a claim, once the wait is closed: see [claim]. */
+    private fun completeClaim(by: Registration?, value: Any?, source: ResumeSource, resumePriority: Int) {
         winner = by?.trigger
         winnerRegistration = by
         this.value = value
@@ -513,7 +542,6 @@ internal class WaitGroup(
         for (registration in deferred) {
             registration.notifyDeferred()
         }
-        return true
     }
 
     /**
