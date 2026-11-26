@@ -1248,6 +1248,8 @@ abstract class FleetSystem @JvmOverloads constructor(
                     // The action decides what arriving means. The loop knows only that the
                     // vehicle is here, which is why a tour of stops written by somebody else runs
                     // through exactly this code.
+                    // the commitment this stop serves, to tell after the action a task it completed from one taken back
+                    val servedHere = commitmentFor(stop)
                     val visit = StopVisit(stop, t, blockedAtStart, failedAtStart)
                     with(stop.action) { perform(visit) }    // MAY SUSPEND
                     carried += maxOf(stop.action.loadChange - visit.numNotBoarded, 0)
@@ -1255,10 +1257,12 @@ abstract class FleetSystem @JvmOverloads constructor(
                     // statement about leaving and a vehicle that has not served the stop has not
                     // arrived in any sense that matters. An instant already past holds nothing,
                     // which is what a service running late does.
-                    // A task cancelled or taken back while the vehicle stands here lets it go at once.
+                    // A task cancelled or taken back while the vehicle stands here lets it go at once; one the action
+                    // completed, as a set-down does, holds it as a task still in hand does.
                     if (instruction is StopInstruction.Serve) {
                         // woken early when another of its commitments is taken back, it stands again
-                        while (time < instruction.departNotBefore && stillOurs(stop)) {
+                        while (time < instruction.departNotBefore &&
+                            (stillOurs(stop) || servedHere?.state == AssignmentState.COMPLETED)) {
                             departAt(this@VehicleAgent, instruction.departNotBefore)
                             hold(departureHoldQ,                      // SUSPENDS
                                 suspensionName = "${vehicle.name}:holdingFor:${stop.location}")
@@ -1321,6 +1325,12 @@ abstract class FleetSystem @JvmOverloads constructor(
         private fun stillOurs(stop: TourStop): Boolean {
             val task = stop.madeFor ?: stop.action.task ?: return true
             return assignments.any { it.task === task }
+        }
+
+        /** The commitment of this vehicle that [stop] serves, if it serves one. */
+        private fun commitmentFor(stop: TourStop): Assignment? {
+            val task = stop.madeFor ?: stop.action.task ?: return null
+            return assignments.firstOrNull { it.task === task }
         }
 
         /** True when [task] is still one of this vehicle's commitments. */
