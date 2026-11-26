@@ -1310,8 +1310,8 @@ causes arrive later, the one whose event runs first wins.
 - **Account for everything.** Conservation (case 5) and Little's law (case 1) are checks a model can make
   of itself, every replication.
 - **Turn on the resource checks.** Run with `-Dksl.checkInvariants=true` and every resource checks its
-  accounting after each event: units busy, units promised to waiting requests, and the waits registered on
-  allocations. A timed seize that left a promise behind would be caught at the event that did it.
+  accounting after each event: units busy, units held for reservations, and the waits registered on
+  allocations. A timed seize that left a request behind would be caught at the event that did it.
 - **Look at the animation.** A wait that times out appears in the animation trace as `WaitTimedOut`. A
   seize request that leaves its queue without being served, because its time ran out or something else
   the entity waited for came first, appears as `SeizeWithdrawn`.

@@ -350,10 +350,10 @@ the queue's list order, which for a LIFO or random queue is not
 its discipline; sort the list to impose another order. When a member's
 units come free, the rule's choices for the member come before its
 choices for each pool the member belongs to. With no rule, the queue's
-discipline decides. The queue a rule sees still holds requests already
-woken to take their units, which no longer count as available; they are
-passed over, and if one leaves without taking its units they are offered
-again.
+discipline decides. A request is allocated its units as it is served, and
+leaves the queue then, so the rule sees only the requests not yet served,
+asked again after each one: a rule that would serve a group of requests
+together sees them leave one at a time.
 
 **A pool seize waits its turn.** A seize of a pool or a movable resource
 pool, whether it arrives, is moved in, or is a trigger of `waitForFirst`,
@@ -392,8 +392,10 @@ there is none), and `timeoutPriority` and `recordRenegedWait`.
   queue's time in queue, so `NumInQ` and `TimeInQ` agree (Little's law). With
   `recordRenegedWait = false` it is left out of `TimeInQ` while `NumInQ` has counted it,
   so the two no longer agree.
-- If a unit promised to the request goes away between its wake and its resume, it
-  takes another free unit if there is one, and otherwise waits again for the time left.
+- **A served request holds its units at once.** It is allocated them as it is served,
+  before the entity resumes later in the same instant, so a failure, a capacity cut or a
+  shift's end in that instant meets it as a holder, and its time limit no longer applies.
+  The same holds for every seize that waits.
 - To wait for a resource or something else, whichever comes first, use a seize trigger
   (`resource.seizeTrigger()`, `pool.seizeTrigger()`) in `waitForFirst`; see
   [...wait for whichever comes first](#wait-for-whichever-comes-first).
@@ -1074,16 +1076,12 @@ when (r.trigger) {
   among the wait's seize triggers, as `seize` yields. Its value is the allocation; a
   losing seize request leaves its queue at the claim, recorded unless
   `recordRenegedWait = false`.
-- **A seize trigger's win holds once its units are taken.** It is woken with units
-  promised, and takes them when the entity resumes, later in the same instant. Until
-  then the wait's other triggers keep their places, and each source passes the entity
-  over as if it had left: a message goes to the next receiver, `signalFirst` to the next
-  entity, items to the next request. When the units are taken, the other triggers are
-  withdrawn and their waits recorded, as for any win. If the promised units went away in
-  that instant (a failure, a capacity cut or a shift's end), the wait goes on with every
-  trigger still in its place, for the time left, and anything left for it in the
-  meantime (a message in the mailbox, items in the channel) ends it at once. Each wait is
-  recorded once, for its whole length.
+- **A seize trigger wins as its units are allocated.** Its queue serves it as any
+  seize: the units are allocated then, and the win is final, so the wait's other
+  triggers are withdrawn and their waits recorded at that moment, as for any win. The
+  entity holds the units from that instant and takes the allocation when it resumes,
+  later in the same instant; a failure, a capacity cut or a shift's end in between meets
+  it as a holder. Each wait is recorded once, for its whole length.
 - **Two items triggers on one queue.** Their requests wait in the queue's request queue
   like any others, and the default selector serves only the request at the head. So a
   request for red items at the head holds back the request for blue items behind it, even
@@ -1402,8 +1400,8 @@ on the Dokka pages.
   capacity, both `senderQ` (producer side) and `requestQ` (consumer
   side) can be non-trivial. Read both when diagnosing backpressure.
 - **Check a model that combines features with `-Dksl.checkInvariants=true`.**
-  Every resource then checks its accounting after each event (units busy, lent,
-  promised and reserved, delays held, no request left beside units it could take),
+  Every resource then checks its accounting after each event (units busy, lent and
+  reserved, delays held, no request left beside units it could take),
   and every resource and blocking queue checks that each request of a
   `waitForFirst` belongs to a wait that is still open. A broken check stops the run
   with a message naming the time, the element and what is out of balance. It slows

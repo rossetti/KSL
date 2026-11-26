@@ -155,14 +155,14 @@ class EntityWaitForFirstRulesTest {
 
     /**
      *  R has one unit, held by H from 0 to 5. At 1, W waits for the first of a seize trigger of R and an items
-     *  trigger of Q; at 2, V waits for an item of Q, behind W's request. At 5, H releases R, which wakes W's seize
-     *  trigger, and in the same step sends an item to Q. W has not yet taken its unit, so Q passes over W's request
-     *  and the item goes to V.
+     *  trigger of Q; at 2, V waits for an item of Q, behind W's request. At 5, H releases R, which serves W's seize
+     *  trigger, and in the same step sends an item to Q. W's win is final as it is served, so its items request has
+     *  left Q, and the item goes to V.
      */
     @Test
-    @DisplayName("while a seize trigger's win waits for its units, an item goes to the next request")
-    fun itemGoesToNextRequestWhileSeizeWinPending() {
-        val m = RuleModel("PendingWinItem")
+    @DisplayName("once a seize trigger wins, its wait's other requests have left: an item sent in that instant goes to the next request")
+    fun itemGoesToNextRequestOnceSeizeWins() {
+        val m = RuleModel("SeizeWonItem")
         val r = ResourceWithQ(m, "R", capacity = 1)
         val q = BlockingQueue<RuleModel.Item>(m, name = "Q")
         m.plan {
@@ -194,12 +194,12 @@ class EntityWaitForFirstRulesTest {
     /**
      *  As above, with a mailbox in place of the queue: at 1, W waits for the first of a seize trigger of R and a
      *  trigger of the hub's mailbox; at 2, V waits on the same mailbox. At 5, H releases R and delivers a message.
-     *  W's win is pending, so the message goes to V.
+     *  W has won, and is no longer among the mailbox's receivers, so the message goes to V.
      */
     @Test
-    @DisplayName("while a seize trigger's win waits for its units, a message goes to the next receiver")
-    fun messageGoesToNextReceiverWhileSeizeWinPending() {
-        val m = RuleModel("PendingWinMessage")
+    @DisplayName("once a seize trigger wins, its wait's other receivers have left: a message sent in that instant goes to the next receiver")
+    fun messageGoesToNextReceiverOnceSeizeWins() {
+        val m = RuleModel("SeizeWonMessage")
         val r = ResourceWithQ(m, "R", capacity = 1)
         val hub = m.Agent("hub")
         m.plan {
