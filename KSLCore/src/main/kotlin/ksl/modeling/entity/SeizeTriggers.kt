@@ -23,9 +23,9 @@ import ksl.animation.AnimationEvent
 /**
  *  The trigger of a seize: units of a resource, or of a resource pool, or a movable resource from a
  *  movable resource pool. It fires at once when the untimed `seize` would take the units without
- *  waiting. Otherwise its request waits in the queue exactly as a `seize` request does, and the claim
- *  is made when the request is woken. The units are allocated after the resume, as `seize` allocates
- *  them.
+ *  waiting. Otherwise its request waits in the queue exactly as a `seize` request does; when its queue
+ *  serves it, its units are allocated and its claim on the wait is made, finally, at that moment, and
+ *  the process takes the allocation when it resumes.
  *
  *  @param V the allocation the seize produces
  *  @param R the kind of request it places
@@ -82,10 +82,11 @@ internal abstract class SeizeTrigger<V, R : ProcessModel.Entity.Request>(
             check(queue.serve(request, ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "seize trigger served at once")) {
                 "The units of $seizedName could not be allocated to request ${request.id}."
             }
-        } else {
+        } else if (!registration.isReleased) {
             entity.emitAnimation { AnimationEvent.SeizeWaiting(queue.time, entity.id, seizedName) }
             offerFreeUnitsAfterArrival()
         }
+        // else its arrival let the queue serve another trigger of the same wait, which won and released this one
         return registration
     }
 }

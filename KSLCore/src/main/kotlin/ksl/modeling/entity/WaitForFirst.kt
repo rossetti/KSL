@@ -290,13 +290,14 @@ internal abstract class Registration(val trigger: WaitTrigger<*>, val group: Wai
     }
 
     /**
-     *  True while this registration is held: another trigger of its wait, ready at once, is firing after the wait
-     *  was closed for it (`WaitGroup.claimAround`). It keeps its place with its source and records nothing, and its
-     *  source passes over it, making the choice it would make if the registration had left. A claim through it is
-     *  refused.
+     *  True while this registration is held: its wait has been claimed by another of its triggers, by the timer or by
+     *  its termination, and it is not yet released, as while the claim releases the registrations one by one, or while
+     *  a trigger ready at once fires after the wait was closed for it (`WaitGroup.claimAround`). It keeps its place
+     *  with its source and records nothing, and its source passes over it, making the choice it would make if the
+     *  registration had left, so that nothing a release sets off can serve it. A claim through it is refused.
      */
     val isHeld: Boolean
-        get() = group.isFiring && !isReleased && this !== group.winnerRegistration
+        get() = (group.isFiring || group.claimed) && !isReleased && this !== group.winnerRegistration
 
     protected abstract fun onReleaseAsLoser()
 

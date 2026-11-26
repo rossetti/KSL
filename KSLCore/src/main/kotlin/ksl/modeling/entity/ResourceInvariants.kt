@@ -128,7 +128,9 @@ internal object ResourceInvariants {
     private fun endedWait(registration: Registration?, requestId: Long, entityId: Long, queueName: String): String? {
         if (registration == null) return null
         val group = registration.group
-        if (!registration.isReleased && (!group.claimed || registration === group.winnerRegistration || registration.isHeld)) return null
+        // judged between events: a registration of a claimed wait not yet released is held only while the claim
+        // releases the registrations, or while a ready trigger fires, both within one event
+        if (!registration.isReleased && (!group.claimed || registration === group.winnerRegistration)) return null
         return "request $requestId of entity $entityId waits in $queueName for a wait that has already ended"
     }
 
@@ -216,7 +218,7 @@ internal object ResourceInvariants {
                 violation(resource, "allocation ${a.id} has ${a.missingUnits} units missing of ${a.amount}")
             }
             for (registration in a.myTriggerRegistrations) {
-                if (registration.group.claimed && !registration.isHeld) violation(resource, "allocation ${a.id} still lists a wait that has already ended")
+                if (registration.group.claimed) violation(resource, "allocation ${a.id} still lists a wait that has already ended")
             }
             checkHolder(resource, a)
         }

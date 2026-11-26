@@ -2412,6 +2412,17 @@ open class Resource @JvmOverloads constructor(
     }
 
     /**
+     *  After an event in which a change left units of this resource available: offers them if a request in one of its
+     *  queues could take them now, as the invariant checks require after every event. Every path that frees units
+     *  offers them itself, so this finds nothing to do unless one forgot.
+     */
+    internal fun offerUnitsLeftUnoffered() {
+        if (isRunEnded || isFailed || isInactive || numAvailableUnits <= 0) return
+        if (myCapacityChangeQSet.none { it.nextRequestServableBy(this) != null }) return
+        offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "units_left_unoffered_resource=$name")
+    }
+
+    /**
      * Offers this resource's available units to the requests waiting for them, wherever they wait: in the
      * queues registered on this resource, and in [alsoQueue], the queue of an allocation just released,
      * when that queue is not registered. A waiting request may name this resource or a pool it belongs to.
@@ -2425,17 +2436,6 @@ open class Resource @JvmOverloads constructor(
      * queues, is offered the units first; each queue keeps its own discipline. A rule of the model's own
      * offers them queue by queue, in the order it gives.
      */
-    /**
-     *  After an event in which a change left units of this resource available: offers them if a request in one of its
-     *  queues could take them now, as the invariant checks require after every event. Every path that frees units
-     *  offers them itself, so this finds nothing to do unless one forgot.
-     */
-    internal fun offerUnitsLeftUnoffered() {
-        if (isRunEnded || isFailed || isInactive || numAvailableUnits <= 0) return
-        if (myCapacityChangeQSet.none { it.nextRequestServableBy(this) != null }) return
-        offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "units_left_unoffered_resource=$name")
-    }
-
     internal fun offerFreedUnits(
         priority: Int,
         source: ResumeSource,

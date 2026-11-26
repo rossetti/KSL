@@ -545,6 +545,11 @@ class RequestQ @JvmOverloads constructor(
         resumeDetail: String?
     ): Boolean {
         val entity = request.entity
+        // a request of a wait already won is passed over by every offer; it is released with the rest of its wait
+        check(request.registration?.isHeld != true) { "Request ${request.id} belongs to a wait already won; it cannot be served." }
+        // named as the seize names its allocation: by the wait's suspension name, which a request served while its
+        // wait registers would not otherwise have yet
+        val name = request.registration?.group?.suspensionName ?: entity.currentSuspendName
         when (request) {
             is ProcessModel.Entity.ResourceRequest -> {
                 val resource = request.resource as Resource
@@ -553,23 +558,28 @@ class RequestQ @JvmOverloads constructor(
                 }
                 if (resource.numAvailableUnits < request.amountRequested) return false
                 leaveServed(request)
-                request.passedAllocation = resource.allocate(entity, request.amountRequested, this, entity.currentSuspendName)
+                request.passedAllocation = resource.allocate(entity, request.amountRequested, this, name)
             }
             is ProcessModel.Entity.ResourcePoolRequest -> {
                 val pool = request.myResourcePool
                 val members = pool.membersToAllocate(request) ?: return false
                 leaveServed(request)
-                request.passedPoolAllocation = pool.allocateFrom(entity, members, this, entity.currentSuspendName)
+                request.passedPoolAllocation = pool.allocateFrom(entity, members, this, name)
             }
             is ProcessModel.Entity.MovableResourcePoolRequest -> {
                 val pool = request.myMovableResourcePool
                 val member = pool.memberToAllocate(request) ?: return false
                 leaveServed(request)
-                request.passedAllocation = pool.allocateMember(entity, member, this, entity.currentSuspendName)
+                request.passedAllocation = pool.allocateMember(entity, member, this, name)
             }
             else -> error("Request ${request.id} for ${request.resource.name} is not served through its queue.")
         }
         resumeWoken(request, resumePriority, resumeSource, resumeDetail)
+        // As a seize that took its units does: the request has left the queue, so a selection rule may now choose
+        // another the free units can serve, and a waiting preemptor that outranks it may take from its allocation.
+        // For a pool request that holds for every member, whichever member's offer served it; an offer asked for of
+        // a resource whose walk is running is made by that walk.
+        for (member in membersOf(request.resource)) member.afterSeizeTook(this)
         return true
     }
 
