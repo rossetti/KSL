@@ -1564,13 +1564,14 @@ uses only one of the two paradigms sees only one of the two rows.
 
 ### The dispatcher's queue is the waiting line; the hold queues are not
 
-Six hold queues carry suspensions — awaiting pickup, awaiting boarding,
-in transit, availability, dispatcher idle, out of service — and all six
-report nothing by default.
+Eight hold queues carry suspensions — awaiting pickup, awaiting boarding,
+in transit, awaiting a load (a vehicle at a pickup before its load began
+waiting), holding for a departure time, availability, dispatcher idle, out
+of service — and all eight report nothing by default.
 `statisticalReportingForHoldQueues(true)` switches them on for debugging,
 and reaches down to the [space layer's three](ksl-guidedpath.md#find-out-who-is-suspended-in-the-middle-of-a-journey)
-as well, so a model being debugged shows all nine. Each `Stop` owns a
-seventh kind, where a vehicle holding for a load waits; it is not switched
+as well, so a model being debugged shows all eleven. Each `Stop` owns a
+ninth kind, where a vehicle holding for a load waits; it is not switched
 by that call and never reports, because a vehicle waiting at a stop is
 already counted by the stop's own queue from the other side. Turn them off again:
 they put rows on the report that look like waiting lines, and two of them

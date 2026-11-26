@@ -134,9 +134,10 @@ open class Resource @JvmOverloads constructor(
      *  A trigger for units of this resource, for use in a wait for the first of several things
      *  (`waitForFirst`). The trigger fires when the request it places in [queue] is served while the
      *  wait is open, or at once when the units can be allocated and no waiting request would be
-     *  chosen first, as `seize` takes them. Its value is the allocation, made after the wait ends, as
-     *  `seize` makes it; release it as any other. While the wait is open the request waits in [queue]
-     *  as a `seize` request does. If the wait ends otherwise, the request leaves the queue.
+     *  chosen first, as `seize` takes them. Its value is the allocation, made when the request is
+     *  served and returned when the process resumes, as `seize` makes it; release it as any other.
+     *  While the wait is open the request waits in [queue] as a `seize` request does. If the wait
+     *  ends otherwise, the request leaves the queue.
      *
      *  A trigger holds no state of any wait, so it can be kept and used in any number of waits. For a
      *  movable resource, which is seized one unit at a time, [amountNeeded] must be 1.

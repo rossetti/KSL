@@ -222,9 +222,9 @@ open class ResourcePool @JvmOverloads constructor(
      *  A trigger for units of this pool, for use in a wait for the first of several things
      *  (`waitForFirst`). The trigger fires when the request it places in [queue] is served while the
      *  wait is open, or at once when the pool can allocate the units, as `seize` takes them. Its value
-     *  is the allocation, made after the wait ends, as `seize` makes it. While the wait is open the
-     *  request waits in [queue] as a `seize` request does. If the wait ends otherwise, the request
-     *  leaves the queue.
+     *  is the allocation, made when the request is served and returned when the process resumes, as
+     *  `seize` makes it. While the wait is open the request waits in [queue] as a `seize` request
+     *  does. If the wait ends otherwise, the request leaves the queue.
      *
      *  A trigger holds no state of any wait, so it can be kept and used in any number of waits.
      *
