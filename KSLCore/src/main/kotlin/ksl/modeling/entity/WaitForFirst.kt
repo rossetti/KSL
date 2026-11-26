@@ -64,9 +64,9 @@ abstract class WaitTrigger<out T> internal constructor() {
 
     /**
      *  Ends a wait at once, taking the value. Called only after `canFireNow` returned true, within
-     *  the same event.
+     *  the same event. [suspensionName] is the wait's, which names an allocation the trigger makes.
      */
-    internal abstract fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): T
+    internal abstract fun fireNow(process: ProcessModel.Entity.ProcessCoroutine, suspensionName: String?): T
 
     /**
      *  Registers a wait that is about to suspend with the thing waited on, and returns the

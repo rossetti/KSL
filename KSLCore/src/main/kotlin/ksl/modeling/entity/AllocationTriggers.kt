@@ -26,7 +26,7 @@ internal class InterruptedTrigger(val allocation: Allocation) : WaitTrigger<Inte
 
     override fun canFireNow(entity: ProcessModel.Entity): Boolean = allocation.isAllocated && allocation.hasMissingUnits
 
-    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): InterruptCause = allocation.currentCause
+    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine, suspensionName: String?): InterruptCause = allocation.currentCause
 
     override fun validate(entity: ProcessModel.Entity) = allocation.requireHeldForTrigger(onRestore = false)
 
@@ -43,7 +43,7 @@ internal class RestoredTrigger(val allocation: Allocation) : WaitTrigger<Unit>()
 
     override fun canFireNow(entity: ProcessModel.Entity): Boolean = allocation.isAllocated && !allocation.hasMissingUnits
 
-    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine) {}
+    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine, suspensionName: String?) {}
 
     override fun validate(entity: ProcessModel.Entity) = allocation.requireHeldForTrigger(onRestore = true)
 

@@ -60,7 +60,7 @@ class WaitForFirstEngineTest {
 
     private class GateTrigger(val gate: Gate) : WaitTrigger<String>() {
         override fun canFireNow(entity: ProcessModel.Entity): Boolean = gate.readyValue != null
-        override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): String = gate.readyValue!!
+        override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine, suspensionName: String?): String = gate.readyValue!!
         override fun register(group: WaitGroup): Registration {
             gate.registerCount++
             val registration = GateRegistration(this, group).also { gate.waiting.add(it) }

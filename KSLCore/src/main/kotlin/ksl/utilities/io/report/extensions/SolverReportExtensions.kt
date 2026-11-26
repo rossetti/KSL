@@ -95,13 +95,13 @@ fun ReportBuilder.solverResult(
             section(myTitle) {
                 // ── 1. Run summary ────────────────────────────────────────────
                 val myTimeStr = result.executionTimeMillis?.let { "${it} ms" } ?: "Not tracked"
-                val myTermReason = result.terminationReason
+                val termReason = result.terminationReason
                 dataTable(
                     headers = listOf("Property", "Value"),
                     rows = listOf(
                         listOf("Solver",                   result.solverName),
                         listOf("Problem",                  result.problemName),
-                        listOf("Termination",              myTermReason),
+                        listOf("Termination",              termReason),
                         listOf("Stopping Criteria Met",    result.isStoppingCriteriaMet.toString()),
                         listOf("Total Iterations",         result.totalIterations.toString()),
                         listOf("Execution Time",           myTimeStr)

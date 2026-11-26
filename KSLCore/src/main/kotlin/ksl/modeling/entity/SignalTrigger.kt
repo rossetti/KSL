@@ -33,7 +33,7 @@ internal class SignalTrigger(
 
     override fun canFireNow(entity: ProcessModel.Entity): Boolean = false
 
-    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine) {
+    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine, suspensionName: String?) {
         error("A signal trigger cannot fire without a wait; canFireNow is always false.")
     }
 

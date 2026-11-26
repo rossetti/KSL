@@ -1906,7 +1906,7 @@ open class Resource @JvmOverloads constructor(
     ): Unit = change {
         val rule = request.waitingPreemptRule!!
         val queue = request.queue as RequestQ
-        val allocation = Allocation(request.entity, this, request.amountRequested, queue, null)
+        val allocation = Allocation(request.entity, this, request.amountRequested, queue, request.suspensionName)
         entityAllocations.getOrPut(request.entity) { mutableListOf() }.add(allocation)
         numBusy = numBusy + plan.free
         numTimesSeized++
@@ -2702,7 +2702,10 @@ open class Resource @JvmOverloads constructor(
         val reservation = claimant.reservation
         if (reservation != null) {
             val free = numAvailableUnits
-            if (free >= reservation.stillNeeded) {
+            // an entity with a resume already coming (the model's resumeProcess) cannot be resumed again: its
+            // reservation collects, and completes when the entity has resumed
+            val canResume = !claimant.entity.hasPendingResume
+            if (canResume && free >= reservation.stillNeeded) {
                 // the reservation is complete: its units are allocated now, as for one a loan's end completes
                 val promised = claimant.promises[this] ?: 0
                 if (promised > 0) claimant.withdrawPromise(this, promised)
@@ -2714,12 +2717,13 @@ open class Resource @JvmOverloads constructor(
                 )
                 return true
             }
-            if (free > 0) {
-                claimant.promise(this, free)
-                reservation.stillNeeded -= free
+            val collected = minOf(free, reservation.stillNeeded)
+            if (collected > 0) {
+                claimant.promise(this, collected)
+                reservation.stillNeeded -= collected
             }
-            if (completeFromReturning(reservation, returning, priority, source, detail)) return true
-            return free > 0
+            if (canResume && completeFromReturning(reservation, returning, priority, source, detail)) return true
+            return collected > 0
         }
         val amount = claimant.amountRequested
         val rule = (if (claimant === myNewcomer) myNewcomerRule else claimant.waitingPreemptRule) ?: return false

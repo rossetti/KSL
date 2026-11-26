@@ -179,7 +179,7 @@ internal class MessageTrigger<M : AgentMessage>(
 
     override fun canFireNow(entity: ProcessModel.Entity): Boolean = mailbox.hasMatch(predicate)
 
-    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): M =
+    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine, suspensionName: String?): M =
         checkNotNull(mailbox.tryTake(predicate)) { "A message trigger on the mailbox of ${mailbox.owner} found no matching message to take." }
 
     override fun register(group: WaitGroup): Registration {

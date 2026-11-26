@@ -105,7 +105,7 @@ internal class AgentSignalTrigger(val signal: AgentSignal) : WaitTrigger<Unit>()
 
     override fun canFireNow(entity: ProcessModel.Entity): Boolean = false
 
-    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine) {
+    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine, suspensionName: String?) {
         error("An agent signal trigger cannot fire without a wait; canFireNow is always false.")
     }
 

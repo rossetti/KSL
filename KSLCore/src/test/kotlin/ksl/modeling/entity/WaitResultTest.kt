@@ -35,7 +35,7 @@ class WaitResultTest {
     /** A trigger that is never used in a wait; only its identity matters here. */
     private class InertTrigger<T> : WaitTrigger<T>() {
         override fun canFireNow(entity: ProcessModel.Entity): Boolean = false
-        override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): T = error("not used")
+        override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine, suspensionName: String?): T = error("not used")
         override fun register(group: WaitGroup): Registration = error("not used")
     }
 

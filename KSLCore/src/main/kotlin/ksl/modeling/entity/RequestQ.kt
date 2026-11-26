@@ -547,9 +547,9 @@ class RequestQ @JvmOverloads constructor(
         val entity = request.entity
         // a request of a wait already won is passed over by every offer; it is released with the rest of its wait
         check(request.registration?.isHeld != true) { "Request ${request.id} belongs to a wait already won; it cannot be served." }
-        // named as the seize names its allocation: by the wait's suspension name, which a request served while its
-        // wait registers would not otherwise have yet
-        val name = request.registration?.group?.suspensionName ?: entity.currentSuspendName
+        // named as the seize names an allocation it takes at once: by the seize's suspension name, or a seize
+        // trigger's by its wait's
+        val name = request.registration?.group?.suspensionName ?: request.suspensionName
         when (request) {
             is ProcessModel.Entity.ResourceRequest -> {
                 val resource = request.resource as Resource

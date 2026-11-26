@@ -703,15 +703,18 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             amountNeeded: Int,
             queue: RequestQ,
             requestPriority: Int = priority,
+            suspensionName: String? = null,
             beforeQueued: (ResourceRequest) -> Unit = {}
         ): ResourceRequest {
             // a queue a seize waits in is offered the resource's freed units, whichever way they are freed
             resource.registerCapacityChangeQueue(queue)
             val request = ResourceRequest(amountNeeded, resource)
             request.priority = requestPriority
+            request.suspensionName = suspensionName
             beforeQueued(request)
-            queue.enqueue(request) // put the request in the queue
+            // announced before it enters: the queue's listeners can run model code that withdraws it at once
             emitAnimation { AnimationEvent.SeizeQueued(time, id, resource.name, queue.name, amountNeeded) }
+            queue.enqueue(request) // put the request in the queue
             return request
         }
 
@@ -726,6 +729,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             resourceSelectionRule: ResourceSelectionRuleIfc,
             resourceAllocationRule: ResourceAllocationRuleIfc,
             requestPriority: Int = priority,
+            suspensionName: String? = null,
             beforeQueued: (ResourcePoolRequest) -> Unit = {}
         ): ResourcePoolRequest {
             // a queue a seize waits in is offered the members' freed units, whichever way they are freed
@@ -734,9 +738,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             request.selectionRule = resourceSelectionRule
             request.allocationRule = resourceAllocationRule
             request.priority = requestPriority
+            request.suspensionName = suspensionName
             beforeQueued(request)
-            queue.enqueue(request) // put the request in the queue
+            // announced before it enters: the queue's listeners can run model code that withdraws it at once
             emitAnimation { AnimationEvent.SeizeQueued(time, id, resourcePool.name, queue.name, amountNeeded) }
+            queue.enqueue(request) // put the request in the queue
             return request
         }
 
@@ -751,6 +757,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             resourceSelectionRule: MovableResourceSelectionRuleIfc,
             resourceAllocationRule: MovableResourceAllocationRuleIfc,
             requestPriority: Int = priority,
+            suspensionName: String? = null,
             beforeQueued: (MovableResourcePoolRequest) -> Unit = {}
         ): MovableResourcePoolRequest {
             // a queue a seize waits in is offered the members' freed units, whichever way they are freed
@@ -760,9 +767,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             request.selectionRule = resourceSelectionRule
             request.allocationRule = resourceAllocationRule
             request.priority = requestPriority
+            request.suspensionName = suspensionName
             beforeQueued(request)
-            queue.enqueue(request) // put the request in the queue
+            // announced before it enters: the queue's listeners can run model code that withdraws it at once
             emitAnimation { AnimationEvent.SeizeQueued(time, id, movableResourcePool.name, queue.name, 1) }
+            queue.enqueue(request) // put the request in the queue
             return request
         }
 
@@ -1183,12 +1192,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             internal var registration: Registration? = null
 
             /**
+             *  The suspension name of the seize or preempt that made the request, which names the allocation it is
+             *  served; a seize trigger's request is named by its wait's suspension name instead.
+             */
+            internal var suspensionName: String? = null
+
+            /**
              *  True when the offers of units pass this request over: it was woken already and is on its way (a guided
              *  transporter pool's request, which that pool wakes without serving), it is a preemption's reservation,
-             *  or its wait is held while a ready trigger of the same wait fires (`Registration.isHeld`).
+             *  its wait is held while a ready trigger of the same wait fires (`Registration.isHeld`), or its entity
+             *  already has a resume coming (the model's `resumeProcess`), when it takes its units itself.
              */
             internal val isPassedOver: Boolean
-                get() = resumePending || isReserved || registration?.isHeld == true
+                get() = resumePending || isReserved || registration?.isHeld == true || entity.hasPendingResume
 
             internal var resumePending: Boolean = false
                 private set
@@ -1915,10 +1931,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // its promised units go on first, before anything here may promise them again
             currentQueue.handOnWithdrawn(withdrawn)
             val newQ = resource.myWaitingQ
-            newQ.enqueue(request, request.priority)
-            // the request's original resource is replaced with the new resource
+            // the request asks for the new resource, and is announced, before it enters: the queue's listeners can run
+            // model code
             request.myResource = resource
             emitRequestMoved(request, oldTarget, currentQueue, newQ)
+            newQ.enqueue(request, request.priority)
             // a preempt that was waiting goes on waiting as one, for the new resource; the resource it left
             // drops it when it next plans
             request.waitingPreemptRule?.let { rule -> resource.waitAsPreemptor(request, rule) }
@@ -1992,13 +2009,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // its promised units go on first, before anything here may promise them again
             currentQueue.handOnWithdrawn(withdrawn)
             val newQ = pool.myWaitingQ
-            newQ.enqueue(request, request.priority)
-            // the request's original resource pool is replaced with the new resource pool
+            // the request asks for the new pool, under the rule given for the move, which chooses its members now and
+            // when it is served later; it is announced before it enters, as the queue's listeners can run model code
             request.myResourcePool = pool
-            emitRequestMoved(request, oldTarget, currentQueue, newQ)
-            val detail = "request_id=${request.id}, moved_to_resource_pool=${pool.name}, amount=${request.amountRequested}"
-            // the rule given for the move chooses its members, now and when it is served later
             request.selectionRule = resourceSelectionRule
+            emitRequestMoved(request, oldTarget, currentQueue, newQ)
+            newQ.enqueue(request, request.priority)
+            val detail = "request_id=${request.id}, moved_to_resource_pool=${pool.name}, amount=${request.amountRequested}"
             // served at once when a pool seize arriving now would be: the pool can allocate and the new queue would
             // choose this request next
             val canAllocate = pool.canAllocate(resourceSelectionRule, request.amountRequested)
@@ -2057,13 +2074,13 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             // its promised units go on first, before anything here may promise them again
             currentQueue.handOnWithdrawn(withdrawn)
             val newQ = pool.myWaitingQ
-            newQ.enqueue(request, request.priority)
-            // the request's original movable resource pool is replaced with the new movable resource pool
+            // the request asks for the new pool, under the rule given for the move, which chooses its member now and
+            // when it is served later; it is announced before it enters, as the queue's listeners can run model code
             request.myMovableResourcePool = pool
-            emitRequestMoved(request, oldTarget, currentQueue, newQ)
-            val detail = "request_id=${request.id}, moved_to_movable_resource_pool=${pool.name}, amount=${request.amountRequested}"
-            // the rule given for the move chooses its member, now and when it is served later
             request.selectionRule = resourceSelectionRule
+            emitRequestMoved(request, oldTarget, currentQueue, newQ)
+            newQ.enqueue(request, request.priority)
+            val detail = "request_id=${request.id}, moved_to_movable_resource_pool=${pool.name}, amount=${request.amountRequested}"
             // served at once when a movable pool seize arriving now would be: the pool can allocate and the new queue
             // would choose this request next
             val canAllocate = pool.canAllocate(resourceSelectionRule)
@@ -2670,7 +2687,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 for (trigger in triggers) {
                     if (trigger.decidesWhenQueued) break
                     if (trigger.canFireNow(this@Entity)) {
-                        val value = trigger.fireNow(this)
+                        val value = trigger.fireNow(this, suspensionName)
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst ended at once by $trigger, ($this)" }
                         return WaitForFirstResult(triggers.toList(), trigger, value, 0.0)
                     }
@@ -2694,7 +2711,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                             // the wait is closed while it fires, so that nothing its firing sets off can claim it
                             // for a queued trigger it beat, and the queued requests are let go only afterwards
                             val value = group.claimAround(ResumeSource.UNKNOWN_INTERNAL, RESUME_PRIORITY) {
-                                trigger.fireNow(this)
+                                trigger.fireNow(this, suspensionName)
                             }
                             logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id} waitForFirst ended at once by $trigger, ($this)" }
                             return WaitForFirstResult(triggers.toList(), trigger, value, 0.0)
@@ -3116,7 +3133,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: SEIZE: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource ${resource.name}")
-                val request = entity.enqueueResourceRequest(resource, amountNeeded, queue)
+                val request = entity.enqueueResourceRequest(resource, amountNeeded, queue, suspensionName = suspensionName)
                 val allocation = try {
                     // served at once when the resource's walk of claimants reaches it and can serve it; else it waits
                     if (!entity.canTakeResourceNow(request, queue)) waitForResource(request, resource, queue)
@@ -3154,7 +3171,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 currentSuspendType = SuspendType.SEIZE
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN: PREEMPT: RESOURCE: ${resource.name} ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "PREEMPT yield for resource ${resource.name}")
-                val request = entity.enqueueResourceRequest(resource, amountNeeded, queue)
+                val request = entity.enqueueResourceRequest(resource, amountNeeded, queue, suspensionName = suspensionName)
                 val allocation = try {
                     preemptAsArriving(request, resource, queue, rule, suspensionName)
                 } finally {
@@ -3258,7 +3275,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 }
                 // entity has been told to resume or the request was selected for allocation
                 // out of the queue the request is in now: a moved request waits in its new queue, and must leave
-                // it here, keeping its promise, rather than be swept up as if its process had ended
+                // it here rather than be swept up as if its process had ended
                 val servedFrom = request.queue as? RequestQ ?: queue
                 if (servedFrom.waitTimeStatOption && servedFrom.contains(request)) request.registration?.let { it.group.noteRecorded(it.trigger, servedFrom.name) }
                 servedFrom.remove(request)
@@ -3285,9 +3302,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
              *  serving, is one. Otherwise the request waits on, and the units of what it asks for are offered on, so the
              *  request its queue's rule chose is served.
              *
-             *  The one request that can resume holding units not yet allocated to it is a `FINISH` preemptor the model
-             *  resumed itself while its reservation still collects them: it takes them if they are still there to take,
-             *  and otherwise hands them back and waits on.
+             *  A `FINISH` preemptor the model resumed itself while its reservation still collects units waits on as it
+             *  was, its reservation and the units it has collected kept: when the reservation completes, its units are
+             *  allocated and passed to it. A reservation does not complete while its entity has a resume coming, so it
+             *  is offered the free units as the process resumes, and may complete then.
              */
             private suspend fun waitUntilItCanTake(
                 request: Request,
@@ -3296,36 +3314,23 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ) {
                 while (true) {
                     if (settled()) return
-                    val promises = request.promises
+                    val collecting = request.reservation != null
                     // a request the library woke without serving it takes the units only if its queue would choose it
                     // now, as an arriving seize's; a resume the model asks for itself is the model's decision
                     val wokenByLibrary = request.resumePending
                     val chosen = { !wokenByLibrary || ((request.queue as? RequestQ)?.wouldChoose(request) ?: true) }
-                    val honourable = if (promises.isEmpty()) {
-                        canAllocateNow() && chosen()
-                    } else {
-                        promises.keys.all { !it.isInactive && !it.isFailed && it.capacity - it.numBusy - it.myPromisedUnits >= 0 }
-                    }
-                    if (honourable) return
+                    if (!collecting && canAllocateNow() && chosen()) return
                     logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: request_id = ${request.id} cannot take its units now; it waits again" }
-                    val withdrawn = promises.toMap()
-                    request.clearPromises()
                     request.clearResumePending()
-                    // a capacity decrease that waits for units takes the withdrawn ones first, as from a release
-                    for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
-                    // Something else may be free now; take it rather than wait beside it. Handing units back can also
-                    // settle the request (a preemptor may be passed its allocation), so that is asked again here.
-                    if ((settled() || canAllocateNow()) && chosen()) return
-                    // The units it handed back are offered to the requests behind it, as when a waiting request leaves;
-                    // a request that held none and was not chosen offers the units of what it asks for, so the request
-                    // its queue's rule chose is served now.
-                    for (member in withdrawn.keys) {
-                        member.offerFreedUnits(
-                            RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
-                            "promise_withdrawn_request_id=${request.id}"
+                    if (collecting) {
+                        // a reservation does not complete while its entity has a resume coming; it may complete now,
+                        // and is then passed its allocation, which resumes the process again
+                        (request.resource as Resource).offerFreedUnits(
+                            RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "reservation_resumed_request_id=${request.id}"
                         )
-                    }
-                    if (withdrawn.isEmpty()) {
+                    } else {
+                        // a request not chosen offers the units of what it asks for, so the request its queue's rule
+                        // chose is served now
                         (request.queue as? RequestQ)?.offerFreeUnitsUnderRule(request.resource, "not_chosen_at_resume_request_id=${request.id}")
                     }
                     entity.state.waitForResource()
@@ -3437,7 +3442,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${resourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${resourcePool.name}")
                 val request = entity.enqueuePoolRequest(
-                    resourcePool, amountNeeded, queue, resourceSelectionRule, resourceAllocationRule
+                    resourcePool, amountNeeded, queue, resourceSelectionRule, resourceAllocationRule,
+                    suspensionName = suspensionName
                 )
                 // this causes the selection rule to be invoked to see if resources are available
                 //TODO: The current implementation does not facilitate partial filling
@@ -3494,11 +3500,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val amountNeeded = request.amountRequested
                 val resourceSelectionRule = request.selectionRule!!
                 val resourceAllocationRule = request.allocationRule!!
-                // the members promised when it was woken; leaving the queue withdraws the promise,
-                // which is what makes those units available to this allocation
-                val promised = request.promises.toMap()
                 // out of the queue the request is in now: a moved request waits in its new queue, and must leave
-                // it here, keeping its promise, rather than be swept up as if its process had ended
+                // it here rather than be swept up as if its process had ended
                 val servedFrom = request.queue as? RequestQ ?: queue
                 servedFrom.remove(request)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
@@ -3512,19 +3515,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 // allocated by the time that the resumption occurs
                 require(thePool.canAllocate(resourceSelectionRule, amountNeeded))
                 { "replication = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for $amountNeeded units of ${thePool.name} \n $thePool" }
-                // A waiter takes the members it was promised, so that it cannot collide with another
-                // waiter promised a different member at the same instant. Otherwise, as for an entity that
-                // did not wait, the selection and allocation rules choose.
-                val allocation = if (promised.values.sum() == amountNeeded &&
-                    promised.all { (member, amount) -> member.canAllocate(amount) }
-                ) {
-                    thePool.allocateFrom(entity, promised, servedFrom, suspensionName)
-                } else {
-                    thePool.allocate(
-                        entity, amountNeeded, servedFrom,
-                        resourceSelectionRule, resourceAllocationRule, suspensionName
-                    )
-                }
+                // as for an entity that did not wait, the selection and allocation rules choose
+                val allocation = thePool.allocate(
+                    entity, amountNeeded, servedFrom,
+                    resourceSelectionRule, resourceAllocationRule, suspensionName
+                )
                 // as for a seize of one resource: a waiting preemptor of a member may now take from this allocation, and
                 // a selection rule that chose this request again while it waited to resume held back the ones behind
                 // it; now it has left, every member is offered again, since the units still free may be another's
@@ -3548,7 +3543,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > BEGIN : SEIZE: RESOURCE POOL: ${movableResourcePool.name} : ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                 yield(seizePriority, "SEIZE yield for resource pool ${movableResourcePool.name}")
                 val request = entity.enqueueMovablePoolRequest(
-                    movableResourcePool, queue, requestLocation, resourceSelectionRule, resourceAllocationRule
+                    movableResourcePool, queue, requestLocation, resourceSelectionRule, resourceAllocationRule,
+                    suspensionName = suspensionName
                 )
                 // this causes the selection rule to be invoked to see if resources are available
                 val allocation = try {
@@ -3600,10 +3596,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val resourceSelectionRule = request.selectionRule!!
                 val resourceAllocationRule = request.allocationRule!!
                 val requestLocation = request.requestLocation!!
-                // entity has been told to resume; leaving the queue withdraws its promise
-                val promisedMember = request.promises.keys.firstOrNull()
                 // out of the queue the request is in now: a moved request waits in its new queue, and must leave
-                // it here, keeping its promise, rather than be swept up as if its process had ended
+                // it here rather than be swept up as if its process had ended
                 val servedFrom = request.queue as? RequestQ ?: queue
                 servedFrom.remove(request)
                 logger.trace { "r = ${model.currentReplicationNumber} : $time > ENTITY: entity_id = ${entity.id} waited ${request.timeInQueue} units" }
@@ -3614,20 +3608,15 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val thePool = request.myMovableResourcePool
                 // a probably redundant check to ensure the resource pool can actually allocate the units
                 require(thePool.canAllocate(resourceSelectionRule)) { "r = ${model.currentReplicationNumber} : $time > Amount cannot be allocated! to entity_id = ${entity.id} resuming after waiting for 1 unit of ${thePool.name}" }
-                // A waiter takes the member it was promised; otherwise the rules choose.
-                val member = promisedMember
-                val allocation = if (member is MovableResource && member.canAllocate(1)) {
-                    thePool.allocateMember(entity, member, servedFrom, suspensionName)
-                } else {
-                    thePool.allocate(
-                        entity,
-                        requestLocation,
-                        servedFrom,
-                        resourceSelectionRule,
-                        resourceAllocationRule,
-                        suspensionName
-                    )
-                }
+                // as for an entity that did not wait, the selection and allocation rules choose
+                val allocation = thePool.allocate(
+                    entity,
+                    requestLocation,
+                    servedFrom,
+                    resourceSelectionRule,
+                    resourceAllocationRule,
+                    suspensionName
+                )
                 // a selection rule that chose this request again while it waited to resume held back the ones behind
                 // it; now it has left, every member is offered again, since the units still free may be another's
                 for (m in thePool.resources) (m as? Resource)?.afterSeizeTook(servedFrom)
@@ -3649,8 +3638,9 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val queue = pool.myWaitingQ
                 val request = GuidedTransporterPoolRequest(myGuidedTransporterPool = pool)
                 request.priority = entity.priority
-                queue.enqueue(request) // put the request in the queue, whether or not it will wait
+                // announced before it enters, as every seize's request is
                 emitAnimation { AnimationEvent.SeizeQueued(time, entity.id, pool.name, queue.name, 1) }
+                queue.enqueue(request) // put the request in the queue, whether or not it will wait
                 try {
                     // a guided pool promises nothing to a request it wakes, so the transporters it is owed are counted
                     // here: an arrival takes only one that no woken request is about to resume for

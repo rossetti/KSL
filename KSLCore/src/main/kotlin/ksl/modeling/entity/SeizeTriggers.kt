@@ -51,8 +51,8 @@ internal abstract class SeizeTrigger<V, R : ProcessModel.Entity.Request>(
         suspensionName: String?
     ): V
 
-    /** Takes the units of a request that can be served now, without waiting. */
-    abstract fun ProcessModel.Entity.ProcessCoroutine.complete(request: R): V
+    /** Takes the units of a request that can be served now, without waiting, naming the allocation [suspensionName]. */
+    abstract fun ProcessModel.Entity.ProcessCoroutine.complete(request: R, suspensionName: String?): V
 
     /** The name of what is seized, for the animation. */
     abstract val seizedName: String
@@ -63,11 +63,11 @@ internal abstract class SeizeTrigger<V, R : ProcessModel.Entity.Request>(
     override val aloneState: AloneState
         get() = AloneState.WAITING_FOR_RESOURCE
 
-    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): V {
+    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine, suspensionName: String?): V {
         // As seize does when it can take the units at once: the request enters the queue and leaves it in the
         // same instant, which records a wait of zero.
         val request = enqueue(process.entity, process.entity.priority)
-        return with(process) { complete(request) }
+        return with(process) { complete(request, suspensionName) }
     }
 
     /** Called when the request has been queued and could not be served at once. */
@@ -132,7 +132,7 @@ internal class ResourceSeizeTrigger(
     }
 
     override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int, beforeQueued: (ProcessModel.Entity.ResourceRequest) -> Unit) =
-        entity.enqueueResourceRequest(resource, amountNeeded, queue, requestPriority, beforeQueued)
+        entity.enqueueResourceRequest(resource, amountNeeded, queue, requestPriority, beforeQueued = beforeQueued)
 
     override fun canTakeNow(entity: ProcessModel.Entity, request: ProcessModel.Entity.ResourceRequest) =
         entity.canTakeResourceNow(request, queue)
@@ -142,8 +142,8 @@ internal class ResourceSeizeTrigger(
         suspensionName: String?
     ): Allocation = takeResource(request, resource, queue, suspensionName)
 
-    override fun ProcessModel.Entity.ProcessCoroutine.complete(request: ProcessModel.Entity.ResourceRequest): Allocation =
-        completeResourceSeize(request, resource, queue, null)
+    override fun ProcessModel.Entity.ProcessCoroutine.complete(request: ProcessModel.Entity.ResourceRequest, suspensionName: String?): Allocation =
+        completeResourceSeize(request, resource, queue, suspensionName)
 
     override fun toString(): String = "SeizeTrigger(${resource.name}, amount = $amountNeeded)"
 }
@@ -179,7 +179,7 @@ internal class ResourcePoolSeizeTrigger(
     }
 
     override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int, beforeQueued: (ProcessModel.Entity.ResourcePoolRequest) -> Unit) =
-        entity.enqueuePoolRequest(resourcePool, amountNeeded, queue, resourceSelectionRule, resourceAllocationRule, requestPriority, beforeQueued)
+        entity.enqueuePoolRequest(resourcePool, amountNeeded, queue, resourceSelectionRule, resourceAllocationRule, requestPriority, beforeQueued = beforeQueued)
 
     override fun canTakeNow(entity: ProcessModel.Entity, request: ProcessModel.Entity.ResourcePoolRequest) =
         resourcePool.canAllocate(resourceSelectionRule, amountNeeded) && queue.nextRequestForResource(resourcePool) === request
@@ -189,8 +189,8 @@ internal class ResourcePoolSeizeTrigger(
         suspensionName: String?
     ): ResourcePoolAllocation = takePool(request, resourcePool, queue, suspensionName)
 
-    override fun ProcessModel.Entity.ProcessCoroutine.complete(request: ProcessModel.Entity.ResourcePoolRequest): ResourcePoolAllocation =
-        completePoolSeize(request, resourcePool, queue, null)
+    override fun ProcessModel.Entity.ProcessCoroutine.complete(request: ProcessModel.Entity.ResourcePoolRequest, suspensionName: String?): ResourcePoolAllocation =
+        completePoolSeize(request, resourcePool, queue, suspensionName)
 
     override fun toString(): String = "SeizeTrigger(${resourcePool.name}, amount = $amountNeeded)"
 }
@@ -228,7 +228,7 @@ internal class MovableResourcePoolSeizeTrigger(
     override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int, beforeQueued: (ProcessModel.Entity.MovableResourcePoolRequest) -> Unit) =
         entity.enqueueMovablePoolRequest(
             movableResourcePool, queue, requestLocation ?: entity.currentLocation, resourceSelectionRule, resourceAllocationRule,
-            requestPriority, beforeQueued
+            requestPriority, beforeQueued = beforeQueued
         )
 
     override fun canTakeNow(entity: ProcessModel.Entity, request: ProcessModel.Entity.MovableResourcePoolRequest) =
@@ -239,8 +239,8 @@ internal class MovableResourcePoolSeizeTrigger(
         suspensionName: String?
     ): Allocation = takeMovablePool(request, movableResourcePool, queue, suspensionName)
 
-    override fun ProcessModel.Entity.ProcessCoroutine.complete(request: ProcessModel.Entity.MovableResourcePoolRequest): Allocation =
-        completeMovablePoolSeize(request, movableResourcePool, queue, null)
+    override fun ProcessModel.Entity.ProcessCoroutine.complete(request: ProcessModel.Entity.MovableResourcePoolRequest, suspensionName: String?): Allocation =
+        completeMovablePoolSeize(request, movableResourcePool, queue, suspensionName)
 
     override fun toString(): String = "SeizeTrigger(${movableResourcePool.name})"
 }

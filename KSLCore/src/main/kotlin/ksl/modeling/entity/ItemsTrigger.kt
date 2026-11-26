@@ -56,7 +56,7 @@ internal class ItemsTrigger<T : ModelElement.QObject>(
     override val decidesWhenQueued: Boolean
         get() = !blockingQ.requestQ.isEmpty && blockingQ.countByChannel(predicate) >= (amount ?: 1)
 
-    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine): List<T> {
+    override fun fireNow(process: ProcessModel.Entity.ProcessCoroutine, suspensionName: String?): List<T> {
         // As the untimed receive does when it can be filled at once: the request enters the queue and
         // is filled in the same instant, which records a wait of zero.
         return fill(blockingQ, newRequest(process.entity, null, process.entity.priority))
