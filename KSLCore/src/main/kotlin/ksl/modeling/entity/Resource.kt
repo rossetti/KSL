@@ -203,8 +203,11 @@ open class Resource @JvmOverloads constructor(
      *  complete, in the order of its steps. A listener that changes the resource makes a change of its own, whose
      *  notices are delivered when it completes, before the listener returns; the notices of the first change still
      *  to be delivered then read the resource as the listener's change left it. A change that throws tells nothing.
+     *  A change that leaves more units available marks the resource, so that units no offer has served by the end of
+     *  the event are offered then (`offerUnitsLeftUnoffered`).
      */
     private inline fun <T> change(block: () -> T): T {
+        val availableBefore = if (myChangeDepth == 0) numAvailableUnits else Int.MAX_VALUE
         myChangeDepth++
         val result = try {
             block()
@@ -214,7 +217,11 @@ open class Resource @JvmOverloads constructor(
             throw e
         }
         myChangeDepth--
-        if (myChangeDepth == 0 && myDeferredNotices.isNotEmpty()) deliverNotices()
+        if (myChangeDepth == 0) {
+            // units the change left available are offered after the event if no offer has served them by then
+            if (numAvailableUnits > availableBefore) model.unofferedUnits.mark(this)
+            if (myDeferredNotices.isNotEmpty()) deliverNotices()
+        }
         return result
     }
 
@@ -700,7 +707,7 @@ open class Resource @JvmOverloads constructor(
         // The capacity increase back to the on-shift capacity runs afterUnitsRestored itself. When the capacity
         // was not raised, because it had been put back directly while off shift, no increase ran: the return to
         // shift is still the moment the units can be used again, so the hook is called here.
-        if (capacity <= capacityBefore && !isRunEnded) afterUnitsRestored()
+        if (capacity <= capacityBefore) unitsRestored()
     }
 
     /**
@@ -713,6 +720,27 @@ open class Resource @JvmOverloads constructor(
      *  the resource's own queues offers its units here.
      */
     protected open fun afterUnitsRestored() {}
+
+    // ---- the end of a run ----------------------------------------------------------------------------------
+    //
+    // Once the replication's events have ended (isRunEnded), the entities still suspended are terminated, and their
+    // releases and finally blocks run on a resource that must change nothing anyone could act on: nothing can be
+    // resumed. Each guard sits in the one function that owns what it protects, so a new path that goes through these
+    // functions needs no guard of its own:
+    // - offers of units: offerFreedUnits, makeOffer, arrivalDecision (a path that frees units ends in
+    //   offerFreedUnits and needs no guard before it);
+    // - a pending capacity change taking units: deallocate, unitsWithdrawnFromPromise,
+    //   handleIncomingChangeNoticeIgnoreRule;
+    // - loans passing on to a waiting preemptor: returnLoans;
+    // - the declared failures: countUse, applyDueFailure, the failure clock's update, and repair's resume of the
+    //   failure entity;
+    // - a subclass's hook for units that came back: unitsRestored.
+    // The checks of waitingPreemptorPassedOver and offerUnitsLeftUnoffered judge nothing once the run has ended.
+
+    /** Calls the subclass's hook for units that came back, unless the run has ended, when nothing can take them. */
+    private fun unitsRestored() {
+        if (!isRunEnded) afterUnitsRestored()
+    }
 
     /**
      *  What happens to work in service when this resource's units are taken away, by a failure or by a
@@ -949,7 +977,6 @@ open class Resource @JvmOverloads constructor(
      *  now take from its allocation. The units still free are offered again for either.
      */
     internal fun afterSeizeTook(servedFrom: RequestQ): Unit = change {
-        if (isRunEnded) return@change
         if (servedFrom.requestSelectionRule != null && numAvailableUnits > 0) {
             offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "seize_left_queue_resource=$name")
             return@change
@@ -960,7 +987,6 @@ open class Resource @JvmOverloads constructor(
 
     /** A waiting preemptor was moved here: the waiting preemptors plan, as on an arrival. */
     internal fun preemptorMovedIn(): Unit = change {
-        if (isRunEnded) return@change
         offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.REQUEST_MOVED_TO_RESOURCE, "preemptor_moved_in_resource=$name")
     }
 
@@ -986,7 +1012,7 @@ open class Resource @JvmOverloads constructor(
         if (withdrawn > 0) unitsWithdrawnFromPromise(withdrawn)
         if (!myReservationReturned) return
         myReservationReturned = false
-        if (!isRunEnded) offerFreedUnits(priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "reservation_given_up_resource=$name")
+        offerFreedUnits(priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "reservation_given_up_resource=$name")
     }
 
     /**
@@ -1103,7 +1129,7 @@ open class Resource @JvmOverloads constructor(
         myFailureClock?.update()
         val failures = myFailuresEntity
         if (failures != null && failures.repaired.isSuspended && !isRunEnded) failures.repaired.resume()
-        if (!isRunEnded) afterUnitsRestored()
+        unitsRestored()
     }
 
     /**
@@ -2367,7 +2393,7 @@ open class Resource @JvmOverloads constructor(
         if (available <= 0) {
             logger.trace { "$time > Resource: $name, had 0 units available after the positive capacity change. No reason to notify entities." }
             // none is free, but a waiting preemptor may now take what it needs from lower-priority holders
-            if (!isRunEnded && !myFailureDueAtRelease) offerFreedUnits(notice.priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "capacity_increase_resource=$name")
+            offerFreedUnits(notice.priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "capacity_increase_resource=$name")
         } else if (myCapacityChangeQSet.isEmpty()) {
             // no queues are currently associated with this resource, no reason to notify
             logger.trace { "$time > Resource: $name, The resource is not associated with any capacity change queues. No queues were notified of the positive capacity change." }
@@ -2378,7 +2404,7 @@ open class Resource @JvmOverloads constructor(
         }
         // a subclass whose waiting requests the queues above do not reach offers its units here; not while a
         // failure due at the release in progress is still to be applied
-        if (!isRunEnded && !myFailureDueAtRelease) afterUnitsRestored()
+        if (!myFailureDueAtRelease) unitsRestored()
     }
 
     protected fun notifyWaitingRequestsOfCapacityIncrease(available: Int, priority: Int) {
@@ -2399,6 +2425,17 @@ open class Resource @JvmOverloads constructor(
      * queues, is offered the units first; each queue keeps its own discipline. A rule of the model's own
      * offers them queue by queue, in the order it gives.
      */
+    /**
+     *  After an event in which a change left units of this resource available: offers them if a request in one of its
+     *  queues could take them now, as the invariant checks require after every event. Every path that frees units
+     *  offers them itself, so this finds nothing to do unless one forgot.
+     */
+    internal fun offerUnitsLeftUnoffered() {
+        if (isRunEnded || isFailed || isInactive || numAvailableUnits <= 0) return
+        if (myCapacityChangeQSet.none { it.nextRequestServableBy(this) != null }) return
+        offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "units_left_unoffered_resource=$name")
+    }
+
     internal fun offerFreedUnits(
         priority: Int,
         source: ResumeSource,
@@ -2775,7 +2812,7 @@ open class Resource @JvmOverloads constructor(
             if (notice.capacity == capacity) {
                 // The capacity never fell, so no increase follows to offer anything. A waiting preemptor kept back
                 // by the decrease may take from lower-priority holders now, as it may at any return of units.
-                if (!isRunEnded) offerFreedUnits(notice.priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "decrease_withdrawn_resource=$name")
+                offerFreedUnits(notice.priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "decrease_withdrawn_resource=$name")
                 return
             }
         }
@@ -2841,7 +2878,7 @@ open class Resource @JvmOverloads constructor(
                 // a decrease whose duration ran out while it waited its turn is over: it is never applied. The
                 // capacity it held out of reach can be reached again, so the claimants it blocked are offered the
                 // units. Otherwise the ending change notice was previously completed, and there is nothing to do.
-                if (myWaitingChangeNotices.remove(endingChangeNotice) && !isRunEnded) {
+                if (myWaitingChangeNotices.remove(endingChangeNotice)) {
                     offerFreedUnits(endingChangeNotice.priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "waiting_decrease_ended_resource=$name")
                 }
             }

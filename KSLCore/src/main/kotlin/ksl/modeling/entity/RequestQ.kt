@@ -226,9 +226,8 @@ class RequestQ @JvmOverloads constructor(
         offerFreeUnitsOf(resource, detail)
     }
 
-    /** Offers the available units of [members] to the requests waiting for them, unless the run has ended. */
+    /** Offers the available units of [members] to the requests waiting for them; each offer does nothing once the run has ended. */
     private fun offerOnward(members: Collection<Resource>, detail: String) {
-        if (members.isEmpty() || executive.isEnded) return
         for (member in members) {
             member.offerFreedUnits(ProcessModel.RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE, detail)
         }

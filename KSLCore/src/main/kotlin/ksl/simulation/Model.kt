@@ -203,6 +203,9 @@ class Model @JvmOverloads constructor(
         ksl.modeling.entity.ResourceInvariants.attachIfEnabled(this, myExecutive)
     }
 
+    /** After every event, offers the units of a resource that a change left free beside a request that could take them. */
+    internal val unofferedUnits = ksl.modeling.entity.UnofferedUnits(myExecutive).also { myExecutive.attachObserver(it) }
+
     /**
      * Used internally to specify the model's experiment parameters
      */
