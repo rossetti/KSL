@@ -31,9 +31,10 @@ import ksl.simulation.ModelElement
  *  of the list that can be served now is served first. A rule that filters the queue returns the requests
  *  in the queue's list order, which for a LIFO or random queue is not its discipline; a rule that
  *  wants another order sorts its list. When units of a resource that belongs to pools come free, the
- *  rule's choices for the resource come before its choices for each of those pools. The queue still holds
- *  requests already woken, whose units are promised and no longer counted as available; they are passed
- *  over when the list is used.
+ *  rule's choices for the resource come before its choices for each of those pools. A request the library serves
+ *  leaves the queue as it is served, so the rule sees only the requests not yet served; a rule that would choose a
+ *  group of requests together sees them leave one at a time. A preemption's reservation still collecting its units
+ *  stays in the queue and is passed over when the list is used.
  */
 fun interface RequestSelectionRuleIfc {
 
@@ -160,12 +161,13 @@ class RequestQ @JvmOverloads constructor(
     /** Removes the request from the queue and tells the associated entity to terminate its process.  The process
      *  that was suspended because the entity's request was placed in the queue is immediately terminated.
      *
-     *  Units the request had been promised, because a release woke it and its entity had not yet resumed, go
-     *  back to the resource before the process is terminated, so the termination's hooks see them there (a
-     *  capacity decrease waiting for them has taken them). After the termination they are offered to whoever
-     *  else is waiting for them, as when a waiting process is terminated. So are the
-     *  free units of what it requested: when the queue has a request selection rule, removing the request the
-     *  rule had chosen can let it choose another, which is served at once rather than at the next release.
+     *  Units a preemption's reservation had collected for the request go back to the resource before the process
+     *  is terminated, so the termination's hooks see them there (a capacity decrease waiting for them has taken
+     *  them). After the termination they are offered to whoever else is waiting for them, as when a waiting process
+     *  is terminated. So are the free units of what it requested: when the queue has a request selection rule,
+     *  removing the request the rule had chosen can let it choose another, which is served at once rather than at
+     *  the next release. A request the library has served has left the queue, so this cannot reach it; terminating
+     *  its entity releases its allocation instead.
      *
      *  A request is in the queue while its entity's process still runs, from when it is placed until the process
      *  suspends: the queue's listeners, and a mailbox observer or allocation listener run in that step (as while
@@ -192,7 +194,7 @@ class RequestQ @JvmOverloads constructor(
         val offerOn = LinkedHashSet<Resource>(withdrawn.keys)
         offerOn.addAll(membersOf(request.resource))
         remove(request, waitStats)
-        // the promised units are handed on before the entity's termination runs its hooks, so a hook sees the
+        // the collected units are handed on before the entity's termination runs its hooks, so a hook sees the
         // resource with them back; the offer comes last, so a request a hook makes is offered the units too
         for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
         request.entity.terminateProcess(afterTermination)
@@ -375,8 +377,8 @@ class RequestQ @JvmOverloads constructor(
     }
 
     internal fun effectiveAvailableFor(resource: ResourceIfc): Int {
-        // a resource's or pool's available units already exclude what has been promised to woken
-        // requests, in this queue or any other; only a guided transporter pool still counts its own
+        // a resource's or pool's available units already exclude what reservations have collected, in this queue
+        // or any other; only a guided transporter pool still counts its own
         return if (resource is Resource || resource is ResourcePool || resource is MovableResourcePool) {
             resource.numAvailableUnits
         } else {
@@ -457,11 +459,10 @@ class RequestQ @JvmOverloads constructor(
     }
 
     /**
-     *  Removes a request whose entity will not resume to take what it was promised, because its process
-     *  was terminated while it waited, and offers the promised units to whoever else is waiting for them.
-     *  Without the offer they would sit free until the next release. The free units of what the request
-     *  asked for are offered too: under a request selection rule, removing the request the rule had
-     *  chosen can let it choose another.
+     *  Removes a request whose process was terminated while it waited, and offers the units a reservation had
+     *  collected for it to whoever else is waiting for them; without the offer they would sit free until the next
+     *  release. The free units of what the request asked for are offered too: under a request selection rule,
+     *  removing the request the rule had chosen can let it choose another.
      */
     internal fun removeAbandoned(request: ProcessModel.Entity.Request, offer: Boolean = true): Boolean {
         val withdrawn = request.promises.toMap()
@@ -488,9 +489,9 @@ class RequestQ @JvmOverloads constructor(
     }
 
     /**
-     *  As a request is moved out of this queue: the units it was promised, [withdrawn], go first to a pending
-     *  capacity change. Done before the new target decides whether it can serve the request, so a unit is handed
-     *  on before anyone may promise it again, and is never both promised and given to the change.
+     *  As a request is moved out of this queue: the units its reservation had collected, [withdrawn], go first to a
+     *  pending capacity change. Done before the new target decides whether it can serve the request, so a unit is
+     *  handed on before anyone may take it again, and is never both held for the request and given to the change.
      */
     internal fun handOnWithdrawn(withdrawn: Map<Resource, Int>) {
         for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
@@ -498,9 +499,9 @@ class RequestQ @JvmOverloads constructor(
 
     /**
      *  After a request has been moved out of this queue to another target, and its withdrawn units were handed on
-     *  (`handOnWithdrawn`): the free units of what it left, [oldTarget], and of the members it was promised by,
-     *  [withdrawn], are offered to the requests still waiting for them, as when a request leaves. The moved
-     *  request no longer asks for them, so it is not woken by them.
+     *  (`handOnWithdrawn`): the free units of what it left, [oldTarget], and of the members it had collected units
+     *  of, [withdrawn], are offered to the requests still waiting for them, as when a request leaves. The moved
+     *  request no longer asks for them, so it is not served by them.
      */
     internal fun afterMovedAway(withdrawn: Map<Resource, Int>, oldTarget: ResourceIfc, detail: String) {
         val offerOn = LinkedHashSet<Resource>(withdrawn.keys)
@@ -606,8 +607,8 @@ class RequestQ @JvmOverloads constructor(
     /**
      *  Removes a request that leaves without being served, because its wait ended in another way: a
      *  time limit ran out, or another thing it waited for came first. Its wait is recorded when
-     *  [recordWait] is true and the queue records waits. Such a request was never woken, so it holds
-     *  no promise and has no resume pending.
+     *  [recordWait] is true and the queue records waits. Such a request was never served, so it holds
+     *  nothing and has no resume pending.
      *
      *  @return true if the request was in the queue
      */

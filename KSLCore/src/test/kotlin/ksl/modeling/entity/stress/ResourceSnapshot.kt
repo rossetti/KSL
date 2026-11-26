@@ -58,7 +58,6 @@ internal class RequestSnap(
     val preemptRule: InterruptRule?,
     val isWaitingPreemptor: Boolean,
     val hasReservation: Boolean,
-    val reservationComplete: Boolean,
     val stillNeeded: Int,
     val promised: Int,
     val resumePending: Boolean,
@@ -68,14 +67,14 @@ internal class RequestSnap(
     /** The kind of claimant this request is now, or null when the offer cannot serve it. */
     fun kind(reachableCapacity: Int): ClaimantKind? = when {
         resumePending || passedAllocation != null || held -> null
-        hasReservation -> if (!reservationComplete && amount <= reachableCapacity) ClaimantKind.RESERVATION else null
+        hasReservation -> if (amount <= reachableCapacity) ClaimantKind.RESERVATION else null
         isWaitingPreemptor -> ClaimantKind.PREEMPTOR
         else -> ClaimantKind.QUEUED
     }
 
     override fun toString(): String {
         val what = when {
-            hasReservation -> "reservation(still=$stillNeeded${if (reservationComplete) " complete" else ""})"
+            hasReservation -> "reservation(still=$stillNeeded)"
             isWaitingPreemptor -> "preempt-$preemptRule"
             else -> "seize"
         }
@@ -147,7 +146,6 @@ internal class ResourceSnapshot(
                     isWaitingPreemptor = (r in preemptors && r.waitingPreemptRule != null) ||
                             (r === resource.arrivingRequest && resource.arrivingRule != null),
                     hasReservation = r.reservation != null,
-                    reservationComplete = r.reservation?.isComplete ?: false,
                     stillNeeded = r.reservation?.stillNeeded ?: r.amountRequested,
                     promised = r.promises[resource] ?: 0,
                     resumePending = r.resumePending,

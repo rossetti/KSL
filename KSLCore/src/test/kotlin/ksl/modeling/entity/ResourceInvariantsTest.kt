@@ -175,7 +175,7 @@ class ResourceInvariantsTest {
         model.lengthOfReplication = 20.0
         val error = assertFailsWith<RuntimeException> { model.simulate() }
         val messages = generateSequence<Throwable>(error) { it.cause }.joinToString(" | ") { it.message ?: "" }
-        assertContains(messages, "for 1 units, un-woken, while 1 are available")
+        assertContains(messages, "for 1 units, un-served, while 1 are available")
     }
 
     /**

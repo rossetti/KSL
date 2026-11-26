@@ -46,7 +46,7 @@ internal abstract class SeizeTrigger<V, R : ProcessModel.Entity.Request>(
     abstract suspend fun ProcessModel.Entity.ProcessCoroutine.take(
         request: R,
         suspensionName: String?
-    ): V?
+    ): V
 
     /** Takes the units of a request that can be served now, without waiting. */
     abstract fun ProcessModel.Entity.ProcessCoroutine.complete(request: R): V
@@ -133,7 +133,7 @@ internal class ResourceSeizeTrigger(
     override suspend fun ProcessModel.Entity.ProcessCoroutine.take(
         request: ProcessModel.Entity.ResourceRequest,
         suspensionName: String?
-    ): Allocation? = takeResource(request, resource, queue, suspensionName)
+    ): Allocation = takeResource(request, resource, queue, suspensionName)
 
     override fun ProcessModel.Entity.ProcessCoroutine.complete(request: ProcessModel.Entity.ResourceRequest): Allocation =
         completeResourceSeize(request, resource, queue, null)
@@ -180,7 +180,7 @@ internal class ResourcePoolSeizeTrigger(
     override suspend fun ProcessModel.Entity.ProcessCoroutine.take(
         request: ProcessModel.Entity.ResourcePoolRequest,
         suspensionName: String?
-    ): ResourcePoolAllocation? = takePool(request, resourcePool, queue, suspensionName)
+    ): ResourcePoolAllocation = takePool(request, resourcePool, queue, suspensionName)
 
     override fun ProcessModel.Entity.ProcessCoroutine.complete(request: ProcessModel.Entity.ResourcePoolRequest): ResourcePoolAllocation =
         completePoolSeize(request, resourcePool, queue, null)
@@ -229,7 +229,7 @@ internal class MovableResourcePoolSeizeTrigger(
     override suspend fun ProcessModel.Entity.ProcessCoroutine.take(
         request: ProcessModel.Entity.MovableResourcePoolRequest,
         suspensionName: String?
-    ): Allocation? = takeMovablePool(request, movableResourcePool, queue, suspensionName)
+    ): Allocation = takeMovablePool(request, movableResourcePool, queue, suspensionName)
 
     override fun ProcessModel.Entity.ProcessCoroutine.complete(request: ProcessModel.Entity.MovableResourcePoolRequest): Allocation =
         completeMovablePoolSeize(request, movableResourcePool, queue, null)
@@ -287,9 +287,6 @@ internal class SeizeRegistration<V, R : ProcessModel.Entity.Request>(
     /** The request was served when the library chose it; the resume takes the allocation passed to it. */
     override suspend fun ProcessModel.Entity.ProcessCoroutine.afterWinningResume(): AfterResume {
         markReleased()
-        val value = checkNotNull(with(seizeTrigger) { take(request, group.suspensionName) }) {
-            "The seize trigger's request ${request.id} resumed with nothing allocated to it."
-        }
-        return AfterResume.Value(value)
+        return AfterResume.Value(with(seizeTrigger) { take(request, group.suspensionName) })
     }
 }

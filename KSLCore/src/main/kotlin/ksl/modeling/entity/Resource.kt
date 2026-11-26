@@ -737,24 +737,13 @@ open class Resource @JvmOverloads constructor(
     internal class Loan(val lender: Allocation?, val borrower: Allocation, val amount: Int)
 
     /**
-     *  A preemption under `FINISH` waiting for the units its victims still use: [request] takes the units of
-     *  any release, capacity increase or repair of this resource ahead of the queue until [stillNeeded] is 0,
-     *  after any reservation of a more urgent entity.
+     *  A preemption under `FINISH` waiting for the units its victims still use: [request] collects the units of
+     *  any release, capacity increase or repair of this resource, in the claim order, until [stillNeeded] is 0.
+     *  The units it has collected are held for it, as the request's promises, and nothing else may take them.
+     *  When it is complete its request is allocated all its units at once and leaves its queue, and the
+     *  reservation ends.
      */
-    internal class Reservation(val request: ProcessModel.Entity.Request, var stillNeeded: Int) {
-        /**
-         *  True once every unit has been promised and the request has been woken to take them. The
-         *  reservation stays until the request takes its units and leaves its queue, so a promise broken
-         *  in between does not cost it its place: it collects again.
-         */
-        var isComplete: Boolean = false
-
-        /** Collects again, from nothing, after the promise of a completed reservation broke. */
-        fun reopen() {
-            isComplete = false
-            stillNeeded = request.amountRequested
-        }
-    }
+    internal class Reservation(val request: ProcessModel.Entity.Request, var stillNeeded: Int)
 
     /** What a preemption would take: the free units, and the units of each victim. */
     internal class PreemptionPlan(val free: Int, val takes: List<Pair<Allocation, Int>>)
@@ -951,24 +940,22 @@ open class Resource @JvmOverloads constructor(
      *  One for more units than that holds nothing and blocks no one; it collects when the capacity returns.
      */
     private fun isCollecting(reservation: Reservation): Boolean =
-        !reservation.isComplete && reservation.request.amountRequested <= reachableCapacity
+        reservation.request.amountRequested <= reachableCapacity
 
     /**
-     *  A seize has just taken units of this resource, out of [servedFrom], as a woken or reserved request taking
-     *  what it was promised does. Promised units cannot be lent, so a waiting preemptor that outranks the request
-     *  could not plan against them; now they are an allocation it may take from, and it plans again.
+     *  A seize has just taken units of this resource out of [servedFrom], as one served on arrival or one the model
+     *  resumed does. Two things may now change: a request selection rule chose among the queue with this request in
+     *  it, and may now choose another the free units can serve; and a waiting preemptor that outranks the request may
+     *  now take from its allocation. The units still free are offered again for either.
      */
     internal fun afterSeizeTook(servedFrom: RequestQ): Unit = change {
         if (isRunEnded) return@change
-        // A request selection rule sees woken requests, which still wait in the queue with their units promised;
-        // one serving strictly from the head chooses the woken head again and serves no one behind it. Now the head
-        // has left, the units still free are offered again, so the request it chooses next is served at once.
         if (servedFrom.requestSelectionRule != null && numAvailableUnits > 0) {
-            offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "woken_request_left_resource=$name")
+            offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "seize_left_queue_resource=$name")
             return@change
         }
         if (myWaitingPreemptors.isEmpty()) return@change
-        offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "promised_units_taken_resource=$name")
+        offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "units_taken_resource=$name")
     }
 
     /** A waiting preemptor was moved here: the waiting preemptors plan, as on an arrival. */
@@ -986,7 +973,7 @@ open class Resource @JvmOverloads constructor(
         // it stops collecting, and gives back what it holds at once rather than at the next offer
         var withdrawn = 0
         for (reservation in myReservations) {
-            if (reservation.isComplete || isCollecting(reservation)) continue
+            if (isCollecting(reservation)) continue
             val held = reservation.request.promises[this] ?: 0
             if (held <= 0) continue
             reservation.request.withdrawPromise(this, held)
@@ -1005,13 +992,13 @@ open class Resource @JvmOverloads constructor(
     /**
      *  For a capacity decrease short of idle units: takes back up to [need] units promised to reservations still
      *  collecting theirs, the least urgent first and the latest made first among equals, and returns how many it
-     *  took. Each such reservation needs them again, and collects them as units come free. A complete reservation,
-     *  whose request has been woken to take its units, keeps them, as a woken request does. Without this a WAIT
+     *  took. Each such reservation needs them again, and collects them as units come free. (A reservation that
+     *  completes is allocated its units at once, so every reservation is still collecting.) Without this a WAIT
      *  decrease and a part-filled reservation could each wait for the units the other holds.
      */
     private fun reclaimFromReservationsCollecting(need: Int): Int {
         var taken = 0
-        val collecting = myReservations.filter { !it.isComplete }
+        val collecting = myReservations
             .withIndex().sortedWith(compareBy<IndexedValue<Reservation>>({ -it.value.request.entity.priority }, { -it.index }))
             .map { it.value }
         for (reservation in collecting) {
@@ -1035,7 +1022,7 @@ open class Resource @JvmOverloads constructor(
      *  preemption.
      */
     private fun returnReservationsBeyond(limit: Int) {
-        for (reservation in myReservations.filter { !it.isComplete && it.request.amountRequested > limit }) {
+        for (reservation in myReservations.filter { it.request.amountRequested > limit }) {
             val request = reservation.request
             val held = request.promises[this] ?: 0
             dropReservation(request)
@@ -1942,39 +1929,35 @@ open class Resource @JvmOverloads constructor(
     }
 
     /**
-     *  For the invariant checks: a waiting preemptor passed over by a woken request it should have gone ahead of,
-     *  or null. A request is passed over when another request of its queue, no more urgent and behind it by the
-     *  queue's discipline, holds a promise of units that, with the units of the holders the preemptor outranks,
-     *  would have served it. Only the plain case is judged: the resource working and on shift, the preemptor not
-     *  under FINISH and with nothing promised, no reservation as urgent as it still collecting units, and the other
-     *  request not served through a reservation.
+     *  For the invariant checks, just before the claim order serves [request] out of [queue]: a waiting preemptor
+     *  that [request] passes over, or null. A preemptor is passed over when the request, no more urgent and behind
+     *  it by the queue's discipline, is about to take units that, with the units of the holders the preemptor
+     *  outranks, would have served it. Only the plain case is judged: the resource working and on shift, the
+     *  preemptor not under FINISH and with nothing collected, no reservation as urgent as it still collecting
+     *  units, and the request not served through a reservation.
      */
-    internal fun waitingPreemptorPassedOver(): String? {
+    internal fun waitingPreemptorPassedOver(request: ProcessModel.Entity.Request, queue: RequestQ): String? {
         if (isFailed || isInactive || isOffShift || isRunEnded) return null
+        if (request.reservation != null || request.resource !== this) return null
+        val taking = request.amountRequested
+        if (numAvailableUnits < taking) return null
         for (preemptor in myWaitingPreemptors) {
-            if (preemptor.waitingPreemptRule == InterruptRule.FINISH || preemptor.resumePending || preemptor.isReserved ||
-                preemptor.promises.isNotEmpty() || preemptor.passedAllocation != null || preemptor.resource !== this) continue
-            val queue = preemptor.queue as? RequestQ ?: continue
-            if (!queue.contains(preemptor)) continue
+            if (preemptor === request || preemptor.waitingPreemptRule == InterruptRule.FINISH || preemptor.resumePending ||
+                preemptor.isReserved || preemptor.promises.isNotEmpty() || preemptor.passedAllocation != null ||
+                preemptor.resource !== this || preemptor.queue !== queue || !queue.contains(preemptor)) continue
             val priority = preemptor.entity.priority
             val needed = preemptor.amountRequested
             if (needed > reachableCapacity) continue
             if (myReservations.any { isCollecting(it) && it.request.entity.priority <= priority }) continue
+            if (request.entity.priority < priority || !queue.precedes(preemptor, request)) continue
             val lendable = allocations().filter { it.myEntity.priority > priority }.sumOf { it.amount - it.missingByLoan }
-            for (other in queue) {
-                if (other === preemptor) continue
-                val promised = other.promises[this] ?: 0
-                // a reservation's units go to it by the FINISH preemptors' own rule, ahead of a waiting preemptor
-                if (promised == 0 || other.reservation != null || other.entity.priority < priority ||
-                    !queue.precedes(preemptor, other)) continue
-                val free = numAvailableUnits + promised
-                // taking only free units it is served as a seize is, and a selection rule may choose the other
-                if (free >= needed && queue.requestSelectionRule != null) continue
-                if (free + lendable >= needed) {
-                    return "the waiting preemptor request ${preemptor.id} of entity ${preemptor.entity.id} (priority $priority, " +
-                            "$needed units) was passed over by request ${other.id} of entity ${other.entity.id} (priority " +
-                            "${other.entity.priority}), behind it in ${queue.name}, which holds $promised promised units"
-                }
+            val free = numAvailableUnits
+            // taking only free units it is served as a seize is, and a selection rule may choose the other
+            if (free >= needed && queue.requestSelectionRule != null) continue
+            if (free + lendable >= needed) {
+                return "the waiting preemptor request ${preemptor.id} of entity ${preemptor.entity.id} (priority $priority, " +
+                        "$needed units) is passed over by request ${request.id} of entity ${request.entity.id} (priority " +
+                        "${request.entity.priority}), behind it in ${queue.name}, which is about to take $taking units"
             }
         }
         return null
@@ -2587,10 +2570,8 @@ open class Resource @JvmOverloads constructor(
                 myNewcomerDecision = ArrivalDecision.Take(PreemptionPlan(request.amountRequested, emptyList()))
                 return false
             }
-            if (queue.wake(request, this, priority, source, detail)) {
-                ResourceInvariants.checkAfterWake(this)
-                return true
-            }
+            ResourceInvariants.checkBeforeServe(this, request, queue)
+            if (queue.wake(request, this, priority, source, detail)) return true
         }
         for (claimant in behind) {
             if (servePreemptionClaimant(claimant, returning, priority, source, detail)) return true
@@ -2736,7 +2717,7 @@ open class Resource @JvmOverloads constructor(
     private fun giveBackPromisesBeyondCapacity() {
         var withdrawn = 0
         for (reservation in myReservations) {
-            if (reservation.isComplete || isCollecting(reservation)) continue
+            if (isCollecting(reservation)) continue
             val held = reservation.request.promises[this] ?: 0
             if (held <= 0) continue
             reservation.request.withdrawPromise(this, held)

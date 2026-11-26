@@ -36,7 +36,7 @@ import ksl.utilities.observers.ObserverIfc
  *    capacity is not a bound, but units are allocated only when available, so the highest one is;
  *  - each allocation's units missing by loan are its loans out, and never exceed its amount;
  *  - no loan outlives its borrower, and a lender, if any, still holds its allocation;
- *  - the units promised to woken requests are the promises the requests in its queues hold;
+ *  - the units held for reservations still collecting them are the promises the requests in its queues hold;
  *  - a pending capacity decrease never waits for more units than are busy or promised, the only ones that
  *    can still come to it, by a release or a withdrawn promise; under WAIT, units promised to a reservation
  *    still collecting its units do not count, since the decrease takes them back as it starts;
@@ -44,15 +44,16 @@ import ksl.utilities.observers.ObserverIfc
  *  - every wait listed on an allocation's triggers is still open;
  *  - a holder's delay is held only by allocations with units missing, has no event on the calendar while
  *    held, and is never held by one while it reports an interruption instead;
- *  - no request waits, un-woken, in one of its queues beside units it could take. A woken request is
- *    already on its way; a failed or inactive resource can serve no one; and a request that the queue's
- *    selection rule holds back, or that does not fit in the units available, is not one it could serve;
+ *  - no request waits, un-served, in one of its queues beside units it could take. A request the library serves
+ *    leaves its queue, and a guided transporter pool's woken request is already on its way; a failed or inactive
+ *    resource can serve no one; and a request that the queue's selection rule holds back, or that does not fit in
+ *    the units available, is not one it could serve;
  *  - every request in one of its queues for a wait for the first of several things belongs to a wait that is
  *    still open, or is the one that ended it and has yet to resume.
- *  - no waiting preemptor is passed over by a request the offer of freed units wakes behind it in its queue, no
+ *  - no waiting preemptor is passed over by a request the offer of freed units serves behind it in its queue, no
  *    more urgent, when that request's units and those of the holders the preemptor outranks would have served it
- *    (judged at the wake, only for a working resource on shift, a preemptor not under FINISH, and no reservation
- *    as urgent collecting).
+ *    (judged at the decision, only for a working resource on shift, a preemptor not under FINISH, and no
+ *    reservation as urgent collecting).
  *
  *  For each blocking queue, it checks the last of these for the requests waiting for its items.
  *
@@ -187,13 +188,13 @@ internal object ResourceInvariants {
     }
 
     /**
-     *  When the checks are on, called by the offer of freed units just after it wakes a request: no waiting preemptor
-     *  is passed over by it. Judged at the wake, with the priorities of that moment; a later step of the same event
-     *  may change them.
+     *  When the checks are on, called by the offer of freed units just before it serves [request] out of [queue]: no
+     *  waiting preemptor is passed over by it. Judged at the decision, with the priorities of that moment; a later step
+     *  of the same event may change them.
      */
-    fun checkAfterWake(resource: Resource) {
+    fun checkBeforeServe(resource: Resource, request: ProcessModel.Entity.Request, queue: RequestQ) {
         if (!enabled) return
-        resource.waitingPreemptorPassedOver()?.let { violation(resource, it) }
+        resource.waitingPreemptorPassedOver(request, queue)?.let { violation(resource, it) }
     }
 
     /** Checks [resource]; the message names the resource and what is out of balance. */
@@ -224,7 +225,7 @@ internal object ResourceInvariants {
             val lender = loan.lender
             if (lender != null && !lender.isAllocated) violation(resource, "a loan from the released allocation ${lender.id} is still live")
         }
-        // the promises of woken requests, wherever they wait
+        // the units collected by reservations, wherever their requests wait
         var promised = 0
         for (queue in resource.registeredQueues) {
             for (request in queue) {
@@ -242,30 +243,26 @@ internal object ResourceInvariants {
                         "${resource.myPromisedUnits} promised"
             )
         }
-        if (resource.capacityChangeRule == CapacityChangeRule.WAIT && need > 0) {
-            val collecting = resource.reservations.filter { !it.isComplete }.sumOf { it.request.promises[resource] ?: 0 }
-            if (need > resource.numBusy + resource.myPromisedUnits - collecting) {
-                violation(
-                    resource, "a pending capacity decrease needs $need units, but only ${resource.numBusy} are busy and " +
-                            "${resource.myPromisedUnits - collecting} promised outside reservations still collecting theirs"
-                )
-            }
+        // under WAIT a decrease short of idle units takes back what reservations collecting units hold, which are the
+        // only promised units, so it can wait only for busy units
+        if (resource.capacityChangeRule == CapacityChangeRule.WAIT && need > resource.numBusy) {
+            violation(resource, "a pending capacity decrease needs $need units, but only ${resource.numBusy} are busy")
         }
         for (reservation in resource.reservations) {
             val request = reservation.request
             if (request.queue == null) violation(resource, "a reservation's request ${request.id} is in no queue")
             if (request.reservation !== reservation) violation(resource, "the request ${request.id} of a reservation does not carry it")
             val held = request.promises[resource] ?: 0
-            val expected = if (reservation.isComplete) request.amountRequested else request.amountRequested - reservation.stillNeeded
+            val expected = request.amountRequested - reservation.stillNeeded
             if (held != expected) violation(resource, "the reservation of request ${request.id} holds $held units, not $expected")
         }
-        // no request waits, un-woken, beside units it could take
+        // no request waits, un-served, beside units it could take
         if (!resource.isFailed && !resource.isInactive && resource.numAvailableUnits > 0) {
             for (queue in resource.registeredQueues) {
                 val stranded = queue.nextRequestServableBy(resource) ?: continue
                 violation(
                     resource, "request ${stranded.id} of entity ${stranded.entity.id} waits in ${queue.name} for " +
-                            "${stranded.amountRequested} units, un-woken, while ${resource.numAvailableUnits} are available"
+                            "${stranded.amountRequested} units, un-served, while ${resource.numAvailableUnits} are available"
                 )
             }
         }

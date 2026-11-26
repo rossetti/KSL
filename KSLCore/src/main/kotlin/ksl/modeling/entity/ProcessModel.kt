@@ -3114,7 +3114,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 val allocation = try {
                     // served at once when the resource's walk of claimants reaches it and can serve it; else it waits
                     if (!entity.canTakeResourceNow(request, queue)) waitForResource(request, resource, queue)
-                    takeResource(request, resource, queue, suspensionName)!!
+                    takeResource(request, resource, queue, suspensionName)
                 } finally {
                     // Abnormal exit only. Termination resumes the continuation with a
                     // ProcessTerminatedException, which unwinds through the suspend() inside
@@ -3177,7 +3177,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 return when (val decision = resource.arrivalDecision(request, rule)) {
                     is Resource.ArrivalDecision.Take -> if (decision.plan.takes.isEmpty()) {
                         // the free units are enough: no one is preempted
-                        takeResource(request, resource, queue, suspensionName)!!
+                        takeResource(request, resource, queue, suspensionName)
                     } else {
                         // taken at once: the request leaves its queue with a wait of zero
                         (request.queue as? RequestQ ?: queue).remove(request)
@@ -3207,12 +3207,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 resource: Resource,
                 queue: RequestQ,
                 suspensionName: String?
-            ): Allocation? {
+            ): Allocation {
                 val amountNeeded = request.amountRequested
-                if (!waitUntilPromiseHonoured(request, settled = { request.passedAllocation != null }) {
-                        request.myResource.canAllocate(amountNeeded)
-                    }) {
-                    return null
+                waitUntilItCanTake(request, settled = { request.passedAllocation != null }) {
+                    request.myResource.canAllocate(amountNeeded)
                 }
                 // served when the library chose it: the request has already left its queue
                 request.passedAllocation?.let { return it }
@@ -3232,18 +3230,11 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             ): Allocation {
                 val amountNeeded = request.amountRequested
                 // stops as soon as an allocation is passed: its units are allocated, so there is nothing to choose
-                waitUntilPromiseHonoured(request, settled = { request.passedAllocation != null }) {
+                waitUntilItCanTake(request, settled = { request.passedAllocation != null }) {
                     request.myResource.canAllocate(amountNeeded)
                 }
-                val passed = request.passedAllocation
-                if (passed != null) {
-                    val servedFrom = request.queue as? RequestQ ?: queue
-                    servedFrom.remove(request)
-                    // a selection rule may have chosen this request again while it waited to resume, holding back the
-                    // ones behind it; now it has left, the units still free are offered again, as after a seize
-                    passed.myResource.afterSeizeTook(servedFrom)
-                    return passed
-                }
+                // given its allocation by its resource, it left its queue then, and the offer went on without it
+                request.passedAllocation?.let { return it }
                 return completeResourceSeize(request, resource, queue, suspensionName)
             }
 
@@ -3281,32 +3272,27 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             }
 
             /**
-             *  This function ensures that the incoming request for a resource will follow the queue's discipline and
-             *  request selection rule when it first requests units of the resource. The function causes the
-             *  entity of the request to suspend if the resource does not have a sufficient amount available to
-             *  allocate to the request.
-             */
-            /**
-             *  Waits on in the queue until the request can be finished. A request the library served resumes with
-             *  its allocation passed to it, and [settled] says so: this returns at once. A request that never waited,
-             *  or that the model resumed itself (`resumeProcess`), takes its units when [canAllocateNow] holds. A
-             *  guided transporter pool's request is the one still woken with a promise: if what it was promised went
-             *  away in the instant before it resumed, as a transporter going off shift or failing, it waits on for the
-             *  next rather than failing.
+             *  Waits on in the queue until the request can be finished. A request the library served resumes with its
+             *  allocation passed to it, and [settled] says so: this returns at once. A request that never waited, or that
+             *  the model resumed itself (`resumeProcess`), takes its units when [canAllocateNow] holds and, if the library
+             *  woke it, its queue would choose it now; a guided transporter pool's request, which that pool wakes without
+             *  serving, is one. Otherwise the request waits on, and the units of what it asks for are offered on, so the
+             *  request its queue's rule chose is served.
              *
-             *  @return true when the request can be finished
+             *  The one request that can resume holding units not yet allocated to it is a `FINISH` preemptor the model
+             *  resumed itself while its reservation still collects them: it takes them if they are still there to take,
+             *  and otherwise hands them back and waits on.
              */
-            private suspend fun waitUntilPromiseHonoured(
+            private suspend fun waitUntilItCanTake(
                 request: Request,
                 settled: () -> Boolean = { false },
                 canAllocateNow: () -> Boolean
-            ): Boolean {
+            ) {
                 while (true) {
-                    if (settled()) return true
+                    if (settled()) return
                     val promises = request.promises
-                    // nothing promised to a request the library woke (or moved while woken): the units are taken only
-                    // if its queue would choose it now, as an arriving seize's. A resume the model asks for itself
-                    // (resumeProcess) is the model's decision, and takes what is free.
+                    // a request the library woke without serving it takes the units only if its queue would choose it
+                    // now, as an arriving seize's; a resume the model asks for itself is the model's decision
                     val wokenByLibrary = request.resumePending
                     val chosen = { !wokenByLibrary || ((request.queue as? RequestQ)?.wouldChoose(request) ?: true) }
                     val honourable = if (promises.isEmpty()) {
@@ -3314,22 +3300,19 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     } else {
                         promises.keys.all { !it.isInactive && !it.isFailed && it.capacity - it.numBusy - it.myPromisedUnits >= 0 }
                     }
-                    if (honourable) return true
-                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: request_id = ${request.id} cannot take what it was promised; it waits again" }
+                    if (honourable) return
+                    logger.trace { "r = ${model.currentReplicationNumber} : $time > entity_id = ${entity.id}: request_id = ${request.id} cannot take its units now; it waits again" }
                     val withdrawn = promises.toMap()
                     request.clearPromises()
                     request.clearResumePending()
                     // a capacity decrease that waits for units takes the withdrawn ones first, as from a release
                     for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
-                    // What was promised went away, but something else may be free now. The release that freed it has
-                    // already offered it, so waiting would strand the request beside it until the next release: take
-                    // it now instead. Handing the withdrawn units back can also settle the request (a preemptor may be
-                    // passed its allocation), so that is asked again here.
-                    if ((settled() || canAllocateNow()) && chosen()) return true
-                    // The units it withdrew are free again, and the release that freed them offered them only to
-                    // this request: offer them to the requests behind it, as when a waiting request leaves. A request
-                    // that held no promise and was not chosen offers the units of what it asks for, so the request its
-                    // queue's rule chose is served now.
+                    // Something else may be free now; take it rather than wait beside it. Handing units back can also
+                    // settle the request (a preemptor may be passed its allocation), so that is asked again here.
+                    if ((settled() || canAllocateNow()) && chosen()) return
+                    // The units it handed back are offered to the requests behind it, as when a waiting request leaves;
+                    // a request that held none and was not chosen offers the units of what it asks for, so the request
+                    // its queue's rule chose is served now.
                     for (member in withdrawn.keys) {
                         member.offerFreedUnits(
                             RELEASE_PRIORITY, ResumeSource.REQUEST_Q_RESOURCE_RELEASE,
@@ -3465,7 +3448,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         entity.state.activate()
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     }
-                    takePool(request, resourcePool, queue, suspensionName)!!
+                    takePool(request, resourcePool, queue, suspensionName)
                 } finally {
                     // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
                     // A no-op on the normal path, so it records no second waiting-time observation.
@@ -3486,12 +3469,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 resourcePool: ResourcePool,
                 queue: RequestQ,
                 suspensionName: String?
-            ): ResourcePoolAllocation? {
+            ): ResourcePoolAllocation {
                 val resourceSelectionRule = request.selectionRule!!
-                if (!waitUntilPromiseHonoured(request, settled = { request.passedPoolAllocation != null }) {
-                        request.myResourcePool.canAllocate(resourceSelectionRule, request.amountRequested)
-                    }) {
-                    return null
+                waitUntilItCanTake(request, settled = { request.passedPoolAllocation != null }) {
+                    request.myResourcePool.canAllocate(resourceSelectionRule, request.amountRequested)
                 }
                 request.passedPoolAllocation?.let { return it }
                 return completePoolSeize(request, resourcePool, queue, suspensionName)
@@ -3577,7 +3558,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                         entity.state.activate()
                         logger.trace { "r = ${model.currentReplicationNumber} : $time > \t RESUMED : SEIZE: ENTITY: entity_id = ${entity.id}: suspension name = $currentSuspendName" }
                     }
-                    takeMovablePool(request, movableResourcePool, queue, suspensionName)!!
+                    takeMovablePool(request, movableResourcePool, queue, suspensionName)
                 } finally {
                     // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
                     // A no-op on the normal path, so it records no second waiting-time observation.
@@ -3594,12 +3575,10 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                 movableResourcePool: MovableResourcePool,
                 queue: RequestQ,
                 suspensionName: String?
-            ): Allocation? {
+            ): Allocation {
                 val resourceSelectionRule = request.selectionRule!!
-                if (!waitUntilPromiseHonoured(request, settled = { request.passedAllocation != null }) {
-                        request.myMovableResourcePool.canAllocate(resourceSelectionRule)
-                    }) {
-                    return null
+                waitUntilItCanTake(request, settled = { request.passedAllocation != null }) {
+                    request.myMovableResourcePool.canAllocate(resourceSelectionRule)
                 }
                 request.passedAllocation?.let { return it }
                 return completeMovablePoolSeize(request, movableResourcePool, queue, suspensionName)
@@ -3680,7 +3659,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
                     // A guided pool promises nothing at the wake, so the transporter that woke the request may
                     // have gone off shift or failed before this resume: the request then waits again, in its
                     // place in the queue, until a transporter is offered to the pool.
-                    waitUntilPromiseHonoured(request) { pool.hasIdleTransporter }
+                    waitUntilItCanTake(request) { pool.hasIdleTransporter }
                     queue.remove(request) // take the request out of the queue after possible wait
                 } finally {
                     // Abnormal exit only; see seize(resource: Resource, ...) for the full reasoning.
