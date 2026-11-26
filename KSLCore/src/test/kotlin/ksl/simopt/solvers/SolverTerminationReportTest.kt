@@ -115,6 +115,31 @@ class SolverTerminationReportTest {
     }
 
     @Test
+    @DisplayName("a stepped run that uses every iteration and is then stopped and ended reports its maximum iterations, not a halt")
+    fun steppedRunStoppedAfterEveryIteration() {
+        val solver = climber(1)
+        solver.initialize()
+        while (solver.hasNextIteration()) solver.runNextIteration()
+        solver.stopIterations("stopped once the steps were done")
+        solver.endIterations()
+        val result = solver.solverResult as SolverResult.Completed
+        assertEquals(1, result.totalIterations)
+        assertEquals(SolverResult.MAXIMUM_ITERATIONS_REACHED, result.terminationReason)
+    }
+
+    @Test
+    @DisplayName("a stepped run stopped before its last iteration and then ended is a halt")
+    fun steppedRunStoppedEarly() {
+        val solver = climber(3)
+        solver.initialize()
+        solver.runNextIteration()
+        solver.stopIterations("stopped early")
+        solver.endIterations()
+        val result = solver.solverResult as SolverResult.Completed
+        assertEquals(SolverResult.HALTED_BEFORE_COMPLETION, result.terminationReason)
+    }
+
+    @Test
     @DisplayName("a stepped run ended before its last iteration is a halt")
     fun steppedRunEndedEarly() {
         val solver = climber(3)

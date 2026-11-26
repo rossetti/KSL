@@ -615,12 +615,16 @@ abstract class Solver(
     /**
      *  Causes a graceful stopping of the iterative processes for the solver.
      *  The inner process will complete its current iteration, and then
-     *  no more outer iterations will start.
+     *  no more outer iterations will start. The run is recorded as halted only if it has not already finished: a
+     *  stepped run that has used every iteration, or reached its time limit, and is then stopped keeps that limit
+     *  as its reason.
      *  @param msg a message can be captured concerning why the stoppage occurred.
      */
     @Suppress("unused")
     fun stopIterations(msg: String? = null) {
-        (myRunState as? RunState.Running)?.haltRequested = true
+        // during an iteration, the last one included, the stop cuts the run short; once the process has finished by
+        // itself, it does not
+        if (!myMainIterativeProcess.isDone) (myRunState as? RunState.Running)?.haltRequested = true
         onStopRequested(msg)
         myMainIterativeProcess.stop(msg)
     }
