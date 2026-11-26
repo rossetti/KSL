@@ -150,9 +150,15 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
      * value for an expectation of a non-negative quantity. See `interpolatedFirstOrderLoss`.
      */
     override fun firstOrderLossFunction(x: Double): Double {
+        // nothing lies above infinity, and everything above minus infinity
+        if (x == Double.POSITIVE_INFINITY) return 0.0
+        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
+        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
         if (!isWholeNumber(x)) {
             return interpolatedFirstOrderLoss(this, x)
         }
+        // the loops below zero count in Int; above, the loss is zero from the number of trials on
+        if (x < 0.0) requireLossArgumentRepresentable(x)
         if (x > mean()) upperTail(x, 1)?.let { return it }
         return if (x < 0.0) {
             floor(abs(x)) + mean()
@@ -171,9 +177,15 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
      * rather than substituted into a closed form that assumes one. See `interpolatedSecondOrderLoss`.
      */
     override fun secondOrderLossFunction(x: Double): Double {
+        // nothing lies above infinity, and everything above minus infinity
+        if (x == Double.POSITIVE_INFINITY) return 0.0
+        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
+        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
         if (!isWholeNumber(x)) {
             return interpolatedSecondOrderLoss(this, x)
         }
+        // the loops below zero count in Int; above, the loss is zero from the number of trials on
+        if (x < 0.0) requireLossArgumentRepresentable(x)
         val mu: Double = mean()
         if (x > mu) upperTail(x, 2)?.let { return it }
         val g2: Double = 0.5 * (variance() + mu * mu - mu) // 1/2 the 2nd binomial moment
@@ -206,9 +218,15 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
      * C(n,3)*p^3, which is where the accumulation starts.
      */
     override fun thirdOrderLossFunction(x: Double): Double {
+        // nothing lies above infinity, and everything above minus infinity
+        if (x == Double.POSITIVE_INFINITY) return 0.0
+        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
+        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
         if (!isWholeNumber(x)) {
             return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
         }
+        // the loops below zero count in Int; above, the loss is zero from the number of trials on
+        if (x < 0.0) requireLossArgumentRepresentable(x)
         if (x > mean()) upperTail(x, 3)?.let { return it }
         val n = numTrials.toDouble()
         val p = probOfSuccess

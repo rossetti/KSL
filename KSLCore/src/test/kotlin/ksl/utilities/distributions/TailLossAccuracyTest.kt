@@ -60,22 +60,55 @@ class TailLossAccuracyTest {
     }
 
     @Test
-    @DisplayName("a negative binomial too wide to sum over its tail, just below the largest point computed, matches the geometric tail")
-    fun negativeBinomialNearTheLargestWholeNumber() {
-        val p = 1e-9
-        // the closed form serves a distribution this wide; its direct algorithms keep that quick so near the limit
-        val d = NegativeBinomial(p, 1.0).also { it.recursiveAlgorithmFlag = false }
-        val x = Int.MAX_VALUE - 3.0
-        // r = 1 is geometric: G1(x) = q^(x+1)/p
-        val expected = exp((x + 1) * ln1p(-p)) / p
-        // to the accuracy of the incomplete beta function the direct algorithms use
-        assertEquals(1.0, d.firstOrderLossFunction(x) / expected, 1e-5)
+    @DisplayName("a loss function past the largest whole number its mass function can reach refuses rather than returning a wrong value")
+    fun beyondTheLargestWholeNumber() {
+        // a narrow distribution, so only the range refuses: the largest argument computed is Int.MAX_VALUE - 5
+        val d = Poisson(6.0)
+        assertFailsWith<IllegalArgumentException> { d.firstOrderLossFunction(Int.MAX_VALUE - 4.0) }
+        assertFailsWith<IllegalArgumentException> { d.thirdOrderLossFunction(Int.MAX_VALUE.toDouble()) }
     }
 
     @Test
-    @DisplayName("a loss function whose next point is beyond the largest whole number refuses rather than returning a wrong value")
-    fun beyondTheLargestWholeNumber() {
-        val d = NegativeBinomial(1e-9, 1.0)
-        assertFailsWith<IllegalArgumentException> { d.firstOrderLossFunction(Int.MAX_VALUE.toDouble()) }
+    @DisplayName("a wide negative binomial far into its tail matches the geometric tail, at every order")
+    fun wideNegativeBinomialDeepInTheTail() {
+        // r = 1 is geometric: Gk(x) = q^(x+k)/p^k; mean 1e6, standard deviation about 1e6
+        val p = 1e-6
+        val d = NegativeBinomial(p, 1.0)
+        val x = 4.5e7
+        // the sum steps the mass through tens of millions of multiplications, so rounding gathers to about 1e-8
+        assertEquals(1.0, d.firstOrderLossFunction(x) / (exp((x + 1) * ln1p(-p)) / p), 1e-6)
+        assertEquals(1.0, d.secondOrderLossFunction(x) / (exp((x + 2) * ln1p(-p)) / (p * p)), 1e-6)
+        assertEquals(1.0, d.thirdOrderLossFunction(x) / (exp((x + 3) * ln1p(-p)) / (p * p * p)), 1e-6)
+    }
+
+    @Test
+    @DisplayName("a negative binomial too wide to sum over its tail refuses rather than return a closed form's inaccurate value")
+    fun tooWideIsRefused() {
+        // success probability 1e-8: about 4e9 terms would be needed, known before summing; and one so small that
+        // 1 - p rounds to 1
+        assertFailsWith<IllegalArgumentException> { NegativeBinomial(1e-17, 1e-8).firstOrderLossFunction(1.5e9) }
+        val narrowSuccess = NegativeBinomial(1e-8, 1.0)
+        assertFailsWith<IllegalArgumentException> { narrowSuccess.firstOrderLossFunction(1.1e8) }
+        assertFailsWith<IllegalArgumentException> { narrowSuccess.secondOrderLossFunction(1e9) }
+        assertFailsWith<IllegalArgumentException> { narrowSuccess.thirdOrderLossFunction(1.5e8) }
+        // many successes: the estimate passes, but the sum does not settle within its limit
+        val manySuccesses = NegativeBinomial(2.1e-7, 20.0)
+        assertFailsWith<IllegalArgumentException> { manySuccesses.firstOrderLossFunction(manySuccesses.mean().toInt() + 1.0) }
+    }
+
+    @Test
+    @DisplayName("every loss function is zero at infinity, infinite at minus infinity, and refuses NaN or a point below the range")
+    fun nonFiniteArguments() {
+        for (d in listOf(Poisson(6.0), NegativeBinomial(0.3, 2.0), Binomial(0.4, 30))) {
+            val losses = listOf<(Double) -> Double>(
+                { d.firstOrderLossFunction(it) }, { d.secondOrderLossFunction(it) }, { d.thirdOrderLossFunction(it) }
+            )
+            for ((k, g) in losses.withIndex()) {
+                assertEquals(0.0, g(Double.POSITIVE_INFINITY), "$d order ${k + 1} at infinity")
+                assertEquals(Double.POSITIVE_INFINITY, g(Double.NEGATIVE_INFINITY), "$d order ${k + 1} at minus infinity")
+                assertFailsWith<IllegalArgumentException>("$d order ${k + 1} at NaN") { g(Double.NaN) }
+                assertFailsWith<IllegalArgumentException>("$d order ${k + 1} below the range") { g(-3e9) }
+            }
+        }
     }
 }

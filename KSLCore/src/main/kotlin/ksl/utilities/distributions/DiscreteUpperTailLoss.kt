@@ -31,9 +31,9 @@ package ksl.utilities.distributions
  *  full accuracy. The mass is stepped from one point to the next by [ratio], which costs a multiplication a
  *  term; the terms fall off geometrically once the mass does, and the sum stops when they no longer change it.
  *
- *  A distribution so wide that its terms fall off slowly would need more terms than is reasonable; the sum then
- *  gives up, after [TAIL_SUM_TERM_LIMIT] terms, and returns null. The closed forms lose little there, since x is
- *  then not far into the tail as the distribution's spread measures it, and the caller uses them instead.
+ *  The number of terms depends on how fast the mass falls off, not on x: a distribution whose mass falls off
+ *  slowly (a negative binomial with a small success probability) needs many. Past [TAIL_SUM_TERM_LIMIT] terms the
+ *  sum gives up and returns null, and the caller decides what it can do instead.
  *
  *  @param x a whole number above the mean, below `Int.MAX_VALUE`
  *  @param order 1, 2 or 3
@@ -68,15 +68,20 @@ internal fun upperTailLoss(x: Double, order: Int, massAfterX: Double, ratio: (Do
 }
 
 /** The most terms `upperTailLoss` sums before it gives up on a distribution whose tail falls off too slowly. */
-internal const val TAIL_SUM_TERM_LIMIT: Int = 1_000_000
+internal const val TAIL_SUM_TERM_LIMIT: Int = 200_000_000
+
+/** The largest whole number a loss function of a distribution on the integers is computed at, from its `Int` mass function. */
+internal const val LARGEST_LOSS_ARGUMENT: Double = Int.MAX_VALUE - 5.0
 
 /**
  *  Refuses a whole-number argument of a loss function that its distribution's mass function, defined on `Int`,
- *  cannot reach: from `Int.MAX_VALUE - 2` on, the points a loss function or its interpolation needs are not
- *  representable.
+ *  cannot reach, or that the loops below zero, counting in `Int`, cannot: beyond [LARGEST_LOSS_ARGUMENT] either
+ *  way. The margin below `Int.MAX_VALUE` keeps the points a loss function at a whole number needs (up to x + 3)
+ *  representable; an interpolation checks each whole number it uses in turn.
  */
 internal fun requireLossArgumentRepresentable(x: Double) {
-    require(x < Int.MAX_VALUE - 2.0) {
-        "A loss function of a distribution on the integers is computed only below ${Int.MAX_VALUE - 2}; it was asked at $x."
+    require(x >= -LARGEST_LOSS_ARGUMENT && x <= LARGEST_LOSS_ARGUMENT) {
+        "A loss function of a distribution on the integers is computed only between ${-LARGEST_LOSS_ARGUMENT.toLong()} " +
+                "and ${LARGEST_LOSS_ARGUMENT.toLong()}; it was asked at $x."
     }
 }

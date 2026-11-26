@@ -104,6 +104,10 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
      * value for an expectation of a non-negative quantity. See `interpolatedFirstOrderLoss`.
      */
     override fun firstOrderLossFunction(x: Double): Double {
+        // nothing lies above infinity, and everything above minus infinity
+        if (x == Double.POSITIVE_INFINITY) return 0.0
+        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
+        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
         if (!isWholeNumber(x)) {
             return interpolatedFirstOrderLoss(this, x)
         }
@@ -138,6 +142,10 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
      * mu/2 at x = 0. KSL uses the factorial-moment form throughout.
      */
     override fun secondOrderLossFunction(x: Double): Double {
+        // nothing lies above infinity, and everything above minus infinity
+        if (x == Double.POSITIVE_INFINITY) return 0.0
+        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
+        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
         if (!isWholeNumber(x)) {
             return interpolatedSecondOrderLoss(this, x)
         }
@@ -178,6 +186,10 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
      * between integers, so it would silently return the value at the floor.
      */
     override fun thirdOrderLossFunction(x: Double): Double {
+        // nothing lies above infinity, and everything above minus infinity
+        if (x == Double.POSITIVE_INFINITY) return 0.0
+        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
+        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
         if (!isWholeNumber(x)) {
             return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
         }

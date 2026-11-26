@@ -186,12 +186,16 @@ class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, na
      * value for an expectation of a non-negative quantity. See `interpolatedFirstOrderLoss`.
      */
     override fun firstOrderLossFunction(x: Double): Double {
+        // nothing lies above infinity, and everything above minus infinity
+        if (x == Double.POSITIVE_INFINITY) return 0.0
+        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
+        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
         if (!isWholeNumber(x)) {
             return interpolatedFirstOrderLoss(this, x)
         }
         requireLossArgumentRepresentable(x)
         val mu = mean()
-        if (x > mu) upperTail(x, 1)?.let { return it }
+        if (x > mu) return upperTail(x, 1)
         return if (x < 0.0) {
             floor(abs(x)) + mu
         } else if (x > 0.0) {
@@ -215,12 +219,16 @@ class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, na
      * rather than substituted into a closed form that assumes one. See `interpolatedSecondOrderLoss`.
      */
     override fun secondOrderLossFunction(x: Double): Double {
+        // nothing lies above infinity, and everything above minus infinity
+        if (x == Double.POSITIVE_INFINITY) return 0.0
+        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
+        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
         if (!isWholeNumber(x)) {
             return interpolatedSecondOrderLoss(this, x)
         }
         requireLossArgumentRepresentable(x)
         val mu = mean()
-        if (x > mu) upperTail(x, 2)?.let { return it }
+        if (x > mu) return upperTail(x, 2)
         val sbm = 0.5 * (variance() + mu * mu - mu) // 1/2 the 2nd binomial moment
         return if (x < 0.0) {
             var s = 0.0
@@ -255,22 +263,36 @@ class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, na
      * run at the stock levels this is used for.
      */
     override fun thirdOrderLossFunction(x: Double): Double {
+        // nothing lies above infinity, and everything above minus infinity
+        if (x == Double.POSITIVE_INFINITY) return 0.0
+        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
+        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
         if (!isWholeNumber(x)) {
             return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
         }
         requireLossArgumentRepresentable(x)
-        if (x > mean()) upperTail(x, 3)?.let { return it }
+        if (x > mean()) return upperTail(x, 3)
         val r = this@NegativeBinomial.numSuccesses
         val b = (1.0 - probOfSuccess) / probOfSuccess
         val tbm = r * (r + 1.0) * (r + 2.0) * b * b * b / 6.0
         return accumulatedThirdOrderLoss(this, x, tbm)
     }
 
-    /** A loss function at a whole number above the mean, summed over the tail: see `upperTailLoss`. */
-    private fun upperTail(x: Double, order: Int): Double? {
+    /**
+     *  A loss function at a whole number above the mean, summed over the tail: see `upperTailLoss`. The ratio of
+     *  successive masses tends to 1 - p, so at least about 40 / p terms are needed, wherever x is, and more as the
+     *  number of successes grows. A distribution whose sum cannot settle within `TAIL_SUM_TERM_LIMIT` terms (a
+     *  success probability below about 2e-7, or larger with many successes) is refused: the closed forms lose too
+     *  much there to stand in for it.
+     */
+    private fun upperTail(x: Double, order: Int): Double {
         val r = this@NegativeBinomial.numSuccesses
         val q = 1.0 - probOfSuccess
-        return upperTailLoss(x, order, pmf(x.toInt() + 1)) { j -> (j + r) / (j + 1.0) * q }
+        val tooWide = "$this falls off too slowly above its mean for its loss functions to be summed over its tail " +
+                "within $TAIL_SUM_TERM_LIMIT terms; it was asked at $x."
+        // ln1p: for a tiny p, 1 - p rounds to 1 and its logarithm to 0
+        require(40.0 / -ln1p(-probOfSuccess) <= TAIL_SUM_TERM_LIMIT) { tooWide }
+        return requireNotNull(upperTailLoss(x, order, pmf(x.toInt() + 1)) { j -> (j + r) / (j + 1.0) * q }) { tooWide }
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): NegativeBinomialRV {
