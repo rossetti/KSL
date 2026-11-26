@@ -98,8 +98,11 @@ class Signal @JvmOverloads constructor(
 
     /** Holds an entity for a signal trigger's wait. */
     internal fun holdTimed(entity: ProcessModel.Entity, queuePriority: Int, registration: SignalRegistration) {
-        hold(entity, queuePriority)
+        // known as a wait's before it is held: the hold queue's listeners can run model code that signals this
+        // signal, or ends the wait another way, which releases the hold and its record
         myTimedHolds[entity] = registration
+        hold(entity, queuePriority)
+        if (registration.isReleased) myTimedHolds.remove(entity)
     }
 
     /**

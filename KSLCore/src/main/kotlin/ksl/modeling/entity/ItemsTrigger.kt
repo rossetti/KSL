@@ -64,9 +64,12 @@ internal class ItemsTrigger<T : ModelElement.QObject>(
 
     override fun register(group: WaitGroup): Registration {
         val registration = ItemsRegistration(this, group)
-        // ranked by the priority when the wait began, whatever a trigger registered before it did to the entity's
+        // ranked by the priority when the wait began, whatever a trigger registered before it did to the entity's;
+        // attached before it is queued: the queue's listeners can run model code that ends the wait, and the claim
+        // then releases this registration with its request
         val request = newRequest(group.entity, registration, group.entityPriority)
-        registration.request = request
+        // the wait ended as the request was queued
+        if (registration.isReleased) return registration
         // The selector chooses who is served now. If it chooses this request, the wait is claimed while it registers
         // and goes on without suspending, as the untimed receive does; if it chooses an earlier request, even one
         // of this same wait, that one is served.
@@ -76,12 +79,13 @@ internal class ItemsTrigger<T : ModelElement.QObject>(
 
     private fun newRequest(
         entity: ProcessModel.Entity,
-        registration: Registration?,
+        registration: ItemsRegistration<T>?,
         entityPriority: Int
     ): BlockingQueue<T>.ChannelRequest {
         val priority = blockingPriority ?: entityPriority
-        val request = if (amount != null) blockingQ.enqueueAmountRequest(entity, predicate, amount, priority, registration)
-        else blockingQ.enqueueChannelRequest(entity, predicate, priority, registration)
+        val attach: (BlockingQueue<T>.ChannelRequest) -> Unit = { registration?.request = it }
+        val request = if (amount != null) blockingQ.enqueueAmountRequest(entity, predicate, amount, priority, registration, attach)
+        else blockingQ.enqueueChannelRequest(entity, predicate, priority, registration, attach)
         return request
     }
 

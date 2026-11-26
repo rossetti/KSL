@@ -41,7 +41,8 @@ internal class SignalTrigger(
         val entity = group.entity
         val registration = SignalRegistration(this, group)
         signal.holdTimed(entity, waitPriority ?: entity.priority, registration)
-        entity.emitAnimation { AnimationEvent.WaitingForSignal(signal.time, entity.id, signal.name) }
+        // not announced when the wait ended as the entity was held
+        if (!registration.isReleased) entity.emitAnimation { AnimationEvent.WaitingForSignal(signal.time, entity.id, signal.name) }
         return registration
     }
 

@@ -552,10 +552,12 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         receiver: ProcessModel.Entity,
         predicate: (T) -> Boolean,
         priority: Int,
-        registration: Registration? = null
+        registration: Registration? = null,
+        beforeQueued: (ChannelRequest) -> Unit = {}
     ) : ChannelRequest {
         val request = ChannelRequest(receiver, predicate, priority)
         request.registration = registration
+        beforeQueued(request)
         myRequestQ.enqueue(request)
         return request
     }
@@ -570,10 +572,12 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
         predicate: (T) -> Boolean,
         amount: Int,
         priority: Int,
-        registration: Registration? = null
+        registration: Registration? = null,
+        beforeQueued: (ChannelRequest) -> Unit = {}
     ) : AmountRequest {
         val request = AmountRequest(receiver, predicate, amount, priority)
         request.registration = registration
+        beforeQueued(request)
         myRequestQ.enqueue(request)
         return request
     }
