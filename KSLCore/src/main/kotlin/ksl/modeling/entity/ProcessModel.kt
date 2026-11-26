@@ -702,12 +702,14 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             resource: Resource,
             amountNeeded: Int,
             queue: RequestQ,
-            requestPriority: Int = priority
+            requestPriority: Int = priority,
+            beforeQueued: (ResourceRequest) -> Unit = {}
         ): ResourceRequest {
             // a queue a seize waits in is offered the resource's freed units, whichever way they are freed
             resource.registerCapacityChangeQueue(queue)
             val request = ResourceRequest(amountNeeded, resource)
             request.priority = requestPriority
+            beforeQueued(request)
             queue.enqueue(request) // put the request in the queue
             emitAnimation { AnimationEvent.SeizeQueued(time, id, resource.name, queue.name, amountNeeded) }
             return request
@@ -723,7 +725,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             queue: RequestQ,
             resourceSelectionRule: ResourceSelectionRuleIfc,
             resourceAllocationRule: ResourceAllocationRuleIfc,
-            requestPriority: Int = priority
+            requestPriority: Int = priority,
+            beforeQueued: (ResourcePoolRequest) -> Unit = {}
         ): ResourcePoolRequest {
             // a queue a seize waits in is offered the members' freed units, whichever way they are freed
             resourcePool.registerQueueOnMembers(queue)
@@ -731,6 +734,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             request.selectionRule = resourceSelectionRule
             request.allocationRule = resourceAllocationRule
             request.priority = requestPriority
+            beforeQueued(request)
             queue.enqueue(request) // put the request in the queue
             emitAnimation { AnimationEvent.SeizeQueued(time, id, resourcePool.name, queue.name, amountNeeded) }
             return request
@@ -746,7 +750,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             requestLocation: LocationIfc,
             resourceSelectionRule: MovableResourceSelectionRuleIfc,
             resourceAllocationRule: MovableResourceAllocationRuleIfc,
-            requestPriority: Int = priority
+            requestPriority: Int = priority,
+            beforeQueued: (MovableResourcePoolRequest) -> Unit = {}
         ): MovableResourcePoolRequest {
             // a queue a seize waits in is offered the members' freed units, whichever way they are freed
             movableResourcePool.registerQueueOnMembers(queue)
@@ -755,6 +760,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             request.selectionRule = resourceSelectionRule
             request.allocationRule = resourceAllocationRule
             request.priority = requestPriority
+            beforeQueued(request)
             queue.enqueue(request) // put the request in the queue
             emitAnimation { AnimationEvent.SeizeQueued(time, id, movableResourcePool.name, queue.name, 1) }
             return request

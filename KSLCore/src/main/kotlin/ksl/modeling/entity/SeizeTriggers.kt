@@ -36,8 +36,11 @@ internal abstract class SeizeTrigger<V, R : ProcessModel.Entity.Request>(
     val recordRenegedWait: Boolean
 ) : WaitTrigger<V>() {
 
-    /** Places the request in the queue at [requestPriority], as the untimed seize does at the entity's priority. */
-    abstract fun enqueue(entity: ProcessModel.Entity, requestPriority: Int): R
+    /**
+     *  Places the request in the queue at [requestPriority], as the untimed seize does at the entity's priority.
+     *  [beforeQueued] is given the request once it is made and before it enters the queue.
+     */
+    abstract fun enqueue(entity: ProcessModel.Entity, requestPriority: Int, beforeQueued: (R) -> Unit = {}): R
 
     /** True when the request just placed can take its units at once, as the untimed seize decides. */
     abstract fun canTakeNow(entity: ProcessModel.Entity, request: R): Boolean
@@ -74,9 +77,12 @@ internal abstract class SeizeTrigger<V, R : ProcessModel.Entity.Request>(
         val entity = group.entity
         val registration = SeizeRegistration(this, group)
         // ranked by the priority when the wait began, whatever a trigger registered before it did to the entity's
-        val request = enqueue(entity, group.entityPriority)
-        registration.attach(request)
-        if (canTakeNow(entity, request)) {
+        // attached before it is queued: the queuing can run model code (a queue's listener) that ends the wait, and the
+        // claim then releases this registration with its request
+        val request = enqueue(entity, group.entityPriority) { registration.attach(it) }
+        if (registration.isReleased) {
+            // the wait ended as the request was queued
+        } else if (canTakeNow(entity, request)) {
             // It can take its units now: it is served as at a wake, and its claim, made while the wait registers,
             // schedules no resume
             check(queue.serve(request, ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "seize trigger served at once")) {
@@ -125,8 +131,8 @@ internal class ResourceSeizeTrigger(
         if (resource.canAllocate(amountNeeded)) queue.offerFreeUnitsUnderRule(resource, "seize_trigger_arrived_not_chosen")
     }
 
-    override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int) =
-        entity.enqueueResourceRequest(resource, amountNeeded, queue, requestPriority)
+    override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int, beforeQueued: (ProcessModel.Entity.ResourceRequest) -> Unit) =
+        entity.enqueueResourceRequest(resource, amountNeeded, queue, requestPriority, beforeQueued)
 
     override fun canTakeNow(entity: ProcessModel.Entity, request: ProcessModel.Entity.ResourceRequest) =
         entity.canTakeResourceNow(request, queue)
@@ -172,8 +178,8 @@ internal class ResourcePoolSeizeTrigger(
         if (resourcePool.canAllocate(resourceSelectionRule, amountNeeded)) queue.offerFreeUnitsUnderRule(resourcePool, "seize_trigger_arrived_not_chosen")
     }
 
-    override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int) =
-        entity.enqueuePoolRequest(resourcePool, amountNeeded, queue, resourceSelectionRule, resourceAllocationRule, requestPriority)
+    override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int, beforeQueued: (ProcessModel.Entity.ResourcePoolRequest) -> Unit) =
+        entity.enqueuePoolRequest(resourcePool, amountNeeded, queue, resourceSelectionRule, resourceAllocationRule, requestPriority, beforeQueued)
 
     override fun canTakeNow(entity: ProcessModel.Entity, request: ProcessModel.Entity.ResourcePoolRequest) =
         resourcePool.canAllocate(resourceSelectionRule, amountNeeded) && queue.nextRequestForResource(resourcePool) === request
@@ -219,10 +225,11 @@ internal class MovableResourcePoolSeizeTrigger(
         if (movableResourcePool.canAllocate(resourceSelectionRule)) queue.offerFreeUnitsUnderRule(movableResourcePool, "seize_trigger_arrived_not_chosen")
     }
 
-    override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int) = entity.enqueueMovablePoolRequest(
-        movableResourcePool, queue, requestLocation ?: entity.currentLocation, resourceSelectionRule, resourceAllocationRule,
-        requestPriority
-    )
+    override fun enqueue(entity: ProcessModel.Entity, requestPriority: Int, beforeQueued: (ProcessModel.Entity.MovableResourcePoolRequest) -> Unit) =
+        entity.enqueueMovablePoolRequest(
+            movableResourcePool, queue, requestLocation ?: entity.currentLocation, resourceSelectionRule, resourceAllocationRule,
+            requestPriority, beforeQueued
+        )
 
     override fun canTakeNow(entity: ProcessModel.Entity, request: ProcessModel.Entity.MovableResourcePoolRequest) =
         movableResourcePool.canAllocate(resourceSelectionRule) && queue.nextRequestForResource(movableResourcePool) === request

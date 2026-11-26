@@ -196,4 +196,40 @@ class ServedRequestEdgesTest {
         assertTrue(withdrawnAt >= 0, "$mine")
         assertTrue("waiting" !in mine.drop(withdrawnAt + 1), "reported waiting after it was withdrawn: $mine")
     }
+
+    /**
+     *  W waits for the first of R1 (held by H) and R2 (held by H2). As W's request enters R2's queue, a listener of
+     *  that queue raises R1's capacity, which serves W's request at R1: the wait is won while its second seize trigger
+     *  is still placing its request. That request leaves R2's queue, and W takes R1.
+     */
+    @Test
+    @DisplayName("a wait won while a seize trigger is placing its request leaves that request out of its queue")
+    fun waitWonWhileATriggerPlacesItsRequest() {
+        var queuedAtR2 = -1
+        val shop = run {
+            val r1 = ResourceWithQ(this, "R1")
+            val r2 = ResourceWithQ(this, "R2")
+            lateinit var w: Shop.Actor
+            r2.myWaitingQ.addQueueListener(object : QueueListenerIfc<ProcessModel.Entity.Request> {
+                override fun update(status: Queue.Status, queue: Queue<ProcessModel.Entity.Request>, qObject: ProcessModel.Entity.Request?) {
+                    if (status == Queue.Status.ENQUEUED && qObject?.entity === w) r1.changeCapacity(r1.CapacityChangeNotice(capacity = 2))
+                }
+            })
+            return@run {
+            actor("H1") { val a = seize(r1); delay(20.0); release(a) }
+            actor("H2") { val a = seize(r2); delay(20.0); release(a) }
+            w = actor("W") {
+                delay(1.0)
+                val first = r1.seizeTrigger()
+                val result = waitForFirst(first, r2.seizeTrigger())
+                log.add("W won ${if (result.trigger === first) "R1" else "R2"}@$time")
+                @Suppress("UNCHECKED_CAST")
+                release(result.valueOf(result.trigger as WaitTrigger<Allocation>))
+            }
+            at(5.0) { queuedAtR2 = r2.myWaitingQ.size }
+            }
+        }
+        assertEquals(listOf("W won R1@1.0"), shop.log)
+        assertEquals(0, queuedAtR2, "requests left in R2's queue")
+    }
 }
