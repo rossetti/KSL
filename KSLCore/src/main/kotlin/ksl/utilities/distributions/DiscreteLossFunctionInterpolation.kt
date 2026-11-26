@@ -84,8 +84,17 @@ import kotlin.math.floor
 internal fun interpolatedFirstOrderLoss(d: LossFunctionDistributionIfc, x: Double): Double {
     val n = floor(x)
     val t = x - n
-    return d.firstOrderLossFunction(n) - t * (1.0 - d.cdf(n))
+    // G1 is linear between whole numbers, G1(n) - G1(n + 1) being the probability above n, so the value is a weighted
+    // mean of two non-negative numbers: no subtraction that far in the tail would leave only rounding error
+    return (1.0 - t) * d.firstOrderLossFunction(n) + t * d.firstOrderLossFunction(n + 1.0)
 }
+
+/**
+ *  The probability above the whole number [m], as the difference of the first-order loss at [m] and [m] + 1, which
+ *  keeps its relative accuracy far in the upper tail, where `1 - cdf(m)` is only rounding error.
+ */
+private fun tailAbove(d: LossFunctionDistributionIfc, m: Double): Double =
+    maxOf(d.firstOrderLossFunction(m) - d.firstOrderLossFunction(m + 1.0), 0.0)
 
 /**
  *  `G2(x)` for an integer-supported distribution at a non-integral [x], from the distribution's own
@@ -100,7 +109,7 @@ internal fun interpolatedFirstOrderLoss(d: LossFunctionDistributionIfc, x: Doubl
 internal fun interpolatedSecondOrderLoss(d: LossFunctionDistributionIfc, x: Double): Double {
     val n = floor(x)
     val t = x - n
-    val tailAboveNextPoint = 1.0 - d.cdf(n + 1.0)
+    val tailAboveNextPoint = tailAbove(d, n + 1.0)
     return d.secondOrderLossFunction(n) -
         t * (d.firstOrderLossFunction(n + 1.0) + tailAboveNextPoint) +
         0.5 * (t * t + t) * tailAboveNextPoint
@@ -130,7 +139,7 @@ internal fun interpolatedThirdOrderLoss(
 ): Double {
     val n = floor(x)
     val t = x - n
-    val tailAboveSecondPoint = 1.0 - d.cdf(n + 2.0)
+    val tailAboveSecondPoint = tailAbove(d, n + 2.0)
     val firstAboveSecondPoint = d.firstOrderLossFunction(n + 2.0)
     return thirdOrderAtWholeNumber(n) -
         t * (d.secondOrderLossFunction(n + 1.0) + firstAboveSecondPoint + tailAboveSecondPoint) +

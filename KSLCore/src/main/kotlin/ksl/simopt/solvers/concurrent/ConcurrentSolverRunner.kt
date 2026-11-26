@@ -164,7 +164,8 @@ class ConcurrentSolverRunner(
         try {
             requestStop(msg)
             try {
-                awaitAllMembers()
+                // every member, each waited for on its own: a member that failed must not end the wait for the others
+                myDeferredResults?.let { deferred -> runBlocking { for (member in deferred) member.join() } }
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
             } catch (e: Throwable) {

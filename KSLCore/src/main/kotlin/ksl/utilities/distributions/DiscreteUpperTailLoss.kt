@@ -31,14 +31,21 @@ package ksl.utilities.distributions
  *  full accuracy. The mass is stepped from one point to the next by [ratio], which costs a multiplication a
  *  term; the terms fall off geometrically once the mass does, and the sum stops when they no longer change it.
  *
- *  @param x a whole number above the mean
+ *  A distribution so wide that its terms fall off slowly would need more terms than is reasonable; the sum then
+ *  gives up, after [TAIL_SUM_TERM_LIMIT] terms, and returns null. The closed forms lose little there, since x is
+ *  then not far into the tail as the distribution's spread measures it, and the caller uses them instead.
+ *
+ *  @param x a whole number above the mean, below `Int.MAX_VALUE`
  *  @param order 1, 2 or 3
  *  @param massAfterX the mass at x + 1
  *  @param ratio the mass at j + 1 divided by the mass at j
+ *  @return the loss, or null when the sum does not settle within [TAIL_SUM_TERM_LIMIT] terms
  */
-internal fun upperTailLoss(x: Double, order: Int, massAfterX: Double, ratio: (Int) -> Double): Double {
+internal fun upperTailLoss(x: Double, order: Int, massAfterX: Double, ratio: (Double) -> Double): Double? {
     require(order in 1..3) { "The order of a loss function must be 1, 2 or 3; it was $order." }
-    var j = x.toInt() + 1
+    // stepped as a Double: a sum that runs past the largest Int must not wrap to negative points
+    var j = x + 1.0
+    var terms = 0
     var mass = massAfterX
     var n = 1.0
     var total = 0.0
@@ -52,9 +59,24 @@ internal fun upperTailLoss(x: Double, order: Int, massAfterX: Double, ratio: (In
         total += term
         // a term too small to change the total, once the terms have begun (the first ones of a higher order are 0)
         if (n > order && term <= total * 1e-17) break
+        if (++terms >= TAIL_SUM_TERM_LIMIT) return null
         mass *= ratio(j)
-        j++
+        j += 1.0
         n += 1.0
     }
     return total
+}
+
+/** The most terms `upperTailLoss` sums before it gives up on a distribution whose tail falls off too slowly. */
+internal const val TAIL_SUM_TERM_LIMIT: Int = 1_000_000
+
+/**
+ *  Refuses a whole-number argument of a loss function that its distribution's mass function, defined on `Int`,
+ *  cannot reach: from `Int.MAX_VALUE - 2` on, the points a loss function or its interpolation needs are not
+ *  representable.
+ */
+internal fun requireLossArgumentRepresentable(x: Double) {
+    require(x < Int.MAX_VALUE - 2.0) {
+        "A loss function of a distribution on the integers is computed only below ${Int.MAX_VALUE - 2}; it was asked at $x."
+    }
 }

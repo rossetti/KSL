@@ -140,6 +140,21 @@ class SolverTerminationReportTest {
     }
 
     @Test
+    @DisplayName("an unfinished run reports the time it has run so far, not a time measured to a distant end")
+    fun unfinishedRunElapsedTime() {
+        val solver = climber(3)
+        solver.initialize()
+        solver.runNextIteration()
+        try {
+            val result = solver.solverResult as SolverResult.Completed
+            val millis = result.executionTimeMillis!!
+            assertTrue(millis in 0..60_000, "elapsed $millis ms")
+        } finally {
+            solver.endIterations()
+        }
+    }
+
+    @Test
     @DisplayName("a stepped run ended before its last iteration is a halt")
     fun steppedRunEndedEarly() {
         val solver = climber(3)

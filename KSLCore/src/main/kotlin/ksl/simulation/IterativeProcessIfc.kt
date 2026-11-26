@@ -17,6 +17,7 @@
  */
 package ksl.simulation
 
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration
 
@@ -207,7 +208,14 @@ interface IterativeProcessIfc : IterativeProcessStatusIfc {
      * @return a Duration representing the elapsed time
      */
     override val elapsedExecutionTime: Duration
-        get() = endExecutionTime - beginExecutionTime
+        get() = when {
+            // never begun
+            beginExecutionTime == Instant.DISTANT_PAST -> Duration.ZERO
+            // still going: the time so far
+            endExecutionTime == Instant.DISTANT_FUTURE || endExecutionTime < beginExecutionTime ->
+                Clock.System.now() - beginExecutionTime
+            else -> endExecutionTime - beginExecutionTime
+        }
 
     /**
      * The iterative process may end by a variety of means, this  checks

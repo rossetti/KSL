@@ -107,8 +107,9 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
         if (!isWholeNumber(x)) {
             return interpolatedFirstOrderLoss(this, x)
         }
+        requireLossArgumentRepresentable(x)
         val mu = this@Poisson.mean
-        if (x > mu) return upperTail(x, 1)
+        if (x > mu) upperTail(x, 1)?.let { return it }
         return if (x < 0.0) {
             floor(abs(x)) + mu
         } else if (x > 0.0) {
@@ -140,8 +141,9 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
         if (!isWholeNumber(x)) {
             return interpolatedSecondOrderLoss(this, x)
         }
+        requireLossArgumentRepresentable(x)
         val mu = this@Poisson.mean
-        if (x > mu) return upperTail(x, 2)
+        if (x > mu) upperTail(x, 2)?.let { return it }
         val sbm = 0.5 * (mu * mu) // 1/2 the 2nd binomial moment
         return if (x < 0.0) {
             var s = 0.0
@@ -179,7 +181,8 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
         if (!isWholeNumber(x)) {
             return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
         }
-        if (x > this@Poisson.mean) return upperTail(x, 3)
+        requireLossArgumentRepresentable(x)
+        if (x > this@Poisson.mean) upperTail(x, 3)?.let { return it }
         val term1 = this@Poisson.mean.pow(3.0) * complementaryCDF(x - 3)
         val term2 = 3 * this@Poisson.mean * this@Poisson.mean * x * complementaryCDF(x - 2)
         val term3 = 3 * this@Poisson.mean * x * (x + 1) * complementaryCDF(x - 1)
@@ -188,7 +191,7 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
     }
 
     /** A loss function at a whole number above the mean, summed over the tail: see `upperTailLoss`. */
-    private fun upperTail(x: Double, order: Int): Double {
+    private fun upperTail(x: Double, order: Int): Double? {
         val mu = this@Poisson.mean
         return upperTailLoss(x, order, pmf(x.toInt() + 1)) { j -> mu / (j + 1.0) }
     }

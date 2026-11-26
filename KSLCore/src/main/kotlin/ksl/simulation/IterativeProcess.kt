@@ -181,6 +181,8 @@ abstract class IterativeProcess<T> @JvmOverloads constructor(
         isRunningStep = false
         isRunning = false
         numberStepsCompleted = 0
+        // a new run has not ended, whatever the last one did
+        endExecutionTime = Instant.DISTANT_FUTURE
         beginExecutionTime = Clock.System.now()
         state = myInitializedState
     }
