@@ -234,7 +234,13 @@ class RequestQ @JvmOverloads constructor(
     }
 
     /**
-     *  Removes and terminates all the requests waiting in the queue
+     *  Removes and terminates all the requests waiting in the queue: exactly those waiting when it is called. Every
+     *  one leaves the queue before any entity is terminated, so the units a termination frees cannot serve another of
+     *  them; each entity is terminated once, even with several requests here; and the units they leave are offered
+     *  once all are terminated.
+     *
+     *  A running process cannot be terminated, so this throws, before anything is removed, if the entity of any
+     *  waiting request is running now; check that each entity's `currentProcess` is not running first.
      *
      * @param waitStats if true the waiting time statistics are collected on the usage of the queue.
      * The default is false.
@@ -245,10 +251,28 @@ class RequestQ @JvmOverloads constructor(
         waitStats: Boolean = false,
         afterTermination: ((entity: ProcessModel.Entity) -> Unit)? = null
     ) {
-        while (isNotEmpty) {
-            val request = peekNext()
-            removeAndTerminate(request!!, waitStats, afterTermination)
+        val requests = toList()
+        for (request in requests) {
+            check(request.entity.currentProcess?.isRunning != true) {
+                "The requests of $name cannot be removed and terminated: the process of entity ${request.entity.name} " +
+                        "(request ${request.id}) is running now, as when this is called from code run while a request " +
+                        "is placed, and a running process cannot be terminated. Check that each entity's " +
+                        "currentProcess is not running first."
+            }
         }
+        val offerOn = LinkedHashSet<Resource>()
+        val withdrawn = mutableListOf<Pair<Resource, Int>>()
+        for (request in requests) {
+            for ((member, amount) in request.promises) withdrawn.add(member to amount)
+            offerOn.addAll(request.promises.keys)
+            offerOn.addAll(membersOf(request.resource))
+            remove(request, waitStats)
+        }
+        // as for one request: the collected units are handed on before the terminations run their hooks
+        for ((member, amount) in withdrawn) member.unitsWithdrawnFromPromise(amount)
+        for (entity in requests.map { it.entity }.distinct()) entity.terminateProcess(afterTermination)
+        offerOnward(offerOn, "removed_and_terminated_all_queue=$name")
+        for (resource in requests.map { it.resource }.distinct()) offerGuidedPool(resource)
     }
 
     /**

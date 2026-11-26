@@ -303,6 +303,19 @@ class TerminatedInFleetTest {
 
 
     @Test
+    @DisplayName("removing and terminating every task while the cart loads one ends both: neither load is delivered")
+    fun removeAllAndTerminateWhileLoading() {
+        val o = runShop {
+            load("A", loading = 5.0)
+            load("B", from = 1.0, loading = 5.0)
+            at(14.0) { (agv.dispatcher.taskQ as TaskQ).removeAllAndTerminate() }
+        }
+        assertEquals(TaskState.CANCELLED, o.shop.tasks.getValue("A").state)
+        assertEquals(TaskState.CANCELLED, o.shop.tasks.getValue("B").state)
+        assertEquals(emptyList(), o.log)
+    }
+
+    @Test
     @DisplayName("a commitment taken back while the cart loads: the cart finishes loading, and boards the load under its new commitment")
     fun revokedWhileLoading() {
         val o = runShop {
