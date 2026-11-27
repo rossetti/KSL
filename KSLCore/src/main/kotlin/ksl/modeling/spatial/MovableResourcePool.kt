@@ -71,11 +71,14 @@ open class MovableResourcePool(
             field = value
         }
 
+    /** True while [initialize] restores the default rules, which is not a change made during a replication. */
+    private var myRestoringRules = false
+
     var defaultMovableResourceSelectionRule: MovableResourceSelectionRuleIfc =
         initialDefaultMovableResourceSelectionRule
         set(value) {
             field = value
-            if (model.isRunning) {
+            if (model.isRunning && !myRestoringRules) {
                 Model.logger.warn { "Changing the initial resource selection rule during a replication will only effect the current replication." }
             }
         }
@@ -91,15 +94,18 @@ open class MovableResourcePool(
         initialDefaultMovableResourceAllocationRule
         set(value) {
             field = value
-            if (model.isRunning) {
+            if (model.isRunning && !myRestoringRules) {
                 Model.logger.warn { "Changing the initial resource allocation rule during a replication will only effect the current replication." }
             }
         }
 
     override fun initialize() {
         require(myResources.isNotEmpty()) { "There were no resources in resource pool ${this.name} during initialization" }
+        // the replication starts from the initial rules: a restoration, not a change made during it
+        myRestoringRules = true
         defaultMovableResourceAllocationRule = initialDefaultMovableResourceAllocationRule
         defaultMovableResourceSelectionRule = initialDefaultMovableResourceSelectionRule
+        myRestoringRules = false
     }
 
     /** For use, before calling allocate()
