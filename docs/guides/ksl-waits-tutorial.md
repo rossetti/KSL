@@ -738,21 +738,20 @@ class ShuttleStop(
     private val patience = RandomVariable(this, ExponentialRV(meanPatience, 2), "Patience")
     private val roundTrip = RandomVariable(this, TriangularRV(10.0, 15.0, 20.0, 3), "RoundTrip")
 
-    private val waiting = mutableListOf<Rider>()
+    private val stopQ = Queue<Rider>(this, "StopQ")
     private val riderArrived = Signal(this, "RiderArrived")
     private val shuttleFull = Signal(this, "ShuttleFull")
 
-    private val numWaiting = TWResponse(this, "NumWaiting")
-    private val waitForShuttle = Response(this, "WaitForShuttle")
     private val tookTaxi = Response(this, "ProbTaxi")
     private val tripLoad = Response(this, "TripLoad")
     private val numFullDepartures = Counter(this, "NumFullDepartures")
     private val numTimedDepartures = Counter(this, "NumTimedDepartures")
 ```
 
-The riders waiting at the stop are a plain list, in arrival order. Two signals connect the riders to the
-shuttle: `RiderArrived` and `ShuttleFull`. The statistics are the number waiting over time, each boarded
-rider's wait, the proportion who take a taxi, and each trip's load.
+The riders waiting at the stop stand in a queue of the model's own, `StopQ`, in arrival order; the queue
+records the number waiting over time and, for each rider removed with its statistics, the time it waited.
+Two signals connect the riders to the shuttle: `RiderArrived` and `ShuttleFull`. The other statistics are
+the proportion who take a taxi and each trip's load.
 
 #### 2. The rider
 
@@ -762,14 +761,13 @@ private inner class Rider : Entity() {
 
     val trip: KSLProcess = process(isDefaultProcess = true) {
         val myPatience = patience.value
-        waiting.add(this@Rider)
-        numWaiting.increment()
+        stopQ.enqueue(this@Rider)
         riderArrived.signal()
-        if (waiting.size >= capacity) shuttleFull.signal()
+        if (stopQ.size >= capacity) shuttleFull.signal()
         val result = suspendForOrTimeout(boarded, timeout = myPatience)
         if (result.timedOut) {
-            waiting.remove(this@Rider)
-            numWaiting.decrement()
+            // a rider who gives up is not a wait for the shuttle
+            stopQ.remove(this@Rider, waitStats = false)
             tookTaxi.value = 1.0
         }
     }
@@ -777,14 +775,18 @@ private inner class Rider : Entity() {
 ```
 
 Each rider owns a **suspension**, `boarded`: a named point at which its process can be suspended and later
-resumed by another process. The rider joins the list, tells the shuttle it has arrived, and, if it has
+resumed by another process. The rider joins the queue, tells the shuttle it has arrived, and, if it has
 filled the shuttle, says so. Then it waits with `suspendForOrTimeout(boarded, timeout = myPatience)`: it is
 suspended until the shuttle resumes it, or until its patience runs out, whichever comes first. If the time
-runs out it leaves the list and takes a taxi. If it is resumed there is nothing more to do: the shuttle
-has already recorded its wait.
+runs out it leaves the queue with `waitStats = false`, so that the queue's time-in-queue counts only riders
+who board, and takes a taxi. If it is resumed there is nothing more to do: the shuttle has already taken it
+from the queue, which recorded its wait.
+
+The suspension is the rider's own, not a line: nothing in it says who came first. That is why the stop keeps
+the riders in a queue of its own, for the shuttle to board in order and for the statistics.
 
 A signal reaches only the processes waiting on it when it is sent. `riderArrived.signal()` while the
-shuttle is away reaches no one, and that is correct: the shuttle looks at the list when it returns.
+shuttle is away reaches no one, and that is correct: the shuttle looks at the queue when it returns.
 
 #### 3. The shuttle
 
@@ -792,14 +794,12 @@ shuttle is away reaches no one, and that is correct: the shuttle looks at the li
     private inner class Shuttle : Entity() {
         val service: KSLProcess = process {
             while (true) {
-                if (waiting.isEmpty()) waitFor(riderArrived)
-                if (waiting.size < capacity) waitForOrTimeout(shuttleFull, timeout = maxHold)
-                val boarding = waiting.take(capacity)
+                if (stopQ.isEmpty) waitFor(riderArrived)
+                if (stopQ.size < capacity) waitForOrTimeout(shuttleFull, timeout = maxHold)
+                val boarding = stopQ.toList().take(capacity)
                 if (boarding.isEmpty()) continue        // every rider gave up while the shuttle waited
                 for (rider in boarding) {
-                    waiting.remove(rider)
-                    numWaiting.decrement()
-                    waitForShuttle.value = time - rider.createTime
+                    stopQ.remove(rider)
                     tookTaxi.value = 0.0
                     resume(rider.boarded)
                 }
@@ -813,7 +813,6 @@ shuttle is away reaches no one, and that is correct: the shuttle looks at the li
     private val generator = EntityGenerator(::Rider, timeBetweenArrivals, timeBetweenArrivals)
 
     override fun initialize() {
-        waiting.clear()
         activate(Shuttle().service)
     }
 }
@@ -821,16 +820,92 @@ shuttle is away reaches no one, and that is correct: the shuttle looks at the li
 
 The shuttle is a process that loops. With nobody waiting, it waits for a rider, with no time limit. Then,
 unless the shuttle is already full, it waits for `ShuttleFull` with a limit of `maxHold`: the second
-deadline of the case. Whichever way that wait ends, it boards up to twelve riders in arrival order, and
-for each it records the wait and calls `resume(rider.boarded)`, which ends that rider's
-`suspendForOrTimeout`. If every rider gave up during the hold, there is nobody to board, and the shuttle
-starts again.
+deadline of the case. Whichever way that wait ends, it boards up to twelve riders in arrival order: it
+takes each from the queue, which records its wait, and calls `resume(rider.boarded)`, which ends that
+rider's `suspendForOrTimeout`. If every rider gave up during the hold, there is nobody to board, and the
+shuttle starts again.
 
 `resume` is the way one process ends another's suspension. Calling `resumeProcess()` on the rider instead
 would throw: an entity in a wait with a time limit, or in any wait for the first of several things, can be
 resumed only through what it waits on.
 
-#### 4. The same stop, written with events
+#### 4. The same stop, with every rider waiting on one signal
+
+```kotlin
+class ShuttleStopBySignal(
+    parent: ModelElement,
+    val capacity: Int = 12,
+    val maxHold: Double = 10.0,
+    arrivalRate: Double = 0.5,
+    meanPatience: Double = 30.0,
+    name: String? = null
+) : ProcessModel(parent, name) {
+
+    private val timeBetweenArrivals = ExponentialRV(1.0 / arrivalRate, 1)
+    private val patience = RandomVariable(this, ExponentialRV(meanPatience, 2), "Patience")
+    private val roundTrip = RandomVariable(this, TriangularRV(10.0, 15.0, 20.0, 3), "RoundTrip")
+
+    private val boarding = Signal(this, "Boarding")
+    private val riderArrived = Signal(this, "RiderArrived")
+    private val shuttleFull = Signal(this, "ShuttleFull")
+
+    private val waitForShuttle = Response(this, "WaitForShuttle")
+    private val tookTaxi = Response(this, "ProbTaxi")
+    private val tripLoad = Response(this, "TripLoad")
+    private val numFullDepartures = Counter(this, "NumFullDepartures")
+    private val numTimedDepartures = Counter(this, "NumTimedDepartures")
+
+    private inner class Rider : Entity() {
+        val trip: KSLProcess = process(isDefaultProcess = true) {
+            val myPatience = patience.value
+            riderArrived.signal()
+            // this rider is about to join the line
+            if (boarding.waitingQ.size + 1 >= capacity) shuttleFull.signal()
+            val result = waitForOrTimeout(boarding, timeout = myPatience, waitStats = false)
+            if (result.timedOut) tookTaxi.value = 1.0
+        }
+    }
+
+    private inner class Shuttle : Entity() {
+        val service: KSLProcess = process {
+            while (true) {
+                if (boarding.waitingQ.isEmpty) waitFor(riderArrived)
+                if (boarding.waitingQ.size < capacity) waitForOrTimeout(shuttleFull, timeout = maxHold)
+                val aboard = boarding.holdingQueueAsList().take(capacity)
+                if (aboard.isEmpty()) continue        // every rider gave up while the shuttle waited
+                for (rider in aboard) {
+                    waitForShuttle.value = time - rider.createTime
+                    tookTaxi.value = 0.0
+                }
+                boarding.signal(0 until aboard.size)
+                tripLoad.value = aboard.size.toDouble()
+                if (aboard.size == capacity) numFullDepartures.increment() else numTimedDepartures.increment()
+                delay(roundTrip)
+            }
+        }
+    }
+
+    private val generator = EntityGenerator(::Rider, timeBetweenArrivals, timeBetweenArrivals)
+
+    override fun initialize() {
+        activate(Shuttle().service)
+    }
+}
+```
+
+Here no rider has a suspension of its own, and the stop keeps no line. Every rider waits on the one signal
+`Boarding`, with `waitForOrTimeout(boarding, timeout = myPatience, waitStats = false)`. A signal holds the
+processes waiting on it in a queue of its own, in arrival order, so that queue is the line: its number in
+queue is the number waiting, and a rider whose patience runs out leaves it by itself. The shuttle reads who
+is waiting (`holdingQueueAsList`), records each boarding rider's wait, and boards the first of them with
+`boarding.signal(0 until aboard.size)`, which resumes the riders at those ranks. Because the riders leave
+the signal's queue without their waits recorded (`waitStats = false`, so that a rider who gives up does not
+count), the shuttle records the waits of those who board, as the event version does.
+
+A rider tells the shuttle it has filled it before it joins the signal's queue, so it counts itself:
+`boarding.waitingQ.size + 1`.
+
+#### 5. The same stop, written with events
 
 ```kotlin
 class ShuttleStopByEvents(
@@ -927,10 +1002,10 @@ give-up event must be cancelled; in the process version, `resume` ends the rider
 it. And an event due after the end of the replication is never put on the calendar, so cancelling it would
 throw; hence the `isScheduled` checks.
 
-Both versions draw the same random numbers in the same order: interarrival times from stream 1 as riders
+All three versions draw the same random numbers in the same order: interarrival times from stream 1 as riders
 arrive, patience from stream 2 as each rider arrives, round trips from stream 3 as the shuttle leaves.
 
-#### 5. The comparison
+#### 6. The comparison
 
 ```kotlin
 fun main() {
@@ -943,25 +1018,36 @@ fun main() {
         m.simulate()
         return m
     }
-    val byProcesses = run { ShuttleStop(it, name = "Stop") }
+    val byQueue = run { ShuttleStop(it, name = "Stop") }
+    val bySignal = run { ShuttleStopBySignal(it, name = "Stop") }
     val byEvents = run { ShuttleStopByEvents(it, name = "Stop") }
 
     fun statistics(m: Model) = m.responses.associate { it.name to it.acrossReplicationStatistic } +
             m.counters.associate { it.name to it.acrossReplicationStatistic }
-    val p = statistics(byProcesses)
+    val q = statistics(byQueue)
+    val s = statistics(bySignal)
     val e = statistics(byEvents)
-    val shared = listOf("NumWaiting", "WaitForShuttle", "ProbTaxi", "TripLoad", "NumFullDepartures", "NumTimedDepartures")
-    println(String.format("%-22s %14s %14s %12s %8s", "response", "by processes", "by events", "half-width", "same"))
+    // each statistic of the events version, and where the other two keep it
+    val shared = listOf(
+        Triple("NumWaiting", "StopQ:NumInQ", "Boarding:HoldQ:NumInQ"),
+        Triple("WaitForShuttle", "StopQ:TimeInQ", "WaitForShuttle"),
+        Triple("ProbTaxi", "ProbTaxi", "ProbTaxi"),
+        Triple("TripLoad", "TripLoad", "TripLoad"),
+        Triple("NumFullDepartures", "NumFullDepartures", "NumFullDepartures"),
+        Triple("NumTimedDepartures", "NumTimedDepartures", "NumTimedDepartures")
+    )
+    println(String.format("%-20s %12s %12s %12s %12s %6s", "statistic", "by queue", "by signal", "by events", "half-width", "same"))
     var allSame = true
-    for (name in shared) {
-        val a = p.getValue(name)
-        val b = e.getValue(name)
-        val same = a.average == b.average && a.variance == b.variance && a.count == b.count
+    for ((name, inQueue, inSignal) in shared) {
+        val a = q.getValue(inQueue)
+        val b = s.getValue(inSignal)
+        val c = e.getValue(name)
+        val same = listOf(a, b).all { it.average == c.average && it.variance == c.variance && it.count == c.count }
         allSame = allSame && same
-        println(String.format("%-22s %14.4f %14.4f %12.4f %8s", name, a.average, b.average, a.halfWidth, if (same) "yes" else "NO"))
+        println(String.format("%-20s %12.4f %12.4f %12.4f %12.4f %6s", name, a.average, b.average, c.average, c.halfWidth, if (same) "yes" else "NO"))
     }
     println()
-    println(if (allSame) "The two models agree exactly." else "The two models DIFFER.")
+    println(if (allSame) "The three models agree exactly." else "The three models DIFFER.")
     println()
     println("Read this alongside docs/guides/ksl-waits-tutorial.md, case 4.")
 }
@@ -970,21 +1056,25 @@ fun main() {
 ### What it shows
 
 ```text
-response                 by processes      by events   half-width     same
-NumWaiting                     4.5340         4.5340       0.0292      yes
-WaitForShuttle                 9.9548         9.9548       0.0666      yes
-ProbTaxi                       0.3008         0.3008       0.0045      yes
-TripLoad                       8.4065         8.4065       0.0792      yes
-NumFullDepartures             78.1000        78.1000       4.8230      yes
-NumTimedDepartures           296.0000       296.0000       3.9567      yes
+statistic                by queue    by signal    by events   half-width   same
+NumWaiting                 4.5340       4.5340       4.5340       0.0292    yes
+WaitForShuttle             9.9548       9.9548       9.9548       0.0666    yes
+ProbTaxi                   0.3008       0.3008       0.3008       0.0045    yes
+TripLoad                   8.4065       8.4065       8.4065       0.0792    yes
+NumFullDepartures         78.1000      78.1000      78.1000       4.8230    yes
+NumTimedDepartures       296.0000     296.0000     296.0000       3.9567    yes
 
-The two models agree exactly.
+The three models agree exactly.
 ```
+
+The queue version keeps the number waiting and the wait in `StopQ` (`StopQ:NumInQ`, `StopQ:TimeInQ`), and
+the signal version keeps the number waiting in the signal's queue (`Boarding:HoldQ:NumInQ`); the
+comparison matches each to its counterpart in the event version.
 
 ### How we know it is right
 
-The two formulations agree in every statistic, exactly. Both ways of leaving occur, 78 full departures and
-296 timed ones a replication, and three in ten riders give up, so every deadline in the model is
+The three formulations agree in every statistic, exactly. Both ways of leaving occur, 78 full departures
+and 296 timed ones a replication, and three in ten riders give up, so every deadline in the model is
 exercised many thousands of times. Each formulation would have to make the same mistake at the same moment
 for the agreement to hide one.
 
@@ -996,9 +1086,15 @@ average before it is back. Varying `maxHold` and `capacity` (they are constructo
 controls of an experiment) asks whether holding longer would keep more riders than it costs them in
 waiting.
 
-**Two deadlines, no bookkeeping.** In the process version each party simply waits, with a limit, for the
+**Two deadlines, no bookkeeping.** In the process versions each party simply waits, with a limit, for the
 other. The event version needs the give-up events cancelled, the hold event remembered and cancelled, and
 guards for events past the end of the run. That bookkeeping is where event models of impatience go wrong.
+
+**Who keeps the line.** When each waiter has its own suspension, as the queue version's riders do, nothing
+orders them, and the model keeps the line: a queue of its own, which also keeps the statistics. When every
+waiter waits for the same thing, a signal's queue is the line, and a waiter who gives up leaves it by
+itself. A signal suits waiters that are all served the same way, in order; a suspension of each waiter's
+own suits waiters that are picked out one by one, or resumed by different parties.
 
 ---
 

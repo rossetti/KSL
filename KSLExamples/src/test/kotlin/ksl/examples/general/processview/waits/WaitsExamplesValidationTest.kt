@@ -114,14 +114,20 @@ class WaitsExamplesValidationTest {
     }
 
     @Test
-    @DisplayName("the shuttle stop gives identical results written with processes and with events")
+    @DisplayName("the shuttle stop gives identical results with its riders in a queue, waiting on one signal, and written with events")
     fun shuttleStop() {
-        val byProcesses = statistics(run(20, 10_000.0, 1_000.0) { ShuttleStop(it, name = "Stop") })
+        val byQueue = statistics(run(20, 10_000.0, 1_000.0) { ShuttleStop(it, name = "Stop") })
+        val bySignal = statistics(run(20, 10_000.0, 1_000.0) { ShuttleStopBySignal(it, name = "Stop") })
         val byEvents = statistics(run(20, 10_000.0, 1_000.0) { ShuttleStopByEvents(it, name = "Stop") })
-        val shared = listOf("NumWaiting", "WaitForShuttle", "ProbTaxi", "TripLoad", "NumFullDepartures", "NumTimedDepartures")
-        assertTrue(byProcesses.getValue("NumFullDepartures").average > 0.0 && byProcesses.getValue("NumTimedDepartures").average > 0.0,
+        assertTrue(byEvents.getValue("NumFullDepartures").average > 0.0 && byEvents.getValue("NumTimedDepartures").average > 0.0,
             "both ways of departing must happen for this to test anything")
-        assertIdentical(byProcesses, byEvents, shared)
+        // each statistic of the events version, and where the queue and the signal versions keep it
+        val common = listOf("ProbTaxi", "TripLoad", "NumFullDepartures", "NumTimedDepartures")
+        val inQueue = byQueue + mapOf("NumWaiting" to byQueue.getValue("StopQ:NumInQ"), "WaitForShuttle" to byQueue.getValue("StopQ:TimeInQ"))
+        val inSignal = bySignal + mapOf("NumWaiting" to bySignal.getValue("Boarding:HoldQ:NumInQ"))
+        val shared = common + listOf("NumWaiting", "WaitForShuttle")
+        assertIdentical(inQueue, byEvents, shared)
+        assertIdentical(inSignal, byEvents, shared)
     }
 
     @Test
