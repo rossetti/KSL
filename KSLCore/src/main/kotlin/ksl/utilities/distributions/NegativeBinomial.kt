@@ -186,10 +186,7 @@ class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, na
      * value for an expectation of a non-negative quantity. See `interpolatedFirstOrderLoss`.
      */
     override fun firstOrderLossFunction(x: Double): Double {
-        // nothing lies above infinity, and everything above minus infinity
-        if (x == Double.POSITIVE_INFINITY) return 0.0
-        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
-        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
+        lossAtNonFinite(x)?.let { return it }
         if (!isWholeNumber(x)) {
             return interpolatedFirstOrderLoss(this, x)
         }
@@ -219,10 +216,7 @@ class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, na
      * rather than substituted into a closed form that assumes one. See `interpolatedSecondOrderLoss`.
      */
     override fun secondOrderLossFunction(x: Double): Double {
-        // nothing lies above infinity, and everything above minus infinity
-        if (x == Double.POSITIVE_INFINITY) return 0.0
-        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
-        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
+        lossAtNonFinite(x)?.let { return it }
         if (!isWholeNumber(x)) {
             return interpolatedSecondOrderLoss(this, x)
         }
@@ -263,10 +257,7 @@ class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, na
      * run at the stock levels this is used for.
      */
     override fun thirdOrderLossFunction(x: Double): Double {
-        // nothing lies above infinity, and everything above minus infinity
-        if (x == Double.POSITIVE_INFINITY) return 0.0
-        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
-        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
+        lossAtNonFinite(x)?.let { return it }
         if (!isWholeNumber(x)) {
             return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
         }
@@ -288,11 +279,13 @@ class NegativeBinomial(probSuccess: Double = 0.5, numSuccesses: Double = 1.0, na
     private fun upperTail(x: Double, order: Int): Double {
         val r = this@NegativeBinomial.numSuccesses
         val q = 1.0 - probOfSuccess
-        val tooWide = "$this falls off too slowly above its mean for its loss functions to be summed over its tail " +
-                "within $TAIL_SUM_TERM_LIMIT terms; it was asked at $x."
-        // ln1p: for a tiny p, 1 - p rounds to 1 and its logarithm to 0
-        require(40.0 / -ln1p(-probOfSuccess) <= TAIL_SUM_TERM_LIMIT) { tooWide }
-        return requireNotNull(upperTailLoss(x, order, pmf(x.toInt() + 1)) { j -> (j + r) / (j + 1.0) * q }) { tooWide }
+        val tooWide = {
+            "$this falls off too slowly above its mean for its loss functions to be summed over its tail " +
+                    "within $TAIL_SUM_TERM_LIMIT terms; it was asked at $x."
+        }
+        // known before summing for a small p; ln1p, as for a tiny p 1 - p rounds to 1 and its logarithm to 0
+        require(40.0 / -ln1p(-probOfSuccess) <= TAIL_SUM_TERM_LIMIT, tooWide)
+        return upperTailLoss(x, order, pmf(x.toInt() + 1), tooWide) { j -> (j + r) / (j + 1.0) * q }
     }
 
     override fun randomVariable(streamNumber: Int, streamProvider: RNStreamProviderIfc): NegativeBinomialRV {

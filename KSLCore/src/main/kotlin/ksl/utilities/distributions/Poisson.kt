@@ -104,16 +104,13 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
      * value for an expectation of a non-negative quantity. See `interpolatedFirstOrderLoss`.
      */
     override fun firstOrderLossFunction(x: Double): Double {
-        // nothing lies above infinity, and everything above minus infinity
-        if (x == Double.POSITIVE_INFINITY) return 0.0
-        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
-        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
+        lossAtNonFinite(x)?.let { return it }
         if (!isWholeNumber(x)) {
             return interpolatedFirstOrderLoss(this, x)
         }
         requireLossArgumentRepresentable(x)
         val mu = this@Poisson.mean
-        if (x > mu) upperTail(x, 1)?.let { return it }
+        if (x > mu) return upperTail(x, 1)
         return if (x < 0.0) {
             floor(abs(x)) + mu
         } else if (x > 0.0) {
@@ -142,16 +139,13 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
      * mu/2 at x = 0. KSL uses the factorial-moment form throughout.
      */
     override fun secondOrderLossFunction(x: Double): Double {
-        // nothing lies above infinity, and everything above minus infinity
-        if (x == Double.POSITIVE_INFINITY) return 0.0
-        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
-        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
+        lossAtNonFinite(x)?.let { return it }
         if (!isWholeNumber(x)) {
             return interpolatedSecondOrderLoss(this, x)
         }
         requireLossArgumentRepresentable(x)
         val mu = this@Poisson.mean
-        if (x > mu) upperTail(x, 2)?.let { return it }
+        if (x > mu) return upperTail(x, 2)
         val sbm = 0.5 * (mu * mu) // 1/2 the 2nd binomial moment
         return if (x < 0.0) {
             var s = 0.0
@@ -186,15 +180,12 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
      * between integers, so it would silently return the value at the floor.
      */
     override fun thirdOrderLossFunction(x: Double): Double {
-        // nothing lies above infinity, and everything above minus infinity
-        if (x == Double.POSITIVE_INFINITY) return 0.0
-        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
-        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
+        lossAtNonFinite(x)?.let { return it }
         if (!isWholeNumber(x)) {
             return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
         }
         requireLossArgumentRepresentable(x)
-        if (x > this@Poisson.mean) upperTail(x, 3)?.let { return it }
+        if (x > this@Poisson.mean) return upperTail(x, 3)
         val term1 = this@Poisson.mean.pow(3.0) * complementaryCDF(x - 3)
         val term2 = 3 * this@Poisson.mean * this@Poisson.mean * x * complementaryCDF(x - 2)
         val term3 = 3 * this@Poisson.mean * x * (x + 1) * complementaryCDF(x - 1)
@@ -203,9 +194,11 @@ class Poisson(mean: Double = 1.0, name: String? = null) : Distribution(name),
     }
 
     /** A loss function at a whole number above the mean, summed over the tail: see `upperTailLoss`. */
-    private fun upperTail(x: Double, order: Int): Double? {
+    private fun upperTail(x: Double, order: Int): Double {
         val mu = this@Poisson.mean
-        return upperTailLoss(x, order, pmf(x.toInt() + 1)) { j -> mu / (j + 1.0) }
+        return upperTailLoss(x, order, pmf(x.toInt() + 1), { "$this falls off too slowly above its mean at $x." }) { j ->
+            mu / (j + 1.0)
+        }
     }
 
     override fun invCDF(p: Double): Double {

@@ -232,6 +232,10 @@ internal sealed class AfterResume {
  *
  *  **What a source must do to take part in waits.** A source keeps each registration with its own
  *  record of the waiter (the entity in its hold queue, its request, its mailbox waiter), and:
+ *  - links the registration and its waiter both ways before the waiter is placed where model code can see it (a
+ *    queue whose listeners run as it enters): that code can end the wait, and the claim then releases this
+ *    registration with its waiter; after placing it, does nothing more for a registration already released
+ *    (the seize, items and signal triggers do this; a mailbox runs no code as a waiter joins);
  *  - when that waiter is satisfied, ends the wait with [claimWait], never by resuming the entity itself;
  *  - takes a false answer from [claimWait] to mean the wait had already ended, and moves on to its next waiter;
  *  - claims nothing once the replication's events have ended, from `replicationEnded()` on: the claim is

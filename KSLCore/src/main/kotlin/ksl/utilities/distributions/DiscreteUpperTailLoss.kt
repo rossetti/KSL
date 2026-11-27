@@ -33,15 +33,22 @@ package ksl.utilities.distributions
  *
  *  The number of terms depends on how fast the mass falls off, not on x: a distribution whose mass falls off
  *  slowly (a negative binomial with a small success probability) needs many. Past [TAIL_SUM_TERM_LIMIT] terms the
- *  sum gives up and returns null, and the caller decides what it can do instead.
+ *  sum gives up, and refuses with [tooWide]: no closed form stands in for it accurately there.
  *
  *  @param x a whole number above the mean, below `Int.MAX_VALUE`
  *  @param order 1, 2 or 3
  *  @param massAfterX the mass at x + 1
  *  @param ratio the mass at j + 1 divided by the mass at j
- *  @return the loss, or null when the sum does not settle within [TAIL_SUM_TERM_LIMIT] terms
+ *  @param tooWide the message of the refusal when the sum does not settle within [TAIL_SUM_TERM_LIMIT] terms
+ *  @return the loss
  */
-internal fun upperTailLoss(x: Double, order: Int, massAfterX: Double, ratio: (Double) -> Double): Double? {
+internal fun upperTailLoss(
+    x: Double,
+    order: Int,
+    massAfterX: Double,
+    tooWide: () -> String,
+    ratio: (Double) -> Double
+): Double {
     require(order in 1..3) { "The order of a loss function must be 1, 2 or 3; it was $order." }
     // stepped as a Double: a sum that runs past the largest Int must not wrap to negative points
     var j = x + 1.0
@@ -59,7 +66,7 @@ internal fun upperTailLoss(x: Double, order: Int, massAfterX: Double, ratio: (Do
         total += term
         // a term too small to change the total, once the terms have begun (the first ones of a higher order are 0)
         if (n > order && term <= total * 1e-17) break
-        if (++terms >= TAIL_SUM_TERM_LIMIT) return null
+        require(++terms < TAIL_SUM_TERM_LIMIT, tooWide)
         mass *= ratio(j)
         j += 1.0
         n += 1.0
@@ -83,5 +90,18 @@ internal fun requireLossArgumentRepresentable(x: Double) {
     require(x >= -LARGEST_LOSS_ARGUMENT && x <= LARGEST_LOSS_ARGUMENT) {
         "A loss function of a distribution on the integers is computed only between ${-LARGEST_LOSS_ARGUMENT.toLong()} " +
                 "and ${LARGEST_LOSS_ARGUMENT.toLong()}; it was asked at $x."
+    }
+}
+
+/**
+ *  A loss function at a non-finite argument: 0 at infinity, where nothing lies above, and infinite at minus
+ *  infinity; null for a finite argument, which the loss function computes. NaN is refused.
+ */
+internal fun lossAtNonFinite(x: Double): Double? {
+    require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
+    return when (x) {
+        Double.POSITIVE_INFINITY -> 0.0
+        Double.NEGATIVE_INFINITY -> Double.POSITIVE_INFINITY
+        else -> null
     }
 }

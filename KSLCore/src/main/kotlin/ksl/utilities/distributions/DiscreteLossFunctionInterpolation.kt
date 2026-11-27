@@ -90,11 +90,11 @@ internal fun interpolatedFirstOrderLoss(d: LossFunctionDistributionIfc, x: Doubl
 }
 
 /**
- *  The probability above the whole number [m], as the difference of the first-order loss at [m] and [m] + 1, which
- *  keeps its relative accuracy far in the upper tail, where `1 - cdf(m)` is only rounding error.
+ *  The probability above the whole number m, as the difference of the first-order losses at m ([firstAtM]) and
+ *  m + 1 ([firstAfterM]), which keeps its relative accuracy far in the upper tail, where `1 - cdf(m)` is only
+ *  rounding error.
  */
-private fun tailAbove(d: LossFunctionDistributionIfc, m: Double): Double =
-    maxOf(d.firstOrderLossFunction(m) - d.firstOrderLossFunction(m + 1.0), 0.0)
+private fun tailAbove(firstAtM: Double, firstAfterM: Double): Double = maxOf(firstAtM - firstAfterM, 0.0)
 
 /**
  *  `G2(x)` for an integer-supported distribution at a non-integral [x], from the distribution's own
@@ -109,9 +109,10 @@ private fun tailAbove(d: LossFunctionDistributionIfc, m: Double): Double =
 internal fun interpolatedSecondOrderLoss(d: LossFunctionDistributionIfc, x: Double): Double {
     val n = floor(x)
     val t = x - n
-    val tailAboveNextPoint = tailAbove(d, n + 1.0)
+    val firstAtNextPoint = d.firstOrderLossFunction(n + 1.0)
+    val tailAboveNextPoint = tailAbove(firstAtNextPoint, d.firstOrderLossFunction(n + 2.0))
     return d.secondOrderLossFunction(n) -
-        t * (d.firstOrderLossFunction(n + 1.0) + tailAboveNextPoint) +
+        t * (firstAtNextPoint + tailAboveNextPoint) +
         0.5 * (t * t + t) * tailAboveNextPoint
 }
 
@@ -139,8 +140,8 @@ internal fun interpolatedThirdOrderLoss(
 ): Double {
     val n = floor(x)
     val t = x - n
-    val tailAboveSecondPoint = tailAbove(d, n + 2.0)
     val firstAboveSecondPoint = d.firstOrderLossFunction(n + 2.0)
+    val tailAboveSecondPoint = tailAbove(firstAboveSecondPoint, d.firstOrderLossFunction(n + 3.0))
     return thirdOrderAtWholeNumber(n) -
         t * (d.secondOrderLossFunction(n + 1.0) + firstAboveSecondPoint + tailAboveSecondPoint) +
         0.5 * t * (1.0 + t) * (firstAboveSecondPoint + 2.0 * tailAboveSecondPoint) -

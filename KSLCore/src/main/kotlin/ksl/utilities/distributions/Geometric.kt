@@ -159,9 +159,12 @@ class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution(
      * value for an expectation of a non-negative quantity. See `interpolatedFirstOrderLoss`.
      */
     override fun firstOrderLossFunction(x: Double): Double {
+        lossAtNonFinite(x)?.let { return it }
         if (!isWholeNumber(x)) {
             return interpolatedFirstOrderLoss(this, x)
         }
+        // the loops below zero count in Int
+        if (x < 0.0) requireLossArgumentRepresentable(x)
         val mu = mean()
         return if (x < 0.0) {
             floor(abs(x)) + mu
@@ -184,9 +187,12 @@ class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution(
      * rather than substituted into a closed form that assumes one. See `interpolatedSecondOrderLoss`.
      */
     override fun secondOrderLossFunction(x: Double): Double {
+        lossAtNonFinite(x)?.let { return it }
         if (!isWholeNumber(x)) {
             return interpolatedSecondOrderLoss(this, x)
         }
+        // the loops below zero count in Int
+        if (x < 0.0) requireLossArgumentRepresentable(x)
         val mu = mean()
         val sbm = 0.5 * (variance() + mu * mu - mu) // 1/2 the 2nd binomial moment
         return if (x < 0.0) {
@@ -218,9 +224,12 @@ class Geometric(successProb: Double = 0.5, name: String? = null) : Distribution(
      * gives `b^3/q`, which is `b^3 + b^2`, the accumulation running one step the other way.
      */
     override fun thirdOrderLossFunction(x: Double): Double {
+        lossAtNonFinite(x)?.let { return it }
         if (!isWholeNumber(x)) {
             return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
         }
+        // the loops below zero count in Int
+        if (x < 0.0) requireLossArgumentRepresentable(x)
         val b = (1.0 - pSuccess) / pSuccess
         return b * b * b * pFailure.pow(x)
     }

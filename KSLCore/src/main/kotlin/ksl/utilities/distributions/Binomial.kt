@@ -130,11 +130,13 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
      * A loss function at a whole number above the mean, summed over the tail: see `upperTailLoss`. Zero from
      * the number of trials on, where no outcome is above x.
      */
-    private fun upperTail(x: Double, order: Int): Double? {
+    private fun upperTail(x: Double, order: Int): Double {
         if (x >= numTrials) return 0.0
         val n = numTrials
         val odds = probOfSuccess / (1.0 - probOfSuccess)
-        return upperTailLoss(x, order, pmf(x.toInt() + 1)) { j -> (n - j) / (j + 1.0) * odds }
+        return upperTailLoss(x, order, pmf(x.toInt() + 1), { "$this falls off too slowly above its mean at $x." }) { j ->
+            (n - j) / (j + 1.0) * odds
+        }
     }
 
     override fun invCDF(p: Double): Double {
@@ -150,16 +152,13 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
      * value for an expectation of a non-negative quantity. See `interpolatedFirstOrderLoss`.
      */
     override fun firstOrderLossFunction(x: Double): Double {
-        // nothing lies above infinity, and everything above minus infinity
-        if (x == Double.POSITIVE_INFINITY) return 0.0
-        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
-        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
+        lossAtNonFinite(x)?.let { return it }
         if (!isWholeNumber(x)) {
             return interpolatedFirstOrderLoss(this, x)
         }
         // the loops below zero count in Int; above, the loss is zero from the number of trials on
         if (x < 0.0) requireLossArgumentRepresentable(x)
-        if (x > mean()) upperTail(x, 1)?.let { return it }
+        if (x > mean()) return upperTail(x, 1)
         return if (x < 0.0) {
             floor(abs(x)) + mean()
         } else if (x > 0.0) {
@@ -177,17 +176,14 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
      * rather than substituted into a closed form that assumes one. See `interpolatedSecondOrderLoss`.
      */
     override fun secondOrderLossFunction(x: Double): Double {
-        // nothing lies above infinity, and everything above minus infinity
-        if (x == Double.POSITIVE_INFINITY) return 0.0
-        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
-        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
+        lossAtNonFinite(x)?.let { return it }
         if (!isWholeNumber(x)) {
             return interpolatedSecondOrderLoss(this, x)
         }
         // the loops below zero count in Int; above, the loss is zero from the number of trials on
         if (x < 0.0) requireLossArgumentRepresentable(x)
         val mu: Double = mean()
-        if (x > mu) upperTail(x, 2)?.let { return it }
+        if (x > mu) return upperTail(x, 2)
         val g2: Double = 0.5 * (variance() + mu * mu - mu) // 1/2 the 2nd binomial moment
         return if (x < 0.0) {
             var s = 0.0
@@ -218,16 +214,13 @@ class Binomial(pSuccess: Double = 0.5, nTrials: Int = 1, name: String? = null) :
      * C(n,3)*p^3, which is where the accumulation starts.
      */
     override fun thirdOrderLossFunction(x: Double): Double {
-        // nothing lies above infinity, and everything above minus infinity
-        if (x == Double.POSITIVE_INFINITY) return 0.0
-        if (x == Double.NEGATIVE_INFINITY) return Double.POSITIVE_INFINITY
-        require(!x.isNaN()) { "The argument of a loss function must be a number; it was NaN." }
+        lossAtNonFinite(x)?.let { return it }
         if (!isWholeNumber(x)) {
             return interpolatedThirdOrderLoss(this, x) { n -> thirdOrderLossFunction(n) }
         }
         // the loops below zero count in Int; above, the loss is zero from the number of trials on
         if (x < 0.0) requireLossArgumentRepresentable(x)
-        if (x > mean()) upperTail(x, 3)?.let { return it }
+        if (x > mean()) return upperTail(x, 3)
         val n = numTrials.toDouble()
         val p = probOfSuccess
         // C(n,3) * p^3, the third binomial moment, zero when there are fewer than 3 trials.

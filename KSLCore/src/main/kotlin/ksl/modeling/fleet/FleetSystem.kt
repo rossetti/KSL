@@ -1322,14 +1322,14 @@ abstract class FleetSystem @JvmOverloads constructor(
          * A stop for a task taken back is not this vehicle's to make. Asking per stop rather than
          * per tour is what lets a revocation take one task off a vehicle that is carrying others.
          */
-        private fun stillOurs(stop: TourStop): Boolean {
-            val task = stop.madeFor ?: stop.action.task ?: return true
-            return assignments.any { it.task === task }
-        }
+        private fun stillOurs(stop: TourStop): Boolean = taskOf(stop) == null || commitmentFor(stop) != null
+
+        /** The task [stop] serves, if it serves one. */
+        private fun taskOf(stop: TourStop): Dispatcher.Task? = stop.madeFor ?: stop.action.task
 
         /** The commitment of this vehicle that [stop] serves, if it serves one. */
         private fun commitmentFor(stop: TourStop): Assignment? {
-            val task = stop.madeFor ?: stop.action.task ?: return null
+            val task = taskOf(stop) ?: return null
             return assignments.firstOrNull { it.task === task }
         }
 

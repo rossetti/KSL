@@ -99,7 +99,7 @@ class TailLossAccuracyTest {
     @Test
     @DisplayName("every loss function is zero at infinity, infinite at minus infinity, and refuses NaN or a point below the range")
     fun nonFiniteArguments() {
-        for (d in listOf(Poisson(6.0), NegativeBinomial(0.3, 2.0), Binomial(0.4, 30))) {
+        for (d in listOf(Poisson(6.0), NegativeBinomial(0.3, 2.0), Binomial(0.4, 30), Geometric(0.3))) {
             val losses = listOf<(Double) -> Double>(
                 { d.firstOrderLossFunction(it) }, { d.secondOrderLossFunction(it) }, { d.thirdOrderLossFunction(it) }
             )
