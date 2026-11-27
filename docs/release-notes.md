@@ -469,7 +469,7 @@ README's build section) and are not part of the KSLCore artifact.
 
 ## R1.9
 
-*In preparation.* Process-view waits with a time limit, waits for whichever comes first, resource failures,
+*27 November 2026.* Process-view waits with a time limit, waits for whichever comes first, resource failures,
 shifts, behaviors and preemption. Needs Kotlin 2.4 or later.
 
 **Re-run any model with a `WAIT` capacity change, a random queue, a request selection rule, a merged

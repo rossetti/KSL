@@ -186,18 +186,18 @@ The published version is set in `KSLCore/build.gradle.kts` (the `version` proper
 ```
 group = "io.github.rossetti"
 name = "KSLCore"
-version = "R1.8.2"
+version = "R1.9"
 ```
 Just add:  
 ```
-api("io.github.rossetti:KSLCore:R1.8.2")
+api("io.github.rossetti:KSLCore:R1.9")
 ```
-To your build for the latest release. R1.8.2 needs Kotlin 2.4 or later in your project.
+To your build for the latest release. R1.9 needs Kotlin 2.4 or later in your project.
 
 ## Release Notes
 
 The full history lives in **[docs/release-notes.md](docs/release-notes.md)**, which covers two
-things released on separate cadences: the **library** (`KSLCore`, versioned R1.8.2, R1.8.1, R1.8, …) and
+things released on separate cadences: the **library** (`KSLCore`, versioned R1.9, R1.8.2, R1.8.1, …) and
 the installable **suite** of applications and servers (versioned 0.4.4, 0.4.3, 0.4.2, …). A suite release
 does not imply a library release, or the reverse.
 
@@ -207,10 +207,12 @@ Server, brings the (r, Q) inventory examples and the job shop agent example in l
 DECIMAL database columns in the Distribution app, and stops `ksl update` from reinstalling the version
 you already have.
 
-**Current library release — R1.8.2.** Corrective: fixes to antithetic replications, RANKED queues, blocking
-queues, statechart conditions, nearest-vehicle ties on guide paths and charging vehicles. Models that use any of
-these give different results; re-run rather than compare them. `AgentMessage.from` and `contractNet`'s bidders are
-now `AgentLike`. Requires Kotlin 2.4 or later.
+**Current library release — R1.9.** Process-view waits with a time limit and waits for whichever comes first,
+and resource failures, shifts, behaviors and preemption, taught by two new tutorials and experimental until the
+textbook covers them. A waiting request is now allocated when it is served, `WAIT` capacity decreases take idle
+units at once, and `Resource.allocate` and `deallocate` are internal. Models with `WAIT` capacity changes,
+random queues, request selection rules or fleets that hold at stops can give different results; re-run rather
+than compare them. Requires Kotlin 2.4 or later.
 
 **Updating an existing install.** Quit the KSL Server first — from 0.3.7 on, the updater checks and
 refuses rather than overwriting a running installation. `ksl update` works normally from 0.3.2 on;
