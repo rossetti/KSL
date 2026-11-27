@@ -408,7 +408,9 @@ waits for an `AgentSignal` through its trigger, alone or with others and a
 time limit: `waitForFirst(signal.trigger(), timeout = 5.0)`; the next
 `fire()` ends the wait of every process waiting for it, as it reaches every
 subscribed state. `waitFor` does not take it. To fire one later, schedule it
-from the `AgentModel`: `schedule({ signal.fire() }, t)`.
+from the `AgentModel`: `schedule({ signal.fire() }, t)`. Case 8 of
+[`ksl-waits-tutorial`](ksl-waits-tutorial.md) waits for an award message, a
+close signal and a time limit together.
 
 ### ...send and receive messages
 

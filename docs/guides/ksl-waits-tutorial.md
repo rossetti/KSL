@@ -1,6 +1,6 @@
 # Waiting with a deadline, or for whichever comes first — a tutorial through the examples
 
-*Six worked cases.* Each one states a **problem**, describes the **system** with a table of every
+*Eight worked cases.* Each one states a **problem**, describes the **system** with a table of every
 distribution and parameter, draws the **model**, gives **the whole of its code** with an explanation of
 every part, shows what it **produced**, and says **how we know it is right**: each example is checked
 against an answer found some other way, either the exact result of a queueing model or the same system
@@ -34,6 +34,8 @@ construct at a time, and then together.
 | 4 | [The shuttle that leaves full or on time](#4-the-shuttle-that-leaves-full-or-on-time) | two parties, each waiting for the other with a deadline | `:KSLExamples:shuttleStop` |
 | 5 | [Kitting, with expediting](#5-kitting-with-expediting) | three things in one wait; ties at one instant | `:KSLExamples:kittingWithExpediting` |
 | 6 | [Beds from a pool, with a fallback](#6-beds-from-a-pool-with-a-fallback) | a timed seize of a pool; waiting in two pools at once | `:KSLExamples:hospitalBeds` |
+| 7 | [Two colours in one bin](#7-two-colours-in-one-bin) | two item triggers on one blocking queue; the request selector; taking every match | `:KSLExamples:twoColourBin` |
+| 8 | [Timed auctions](#8-timed-auctions) | an agent's message and an agent's signal in one wait; a timed receive | `:KSLExamples:timedAuction` |
 
 The examples are in `KSLExamples/src/main/kotlin/ksl/examples/general/processview/waits/`. Each has a
 `main`; from IntelliJ, run it with the green arrow beside it, or from the command line with the Gradle task
@@ -49,6 +51,7 @@ running an example gives exactly the numbers on this page. Where an estimate is 
 value, the comparison is a 99% confidence interval from the replications, and the question is whether the
 exact value lies inside it. Where two formulations of one system are compared, they draw the same random
 numbers in the same order, and the question is whether every result is *identical*: not close, the same.
+A half-width shown beside an estimate is of its 95% confidence interval.
 
 `WaitsExamplesValidationTest` in `KSLExamples/src/test` repeats every one of these checks on each build.
 
@@ -1658,12 +1661,697 @@ record the wait from the result.
 
 ---
 
+## 7. Two colours in one bin
+
+### The problem
+
+A cell takes red and blue parts from one bin. A picker takes one part at a time, whichever colour comes first,
+and works on it: its wait is two item triggers on the bin, one for each colour. What does the bin's choice of
+request to serve do to such a wait? A picker with a time limit tidies the cell when no part comes. A painter
+takes every part of one colour at once.
+
+### The system
+
+| Quantity | Distribution or value | Model element |
+|---|---|---|
+| Time between red parts | exponential, mean 20 minutes | `TimeBetweenRed` |
+| Time between blue parts | exponential, mean 30 minutes | `TimeBetweenBlue` |
+| Work on a part, or on a batch | exponential, mean 9 minutes | `Work` |
+| The bin | one blocking queue, with no limit | `Bin` |
+| The bin's request selector | `FirstFillableRequest`, or the default | `firstFillable` |
+| How the parts are taken | one of either colour by two triggers; one of any colour by one request; every part of one colour | `picking` |
+| The picker's patience | no limit, or 10 minutes | `patience` |
+| Tidying | 5 minutes | `tidyTime` |
+| Replications | 20 of 100,000 minutes, after a warm-up of 10,000 | |
+
+The parts arrive as one exponential stream at 1/20 + 1/30 = 1/12 a minute, and the picker works on one at a time
+whatever its colour. If the picker takes a part whenever the bin holds one, the bin is the queue of an M/M/1
+queue with utilization 9/12 = 0.75: on average 0.75²/0.25 = 2.25 parts in the bin, each waiting 2.25 × 12 = 27
+minutes.
+
+### The model
+
+```mermaid
+flowchart LR
+    R["red parts"] --> B[("bin")]
+    U["blue parts"] --> B
+    B --> W{"first of: a red part,<br/>a blue part,<br/>or 10 minutes"}
+    W -- "a part" --> P1["work on it"] --> W
+    W -- "10 minutes" --> P2["tidy"] --> W
+```
+
+*Figure 6 — the picker's wait: a request for each colour in the bin's request queue, and a time limit.*
+
+### The code
+
+`TwoColourBin.kt` in full.
+
+#### 1. Parts, and the ways of taking them
+
+```kotlin
+/** The colour of a part. */
+enum class Colour { RED, BLUE }
+
+/** How the bin's parts are taken. */
+enum class Picking {
+    /** One part at a time, the first of a red part or a blue part: two item triggers in one wait. */
+    TWO_TRIGGERS,
+    /** One part at a time, of either colour: one request for any part. */
+    ONE_REQUEST,
+    /** Every part of one colour at once, the first colour to come: two any-items triggers in one wait. */
+    BATCHES
+}
+```
+
+#### 2. The bin
+
+```kotlin
+class TwoColourBin(
+    parent: ModelElement,
+    val picking: Picking = Picking.TWO_TRIGGERS,
+    firstFillable: Boolean = true,
+    val meanBetweenRed: Double = 20.0,
+    val meanBetweenBlue: Double = 30.0,
+    val meanWork: Double = 9.0,
+    val patience: Double = Double.POSITIVE_INFINITY,
+    val tidyTime: Double = 5.0,
+    name: String? = null
+) : ProcessModel(parent, name) {
+
+    private val timeBetweenRed = RandomVariable(this, ExponentialRV(meanBetweenRed, 1), "TimeBetweenRed")
+    private val timeBetweenBlue = RandomVariable(this, ExponentialRV(meanBetweenBlue, 2), "TimeBetweenBlue")
+    private val work = RandomVariable(this, ExponentialRV(meanWork, 3), "Work")
+
+    private inner class Part(val colour: Colour) : QObject()
+
+    private val bin: BlockingQueue<Part> = BlockingQueue(this, name = "Bin")
+
+    init {
+        if (firstFillable) bin.receiverRequestSelector = bin.FirstFillableRequest()
+    }
+
+    /** The time-average number of parts in the bin. */
+    val numInBin get() = bin.channelQ.numInQ
+    /** The time parts wait in the bin. */
+    val timeInBin get() = bin.channelQ.timeInQ
+
+    /** The parts taken from the bin. */
+    val partsTaken = Counter(this, "PartsTaken")
+    /** The times the picker tidied the cell. */
+    val timesTidied = Counter(this, "TimesTidied")
+    /** The parts that arrived and were neither taken nor left in the bin, each replication: none. */
+    val unaccounted = Response(this, "PartsUnaccounted")
+    /** The batches that left a part of their colour in the bin, each replication: none. */
+    val incompleteBatches = Response(this, "IncompleteBatches")
+    /** The number of parts in a batch. */
+    val batchSize = Response(this, "BatchSize")
+
+    // counts by colour kept from the start of the replication, for the accounting at its end
+    private val arrived = IntArray(Colour.entries.size)
+    private val taken = IntArray(Colour.entries.size)
+    private var incomplete = 0
+
+    /** The parts of [colour] that should be in the bin, by the model's own counts. */
+    private fun inBin(colour: Colour) = arrived[colour.ordinal] - taken[colour.ordinal]
+```
+
+The bin is one blocking queue. `FirstFillableRequest` is an inner class of the queue, so it is made from the bin
+itself. The accounting keeps the model's own count of each colour, from the start of the replication.
+
+#### 3. The suppliers
+
+```kotlin
+    private inner class Supplier(val colour: Colour, val timeBetween: RandomVariable) : Entity() {
+        val supply: KSLProcess = process {
+            while (true) {
+                delay(timeBetween)
+                arrived[colour.ordinal]++
+                send(Part(colour), bin)
+            }
+        }
+    }
+```
+
+#### 4. The picker: two triggers in one wait
+
+```kotlin
+    private fun took(parts: List<Part>) {
+        for (p in parts) taken[p.colour.ordinal]++
+        partsTaken.increment(parts.size.toDouble())
+    }
+
+    private inner class Picker : Entity() {
+        val picking: KSLProcess = process {
+            while (true) {
+                val red = bin.itemsTrigger(predicate = { it.colour == Colour.RED })
+                val blue = bin.itemsTrigger(predicate = { it.colour == Colour.BLUE })
+                val result = waitForFirst(red, blue, timeout = patience)
+                if (result.timedOut) {
+                    timesTidied.increment()
+                    delay(tidyTime)
+                    continue
+                }
+                took(if (result.firedBy(red)) result.valueOf(red) else result.valueOf(blue))
+                delay(work)
+            }
+        }
+    }
+```
+
+`bin.itemsTrigger(predicate = …)` is a trigger for one part that matches. The two triggers place two requests in
+the bin's request queue for the one wait; the first to be filled ends it, and the other request leaves the
+queue. With no patience, `timeout` is `Double.POSITIVE_INFINITY` and the wait has no limit.
+
+#### 5. The same picker, with one request
+
+```kotlin
+    private inner class AnyPartPicker : Entity() {
+        val picking: KSLProcess = process {
+            while (true) {
+                val result = waitForItemsOrTimeout(bin, timeout = patience)
+                if (result.timedOut) {
+                    timesTidied.increment()
+                    delay(tidyTime)
+                    continue
+                }
+                took(result.value)
+                delay(work)
+            }
+        }
+    }
+```
+
+When any part will do, one request for any part is the same picker: `waitForItemsOrTimeout` is the timed wait
+for items, and its result is satisfied with the items or timed out.
+
+#### 6. The painter: every part of one colour
+
+```kotlin
+    private inner class Painter : Entity() {
+        val painting: KSLProcess = process {
+            while (true) {
+                val red = bin.anyItemsTrigger(predicate = { it.colour == Colour.RED })
+                val blue = bin.anyItemsTrigger(predicate = { it.colour == Colour.BLUE })
+                val result = waitForFirst(red, blue)
+                val batch = if (result.firedBy(red)) result.valueOf(red) else result.valueOf(blue)
+                took(batch)
+                // the batch took every part of its colour: none of it is left
+                if (inBin(batch.first().colour) != 0) incomplete++
+                batchSize.value = batch.size.toDouble()
+                delay(work)
+            }
+        }
+    }
+```
+
+`bin.anyItemsTrigger(predicate = …)` takes every part that matches, at least one. The painter checks against the
+model's own count that a batch leaves none of its colour behind.
+
+#### 7. Starting, and the accounting
+
+```kotlin
+    override fun initialize() {
+        arrived.fill(0)
+        taken.fill(0)
+        incomplete = 0
+        activate(Supplier(Colour.RED, timeBetweenRed).supply)
+        activate(Supplier(Colour.BLUE, timeBetweenBlue).supply)
+        when (picking) {
+            Picking.TWO_TRIGGERS -> activate(Picker().picking)
+            Picking.ONE_REQUEST -> activate(AnyPartPicker().picking)
+            Picking.BATCHES -> activate(Painter().painting)
+        }
+    }
+
+    override fun replicationEnded() {
+        unaccounted.value = (Colour.entries.sumOf { inBin(it) } - bin.channelQ.size).toDouble()
+        incompleteBatches.value = incomplete.toDouble()
+    }
+}
+```
+
+#### 8. Running it
+
+```kotlin
+fun main() {
+    fun run(build: (Model) -> TwoColourBin): TwoColourBin {
+        val m = Model("TwoColourBin", autoCSVReports = false)
+        val b = build(m)
+        m.numberOfReplications = 20
+        m.lengthOfReplication = 100_000.0
+        m.lengthOfReplicationWarmUp = 10_000.0
+        m.simulate()
+        return b
+    }
+    val first = run { TwoColourBin(it, name = "Cell") }
+    // one server, the picker, for one stream of parts at the two colours' combined rate
+    val lambda = 1.0 / first.meanBetweenRed + 1.0 / first.meanBetweenBlue
+    val rho = lambda * first.meanWork
+    val exactNumber = rho * rho / (1.0 - rho)
+    val exactTime = exactNumber / lambda
+    println("A part of either colour, FirstFillableRequest, against the exact M/M/1 values, 99% confidence intervals")
+    println(String.format("%-28s %10s %22s %10s %8s", "quantity", "estimate", "interval", "exact", "inside"))
+    compareBin("mean parts in the bin", first.numInBin.acrossReplicationStatistic, exactNumber)
+    compareBin("mean time in the bin", first.timeInBin.acrossReplicationStatistic, exactTime)
+
+    val head = run { TwoColourBin(it, firstFillable = false, name = "Cell") }
+    println()
+    println("The same with the default selector, which serves only the request at the head")
+    println(String.format("%-28s %10s %22s %10s %8s", "quantity", "estimate", "interval", "exact", "inside"))
+    compareBin("mean parts in the bin", head.numInBin.acrossReplicationStatistic, exactNumber)
+    compareBin("mean time in the bin", head.timeInBin.acrossReplicationStatistic, exactTime)
+
+    val twoTriggers = run { TwoColourBin(it, patience = 10.0, name = "Cell") }
+    val oneRequest = run { TwoColourBin(it, picking = Picking.ONE_REQUEST, patience = 10.0, name = "Cell") }
+    println()
+    println("Waiting at most 10 minutes for a part, then tidying for 5: two triggers against one request")
+    println(String.format("%-28s %14s %14s %6s", "statistic", "two triggers", "one request", "same"))
+    for ((label, a, b) in listOf(
+        Triple("mean parts in the bin", twoTriggers.numInBin.acrossReplicationStatistic, oneRequest.numInBin.acrossReplicationStatistic),
+        Triple("parts taken", twoTriggers.partsTaken.acrossReplicationStatistic, oneRequest.partsTaken.acrossReplicationStatistic),
+        Triple("times tidied", twoTriggers.timesTidied.acrossReplicationStatistic, oneRequest.timesTidied.acrossReplicationStatistic)
+    )) {
+        val same = a.average == b.average && a.variance == b.variance
+        println(String.format("%-28s %14.4f %14.4f %6s", label, a.average, b.average, if (same) "yes" else "NO"))
+    }
+
+    val painter = run { TwoColourBin(it, picking = Picking.BATCHES, name = "Cell") }
+    println()
+    println("A painter taking every part of one colour at once")
+    println(String.format("%-28s %10.4f", "mean batch size", painter.batchSize.acrossReplicationStatistic.average))
+    println(String.format("%-28s %10.4f", "mean parts in the bin", painter.numInBin.acrossReplicationStatistic.average))
+    println(String.format("%-28s %10.0f", "most parts unaccounted", painter.unaccounted.acrossReplicationStatistic.max))
+    println(String.format("%-28s %10.0f", "most incomplete batches", painter.incompleteBatches.acrossReplicationStatistic.max))
+    println()
+    println("Read this alongside docs/guides/ksl-waits-tutorial.md, case 7.")
+}
+
+private fun compareBin(label: String, stat: StatisticIfc, exact: Double) {
+    val ci = stat.confidenceInterval(0.99)
+    println(
+        String.format(
+            "%-28s %10.4f %22s %10.4f %8s", label, stat.average,
+            String.format("[%.4f, %.4f]", ci.lowerLimit, ci.upperLimit), exact, if (exact in ci) "yes" else "NO"
+        )
+    )
+}
+```
+
+### What it shows
+
+```text
+A part of either colour, FirstFillableRequest, against the exact M/M/1 values, 99% confidence intervals
+quantity                       estimate               interval      exact   inside
+mean parts in the bin            2.2696       [2.1051, 2.4341]     2.2500      yes
+mean time in the bin            27.2364     [25.3725, 29.1002]    27.0000      yes
+
+The same with the default selector, which serves only the request at the head
+quantity                       estimate               interval      exact   inside
+mean parts in the bin            2.9287       [2.7611, 3.0963]     2.2500       NO
+mean time in the bin            35.1450     [33.2697, 37.0202]    27.0000       NO
+
+Waiting at most 10 minutes for a part, then tidying for 5: two triggers against one request
+statistic                      two triggers    one request   same
+mean parts in the bin                2.3212         2.3212    yes
+parts taken                       7496.3000      7496.3000    yes
+times tidied                      1096.4000      1096.4000    yes
+
+A painter taking every part of one colour at once
+mean batch size                  1.2401
+mean parts in the bin            0.5902
+most parts unaccounted                0
+most incomplete batches               0
+```
+
+### How we know it is right
+
+With `FirstFillableRequest` both 99% intervals contain their exact values. With a time limit, the two triggers
+and the one request agree exactly in the parts in the bin, the parts taken and the times tidied: they draw the
+same random numbers and take a part at the same moments. Which part they take can differ, so the time each part
+waits is not compared. The painter accounts for every part, taken or still in the bin, in every replication, and
+no batch leaves a part of its colour behind.
+
+### What to learn
+
+**Two triggers on one queue are two requests, and the default selector serves only the first.** The picker's red
+request is placed first, so it heads the bin's request queue. A blue part that arrives while the picker waits is
+not given to it: the request at the head cannot be filled, so none is. The picker sits idle beside the blue part
+until a red one comes. Only at the start of a wait is a part the bin already holds taken whatever its colour. The
+bin holds 2.93 parts instead of 2.25, and the check against M/M/1 fails, as it should.
+`bin.receiverRequestSelector = bin.FirstFillableRequest()` serves the first request the bin can fill.
+
+**When any part will do, ask for any part.** One request has no rival in the request queue, so the selector does
+not matter to it. Two triggers earn their place when what the picker does next depends on which one fired.
+
+**A time limit is one more way out of the same wait.** `waitForFirst(red, blue, timeout = patience)` and
+`waitForItemsOrTimeout(bin, timeout = patience)` end the same way when the time runs out: nothing is taken, and the
+requests leave the queue.
+
+**`anyItemsTrigger` takes every part that matches.** The painter takes 1.24 parts a batch on average, and painting
+whole batches keeps 0.59 parts in the bin.
+
+---
+
+## 8. Timed auctions
+
+### The problem
+
+An auctioneer sells one lot an hour. Bidders arrive and bid, and each waits for the first of three things: the
+lot is awarded to it, the auction closes without it, or its patience runs out and it withdraws its bid. The
+bidders are agents (see [`ksl-agent`](ksl-agent.md)): the award is a message in a bidder's mailbox, and the close
+is a broadcast to every bidder still waiting. How often is a lot sold, for how much, and how long do bidders wait?
+
+### The system
+
+| Quantity | Distribution or value | Model element |
+|---|---|---|
+| Time between bidders | exponential, mean 10 minutes | the bidders' generator |
+| Bid | uniform, 0 to 100 | `BidAmount` |
+| A bidder's patience | exponential, mean 30 minutes | `Patience` |
+| Auction | one lot, closing every 60 minutes; the highest bid standing wins | `auctionLength` |
+| How the losers are told | a broadcast, `AgentSignal`, or a `Reject` to each | `closing` |
+| Replications | 20 of 1,000 auctions | `numAuctions` |
+
+The answers are exact. A bidder arrives at a time uniform over its auction, so the time to the close is uniform
+from 0 to 60 minutes, and the bidder is still bidding at the close with probability (1 − e^−2)/2 = 0.432. The
+bidders still bidding at a close are Poisson with mean 6 × 0.432 = 2.59, so a lot is sold with probability
+1 − e^−2.59 = 0.925. Given n bids, the winning one has mean 100 n/(n + 1). A bidder waits for its patience or the
+close, whichever is shorter. `AuctionExact` works these out.
+
+### The model
+
+```mermaid
+flowchart LR
+    A(["bidder arrives"]) --> B["bids"] --> W{"first of: the award,<br/>the close,<br/>or its patience"}
+    W -- award --> X(["won"])
+    W -- close --> Y(["lost"])
+    W -- patience --> Z["withdraws its bid"] --> V(["withdrew"])
+    C["every 60 minutes"] --> D["award the highest bid,<br/>then broadcast the close"]
+```
+
+*Figure 7 — a bidder's wait, with three ways out, and the auctioneer's close.*
+
+### The code
+
+`TimedAuction.kt` in full.
+
+#### 1. Two ways to tell the losers
+
+```kotlin
+enum class Closing {
+    /** The winner gets an `Accept`; the others hear the close broadcast, an agent signal. */
+    SIGNAL,
+    /** The winner gets an `Accept`; every other bidder gets a `Reject`. */
+    REJECTIONS
+}
+```
+
+#### 2. The auctions
+
+```kotlin
+class TimedAuction(
+    parent: ModelElement,
+    val closing: Closing = Closing.SIGNAL,
+    val meanBetweenBidders: Double = 10.0,
+    val meanPatience: Double = 30.0,
+    val auctionLength: Double = 60.0,
+    val numAuctions: Int = 1000,
+    name: String? = null
+) : AgentModel(parent, name) {
+
+    private val patience = RandomVariable(this, ExponentialRV(meanPatience, 2), "Patience")
+    private val bidAmount = RandomVariable(this, UniformRV(0.0, 100.0, 3), "BidAmount")
+
+    private val auctioneer = PermanentAgent("Auctioneer")
+    private val closed = AgentSignal("AuctionClosed")
+
+    private class Bid(val bidder: Bidder, val amount: Double)
+
+    private val book = mutableListOf<Bid>()
+    private var lot = 0
+
+    /** Whether each auction sold its lot. */
+    val probSold = Response(this, "ProbSold")
+    /** The amount of each winning bid. */
+    val winningBid = Response(this, "WinningBid")
+    /** Whether each bidder won. */
+    val probWon = Response(this, "ProbWon")
+    /** Whether each bidder withdrew before the close. */
+    val probWithdrew = Response(this, "ProbWithdrew")
+    /** The time each bidder waited, from its bid to the end of its wait. */
+    val timeWaiting = Response(this, "TimeWaiting")
+    /** The bidders without exactly one outcome, and the lots sold without exactly one winner, each replication: none. */
+    val unaccounted = Response(this, "Unaccounted")
+
+    // counts kept from the start of the replication, for the accounting at its end
+    private var arrived = 0
+    private var resolved = 0
+    private var won = 0
+    private var sold = 0
+```
+
+The model is an `AgentModel`, the process model of the agent layer. The auctioneer is a permanent agent, so that
+its messages have a sender. The book is the list of bids standing.
+
+#### 3. The bidder
+
+```kotlin
+    inner class Bidder(aName: String) : Agent(aName) {
+        val bidding: KSLProcess = process(isDefaultProcess = true) {
+            val bid = Bid(this@Bidder, bidAmount.value)
+            book.add(bid)
+            val limit = patience.value
+            val outcome: Outcome
+            val waited: Double
+            when (closing) {
+                Closing.SIGNAL -> {
+                    val award = mailbox.triggerOfType<AgentMessage.Accept>()
+                    val close = closed.trigger()
+                    val result = waitForFirst(award, close, timeout = limit)
+                    waited = result.timeWaited
+                    outcome = when (result.trigger) {
+                        award -> Outcome.WON
+                        close -> Outcome.LOST
+                        else -> Outcome.WITHDREW
+                    }
+                }
+                Closing.REJECTIONS -> {
+                    val result = receiveMessageOrTimeout(mailbox, timeout = limit)
+                    waited = result.timeWaited
+                    outcome = when {
+                        result.timedOut -> Outcome.WITHDREW
+                        result.value is AgentMessage.Accept -> Outcome.WON
+                        else -> Outcome.LOST
+                    }
+                }
+            }
+            if (outcome == Outcome.WITHDREW) book.remove(bid)
+            if (outcome == Outcome.WON) won++
+            resolved++
+            probWon.value = if (outcome == Outcome.WON) 1.0 else 0.0
+            probWithdrew.value = if (outcome == Outcome.WITHDREW) 1.0 else 0.0
+            timeWaiting.value = waited
+        }
+    }
+
+    private enum class Outcome { WON, LOST, WITHDREW }
+```
+
+With the broadcast, the bidder's wait is one call with three ways out. `mailbox.triggerOfType<AgentMessage.Accept>()`
+is a trigger for an `Accept` message in the bidder's mailbox; `closed.trigger()` is a trigger for the next firing
+of the auction's `AgentSignal`; the timeout is its patience. With rejections, every bidder who does not win gets a
+message, so one `receiveMessageOrTimeout` is enough, and the message's type says how the auction went. Either way a
+bidder who runs out of patience takes its bid out of the book.
+
+#### 4. Arrivals and closes
+
+```kotlin
+    private var created = 0
+
+    private val bidders = AgentGenerator(
+        agentFactory = { arrived++; Bidder("Bidder-${++created}") },
+        timeUntilFirst = ExponentialRV(meanBetweenBidders, 1),
+        timeBetween = ExponentialRV(meanBetweenBidders, 1),
+        timeOfLast = numAuctions * auctionLength
+    )
+
+    override fun initialize() {
+        book.clear()
+        lot = 0
+        arrived = 0
+        resolved = 0
+        won = 0
+        sold = 0
+        schedule(::close, auctionLength)
+    }
+
+    private fun close(event: KSLEvent<Nothing>) {
+        lot++
+        val winner = book.maxByOrNull { it.amount }
+        probSold.value = if (winner == null) 0.0 else 1.0
+        if (winner != null) {
+            sold++
+            winningBid.value = winner.amount
+            winner.bidder.mailbox.deliver(AgentMessage.Accept(auctioneer, "lot-$lot"))
+        }
+        when (closing) {
+            Closing.SIGNAL -> closed.fire()
+            Closing.REJECTIONS -> for (b in book) if (b !== winner) b.bidder.mailbox.deliver(AgentMessage.Reject(auctioneer, "lot-$lot"))
+        }
+        book.clear()
+        if (lot < numAuctions) schedule(::close, auctionLength)
+    }
+
+    override fun replicationEnded() {
+        unaccounted.value = (abs(arrived - resolved) + abs(sold - won)).toDouble()
+    }
+}
+```
+
+At a close the auctioneer delivers the award first, then tells the others. The winner's wait is already ended by
+the award when the close is broadcast, so the broadcast does not reach it as well. The generator stops at the last
+close, so that every bidder's wait ends within the run.
+
+#### 5. The exact answers
+
+```kotlin
+class AuctionExact(val lambda: Double, val theta: Double, val length: Double, val top: Double = 100.0) {
+    /** The probability that a bidder is still bidding at the close. */
+    val probStanding: Double = (1.0 - exp(-theta * length)) / (theta * length)
+    /** The mean number of bidders still bidding at a close. */
+    val standing: Double = lambda * length * probStanding
+    /** The probability that an auction sells its lot. */
+    val probSold: Double = 1.0 - exp(-standing)
+    /** The probability that a bidder wins: one winner per lot sold, among the bidders of an auction. */
+    val probWon: Double = probSold / (lambda * length)
+    /** The probability that a bidder withdraws before the close. */
+    val probWithdrew: Double = 1.0 - probStanding
+    /** The mean time a bidder waits: its patience or the time to the close, whichever is shorter. */
+    val meanWait: Double = probWithdrew / theta
+
+    /** The mean winning bid: the largest of n uniform bids has mean n/(n + 1) of the top, given a sale. */
+    val meanWinningBid: Double
+        get() {
+            var p = exp(-standing)
+            var sum = 0.0
+            var n = 0
+            while (n < 200) {
+                n++
+                p *= standing / n
+                sum += p * n / (n + 1.0)
+            }
+            return top * sum / probSold
+        }
+}
+```
+
+#### 6. Running it
+
+```kotlin
+fun main() {
+    fun run(closing: Closing): TimedAuction {
+        val m = Model("TimedAuction", autoCSVReports = false)
+        val a = TimedAuction(m, closing = closing, name = "Auction")
+        m.numberOfReplications = 20
+        // a moment past the last close, so that every bidder's wait has ended
+        m.lengthOfReplication = a.numAuctions * a.auctionLength + 1.0
+        m.simulate()
+        return a
+    }
+    val bySignal = run(Closing.SIGNAL)
+    val exact = AuctionExact(1.0 / bySignal.meanBetweenBidders, 1.0 / bySignal.meanPatience, bySignal.auctionLength)
+    println("Bidders told of the close by a broadcast, against the exact values, 99% confidence intervals")
+    println(String.format("%-28s %10s %22s %10s %8s", "quantity", "estimate", "interval", "exact", "inside"))
+    compareAuction("probability a lot is sold", bySignal.probSold.acrossReplicationStatistic, exact.probSold)
+    compareAuction("mean winning bid", bySignal.winningBid.acrossReplicationStatistic, exact.meanWinningBid)
+    compareAuction("probability a bidder wins", bySignal.probWon.acrossReplicationStatistic, exact.probWon)
+    compareAuction("probability of withdrawing", bySignal.probWithdrew.acrossReplicationStatistic, exact.probWithdrew)
+    compareAuction("mean wait of a bidder", bySignal.timeWaiting.acrossReplicationStatistic, exact.meanWait)
+    println(String.format("%-28s %10.0f", "most unaccounted", bySignal.unaccounted.acrossReplicationStatistic.max))
+
+    val byRejections = run(Closing.REJECTIONS)
+    println()
+    println("The same auctions, with a rejection for each losing bidder and receiveMessageOrTimeout")
+    println(String.format("%-28s %12s %12s %6s", "statistic", "broadcast", "rejections", "same"))
+    for ((label, a, b) in listOf(
+        Triple("probability a lot is sold", bySignal.probSold, byRejections.probSold),
+        Triple("mean winning bid", bySignal.winningBid, byRejections.winningBid),
+        Triple("probability a bidder wins", bySignal.probWon, byRejections.probWon),
+        Triple("probability of withdrawing", bySignal.probWithdrew, byRejections.probWithdrew),
+        Triple("mean wait of a bidder", bySignal.timeWaiting, byRejections.timeWaiting)
+    )) {
+        val x = a.acrossReplicationStatistic
+        val y = b.acrossReplicationStatistic
+        val same = x.average == y.average && x.variance == y.variance
+        println(String.format("%-28s %12.4f %12.4f %6s", label, x.average, y.average, if (same) "yes" else "NO"))
+    }
+    println()
+    println("Read this alongside docs/guides/ksl-waits-tutorial.md, case 8.")
+}
+
+private fun compareAuction(label: String, stat: StatisticIfc, exact: Double) {
+    val ci = stat.confidenceInterval(0.99)
+    println(
+        String.format(
+            "%-28s %10.4f %22s %10.4f %8s", label, stat.average,
+            String.format("[%.4f, %.4f]", ci.lowerLimit, ci.upperLimit), exact, if (exact in ci) "yes" else "NO"
+        )
+    )
+}
+```
+
+### What it shows
+
+```text
+Bidders told of the close by a broadcast, against the exact values, 99% confidence intervals
+quantity                       estimate               interval      exact   inside
+probability a lot is sold        0.9271       [0.9230, 0.9312]     0.9253      yes
+mean winning bid                69.3670     [68.8599, 69.8741]    69.5249      yes
+probability a bidder wins        0.1545       [0.1533, 0.1557]     0.1542      yes
+probability of withdrawing       0.5659       [0.5614, 0.5704]     0.5677      yes
+mean wait of a bidder           17.0462     [16.9195, 17.1729]    17.0300      yes
+most unaccounted                      0
+
+The same auctions, with a rejection for each losing bidder and receiveMessageOrTimeout
+statistic                       broadcast   rejections   same
+probability a lot is sold          0.9271       0.9271    yes
+mean winning bid                  69.3670      69.3670    yes
+probability a bidder wins          0.1545       0.1545    yes
+probability of withdrawing         0.5659       0.5659    yes
+mean wait of a bidder             17.0462      17.0462    yes
+```
+
+### How we know it is right
+
+Each 99% interval contains its exact value. In every replication every bidder ended its wait exactly one way, and
+every lot sold had exactly one winner: a winner whose close trigger also fired would be counted as a loser, and the
+accounting would show it. The two ways of telling the losers agree exactly, in every statistic: they draw the same
+random numbers, and each bidder's wait ends at the same moment.
+
+### What to learn
+
+**An agent's message and an agent's signal join a wait like any other trigger.** `mailbox.triggerOfType<T>()`
+waits for a message of one type and leaves the others in the mailbox; `AgentSignal.trigger()` waits for the next
+firing. A signal has no memory: a bidder that starts waiting after the close does not hear it.
+
+**One firing reaches every waiter.** The broadcast ends the waits of all the losing bidders at once; with
+rejections, the auctioneer sends one message to each.
+
+**Order the outcomes at an instant on purpose.** The award is delivered before the close is broadcast, so the
+winner's wait ends with the award. Delivered the other way round, the winner would hear the close first and be
+counted as a loser.
+
+**A withdrawal is the model's job.** A timed-out wait takes nothing and sends nothing; the bidder removes its own
+bid from the book.
+
+---
+
 ## Checking your own model
 
 - **Compare with an answer found another way.** Every case here does. A queueing model with known answers
-  (cases 1 and 3), the same system written with events and `removeAndTerminate` (case 2), or another formulation (case 4) catch
+  (cases 1, 3, 6 and 7), an exact probability model (case 8), the same system written with events and `removeAndTerminate` (case 2), or another formulation (case 4) catch
   mistakes no amount of reading the code will.
-- **Account for everything.** Conservation (case 5) and Little's law (case 1) are checks a model can make
+- **Account for everything.** Conservation (cases 5, 7 and 8) and Little's law (case 1) are checks a model can make
   of itself, every replication.
 - **Turn on the resource checks.** Run with `-Dksl.checkInvariants=true` and every resource checks its
   accounting after each event: units busy, units held for reservations, and the waits registered on
@@ -1674,7 +2362,7 @@ record the wait from the result.
 
 ## Pitfalls
 
-- **A signal has no memory** (case 5). Send it when someone is waiting, or use a structure that keeps it.
+- **A signal has no memory** (cases 5 and 8). Send it when someone is waiting, or use a structure that keeps it.
 - **Count those who give up yourself,** from `timedOut` or `result.trigger == null`. Nothing counts them
   for you.
 - **`recordRenegedWait` changes what time in queue means** (case 1). Decide which you want, and report
@@ -1686,6 +2374,8 @@ record the wait from the result.
   `canResumeProcess` first. Resume its suspension, signal its signal, send to its queue.
 - **The order of the triggers settles only a tie at the start of the wait** (case 3). Later ties go by the
   calendar (case 5).
+- **Two item triggers on one blocking queue need `FirstFillableRequest`** (case 7). Under the default
+  selector the request at the head holds back the other, even one of the same wait.
 - **A negative timeout throws;** `Double.POSITIVE_INFINITY` means no limit.
 
 ---
@@ -1700,8 +2390,10 @@ record the wait from the result.
 | 4 | `ShuttleStop.kt` | `:KSLExamples:shuttleStop` |
 | 5 | `KittingWithExpediting.kt` | `:KSLExamples:kittingWithExpediting` |
 | 6 | `HospitalBeds.kt` | `:KSLExamples:hospitalBeds` |
+| 7 | `TwoColourBin.kt` | `:KSLExamples:twoColourBin` |
+| 8 | `TimedAuction.kt` | `:KSLExamples:timedAuction` |
 
 The checks of this page are in `KSLExamples/src/test/kotlin/ksl/examples/general/processview/waits/`.
 
-For waiting on agent messages with a time limit, `receiveMessageOrTimeout`, see the job shop and warehouse
-examples of [`ksl-agent`](ksl-agent.md), whose bidders stop waiting for a decision that will not come.
+Case 8 waits on agent messages and an agent signal. For more of `receiveMessageOrTimeout`, see the job shop and
+warehouse examples of [`ksl-agent`](ksl-agent.md), whose bidders stop waiting for a decision that will not come.

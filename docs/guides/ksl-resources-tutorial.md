@@ -1,13 +1,13 @@
 # Breaks, breakdowns and urgent work — a tutorial through the examples
 
-*Five worked cases.* Each one states a **problem**, describes the **system** with a table of every
+*Six worked cases.* Each one states a **problem**, describes the **system** with a table of every
 distribution and parameter, draws the **model**, gives **the whole of its code** with an explanation of
 every part, shows what it **produced**, and says **how we know it is right**: each example is checked
 against an answer found some other way, either the exact result of a queueing model or the same system
 written another way. Every number on this page came from running the example named beside it.
 
 > **Status: experimental.** A resource's own behavior (`behavior`, `cyclicBehavior`, `goOffShift`,
-> `goOnShift`), failures and repairs (`failures`, `fail`, `repair`), preemption (`preempt`), and reacting
+> `goOnShift`, `stopBehavior`, `startBehavior`, `onBehaviorStopped`), failures and repairs (`failures`, `fail`, `repair`), preemption (`preempt`), and reacting
 > to them (`delayOrInterrupt`, an allocation's `interruptedTrigger` and `restoredTrigger`, a delay's
 > `uses`) are released as experimental until the textbook covers them. Their API may change in a future
 > release.
@@ -35,6 +35,7 @@ what to do.
 | 3 | [Rush orders](#3-rush-orders) | a job that takes the machine from a less urgent one; preemption that resumes, and preemption that waits for the job to finish | `:KSLExamples:rushOrders` |
 | 4 | [Rerouting around a failure](#4-rerouting-around-a-failure) | a job told of the failure, which waits a while for the repair and then moves to a backup machine | `:KSLExamples:rerouting` |
 | 5 | [Doctors taken by critical patients](#5-doctors-taken-by-critical-patients) | preemption of one of two units; `RESUME` against `RESTART`; reacting to a preemption, by `delayOrInterrupt` or an allocation's triggers | `:KSLExamples:emergencyDoctors` |
+| 6 | [A machine on shifts that breaks down and jams](#6-a-machine-on-shifts-that-breaks-down-and-jams) | stopping and starting a resource's behavior; failures made by hand with `fail` and `repair`; breakdowns on busy time beside shifts | `:KSLExamples:shiftsAndBreakdowns` |
 
 The examples are in `KSLExamples/src/main/kotlin/ksl/examples/general/processview/resources/`. Each has a
 `main`; from IntelliJ, run it with the green arrow beside it, or from the command line with the Gradle task
@@ -51,7 +52,7 @@ exact value lies inside it. Where two formulations of one system are compared, t
 numbers in the same order, and the question is whether every result is *identical*: not close, the same.
 Where several versions of a system are compared with one another, they run on common random numbers, and
 each difference from the first comes with the half-width of its own 95% confidence interval, from the
-differences replication by replication.
+differences replication by replication. A half-width shown beside a single estimate is of its 95% interval too.
 
 `ResourcesExamplesValidationTest` in `KSLExamples/src/test` repeats these checks on each build: cases 1
 to 3 with the example's own settings, case 4 on shorter runs.
@@ -1583,13 +1584,317 @@ either ends it early. A preemption takes the doctor here; a failure of the bay, 
 
 ---
 
+## 6. A machine on shifts that breaks down and jams
+
+### The problem
+
+A machine works seven-hour stretches with an hour's break between them. It breaks down on its own as it wears,
+and it jams now and then; an operator stops it by hand to clear a jam. When work piles up, a supervisor cancels
+the breaks and lets the machine work through until the queue is empty. Does the machine still break down as often
+for the work it does, and what does the overtime buy?
+
+### The system
+
+| Quantity | Distribution or value | Model element |
+|---|---|---|
+| Time between jobs | exponential, mean 12 minutes | `timeBetweenJobs` |
+| Processing | exponential, mean 9 minutes | `Processing` |
+| Shifts | 420 minutes on shift, then a 60-minute break off shift | the machine's `cyclicBehavior` |
+| Busy time between breakdowns | exponential, mean 600 minutes | `Machine:TimeBetweenFailuresRV` |
+| Repair | exponential, mean 30 minutes | `Machine:RepairTimeRV` |
+| Time between jams | exponential, mean 240 minutes | `TimeBetweenJams` |
+| Clearing a jam | 5 minutes | `clearJam` |
+| What a stoppage does to the job on the machine | `RESUME` (it waits and goes on) | `interruptRule` |
+| Overtime when this many jobs wait | none, or 15 | `overtimeAt` |
+| Replications | 20 of 105,600 minutes, after a warm-up of 9,600: whole 480-minute cycles | |
+
+Three quantities have exact values. The breakdowns count busy time alone, and the time to the next one starts at
+each repair, so with an exponential time between them the machine breaks down 60/600 = 0.1 times per hour of work,
+whatever the breaks, jams and overtime do to the calendar. Every job is processed in the end and a stoppage loses
+no work under `RESUME`, so the machine is busy a proportion 9/12 = 0.75 of the time. On its breaks alone, the
+machine is on shift 420 of every 480 minutes, 0.875 of the time, exactly when the run is a whole number of cycles.
+
+### The model
+
+```mermaid
+flowchart LR
+    subgraph Machine
+        M1["on shift<br/>420 minutes"] --> M2["off shift<br/>60 minutes"] --> M1
+    end
+    subgraph Stoppages
+        S1["breakdown, after 600<br/>minutes busy on average"] --> S2["repair"]
+        S3["jam: the operator<br/>calls fail()"] --> S4["cleared: repair()"]
+    end
+    subgraph Supervisor
+        V1{"15 jobs waiting?"} -- yes --> V2["stopBehavior(NOW):<br/>no more breaks"]
+        V2 --> V3{"queue empty?"} -- yes --> V4["startBehavior()"]
+    end
+```
+
+*Figure 6 — the machine's own behavior takes its breaks; breakdowns and jams stop it; the supervisor stops and
+starts the behavior.*
+
+### The code
+
+`ShiftsAndBreakdowns.kt` in full.
+
+#### 1. The shop
+
+```kotlin
+class ShiftsAndBreakdowns(
+    parent: ModelElement,
+    val arrivalRate: Double = 1.0 / 12.0,
+    val meanProcessing: Double = 9.0,
+    val shiftLength: Double = 420.0,
+    val breakLength: Double = 60.0,
+    val meanBusyBetweenFailures: Double = 600.0,
+    meanRepair: Double = 30.0,
+    meanBetweenJams: Double = 240.0,
+    private val clearJam: Double = 5.0,
+    val overtimeAt: Int = Int.MAX_VALUE,
+    name: String? = null
+) : ProcessModel(parent, name) {
+
+    private val timeBetweenJobs = ExponentialRV(1.0 / arrivalRate, 1)
+    private val processing = RandomVariable(this, ExponentialRV(meanProcessing, 2), "Processing")
+    private val timeBetweenJams = RandomVariable(this, ExponentialRV(meanBetweenJams, 5), "TimeBetweenJams")
+
+    val machine = ResourceWithQ(this, "Machine")
+
+    /** The time a job spends in the shop, waiting and in service. */
+    val timeInShop = Response(this, "TimeInShop")
+    /** The minutes of work done on the jobs finished. */
+    val workDone = Counter(this, "WorkDone")
+    /** The jams the operator cleared. */
+    val jams = Counter(this, "Jams")
+    /** The breakdowns (failures other than jams) per hour of work done, each replication. */
+    val breakdownsPerHourWorked = Response(this, "BreakdownsPerHourWorked")
+    /** The times the supervisor cancelled the breaks. */
+    val overtimeStarts = Counter(this, "OvertimeStarts")
+    /** The supervisor's checks that found the machine off shift during overtime: none, if overtime works. */
+    val offShiftInOvertime = Counter(this, "OffShiftInOvertime")
+```
+
+The model's own statistics: the time in the shop, the work done, the jams cleared, the breakdowns per hour of work
+(set at the end of each replication), and two counts of the supervisor's.
+
+#### 2. The machine's breaks and breakdowns
+
+```kotlin
+    init {
+        machine.interruptRule = InterruptRule.RESUME
+        machine.cyclicBehavior {
+            delay(shiftLength)
+            machine.goOffShift()
+            delay(breakLength)
+            machine.goOnShift()
+        }
+        // a break cut short by the supervisor ends now: the machine comes back on shift
+        machine.onBehaviorStopped { if (machine.isOffShift) machine.goOnShift() }
+        machine.failures(
+            timeBetween = ExponentialRV(meanBusyBetweenFailures, 3),
+            repairTime = ExponentialRV(meanRepair, 4),
+            basis = ResourceFailureBasis.BUSY_TIME
+        )
+    }
+```
+
+The cyclic behavior is the break schedule, as in case 1. The breakdowns are declared on `BUSY_TIME`, as in case 2.
+`onBehaviorStopped` names what to do when the behavior is stopped at once: if the machine is on its break, the
+break ends there.
+
+#### 3. The jobs
+
+```kotlin
+    private inner class Job : Entity() {
+        val work: KSLProcess = process(isDefaultProcess = true) {
+            val m = seize(machine)
+            val t = processing.value
+            delay(t)
+            release(m)
+            workDone.increment(t)
+            timeInShop.value = time - createTime
+        }
+    }
+```
+
+A job's processing time is sampled before its `delay`, so the work done can be added up when it finishes.
+
+#### 4. The operator
+
+```kotlin
+    private inner class Operator : Entity() {
+        val rounds: KSLProcess = process {
+            while (true) {
+                delay(timeBetweenJams)
+                // a machine already down for a breakdown cannot jam
+                if (machine.isFailed) continue
+                machine.fail()
+                jams.increment()
+                delay(clearJam)
+                machine.repair()
+            }
+        }
+    }
+```
+
+A jam is a failure made by hand: `fail()` stops the machine, under its `interruptRule`, and `repair()` starts it
+again. A resource that is already failed cannot fail again, so the operator checks `isFailed` first: a machine down
+for a breakdown is not also jammed.
+
+#### 5. The supervisor
+
+```kotlin
+    private inner class Supervisor : Entity() {
+        val watch: KSLProcess = process {
+            while (true) {
+                delay(15.0)
+                if (machine.isBehaviorActive && machine.waitingQ.size >= overtimeAt) {
+                    machine.stopBehavior(BehaviorStop.NOW)
+                    overtimeStarts.increment()
+                } else if (!machine.isBehaviorActive && machine.waitingQ.isEmpty) {
+                    machine.startBehavior()
+                }
+                if (!machine.isBehaviorActive && machine.isOffShift) offShiftInOvertime.increment()
+            }
+        }
+    }
+```
+
+Every 15 minutes the supervisor looks at the queue. With 15 jobs or more waiting, it stops the machine's behavior
+at once, `BehaviorStop.NOW`, so no break is taken; once the queue is empty it starts the behavior again, and the
+machine works a full shift before its next break. `isBehaviorActive` is the check before each call: a behavior
+that is running cannot be started, and one that is stopped cannot be stopped. The supervisor is an entity of its
+own because a behavior cannot stop itself at once. The last line counts the checks that find the machine off
+shift during overtime, which should never happen.
+
+#### 6. Starting the run and counting the breakdowns
+
+```kotlin
+    private val generator = EntityGenerator(::Job, timeBetweenJobs, timeBetweenJobs)
+
+    override fun initialize() {
+        activate(Operator().rounds)
+        if (overtimeAt != Int.MAX_VALUE) activate(Supervisor().watch)
+    }
+
+    override fun replicationEnded() {
+        // the machine counts every failure, its breakdowns and the operator's jams alike
+        val failures = model.counter("${machine.name}:NumFailures")!!.value
+        breakdownsPerHourWorked.value = (failures - jams.value) / (workDone.value / 60.0)
+    }
+}
+```
+
+The machine's `NumFailures` counts every failure, declared or made by hand, so the breakdowns are those less the
+jams. Both counters start again after the warm-up, as does the work done.
+
+#### 7. Running it
+
+```kotlin
+fun main() {
+    fun run(overtimeAt: Int): ShiftsAndBreakdowns {
+        val m = Model("ShiftsAndBreakdowns", autoCSVReports = false)
+        val shop = ShiftsAndBreakdowns(m, overtimeAt = overtimeAt, name = "Shop")
+        m.numberOfReplications = 20
+        // a whole number of 480-minute cycles, before and after the warm-up
+        m.lengthOfReplicationWarmUp = 9_600.0
+        m.lengthOfReplication = 105_600.0
+        m.simulate()
+        return shop
+    }
+    val breaks = run(overtimeAt = Int.MAX_VALUE)
+    val cycle = breaks.shiftLength + breaks.breakLength
+    println("The machine on its breaks, against the exact values, 99% confidence intervals")
+    println(String.format("%-30s %10s %22s %10s %8s", "quantity", "estimate", "interval", "exact", "inside"))
+    compareShop("breakdowns per hour worked", breaks.breakdownsPerHourWorked.acrossReplicationStatistic, 60.0 / breaks.meanBusyBetweenFailures)
+    compareShop("proportion of time busy", breaks.machine.proportionOfTimeBusy.acrossReplicationStatistic, breaks.arrivalRate * breaks.meanProcessing)
+    compareShop("mean capacity on shift", breaks.machine.numActiveUnits.acrossReplicationStatistic, breaks.shiftLength / cycle)
+
+    val overtime = run(overtimeAt = 15)
+    println()
+    println("With overtime when 15 jobs wait")
+    println(String.format("%-30s %10s %22s %10s %8s", "quantity", "estimate", "interval", "exact", "inside"))
+    compareShop("breakdowns per hour worked", overtime.breakdownsPerHourWorked.acrossReplicationStatistic, 60.0 / overtime.meanBusyBetweenFailures)
+    compareShop("proportion of time busy", overtime.machine.proportionOfTimeBusy.acrossReplicationStatistic, overtime.arrivalRate * overtime.meanProcessing)
+    println(String.format("%-30s %10.4f", "overtime starts", overtime.overtimeStarts.acrossReplicationStatistic.average))
+    println(String.format("%-30s %10.4f", "mean capacity on shift", overtime.machine.numActiveUnits.acrossReplicationStatistic.average))
+    println(String.format("%-30s %10.0f", "most checks off shift in OT", overtime.offShiftInOvertime.acrossReplicationStatistic.max))
+    println()
+    println(String.format("%-30s %10s %12s %14s", "", "breaks", "overtime", "half-width"))
+    val a = breaks.timeInShop.acrossReplicationStatistic
+    val b = overtime.timeInShop.acrossReplicationStatistic
+    println(String.format("%-30s %10.4f %12.4f %14.4f", "time in shop", a.average, b.average, b.halfWidth))
+    println()
+    println("Read this alongside docs/guides/ksl-resources-tutorial.md, case 6.")
+}
+
+private fun compareShop(label: String, stat: StatisticIfc, exact: Double) {
+    val ci = stat.confidenceInterval(0.99)
+    println(
+        String.format(
+            "%-30s %10.4f %22s %10.4f %8s", label, stat.average,
+            String.format("[%.4f, %.4f]", ci.lowerLimit, ci.upperLimit), exact, if (exact in ci) "yes" else "NO"
+        )
+    )
+}
+```
+
+### What it shows
+
+```text
+The machine on its breaks, against the exact values, 99% confidence intervals
+quantity                         estimate               interval      exact   inside
+breakdowns per hour worked         0.1011       [0.0970, 0.1053]     0.1000      yes
+proportion of time busy            0.7512       [0.7432, 0.7592]     0.7500      yes
+mean capacity on shift             0.8750       [0.8750, 0.8750]     0.8750      yes
+
+With overtime when 15 jobs wait
+quantity                         estimate               interval      exact   inside
+breakdowns per hour worked         0.1012       [0.0971, 0.1053]     0.1000      yes
+proportion of time busy            0.7510       [0.7429, 0.7590]     0.7500      yes
+overtime starts                   27.5500
+mean capacity on shift             0.9113
+most checks off shift in OT             0
+
+                                   breaks     overtime     half-width
+time in shop                     125.9835      80.2257         4.6834
+```
+
+### How we know it is right
+
+Each 99% interval contains its exact value, with and without the overtime. The capacity on shift has no
+variation at all: the breaks follow the clock. With the overtime, no check of the supervisor's in any replication
+found the machine off shift while its breaks were cancelled.
+
+### What to learn
+
+**Stopping a behavior at once leaves the resource as it was.** `stopBehavior(BehaviorStop.NOW)` ends the behavior
+wherever it is. Stopped during a break, the machine would stay off shift: the queue would never empty, the
+supervisor would never start the breaks again, and the shop would stop for good. `onBehaviorStopped` is where the
+model puts the resource right. It runs only after a `stopBehavior`, not when a behavior ends on its own or the
+replication ends.
+
+**A hand failure and a declared one are the same state.** Both make `isFailed` true, both hold the job on the
+machine under `RESUME`, and both are counted in `NumFailures` and `PTimeFailed`. A model that needs them apart
+counts one of them itself, as this one counts the jams.
+
+**Busy time is wear.** The breakdowns keep their rate per hour of work through breaks, jams and overtime, because
+the clock runs only while the machine works. Overtime makes the machine work longer stretches, not wear faster.
+
+**What the overtime buys.** Cancelling breaks when 15 jobs wait raises the time on shift from 0.875 to 0.911 and
+cuts the time in the shop from 126 to 80 minutes, for the same work.
+
+---
+
 ## Checking your own model
 
 - **Compare with an answer found another way.** Every case here does. A queueing model with known answers
-  (cases 1, 2 and 3), the same breaks made by a capacity schedule (case 1), or the same system without the new
-  reaction (case 4) catch mistakes no amount of reading the code will.
-- **Account for everything.** Conservation of jobs (case 4) is a check a model can make of itself, every
-  replication. Count from the start of the replication, not from the end of the warm-up.
+  (cases 1, 2, 3 and 5), exact rates and proportions (case 6), the same breaks made by a capacity schedule (case 1),
+  the same system without the new reaction (case 4), or the same reaction written another way (case 5) catch
+  mistakes no amount of reading the code will.
+- **Account for everything.** Conservation of jobs (case 4) and a count of what should never happen (case 6)
+  are checks a model can make of itself, every replication. Count from the start of the replication, not from the end of the warm-up.
 - **Turn on the resource checks.** Run with `-Dksl.checkInvariants=true` and every resource checks its
   accounting after each event: units busy, units lent by preemption and units missing through failures,
   the reservations of waiting preemptors, and the delays held on each allocation. Each resource and
@@ -1615,6 +1920,8 @@ either ends it early. A preemption takes the doctor here; a failure of the bay, 
 - **Count the units, not the jobs, when they differ.** `numTimesPreempted` counts preemptions of the
   resource; `timesInterrupted` counts interruptions of one allocation, which may span several preemptions
   (case 3).
+- **Stopping a behavior at once does not undo what it did** (case 6). A behavior stopped during a break leaves
+  the resource off shift; put it right in `onBehaviorStopped`.
 - **Sample before you seize** when a reaction must be comparable with a plain delay (case 4).
 - **Counters start again after the warm-up** (case 4). An accounting check needs counts kept from the
   start of the replication.
@@ -1677,6 +1984,7 @@ private fun countLocally() = doctor.behavior {
 | 3 | `RushOrders.kt` | `:KSLExamples:rushOrders` |
 | 4 | `Rerouting.kt` | `:KSLExamples:rerouting` |
 | 5 | `EmergencyDoctors.kt` | `:KSLExamples:emergencyDoctors` |
+| 6 | `ShiftsAndBreakdowns.kt` | `:KSLExamples:shiftsAndBreakdowns` |
 | Pitfalls | `BehaviorState.kt` | `:KSLExamples:behaviorState` |
 
 The checks of this page are in `KSLExamples/src/test/kotlin/ksl/examples/general/processview/resources/`.

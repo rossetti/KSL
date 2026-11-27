@@ -455,7 +455,7 @@ pool that comes back on shift is offered to the pool's waiters at once.
 
 ### ...give a resource its own behavior
 
-*Experimental in R1.9.* Worked example: [`ksl-resources-tutorial`](ksl-resources-tutorial.md), case 1.
+*Experimental in R1.9.* Worked examples: [`ksl-resources-tutorial`](ksl-resources-tutorial.md), cases 1 and 6.
 
 A resource can run a process of its own every replication, such as taking
 a break. The usual form is `cyclicBehavior { }`, whose block is one cycle
@@ -531,7 +531,7 @@ doctor.cyclicBehavior {
 
 ### ...fail and repair a resource
 
-*Experimental in R1.9.* Worked examples: [`ksl-resources-tutorial`](ksl-resources-tutorial.md), cases 2 and 4.
+*Experimental in R1.9.* Worked examples: [`ksl-resources-tutorial`](ksl-resources-tutorial.md), cases 2, 4 and 6.
 
 Any resource can fail and be repaired, by a call or on a declared schedule:
 
@@ -975,7 +975,7 @@ with a timeout: wait on a `Signal` with `waitForOrTimeout`, and release the enti
 
 ### ...wait with a deadline
 
-*Experimental in R1.9.* Worked examples: [`ksl-waits-tutorial`](ksl-waits-tutorial.md), cases 1, 2 and 4.
+*Experimental in R1.9.* Worked examples: [`ksl-waits-tutorial`](ksl-waits-tutorial.md), cases 1, 2, 4, 6, 7 and 8.
 
 Each wait that ends when something else happens has a form with a time limit.
 It returns a `WaitResult`: either `Satisfied`, carrying the value, or `TimedOut`.
@@ -1021,7 +1021,7 @@ nothing is taken.
 
 ### ...wait for whichever comes first
 
-*Experimental in R1.9.* Worked examples: [`ksl-waits-tutorial`](ksl-waits-tutorial.md), cases 3 and 5; with a resource's triggers, [`ksl-resources-tutorial`](ksl-resources-tutorial.md), case 4.
+*Experimental in R1.9.* Worked examples: [`ksl-waits-tutorial`](ksl-waits-tutorial.md), cases 3, 5, 6, 7 and 8; with a resource's triggers, [`ksl-resources-tutorial`](ksl-resources-tutorial.md), case 4.
 
 To wait for the first of several things, get a *trigger* from each thing, and pass the
 triggers to `waitForFirst`:

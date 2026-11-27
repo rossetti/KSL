@@ -167,6 +167,38 @@ class ResourcesExamplesValidationTest {
             "routine patients who stay: ${ed.routineTime.acrossReplicationStatistic.average} against ${exact.routineTime} with no transfers")
     }
 
+    private fun shop(overtimeAt: Int): ShiftsAndBreakdowns {
+        lateinit var shop: ShiftsAndBreakdowns
+        run(20, 105_600.0, 9_600.0) { shop = ShiftsAndBreakdowns(it, overtimeAt = overtimeAt, name = "Shop") }
+        return shop
+    }
+
+    @Test
+    @DisplayName("shifts and breakdowns: breakdowns per hour worked, time busy and capacity on shift agree with their exact values")
+    fun shiftsAndBreakdownsOnBreaks() {
+        val shop = shop(Int.MAX_VALUE)
+        assertInside("breakdowns per hour worked", shop.breakdownsPerHourWorked.acrossReplicationStatistic, 60.0 / shop.meanBusyBetweenFailures)
+        assertInside("proportion of time busy", shop.machine.proportionOfTimeBusy.acrossReplicationStatistic, shop.arrivalRate * shop.meanProcessing)
+        // a whole number of cycles after the warm-up: the time on shift is exact in every replication
+        val capacity = shop.machine.numActiveUnits.acrossReplicationStatistic
+        val onShift = shop.shiftLength / (shop.shiftLength + shop.breakLength)
+        assertEquals(onShift, capacity.min, 1.0e-9)
+        assertEquals(onShift, capacity.max, 1.0e-9)
+        assertTrue(shop.jams.acrossReplicationStatistic.average > 0.0, "the operator must clear jams for this to test anything")
+    }
+
+    @Test
+    @DisplayName("shifts and breakdowns: overtime cancels breaks without leaving the machine off shift, and the busy-time failures keep their rate")
+    fun shiftsAndBreakdownsWithOvertime() {
+        val shop = shop(15)
+        assertTrue(shop.overtimeStarts.acrossReplicationStatistic.min > 0.0, "overtime must start in every replication")
+        assertEquals(0.0, shop.offShiftInOvertime.acrossReplicationStatistic.max, "the machine is never off shift in overtime")
+        assertInside("breakdowns per hour worked", shop.breakdownsPerHourWorked.acrossReplicationStatistic, 60.0 / shop.meanBusyBetweenFailures)
+        assertInside("proportion of time busy", shop.machine.proportionOfTimeBusy.acrossReplicationStatistic, shop.arrivalRate * shop.meanProcessing)
+        val onShift = shop.shiftLength / (shop.shiftLength + shop.breakLength)
+        assertTrue(shop.machine.numActiveUnits.acrossReplicationStatistic.average > onShift, "overtime adds time on shift")
+    }
+
     @Test
     @DisplayName("rerouting: with no wait limit, reacting to the failure gives exactly the results of not reacting")
     fun reroutingWithoutALimit() {

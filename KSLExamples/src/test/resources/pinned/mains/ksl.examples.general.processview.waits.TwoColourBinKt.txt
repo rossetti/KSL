@@ -1,0 +1,19 @@
+A part of either colour, FirstFillableRequest, against the exact M/M/1 values, 99% confidence intervals
+quantity                       estimate               interval      exact   inside
+mean parts in the bin            2.2696       [2.1051, 2.4341]     2.2500      yes
+mean time in the bin            27.2364     [25.3725, 29.1002]    27.0000      yes
+The same with the default selector, which serves only the request at the head
+quantity                       estimate               interval      exact   inside
+mean parts in the bin            2.9287       [2.7611, 3.0963]     2.2500       NO
+mean time in the bin            35.1450     [33.2697, 37.0202]    27.0000       NO
+Waiting at most 10 minutes for a part, then tidying for 5: two triggers against one request
+statistic                      two triggers    one request   same
+mean parts in the bin                2.3212         2.3212    yes
+parts taken                       7496.3000      7496.3000    yes
+times tidied                      1096.4000      1096.4000    yes
+A painter taking every part of one colour at once
+mean batch size                  1.2401
+mean parts in the bin            0.5902
+most parts unaccounted                0
+most incomplete batches               0
+Read this alongside docs/guides/ksl-waits-tutorial.md, case 7.

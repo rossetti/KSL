@@ -175,11 +175,14 @@ class PinnedResultsRunTest {
             "ksl.examples.general.processview.resources.MachineBreakdownsKt",
             "ksl.examples.general.processview.resources.ReroutingKt",
             "ksl.examples.general.processview.resources.RushOrdersKt",
+            "ksl.examples.general.processview.resources.ShiftsAndBreakdownsKt",
             "ksl.examples.general.processview.waits.FirstFreeOfTwoKt",
             "ksl.examples.general.processview.waits.HospitalBedsKt",
             "ksl.examples.general.processview.waits.ImpatientCallersKt",
             "ksl.examples.general.processview.waits.KittingWithExpeditingKt",
             "ksl.examples.general.processview.waits.ShuttleStopKt",
+            "ksl.examples.general.processview.waits.TimedAuctionKt",
+            "ksl.examples.general.processview.waits.TwoColourBinKt",
             "ksl.examples.general.processview.waits.WalkInHealthClinicViaTimedSeizeKt",
             "ksl.examples.general.spatial.TransporterExampleKt"
         )

@@ -43,8 +43,8 @@ model matches your problem.
 | Guide | When to use |
 |---|---|
 | [`ksl-entity`](ksl-entity.md) | **Process view** — each entity's life is written as a suspending coroutine (`delay`, `seize`, `release`, `move`) |
-| [`ksl-waits-tutorial`](ksl-waits-tutorial.md) *(experimental)* | **Waits with a deadline, or for whichever comes first, by worked example** — six process-view cases (impatient callers, the textbook's walk-in clinic rewritten, first free of two providers, a shuttle that leaves full or on time, kitting with expediting, hospital beds from a pool), each given in full and checked against an exact queueing result or the same system written another way |
-| [`ksl-resources-tutorial`](ksl-resources-tutorial.md) *(experimental)* | **Breaks, breakdowns and urgent work, by worked example** — five process-view cases (a doctor's breaks taken by the resource's own behavior, a machine that fails and is repaired, rush orders that preempt routine work, a job that reroutes around a failure, two doctors taken by critical patients), each given in full and checked against an exact queueing result or the same system written another way |
+| [`ksl-waits-tutorial`](ksl-waits-tutorial.md) *(experimental)* | **Waits with a deadline, or for whichever comes first, by worked example** — eight process-view cases (impatient callers, the textbook's walk-in clinic rewritten, first free of two providers, a shuttle that leaves full or on time, kitting with expediting, hospital beds from a pool, a bin of two colours of part, timed auctions among agents), each given in full and checked against an exact queueing result or the same system written another way |
+| [`ksl-resources-tutorial`](ksl-resources-tutorial.md) *(experimental)* | **Breaks, breakdowns and urgent work, by worked example** — six process-view cases (a doctor's breaks taken by the resource's own behavior, a machine that fails and is repaired, rush orders that preempt routine work, a job that reroutes around a failure, two doctors taken by critical patients, a machine on shifts whose breaks a supervisor cancels while it breaks down and jams), each given in full and checked against an exact queueing result or the same system written another way |
 | [`ksl-transport`](ksl-transport.md) | **Start here for vehicles** — which of the four transport subsystems to use, and why; free path vs guide path, passive vs dispatcher-driven |
 | [`ksl-transport-tutorial`](ksl-transport-tutorial.md) | **Vehicles by worked example** — the ten runnable examples as cases: problem, model (with a figure of the network), the example's complete code explained part by part, measured result, and what each is evidence for. Self-contained: nothing has to be opened to follow it |
 | [`ksl-spatial`](ksl-spatial.md) | **Spatial substrate** — locations, distances, movable resources; the substrate that `move` operates on |
@@ -96,6 +96,8 @@ system written another way.
 | 4 | `ShuttleStop` | `:KSLExamples:shuttleStop` |
 | 5 | `KittingWithExpediting` | `:KSLExamples:kittingWithExpediting` |
 | 6 | `HospitalBeds` | `:KSLExamples:hospitalBeds` |
+| 7 | `TwoColourBin` | `:KSLExamples:twoColourBin` |
+| 8 | `TimedAuction` | `:KSLExamples:timedAuction` |
 
 These are the cases of [`ksl-waits-tutorial`](ksl-waits-tutorial.md).
 
@@ -106,6 +108,7 @@ These are the cases of [`ksl-waits-tutorial`](ksl-waits-tutorial.md).
 | 3 | `RushOrders` | `:KSLExamples:rushOrders` |
 | 4 | `Rerouting` | `:KSLExamples:rerouting` |
 | 5 | `EmergencyDoctors` | `:KSLExamples:emergencyDoctors` |
+| 6 | `ShiftsAndBreakdowns` | `:KSLExamples:shiftsAndBreakdowns` |
 | Pitfalls | `BehaviorState` | `:KSLExamples:behaviorState` |
 
 These are the cases of [`ksl-resources-tutorial`](ksl-resources-tutorial.md).

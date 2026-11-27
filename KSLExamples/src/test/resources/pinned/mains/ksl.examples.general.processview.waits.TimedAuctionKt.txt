@@ -1,0 +1,16 @@
+Bidders told of the close by a broadcast, against the exact values, 99% confidence intervals
+quantity                       estimate               interval      exact   inside
+probability a lot is sold        0.9271       [0.9230, 0.9312]     0.9253      yes
+mean winning bid                69.3670     [68.8599, 69.8741]    69.5249      yes
+probability a bidder wins        0.1545       [0.1533, 0.1557]     0.1542      yes
+probability of withdrawing       0.5659       [0.5614, 0.5704]     0.5677      yes
+mean wait of a bidder           17.0462     [16.9195, 17.1729]    17.0300      yes
+most unaccounted                      0
+The same auctions, with a rejection for each losing bidder and receiveMessageOrTimeout
+statistic                       broadcast   rejections   same
+probability a lot is sold          0.9271       0.9271    yes
+mean winning bid                  69.3670      69.3670    yes
+probability a bidder wins          0.1545       0.1545    yes
+probability of withdrawing         0.5659       0.5659    yes
+mean wait of a bidder             17.0462      17.0462    yes
+Read this alongside docs/guides/ksl-waits-tutorial.md, case 8.

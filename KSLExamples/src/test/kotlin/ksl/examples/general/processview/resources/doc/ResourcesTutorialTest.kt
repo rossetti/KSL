@@ -123,8 +123,8 @@ class ResourcesTutorialTest {
         assumeTrue(Files.isRegularFile(guide), "guide not present in this checkout")
         val sources = sources()
         val code = blocks().filter { it.language == "kotlin" }
-        assertTrue(code.size >= 20 && code.map { it.case }.toSet() == setOf(1, 2, 3, 4, 5),
-            "expected at least 20 code blocks across the four cases; got ${code.size}, so this test would pass with too little to check")
+        assertTrue(code.size >= 20 && code.map { it.case }.toSet() == setOf(1, 2, 3, 4, 5, 6),
+            "expected at least 20 code blocks across the six cases; got ${code.size}, so this test would pass with too little to check")
         val failures = mutableListOf<String>()
         for (b in code) {
             val quoted = b.lines.map { it.trim() }.filter { it.isNotEmpty() && it != "..." }
@@ -145,7 +145,7 @@ class ResourcesTutorialTest {
         val shown = blocks().filter { it.language == "kotlin" }.flatMap { it.lines }.map { it.trim() }.filter { it.isNotEmpty() }.toSet()
         val claimed = Regex("""`(\w+\.kt)`\s+in full""").findAll(Files.readString(guide)).map { it.groupValues[1] }.distinct().toList()
         val sources = sources()
-        assertEquals(setOf("ClinicBreaks.kt", "MachineBreakdowns.kt", "RushOrders.kt", "Rerouting.kt", "EmergencyDoctors.kt"), claimed.toSet(),
+        assertEquals(setOf("ClinicBreaks.kt", "MachineBreakdowns.kt", "RushOrders.kt", "Rerouting.kt", "EmergencyDoctors.kt", "ShiftsAndBreakdowns.kt"), claimed.toSet(),
             "the files the tutorial claims to give in full")
         val failures = mutableListOf<String>()
         for (name in claimed) {
@@ -162,10 +162,11 @@ class ResourcesTutorialTest {
     fun shownOutputIsThePinnedOutput() {
         assumeTrue(Files.isRegularFile(guide), "guide not present in this checkout")
         val mainOf = mapOf(
-            1 to "ClinicBreaksKt", 2 to "MachineBreakdownsKt", 3 to "RushOrdersKt", 4 to "ReroutingKt", 5 to "EmergencyDoctorsKt"
+            1 to "ClinicBreaksKt", 2 to "MachineBreakdownsKt", 3 to "RushOrdersKt", 4 to "ReroutingKt", 5 to "EmergencyDoctorsKt",
+            6 to "ShiftsAndBreakdownsKt"
         )
         val outputs = blocks().filter { it.language == "text" }
-        assertEquals(setOf(1, 2, 3, 4, 5), outputs.map { it.case }.toSet(), "each case shows its output")
+        assertEquals(setOf(1, 2, 3, 4, 5, 6), outputs.map { it.case }.toSet(), "each case shows its output")
         val failures = mutableListOf<String>()
         for (b in outputs) {
             val pin = pins.resolve("$examplePackage.${mainOf.getValue(b.case)}.txt")

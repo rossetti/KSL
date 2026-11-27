@@ -1,0 +1,15 @@
+The machine on its breaks, against the exact values, 99% confidence intervals
+quantity                         estimate               interval      exact   inside
+breakdowns per hour worked         0.1011       [0.0970, 0.1053]     0.1000      yes
+proportion of time busy            0.7512       [0.7432, 0.7592]     0.7500      yes
+mean capacity on shift             0.8750       [0.8750, 0.8750]     0.8750      yes
+With overtime when 15 jobs wait
+quantity                         estimate               interval      exact   inside
+breakdowns per hour worked         0.1012       [0.0971, 0.1053]     0.1000      yes
+proportion of time busy            0.7510       [0.7429, 0.7590]     0.7500      yes
+overtime starts                   27.5500
+mean capacity on shift             0.9113
+most checks off shift in OT             0
+                                   breaks     overtime     half-width
+time in shop                     125.9835      80.2257         4.6834
+Read this alongside docs/guides/ksl-resources-tutorial.md, case 6.

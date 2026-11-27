@@ -131,6 +131,79 @@ class WaitsExamplesValidationTest {
         assertTrue(both.probStepDown.acrossReplicationStatistic.average > 0.0, "the step-down pool must be used for this to test anything")
     }
 
+    private fun bin(build: (Model) -> TwoColourBin): TwoColourBin {
+        lateinit var b: TwoColourBin
+        run(20, 100_000.0, 10_000.0) { b = build(it) }
+        return b
+    }
+
+    @Test
+    @DisplayName("two-colour bin: with FirstFillableRequest, a part of either colour agrees with the exact M/M/1 answers; the default selector does not")
+    fun twoColourBinSelectors() {
+        val first = bin { TwoColourBin(it, name = "Cell") }
+        val lambda = 1.0 / first.meanBetweenRed + 1.0 / first.meanBetweenBlue
+        val rho = lambda * first.meanWork
+        val exactNumber = rho * rho / (1.0 - rho)
+        assertInside("parts in the bin", first.numInBin.acrossReplicationStatistic, exactNumber)
+        assertInside("time in the bin", first.timeInBin.acrossReplicationStatistic, exactNumber / lambda)
+        // the default selector leaves the picker waiting for red beside a blue part, so more parts wait
+        val head = bin { TwoColourBin(it, firstFillable = false, name = "Cell") }
+        val ci = head.numInBin.acrossReplicationStatistic.confidenceInterval(0.99)
+        assertTrue(ci.lowerLimit > exactNumber, "the default selector: $ci against $exactNumber")
+    }
+
+    @Test
+    @DisplayName("two-colour bin: with a time limit, two triggers and one request for any part give identical results, under either selector")
+    fun twoColourBinTimed() {
+        val names = listOf("Bin:ChannelQ:NumInQ", "PartsTaken", "TimesTidied")
+        val twoTriggers = statistics(bin { TwoColourBin(it, patience = 10.0, name = "Cell") }.model)
+        val oneRequest = statistics(bin { TwoColourBin(it, picking = Picking.ONE_REQUEST, patience = 10.0, name = "Cell") }.model)
+        val oneRequestHead = statistics(bin { TwoColourBin(it, picking = Picking.ONE_REQUEST, firstFillable = false, patience = 10.0, name = "Cell") }.model)
+        assertTrue(twoTriggers.getValue("TimesTidied").average > 0.0, "the time limit must run out for this to test anything")
+        assertIdentical(twoTriggers, oneRequest, names)
+        assertIdentical(oneRequest, oneRequestHead, names)
+    }
+
+    @Test
+    @DisplayName("two-colour bin: the painter's batches take every part of their colour, and every part is taken or still in the bin")
+    fun twoColourBinBatches() {
+        for (firstFillable in listOf(true, false)) {
+            val painter = bin { TwoColourBin(it, picking = Picking.BATCHES, firstFillable = firstFillable, name = "Cell") }
+            assertEquals(0.0, painter.unaccounted.acrossReplicationStatistic.min, "firstFillable $firstFillable")
+            assertEquals(0.0, painter.unaccounted.acrossReplicationStatistic.max, "firstFillable $firstFillable")
+            assertEquals(0.0, painter.incompleteBatches.acrossReplicationStatistic.max, "firstFillable $firstFillable")
+            assertTrue(painter.batchSize.acrossReplicationStatistic.average > 1.0, "batches of more than one part must form")
+        }
+    }
+
+    private fun auction(closing: Closing): TimedAuction {
+        lateinit var a: TimedAuction
+        run(20, 60_001.0) { a = TimedAuction(it, closing = closing, name = "Auction") }
+        return a
+    }
+
+    @Test
+    @DisplayName("timed auction: sales, winning bids, wins, withdrawals and waits agree with the exact answers, and every bidder has one outcome")
+    fun timedAuctionExact() {
+        val a = auction(Closing.SIGNAL)
+        val exact = AuctionExact(1.0 / a.meanBetweenBidders, 1.0 / a.meanPatience, a.auctionLength)
+        assertInside("probability sold", a.probSold.acrossReplicationStatistic, exact.probSold)
+        assertInside("mean winning bid", a.winningBid.acrossReplicationStatistic, exact.meanWinningBid)
+        assertInside("probability won", a.probWon.acrossReplicationStatistic, exact.probWon)
+        assertInside("probability withdrew", a.probWithdrew.acrossReplicationStatistic, exact.probWithdrew)
+        assertInside("mean wait", a.timeWaiting.acrossReplicationStatistic, exact.meanWait)
+        assertEquals(0.0, a.unaccounted.acrossReplicationStatistic.max, "every bidder has one outcome and every lot one winner")
+    }
+
+    @Test
+    @DisplayName("timed auction: a close broadcast and rejections with receiveMessageOrTimeout give identical results")
+    fun timedAuctionTwoWays() {
+        val names = listOf("ProbSold", "WinningBid", "ProbWon", "ProbWithdrew", "TimeWaiting", "Unaccounted")
+        val bySignal = statistics(auction(Closing.SIGNAL).model)
+        val byRejections = statistics(auction(Closing.REJECTIONS).model)
+        assertIdentical(bySignal, byRejections, names)
+    }
+
     @Test
     @DisplayName("the shuttle stop gives identical results with its riders in a queue, waiting on one signal, and written with events")
     fun shuttleStop() {
