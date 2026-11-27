@@ -114,6 +114,24 @@ class WaitsExamplesValidationTest {
     }
 
     @Test
+    @DisplayName("hospital beds: a pool of beds, alone and with a step-down pool, agrees with the exact M/M/c+M answers")
+    fun hospitalBeds() {
+        lateinit var ward: Ward
+        run(20, 20_000.0, 2_000.0) { ward = Ward(it, name = "Ward") }
+        val exactWard = ErlangA(lambda = 1.4, mu = 1.0 / 8.0, theta = 1.0 / 4.0, c = 12)
+        assertInside("ward: probability of overflow", ward.probOverflow.acrossReplicationStatistic, exactWard.probAbandon)
+        assertInside("ward: mean number waiting", ward.numWaiting.acrossReplicationStatistic, exactWard.meanNumberWaiting)
+        assertInside("ward: mean wait", ward.timeWaiting.acrossReplicationStatistic, exactWard.meanWait)
+        lateinit var both: WardWithStepDown
+        run(20, 20_000.0, 2_000.0) { both = WardWithStepDown(it, name = "Ward") }
+        val exactBoth = ErlangA(lambda = 1.4, mu = 1.0 / 8.0, theta = 1.0 / 4.0, c = 16)
+        assertInside("both: probability of overflow", both.probOverflow.acrossReplicationStatistic, exactBoth.probAbandon)
+        assertInside("both: mean number waiting", both.numWaiting.acrossReplicationStatistic, exactBoth.meanNumberWaiting)
+        assertInside("both: mean wait", both.timeWaiting.acrossReplicationStatistic, exactBoth.meanWait)
+        assertTrue(both.probStepDown.acrossReplicationStatistic.average > 0.0, "the step-down pool must be used for this to test anything")
+    }
+
+    @Test
     @DisplayName("the shuttle stop gives identical results with its riders in a queue, waiting on one signal, and written with events")
     fun shuttleStop() {
         val byQueue = statistics(run(20, 10_000.0, 1_000.0) { ShuttleStop(it, name = "Stop") })

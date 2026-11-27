@@ -1,0 +1,18 @@
+Two doctors under RESUME, against the exact two-class M/M/2 values, 99% confidence intervals
+time in department         estimate               interval      exact   inside
+critical patients           32.0039     [31.7004, 32.3074]    32.0000      yes
+routine patients            88.4465     [84.8234, 92.0696]    86.8571      yes
+The same department under RESTART: a taken treatment starts again in full
+time in department           RESUME      RESTART     half-width
+critical patients           32.0039      32.0335         0.2484
+routine patients            88.4465     297.8140        27.8009
+Three ways of going on after a preemption under RESUME
+statistic                   library   delayOrInterrupt   triggers   same
+critical time               32.0039            32.0039    32.0039    yes
+routine time                88.4465            88.4465    88.4465    yes
+times preempted              0.2692             0.2692     0.2692    yes
+The three agree exactly.
+Routine patients transferred when their doctor is not back within 20 minutes
+share of routine patients transferred     0.1219
+routine time, those who stay            52.9900
+Read this alongside docs/guides/ksl-resources-tutorial.md, case 5.

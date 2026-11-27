@@ -128,6 +128,45 @@ class ResourcesExamplesValidationTest {
         assertInside("routine time in shop", shop.routineTime.acrossReplicationStatistic, exact.nonPreemptiveRoutine)
     }
 
+    private fun department(build: (Model) -> EmergencyDepartment): EmergencyDepartment {
+        lateinit var ed: EmergencyDepartment
+        run(30, 200_000.0, 20_000.0) { ed = build(it) }
+        return ed
+    }
+
+    @Test
+    @DisplayName("emergency doctors under RESUME: both classes agree with the two-class preemptive M/M/2")
+    fun emergencyDoctorsResume() {
+        val ed = department { EmergencyDepartment(it, name = "ED") }
+        val exact = TwoClassPreemptiveMMc(ed.criticalRate, ed.routineRate, 1.0 / ed.meanTreatment, 2)
+        assertInside("critical patients' time", ed.criticalTime.acrossReplicationStatistic, exact.criticalTime)
+        assertInside("routine patients' time", ed.routineTime.acrossReplicationStatistic, exact.routineTime)
+        assertTrue(ed.routineTimesPreempted.acrossReplicationStatistic.average > 0.0, "preemptions must happen for this to test anything")
+    }
+
+    @Test
+    @DisplayName("emergency doctors: delayOrInterrupt and the allocation's triggers reproduce the library's RESUME exactly")
+    fun emergencyDoctorsReactions() {
+        val names = listOf("CriticalTime", "RoutineTime", "RoutineTimesPreempted")
+        val library = statistics(department { EmergencyDepartment(it, name = "ED") }.model)
+        val reacting = statistics(department { EmergencyDepartment(it, reaction = Reaction.DELAY_OR_INTERRUPT, name = "ED") }.model)
+        val watching = statistics(department { EmergencyDepartment(it, reaction = Reaction.TRIGGERS, name = "ED") }.model)
+        assertIdentical(library, reacting, names)
+        assertIdentical(library, watching, names)
+    }
+
+    @Test
+    @DisplayName("emergency doctors: with a transfer limit, every routine patient is treated or transferred, and some are transferred")
+    fun emergencyDoctorsTransfers() {
+        val ed = department { EmergencyDepartment(it, reaction = Reaction.DELAY_OR_INTERRUPT, transferAfter = 20.0, name = "ED") }
+        val share = ed.transferred.acrossReplicationStatistic
+        assertTrue(share.average > 0.0 && share.average < 1.0, "some, not all, routine patients are transferred: ${share.average}")
+        // those left waiting longest for their doctor leave, so those who stay are in the department less long
+        val exact = TwoClassPreemptiveMMc(ed.criticalRate, ed.routineRate, 1.0 / ed.meanTreatment, 2)
+        assertTrue(ed.routineTime.acrossReplicationStatistic.average < exact.routineTime,
+            "routine patients who stay: ${ed.routineTime.acrossReplicationStatistic.average} against ${exact.routineTime} with no transfers")
+    }
+
     @Test
     @DisplayName("rerouting: with no wait limit, reacting to the failure gives exactly the results of not reacting")
     fun reroutingWithoutALimit() {

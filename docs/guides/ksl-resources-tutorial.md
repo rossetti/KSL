@@ -1,6 +1,6 @@
 # Breaks, breakdowns and urgent work — a tutorial through the examples
 
-*Four worked cases.* Each one states a **problem**, describes the **system** with a table of every
+*Five worked cases.* Each one states a **problem**, describes the **system** with a table of every
 distribution and parameter, draws the **model**, gives **the whole of its code** with an explanation of
 every part, shows what it **produced**, and says **how we know it is right**: each example is checked
 against an answer found some other way, either the exact result of a queueing model or the same system
@@ -34,6 +34,7 @@ what to do.
 | 2 | [A machine that breaks down](#2-a-machine-that-breaks-down) | declared failures and repairs; what happens to the job on the machine; counting failures by busy time, calendar time or uses | `:KSLExamples:machineBreakdowns` |
 | 3 | [Rush orders](#3-rush-orders) | a job that takes the machine from a less urgent one; preemption that resumes, and preemption that waits for the job to finish | `:KSLExamples:rushOrders` |
 | 4 | [Rerouting around a failure](#4-rerouting-around-a-failure) | a job told of the failure, which waits a while for the repair and then moves to a backup machine | `:KSLExamples:rerouting` |
+| 5 | [Doctors taken by critical patients](#5-doctors-taken-by-critical-patients) | preemption of one of two units; `RESUME` against `RESTART`; reacting to a preemption, by `delayOrInterrupt` or an allocation's triggers | `:KSLExamples:emergencyDoctors` |
 
 The examples are in `KSLExamples/src/main/kotlin/ksl/examples/general/processview/resources/`. Each has a
 `main`; from IntelliJ, run it with the green arrow beside it, or from the command line with the Gradle task
@@ -1220,6 +1221,368 @@ no limit are what make the comparisons with limits believable.
 
 ---
 
+## 5. Doctors taken by critical patients
+
+### The problem
+
+An emergency department has two doctors. Routine patients take a bay and wait for a doctor; a critical patient
+who finds both doctors busy takes one from a routine patient at once, if a routine patient holds one. What does that cost the routine
+patients, and what can a routine patient whose doctor is taken do: wait for the doctor to come back and go on,
+start again, or, if the doctor is away too long, be transferred to another hospital?
+
+### The system
+
+| Quantity | Distribution or value | Model element |
+|---|---|---|
+| Time between critical patients | exponential, mean 60 minutes | `TimeBetweenCritical` |
+| Time between routine patients | exponential, mean 30 minutes | `TimeBetweenRoutine` |
+| Treatment, either class | exponential, mean 30 minutes | `Treatment` |
+| Doctors | 2, one resource of capacity 2, a ranked queue | `Doctors` |
+| Bays | 20, held by a routine patient from arrival to departure | `Bays` |
+| What a taken treatment does | `RESUME` (goes on) or `RESTART` (starts again in full) | `rule` |
+| Transfer when the doctor is away longer than | no limit, or 20 minutes | `transferAfter` |
+| Replications | 30 of 200,000 minutes, after a warm-up of 20,000 | |
+
+With exponential treatment and `RESUME`, both classes have exact answers: the critical patients see an M/M/2
+queue of their own, and all patients together are an M/M/2 queue of the combined rate, since preemption changes
+who is treated, not how many.
+
+### The model
+
+```mermaid
+flowchart LR
+    subgraph Routine
+        R1(["arrives"]) --> R2["takes a bay"] --> R3["takes a doctor"] --> R4{"treated without<br/>losing the doctor?"}
+        R4 -- yes --> R5(["leaves"])
+        R4 -- "doctor taken" --> R6{"doctor back in time?"}
+        R6 -- yes --> R4
+        R6 -- no --> R7(["transferred"])
+    end
+    subgraph Critical
+        C1(["arrives"]) --> C2["takes a doctor,<br/>from a routine patient if need be"] --> C3["treated"] --> C4(["leaves"])
+    end
+```
+
+*Figure 5 — the two classes of patient. A critical patient uses `preempt`; a routine patient's treatment can be
+taken from it.*
+
+### The code
+
+`EmergencyDoctors.kt` in full.
+
+#### 1. Three ways to treat
+
+```kotlin
+enum class Reaction {
+    LIBRARY,
+    DELAY_OR_INTERRUPT,
+    TRIGGERS
+}
+```
+
+A routine patient's treatment is written three ways, chosen by the department's `reaction`. The first leaves a
+preemption to the library; the other two let the patient react to it, and when the patient simply goes on they
+must agree with the first exactly.
+
+#### 2. The department
+
+```kotlin
+class EmergencyDepartment(
+    parent: ModelElement,
+    val rule: InterruptRule = InterruptRule.RESUME,
+    val reaction: Reaction = Reaction.LIBRARY,
+    val transferAfter: Double = Double.POSITIVE_INFINITY,
+    val criticalRate: Double = 1.0 / 60.0,
+    val routineRate: Double = 1.0 / 30.0,
+    val meanTreatment: Double = 30.0,
+    numBays: Int = 20,
+    name: String? = null
+) : ProcessModel(parent, name) {
+
+    private val criticalArrivals = RandomVariable(this, ExponentialRV(1.0 / criticalRate, 1), "TimeBetweenCritical")
+    private val routineArrivals = RandomVariable(this, ExponentialRV(1.0 / routineRate, 2), "TimeBetweenRoutine")
+    private val treatment = RandomVariable(this, ExponentialRV(meanTreatment, 3), "Treatment")
+
+    private val doctors: ResourceWithQ = ResourceWithQ(
+        this, name = "Doctors", capacity = 2, queue = RequestQ(this, "Doctors:Q", Queue.Discipline.RANKED)
+    )
+    private val bays = ResourceWithQ(this, "Bays", capacity = numBays)
+
+    val criticalTime = Response(this, "CriticalTime")
+    val routineTime = Response(this, "RoutineTime")
+    val transferred = Response(this, "ProbTransfer")
+    val routineTimesPreempted = Response(this, "RoutineTimesPreempted")
+
+    init {
+        doctors.interruptRule = rule
+    }
+```
+
+The doctors are one resource of capacity 2 with a ranked queue, so a critical patient waits ahead of every
+routine patient; the bays are a resource of 20, which rarely all fill under `RESUME`. When they do, a patient
+waits for a bay before it joins the doctors' queue, so no doctor is idle while anyone waits for one. `rule` is
+the doctors' interrupt rule:
+what a preemption does to a plain `delay`.
+
+#### 3. The patients
+
+```kotlin
+private inner class CriticalPatient : Entity() {
+    init {
+        priority = 1
+    }
+
+    val visit: KSLProcess = process {
+        val doctor = preempt(doctors)
+        delay(treatment)
+        release(doctor)
+        criticalTime.value = time - createTime
+    }
+}
+
+private inner class RoutinePatient : Entity() {
+    init {
+        priority = 2
+    }
+
+    val visit: KSLProcess = process {
+        val bay = seize(bays)
+        val doctor = seize(doctors)
+        val work = treatment.value
+        val leaves = when (reaction) {
+            Reaction.LIBRARY -> {
+                delay(work)
+                false
+            }
+            Reaction.DELAY_OR_INTERRUPT -> treatReacting(work, doctor, bay)
+            Reaction.TRIGGERS -> treatWatching(work, doctor)
+        }
+        routineTimesPreempted.value = doctor.timesInterrupted.toDouble()
+        release(doctor)
+        release(bay)
+        transferred.value = if (leaves) 1.0 else 0.0
+        if (!leaves) routineTime.value = time - createTime
+    }
+}
+```
+
+A critical patient takes a doctor with `preempt`: a free one if there is one, otherwise one from a routine patient
+at once; if both doctors are treating critical patients, it waits at the head of the ranked queue. A routine patient takes a bay, then a doctor with `seize`, draws its treatment time, and is treated one
+of the three ways. `doctor.timesInterrupted` counts how often its doctor was taken. A transferred patient
+releases what it holds and leaves; its time is not recorded.
+
+#### 4. Going on after a preemption
+
+```kotlin
+private suspend fun KSLProcessBuilder.treatReacting(work: Double, doctor: Allocation, bay: Allocation): Boolean {
+    var left = work
+    while (true) {
+        when (val result = delayOrInterrupt(left, uses = listOf(doctor, bay))) {
+            is DelayResult.Completed -> return false
+            is DelayResult.Interrupted -> {
+                left = result.timeRemaining
+                val back = waitForFirst(result.by.restoredTrigger(), timeout = transferAfter)
+                if (back.timedOut) return true
+            }
+        }
+    }
+}
+
+private suspend fun KSLProcessBuilder.treatWatching(work: Double, doctor: Allocation): Boolean {
+    var left = work
+    while (true) {
+        val due = time + left
+        val taken = waitForFirst(doctor.interruptedTrigger(), timeout = left)
+        if (taken.timedOut) return false
+        left = due - time
+        val back = waitForFirst(doctor.restoredTrigger(), timeout = transferAfter)
+        if (back.timedOut) return true
+    }
+}
+```
+
+`treatReacting` uses `delayOrInterrupt(left, uses = listOf(doctor, bay))`: the treatment needs both, so taking
+either ends it early. The result says which allocation was taken (`by`) and how much was left
+(`timeRemaining`). The patient waits for that allocation to come back, with `restoredTrigger`, but for no longer
+than `transferAfter`, and then treats for what was left, in a loop, since the doctor can be taken again.
+
+`treatWatching` does the same for the doctor alone (bays are never taken here), without `delayOrInterrupt`: it
+waits for the first of the doctor's
+`interruptedTrigger` and the time left running out. It keeps the time the treatment is due and works out what
+is left from it, as the library does; subtracting the time run at each step would drift by rounding, and the
+check that all three ways agree exactly would fail.
+
+#### 5. Arrivals
+
+```kotlin
+override fun initialize() {
+    schedule(::criticalArrival, criticalArrivals)
+    schedule(::routineArrival, routineArrivals)
+}
+
+private fun criticalArrival(event: KSLEvent<Nothing>) {
+    activate(CriticalPatient().visit)
+    schedule(::criticalArrival, criticalArrivals)
+}
+
+private fun routineArrival(event: KSLEvent<Nothing>) {
+    activate(RoutinePatient().visit)
+    schedule(::routineArrival, routineArrivals)
+}
+```
+
+Each class arrives in its own stream, scheduled by an event routine that starts the patient's process.
+
+#### 6. The exact answer
+
+```kotlin
+class TwoClassPreemptiveMMc(val lambda1: Double, val lambda2: Double, val mu: Double, val c: Int) {
+
+    private fun timeInSystem(lambda: Double): Double {
+        val a = lambda / mu
+        require(a < c) { "The queue must be stable: offered load $a with $c servers" }
+        var term = 1.0
+        var sum = 1.0
+        for (k in 1 until c) {
+            term *= a / k
+            sum += term
+        }
+        val waitingTerm = term * a / c / (1.0 - a / c)
+        val probWait = waitingTerm / (sum + waitingTerm)
+        return probWait / (c * mu - lambda) + 1.0 / mu
+    }
+
+    val criticalTime: Double = timeInSystem(lambda1)
+
+    val routineTime: Double = ((lambda1 + lambda2) * timeInSystem(lambda1 + lambda2) - lambda1 * criticalTime) / lambda2
+}
+```
+
+`TwoClassPreemptiveMMc` holds the exact mean time in the department of each class under `RESUME`: the M/M/2 time
+for the critical patients, and for the routine patients the combined M/M/2's mean number less the critical
+patients' mean number, divided by the routine arrival rate.
+
+#### 7. The study
+
+```kotlin
+fun main() {
+    fun run(build: (Model) -> EmergencyDepartment): EmergencyDepartment {
+        val m = Model("EmergencyDoctors", autoCSVReports = false)
+        val ed = build(m)
+        m.numberOfReplications = 30
+        m.lengthOfReplication = 200_000.0
+        m.lengthOfReplicationWarmUp = 20_000.0
+        m.simulate()
+        return ed
+    }
+    val resume = run { EmergencyDepartment(it, name = "ED") }
+    val exact = TwoClassPreemptiveMMc(resume.criticalRate, resume.routineRate, 1.0 / resume.meanTreatment, 2)
+    println("Two doctors under RESUME, against the exact two-class M/M/2 values, 99% confidence intervals")
+    println(String.format("%-24s %10s %22s %10s %8s", "time in department", "estimate", "interval", "exact", "inside"))
+    compareTimes("critical patients", resume.criticalTime.acrossReplicationStatistic, exact.criticalTime)
+    compareTimes("routine patients", resume.routineTime.acrossReplicationStatistic, exact.routineTime)
+
+    val restart = run { EmergencyDepartment(it, rule = InterruptRule.RESTART, name = "ED") }
+    println()
+    println("The same department under RESTART: a taken treatment starts again in full")
+    println(String.format("%-24s %10s %12s %14s", "time in department", "RESUME", "RESTART", "half-width"))
+    for ((label, a, b) in listOf(
+        Triple("critical patients", resume.criticalTime, restart.criticalTime),
+        Triple("routine patients", resume.routineTime, restart.routineTime)
+    )) {
+        val x = a.acrossReplicationStatistic
+        val y = b.acrossReplicationStatistic
+        println(String.format("%-24s %10.4f %12.4f %14.4f", label, x.average, y.average, y.halfWidth))
+    }
+
+    val reacting = run { EmergencyDepartment(it, reaction = Reaction.DELAY_OR_INTERRUPT, name = "ED") }
+    val watching = run { EmergencyDepartment(it, reaction = Reaction.TRIGGERS, name = "ED") }
+    println()
+    println("Three ways of going on after a preemption under RESUME")
+    println(String.format("%-24s %10s %18s %10s %6s", "statistic", "library", "delayOrInterrupt", "triggers", "same"))
+    var allSame = true
+    for ((label, pick) in listOf<Pair<String, (EmergencyDepartment) -> StatisticIfc>>(
+        "critical time" to { it.criticalTime.acrossReplicationStatistic },
+        "routine time" to { it.routineTime.acrossReplicationStatistic },
+        "times preempted" to { it.routineTimesPreempted.acrossReplicationStatistic }
+    )) {
+        val (a, b, c) = Triple(pick(resume), pick(reacting), pick(watching))
+        val same = listOf(b, c).all { it.average == a.average && it.variance == a.variance && it.count == a.count }
+        allSame = allSame && same
+        println(String.format("%-24s %10.4f %18.4f %10.4f %6s", label, a.average, b.average, c.average, if (same) "yes" else "NO"))
+    }
+    println(if (allSame) "The three agree exactly." else "The three DIFFER.")
+
+    val transfers = run { EmergencyDepartment(it, reaction = Reaction.DELAY_OR_INTERRUPT, transferAfter = 20.0, name = "ED") }
+    println()
+    println("Routine patients transferred when their doctor is not back within 20 minutes")
+    println(String.format("%-36s %10.4f", "share of routine patients transferred", transfers.transferred.acrossReplicationStatistic.average))
+    println(String.format("%-36s %10.4f", "routine time, those who stay", transfers.routineTime.acrossReplicationStatistic.average))
+    println()
+    println("Read this alongside docs/guides/ksl-resources-tutorial.md, case 5.")
+}
+
+private fun compareTimes(label: String, stat: StatisticIfc, exact: Double) {
+    val ci = stat.confidenceInterval(0.99)
+    println(
+        String.format(
+            "%-24s %10.4f %22s %10.4f %8s", label, stat.average,
+            String.format("[%.4f, %.4f]", ci.lowerLimit, ci.upperLimit), exact, if (exact in ci) "yes" else "NO"
+        )
+    )
+}
+```
+
+### What it shows
+
+```text
+Two doctors under RESUME, against the exact two-class M/M/2 values, 99% confidence intervals
+time in department         estimate               interval      exact   inside
+critical patients           32.0039     [31.7004, 32.3074]    32.0000      yes
+routine patients            88.4465     [84.8234, 92.0696]    86.8571      yes
+
+The same department under RESTART: a taken treatment starts again in full
+time in department           RESUME      RESTART     half-width
+critical patients           32.0039      32.0335         0.2484
+routine patients            88.4465     297.8140        27.8009
+
+Three ways of going on after a preemption under RESUME
+statistic                   library   delayOrInterrupt   triggers   same
+critical time               32.0039            32.0039    32.0039    yes
+routine time                88.4465            88.4465    88.4465    yes
+times preempted              0.2692             0.2692     0.2692    yes
+The three agree exactly.
+
+Routine patients transferred when their doctor is not back within 20 minutes
+share of routine patients transferred     0.1219
+routine time, those who stay            52.9900
+```
+
+### How we know it is right
+
+Under `RESUME` each class's 99% interval contains its exact value. The three ways of treating agree in every
+statistic, exactly: the library's held delay, the patient reacting with `delayOrInterrupt`, and the patient
+watching its doctor's allocation all draw the same random numbers and treat each patient at the same times. Each
+would have to make the same mistake at the same moment for the agreement to hide one.
+
+### What to learn
+
+**A restart repeats the same work.** Under `RESTART` the routine patients stay 298 minutes against 88 under
+`RESUME`. Treatment is exponential, but a restart does not draw a new time: it starts the same treatment again,
+so the longest treatments, the ones most often taken, are the ones repeated. The interval is wide because a few
+long treatments are taken again and again.
+
+**A holder can react.** With `delayOrInterrupt` or an allocation's triggers, a patient learns that its doctor is
+gone and decides what to do: here, wait for the doctor, or be transferred after 20 minutes. Transferring one
+routine patient in eight leaves those who stay with 53 minutes in the department against 88, partly because the
+patients whose doctor is away longest are the ones transferred.
+
+**Name every allocation the work needs.** `uses = listOf(doctor, bay)` says the treatment needs both; taking
+either ends it early. A preemption takes the doctor here; a failure of the bay, if bays could fail, would end
+`treatReacting`'s delay the same way, while `treatWatching`, which watches the doctor alone, would not notice it.
+
+---
+
 ## Checking your own model
 
 - **Compare with an answer found another way.** Every case here does. A queueing model with known answers
@@ -1313,6 +1676,7 @@ private fun countLocally() = doctor.behavior {
 | 2 | `MachineBreakdowns.kt` | `:KSLExamples:machineBreakdowns` |
 | 3 | `RushOrders.kt` | `:KSLExamples:rushOrders` |
 | 4 | `Rerouting.kt` | `:KSLExamples:rerouting` |
+| 5 | `EmergencyDoctors.kt` | `:KSLExamples:emergencyDoctors` |
 | Pitfalls | `BehaviorState.kt` | `:KSLExamples:behaviorState` |
 
 The checks of this page are in `KSLExamples/src/test/kotlin/ksl/examples/general/processview/resources/`.

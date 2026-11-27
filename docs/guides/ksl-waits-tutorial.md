@@ -1,6 +1,6 @@
 # Waiting with a deadline, or for whichever comes first — a tutorial through the examples
 
-*Five worked cases.* Each one states a **problem**, describes the **system** with a table of every
+*Six worked cases.* Each one states a **problem**, describes the **system** with a table of every
 distribution and parameter, draws the **model**, gives **the whole of its code** with an explanation of
 every part, shows what it **produced**, and says **how we know it is right**: each example is checked
 against an answer found some other way, either the exact result of a queueing model or the same system
@@ -33,6 +33,7 @@ construct at a time, and then together.
 | 3 | [First free of two](#3-first-free-of-two) | waiting for whichever of two resources is free first | `:KSLExamples:firstFreeOfTwo` |
 | 4 | [The shuttle that leaves full or on time](#4-the-shuttle-that-leaves-full-or-on-time) | two parties, each waiting for the other with a deadline | `:KSLExamples:shuttleStop` |
 | 5 | [Kitting, with expediting](#5-kitting-with-expediting) | three things in one wait; ties at one instant | `:KSLExamples:kittingWithExpediting` |
+| 6 | [Beds from a pool, with a fallback](#6-beds-from-a-pool-with-a-fallback) | a timed seize of a pool; waiting in two pools at once | `:KSLExamples:hospitalBeds` |
 
 The examples are in `KSLExamples/src/main/kotlin/ksl/examples/general/processview/waits/`. Each has a
 `main`; from IntelliJ, run it with the green arrow beside it, or from the command line with the Gradle task
@@ -1398,6 +1399,265 @@ causes arrive later, the one whose event runs first wins.
 
 ---
 
+## 6. Beds from a pool, with a fallback
+
+### The problem
+
+A hospital ward has twelve beds in three rooms of four. Patients arrive for it around the clock, and a patient
+who has waited too long for a bed is sent to an overflow unit elsewhere. The hospital also has a step-down unit
+with four beds in two rooms: would letting a waiting patient take a step-down bed, if one frees first, keep
+patients out of the overflow unit? Each unit's beds are a **pool**: a patient needs a bed, not a particular
+room.
+
+### The system
+
+| Quantity | Distribution or value | Model element |
+|---|---|---|
+| Time between patients | exponential, mean 1/1.4 hours (1.4 an hour) | `timeBetweenArrivals` |
+| Length of stay | exponential, mean 8 hours, in either unit | `Stay` |
+| Patience for a bed | exponential, mean 4 hours | `Patience` |
+| Ward beds | a pool of 3 rooms of 4 beds | `Beds` |
+| Step-down beds | a pool of 2 rooms of 2 beds | `StepDownBeds` |
+| Replications | 20 of 20,000 hours, after a warm-up of 2,000 | |
+
+With exponential times both systems have exact answers: any bed serves any patient, so a pool acts as one
+resource of all its beds, and the ward alone is an M/M/12+M queue, the queue of case 1 with twelve servers.
+
+### The model
+
+```mermaid
+flowchart LR
+    A(["patient arrives"]) --> W{"a bed before<br/>patience runs out?"}
+    W -- "ward bed" --> S1["stays"] --> D(["leaves"])
+    W -- "step-down bed<br/>(part 2)" --> S2["stays"] --> D
+    W -- no --> O(["overflow unit"])
+```
+
+*Figure 5 — one wait, for a bed from either pool, with a time limit.*
+
+### The code
+
+`HospitalBeds.kt` in full.
+
+#### 1. The ward
+
+```kotlin
+class Ward(
+    parent: ModelElement,
+    numRooms: Int = 3,
+    bedsPerRoom: Int = 4,
+    val arrivalRate: Double = 1.4,
+    meanStay: Double = 8.0,
+    meanPatience: Double = 4.0,
+    name: String? = null
+) : ProcessModel(parent, name) {
+
+    private val rooms = (1..numRooms).map { Resource(this, "Room$it", capacity = bedsPerRoom) }
+    private val beds = ResourcePoolWithQ(this, rooms, name = "Beds")
+
+    private val timeBetweenArrivals = ExponentialRV(1.0 / arrivalRate, 1)
+    private val stay = RandomVariable(this, ExponentialRV(meanStay, 2), "Stay")
+    private val patience = RandomVariable(this, ExponentialRV(meanPatience, 3), "Patience")
+
+    private val overflowed = Response(this, "ProbOverflow")
+
+    /** The proportion of patients sent to the overflow unit. */
+    val probOverflow get() = overflowed
+    /** The time-average number of patients waiting for a bed. */
+    val numWaiting get() = beds.waitingQ.numInQ
+    /** The time patients wait, those who give up included. */
+    val timeWaiting get() = beds.waitingQ.timeInQ
+```
+
+The ward's beds are three `Resource`s of capacity 4, one per room, gathered into a `ResourcePoolWithQ`. A
+patient asks the pool for one bed, and the pool's selection rule finds a room with one free: the patient never
+names a room. The pool keeps one queue for the patients waiting, `Beds:Q`, whose number in queue and time in
+queue are the statistics.
+
+#### 2. The patient
+
+```kotlin
+private inner class Patient : Entity() {
+    val admission: KSLProcess = process(isDefaultProcess = true) {
+        val result = seizeOrTimeout(beds, timeout = patience.value)
+        if (result.timedOut) {
+            overflowed.value = 1.0
+            return@process
+        }
+        overflowed.value = 0.0
+        delay(stay)
+        release(result.value)
+    }
+}
+
+private val generator = EntityGenerator(::Patient, timeBetweenArrivals, timeBetweenArrivals)
+```
+
+`seizeOrTimeout` takes a pool as it takes a resource: the patient waits in the pool's queue for one bed, for at
+most its patience. If the time runs out the patient leaves the queue, its wait recorded, and is sent to the
+overflow unit; otherwise it holds the bed from whichever room the pool chose for its stay, and releases the
+pool allocation, which frees that bed.
+
+#### 3. The ward with a step-down unit
+
+```kotlin
+class WardWithStepDown(
+    parent: ModelElement,
+    numRooms: Int = 3,
+    bedsPerRoom: Int = 4,
+    stepDownRooms: Int = 2,
+    bedsPerStepDownRoom: Int = 2,
+    val arrivalRate: Double = 1.4,
+    meanStay: Double = 8.0,
+    meanPatience: Double = 4.0,
+    name: String? = null
+) : ProcessModel(parent, name) {
+
+    private val wardBeds = ResourcePoolWithQ(this, (1..numRooms).map { Resource(this, "Room$it", capacity = bedsPerRoom) }, name = "Beds")
+    private val stepDownBeds = ResourcePoolWithQ(
+        this, (1..stepDownRooms).map { Resource(this, "StepDownRoom$it", capacity = bedsPerStepDownRoom) }, name = "StepDownBeds"
+    )
+
+    private val timeBetweenArrivals = ExponentialRV(1.0 / arrivalRate, 1)
+    private val stay = RandomVariable(this, ExponentialRV(meanStay, 2), "Stay")
+    private val patience = RandomVariable(this, ExponentialRV(meanPatience, 3), "Patience")
+
+    private val overflowed = Response(this, "ProbOverflow")
+    private val placedInStepDown = Response(this, "ProbStepDown")
+    private val waitForBed = Response(this, "WaitForBed")
+
+    /** The proportion of patients sent to the overflow unit. */
+    val probOverflow get() = overflowed
+    /** The proportion of placed patients given a step-down bed. */
+    val probStepDown get() = placedInStepDown
+    /** The time-average number of patients waiting: each waits in both queues, so the ward's counts them all. */
+    val numWaiting get() = wardBeds.waitingQ.numInQ
+    /**
+     *  The time patients wait, those who give up included. A patient who takes a step-down bed at once never
+     *  enters the ward's queue, so each patient records its own wait.
+     */
+    val timeWaiting get() = waitForBed
+
+    private inner class Patient : Entity() {
+        val admission: KSLProcess = process(isDefaultProcess = true) {
+            val ward = wardBeds.seizeTrigger()
+            val stepDown = stepDownBeds.seizeTrigger()
+            val result = waitForFirst(ward, stepDown, timeout = patience.value)
+            waitForBed.value = result.timeWaited
+            if (result.timedOut) {
+                overflowed.value = 1.0
+                return@process
+            }
+            overflowed.value = 0.0
+            placedInStepDown.value = if (result.firedBy(stepDown)) 1.0 else 0.0
+            val bed = if (result.firedBy(ward)) result.valueOf(ward) else result.valueOf(stepDown)
+            delay(stay)
+            release(bed)
+        }
+    }
+
+    private val generator = EntityGenerator(::Patient, timeBetweenArrivals, timeBetweenArrivals)
+}
+```
+
+The step-down unit is a second pool. A patient now waits with `waitForFirst` for whichever comes first: a ward
+bed (`wardBeds.seizeTrigger()`), a step-down bed (`stepDownBeds.seizeTrigger()`), or the end of its patience. A
+pool's seize trigger joins a wait as a resource's does: the request waits in the pool's queue, and when one
+pool serves the patient, its request in the other pool's queue is withdrawn at once. `firedBy` says which bed
+it got and `valueOf` hands over that allocation.
+
+The patient records its own wait, from the result's `timeWaited`. A patient who arrives to a full ward and a
+free step-down bed takes it at once, without ever joining the ward's queue, so neither queue sees every wait.
+The number waiting can still come from the ward's queue: every patient who waits at all waits in both.
+
+#### 4. The comparison
+
+```kotlin
+fun main() {
+    fun run(build: (Model) -> Unit): Model {
+        val m = Model("HospitalBeds", autoCSVReports = false)
+        build(m)
+        m.numberOfReplications = 20
+        m.lengthOfReplication = 20_000.0
+        m.lengthOfReplicationWarmUp = 2_000.0
+        m.simulate()
+        return m
+    }
+    lateinit var ward: Ward
+    run { ward = Ward(it, name = "Ward") }
+    val exactWard = ErlangA(lambda = 1.4, mu = 1.0 / 8.0, theta = 1.0 / 4.0, c = 12)
+    println("The ward alone, 12 beds, against the M/M/12+M answers, 99% confidence intervals")
+    println(String.format("%-30s %10s %22s %10s %8s", "quantity", "estimate", "interval", "exact", "inside"))
+    compareBeds("probability of overflow", ward.probOverflow.acrossReplicationStatistic, exactWard.probAbandon)
+    compareBeds("mean number waiting", ward.numWaiting.acrossReplicationStatistic, exactWard.meanNumberWaiting)
+    compareBeds("mean wait, all patients", ward.timeWaiting.acrossReplicationStatistic, exactWard.meanWait)
+
+    lateinit var both: WardWithStepDown
+    run { both = WardWithStepDown(it, name = "Ward") }
+    val exactBoth = ErlangA(lambda = 1.4, mu = 1.0 / 8.0, theta = 1.0 / 4.0, c = 16)
+    println()
+    println("The ward with its step-down unit, 12 + 4 beds, against the M/M/16+M answers")
+    println(String.format("%-30s %10s %22s %10s %8s", "quantity", "estimate", "interval", "exact", "inside"))
+    compareBeds("probability of overflow", both.probOverflow.acrossReplicationStatistic, exactBoth.probAbandon)
+    compareBeds("mean number waiting", both.numWaiting.acrossReplicationStatistic, exactBoth.meanNumberWaiting)
+    compareBeds("mean wait, all patients", both.timeWaiting.acrossReplicationStatistic, exactBoth.meanWait)
+    println(String.format("%-30s %10.4f", "share placed in step-down", both.probStepDown.acrossReplicationStatistic.average))
+    println()
+    println("Read this alongside docs/guides/ksl-waits-tutorial.md, case 6.")
+}
+
+private fun compareBeds(label: String, stat: StatisticIfc, exact: Double) {
+    val ci = stat.confidenceInterval(0.99)
+    println(
+        String.format(
+            "%-30s %10.4f %22s %10.4f %8s", label, stat.average,
+            String.format("[%.4f, %.4f]", ci.lowerLimit, ci.upperLimit), exact, if (exact in ci) "yes" else "NO"
+        )
+    )
+}
+```
+
+### What it shows
+
+```text
+The ward alone, 12 beds, against the M/M/12+M answers, 99% confidence intervals
+quantity                         estimate               interval      exact   inside
+probability of overflow            0.1045       [0.1014, 0.1076]     0.1054      yes
+mean number waiting                0.5839       [0.5645, 0.6033]     0.5903      yes
+mean wait, all patients            0.4174       [0.4051, 0.4297]     0.4217      yes
+
+The ward with its step-down unit, 12 + 4 beds, against the M/M/16+M answers
+quantity                         estimate               interval      exact   inside
+probability of overflow            0.0180       [0.0169, 0.0190]     0.0182      yes
+mean number waiting                0.1014       [0.0947, 0.1081]     0.1017      yes
+mean wait, all patients            0.0725       [0.0679, 0.0770]     0.0726      yes
+share placed in step-down          0.1385
+```
+
+### How we know it is right
+
+Every estimate's 99% interval contains its exact value. For the ward alone that is the M/M/12+M answer, as in
+case 1. For the two units together it is the M/M/16+M answer: every waiting patient waits in both pools' queues
+in arrival order, and a bed freed in either pool goes to the earliest of them, so the twelve ward beds and the
+four step-down beds act as one pool of sixteen. The agreement checks the pool's seize, its seize trigger, the
+withdrawal of the losing request, and the timed wait across two pools at once.
+
+### What to learn
+
+**A pool is one resource for a request any member can serve.** Asking the pool for a bed, with or without a
+time limit, behaves as asking one resource of all the members' beds; the rooms matter only to which bed is
+chosen.
+
+**Waiting in two pools at once pools them.** The step-down beds cut the overflow from one patient in ten to
+fewer than two in a hundred, and the mean wait from 25 minutes to under 5: four more beds, shared through one
+wait. About one placed patient in seven gets a step-down bed.
+
+**Record a wait where every patient passes.** A queue's time in queue counts only the requests that entered
+it; a patient served at once by another trigger of its wait never does. When a wait has several triggers,
+record the wait from the result.
+
+---
+
 ## Checking your own model
 
 - **Compare with an answer found another way.** Every case here does. A queueing model with known answers
@@ -1439,6 +1699,7 @@ causes arrive later, the one whose event runs first wins.
 | 3 | `FirstFreeOfTwo.kt` | `:KSLExamples:firstFreeOfTwo` |
 | 4 | `ShuttleStop.kt` | `:KSLExamples:shuttleStop` |
 | 5 | `KittingWithExpediting.kt` | `:KSLExamples:kittingWithExpediting` |
+| 6 | `HospitalBeds.kt` | `:KSLExamples:hospitalBeds` |
 
 The checks of this page are in `KSLExamples/src/test/kotlin/ksl/examples/general/processview/waits/`.
 

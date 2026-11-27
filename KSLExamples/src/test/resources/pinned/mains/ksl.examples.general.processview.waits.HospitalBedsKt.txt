@@ -1,0 +1,12 @@
+The ward alone, 12 beds, against the M/M/12+M answers, 99% confidence intervals
+quantity                         estimate               interval      exact   inside
+probability of overflow            0.1045       [0.1014, 0.1076]     0.1054      yes
+mean number waiting                0.5839       [0.5645, 0.6033]     0.5903      yes
+mean wait, all patients            0.4174       [0.4051, 0.4297]     0.4217      yes
+The ward with its step-down unit, 12 + 4 beds, against the M/M/16+M answers
+quantity                         estimate               interval      exact   inside
+probability of overflow            0.0180       [0.0169, 0.0190]     0.0182      yes
+mean number waiting                0.1014       [0.0947, 0.1081]     0.1017      yes
+mean wait, all patients            0.0725       [0.0679, 0.0770]     0.0726      yes
+share placed in step-down          0.1385
+Read this alongside docs/guides/ksl-waits-tutorial.md, case 6.

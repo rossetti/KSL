@@ -410,6 +410,7 @@ listOf(
     "firstFreeOfTwo" to "FirstFreeOfTwoKt",
     "shuttleStop" to "ShuttleStopKt",
     "kittingWithExpediting" to "KittingWithExpeditingKt",
+    "hospitalBeds" to "HospitalBedsKt",
 ).forEach { (taskName, mainName) ->
     tasks.register<JavaExec>(taskName) {
         group = "examples"
@@ -426,6 +427,7 @@ listOf(
     "rushOrders" to "RushOrdersKt",
     "rerouting" to "ReroutingKt",
     "behaviorState" to "BehaviorStateKt",
+    "emergencyDoctors" to "EmergencyDoctorsKt",
 ).forEach { (taskName, mainName) ->
     tasks.register<JavaExec>(taskName) {
         group = "examples"
