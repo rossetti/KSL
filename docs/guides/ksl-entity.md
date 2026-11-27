@@ -513,10 +513,15 @@ doctor.cyclicBehavior {
   would otherwise hang the run.
 - **One behavior for the whole resource,** however large its capacity. For
   per-unit behavior, use separate resources or a pool.
-- **Captured state carries over.** The block is one lambda run by a new
-  entity each replication: its local variables start fresh, but anything it
-  captures from outside keeps its value between replications. State that
-  must reset belongs inside the block.
+- **Where the state lives decides when it starts over.** A `cyclicBehavior`
+  block is called afresh for every cycle, so its local variables last one
+  cycle; a `behavior` block is called once per replication, so its local
+  variables last the replication. A variable outside the block, such as a
+  property of the model, keeps its value from one replication to the next.
+  State a cyclic behavior carries from cycle to cycle lives outside its
+  block: reset it in the model's `initialize`, or use a `behavior` that
+  loops itself and keep the state local to it (giving up the stop after
+  the current cycle and the check against a cycle that never waits).
 - **With a capacity schedule.** A behavior runs on a resource that has a
   schedule, but the schedule owns the capacity: the behavior's
   `goOffShift`, or any capacity change not from the schedule, is refused.

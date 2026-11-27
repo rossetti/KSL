@@ -425,6 +425,7 @@ listOf(
     "machineBreakdowns" to "MachineBreakdownsKt",
     "rushOrders" to "RushOrdersKt",
     "rerouting" to "ReroutingKt",
+    "behaviorState" to "BehaviorStateKt",
 ).forEach { (taskName, mainName) ->
     tasks.register<JavaExec>(taskName) {
         group = "examples"

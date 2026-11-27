@@ -1489,9 +1489,11 @@ open class Resource @JvmOverloads constructor(
      *  waits in its queue like any customer. The behavior belongs to the resource as a whole, however
      *  large its capacity: one process, not one per unit.
      *
-     *  The block is one lambda run by a new entity in each replication, so its local variables start
-     *  fresh every time while anything it captures from outside carries over between replications;
-     *  state that must reset belongs inside the block.
+     *  The block is called afresh for every cycle, so its local variables last one cycle. A variable
+     *  outside it, such as a property of the model, keeps its value from one replication to the next:
+     *  state carried from cycle to cycle lives outside the block and is reset in the model's
+     *  `initialize`, or the behavior is a [behavior] that loops itself and keeps the state local, giving
+     *  up the stop after the current cycle and the check against a cycle that never waits.
      *
      *  More than [maxCyclesPerInstant] cycles in a row that end at the time they began throw, naming
      *  this resource: such a cycle never waits. Use [stopBehavior] and [startBehavior] to switch the

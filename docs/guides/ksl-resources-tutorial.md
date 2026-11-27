@@ -1238,9 +1238,11 @@ no limit are what make the comparisons with limits believable.
 
 - **A resource has one behavior,** however many units it has, and a resource with a capacity schedule
   refuses `goOffShift`: use a schedule or shifts taken by a behavior, not both (case 1).
-- **A behavior's captured state carries over** between replications: the block runs afresh each
-  replication, but anything it captures from outside keeps its value. Keep state that must reset inside the
-  block.
+- **Where a behavior's state lives decides when it starts over.** A `cyclicBehavior` block is called afresh
+  for every cycle, so its local variables last one cycle; a `behavior` block is called once per replication, so
+  its local variables last the replication. A variable outside the block, such as a property of the model, keeps
+  its value from one replication to the next. A cyclic behavior's state that must last from cycle to cycle lives
+  outside its block, and must then be reset for each replication (the example after this list).
 - **The basis of the failures changes what they cost** (case 2). Busy time and uses wear the machine only
   when it works; calendar time wears it idle too.
 - **`FINISH` takes nothing in service**, so neither a failure nor a preemption interrupts a job under it,
@@ -1254,6 +1256,53 @@ no limit are what make the comparisons with limits believable.
 - **Counters start again after the warm-up** (case 4). An accounting check needs counts kept from the
   start of the replication.
 
+
+### Example: where a behavior's state lives
+
+`BehaviorState.kt` gives a doctor a break every hour, every third one long, and counts the breaks in a property of
+the model:
+
+```kotlin
+// created once, with the model
+private var breaksTaken = 0
+
+private fun countByProperty() = doctor.cyclicBehavior {
+    delay(60.0)
+    doctor.goOffShift()
+    breaksTaken++
+    if (breaksTaken % 3 == 0) longBreaks.increment()
+    delay(if (breaksTaken % 3 == 0) 30.0 else 10.0)
+    doctor.goOnShift()
+}
+```
+
+Over three replications of two breaks each, the count runs on across them: the second and third
+replications each take a long break the first does not (`BehaviorStateTest` checks it). Reset the count at
+the start of each replication, in the model's `initialize`:
+
+```kotlin
+override fun initialize() {
+    if (counting == BreakCount.RESET_IN_INITIALIZE) breaksTaken = 0
+}
+```
+
+or keep it local to a `behavior` that runs once per replication and loops itself, which gives up stopping the
+behavior after its current cycle and the check against a cycle that never waits:
+
+```kotlin
+private fun countLocally() = doctor.behavior {
+    var taken = 0
+    while (true) {
+        delay(60.0)
+        doctor.goOffShift()
+        taken++
+        if (taken % 3 == 0) longBreaks.increment()
+        delay(if (taken % 3 == 0) 30.0 else 10.0)
+        doctor.goOnShift()
+    }
+}
+```
+
 ---
 
 ## Appendix A — the companion files and how to run them
@@ -1264,6 +1313,7 @@ no limit are what make the comparisons with limits believable.
 | 2 | `MachineBreakdowns.kt` | `:KSLExamples:machineBreakdowns` |
 | 3 | `RushOrders.kt` | `:KSLExamples:rushOrders` |
 | 4 | `Rerouting.kt` | `:KSLExamples:rerouting` |
+| Pitfalls | `BehaviorState.kt` | `:KSLExamples:behaviorState` |
 
 The checks of this page are in `KSLExamples/src/test/kotlin/ksl/examples/general/processview/resources/`.
 
