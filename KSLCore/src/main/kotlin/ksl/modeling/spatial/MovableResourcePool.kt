@@ -164,7 +164,7 @@ open class MovableResourcePool(
      * that, the release would name the individual resource and match none of the pool's waiting
      * requests, which name the pool.
      */
-    fun allocate(
+    internal fun allocate(
         entity: ProcessModel.Entity,
         requestLocation: LocationIfc,
         queue: RequestQ,
@@ -243,7 +243,7 @@ open class MovableResourcePool(
         )
     }
 
-    fun deallocate(allocation: Allocation) {
+    internal fun deallocate(allocation: Allocation) {
         ProcessModel.logger.trace { "Movable Resource Pool $name is deallocating from resource ${allocation.myResource.name}" }
         allocation.myResource.deallocate(allocation)
     }

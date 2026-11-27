@@ -90,14 +90,14 @@ class AutonomousForkliftExample(parent: ModelElement, name: String? = null) :
 
         private var chargingStartedAt: Double = Double.NaN
 
-        /**
-         *  Hook into the resource's deallocate path. Each time a move
-         *  finishes (entity calls release), drop the battery by one
-         *  unit of energy.
-         */
-        override fun deallocate(allocation: ksl.modeling.entity.Allocation) {
-            super.deallocate(allocation)
-            battery = (battery - energyPerMove).coerceAtLeast(0.0)
+        init {
+            // Each time a move finishes (the entity releases the forklift), drop the battery by one unit of energy.
+            addAllocationListener(object : ksl.modeling.entity.AllocationListenerIfc {
+                override fun allocate(allocation: ksl.modeling.entity.Allocation) {}
+                override fun deallocate(allocation: ksl.modeling.entity.Allocation) {
+                    battery = (battery - energyPerMove).coerceAtLeast(0.0)
+                }
+            })
         }
 
         /**

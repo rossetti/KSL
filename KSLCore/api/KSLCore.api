@@ -11071,8 +11071,6 @@ public class ksl/modeling/entity/Resource : ksl/modeling/entity/ProcessModel, ks
 	public final fun addAllocationListener (Lksl/modeling/entity/AllocationListenerIfc;)V
 	protected fun afterReplication ()V
 	protected fun afterUnitsRestored ()V
-	public final fun allocate (Lksl/modeling/entity/ProcessModel$Entity;ILksl/modeling/entity/RequestQ;Ljava/lang/String;)Lksl/modeling/entity/Allocation;
-	public static synthetic fun allocate$default (Lksl/modeling/entity/Resource;Lksl/modeling/entity/ProcessModel$Entity;ILksl/modeling/entity/RequestQ;Ljava/lang/String;ILjava/lang/Object;)Lksl/modeling/entity/Allocation;
 	protected final fun allocationNotification (Lksl/modeling/entity/Allocation;)V
 	public final fun allocations ()Ljava/util/List;
 	public final fun allocations (Lksl/modeling/entity/ProcessModel$Entity;)Ljava/util/List;
@@ -11084,7 +11082,6 @@ public class ksl/modeling/entity/Resource : ksl/modeling/entity/ProcessModel, ks
 	protected fun checkBehaviorAllowed ()V
 	public final fun collectFailureStatistics ()V
 	public final fun cyclicBehavior (Lkotlin/jvm/functions/Function2;)V
-	public fun deallocate (Lksl/modeling/entity/Allocation;)V
 	protected final fun deallocationNotification (Lksl/modeling/entity/Allocation;)V
 	protected fun defaultExcludedControlNames ()Ljava/util/Set;
 	public final fun fail (Lksl/modeling/entity/InterruptRule;)V
@@ -11333,10 +11330,7 @@ public class ksl/modeling/entity/ResourcePool : ksl/modeling/entity/AbstractReso
 	public fun <init> (Lksl/simulation/ModelElement;Ljava/util/List;Ljava/lang/String;)V
 	public synthetic fun <init> (Lksl/simulation/ModelElement;Ljava/util/List;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun addResource (Lksl/modeling/entity/Resource;)V
-	public final fun allocate (Lksl/modeling/entity/ProcessModel$Entity;ILksl/modeling/entity/RequestQ;Lksl/modeling/entity/ResourceSelectionRuleIfc;Lksl/modeling/entity/ResourceAllocationRuleIfc;Ljava/lang/String;)Lksl/modeling/entity/ResourcePoolAllocation;
-	public static synthetic fun allocate$default (Lksl/modeling/entity/ResourcePool;Lksl/modeling/entity/ProcessModel$Entity;ILksl/modeling/entity/RequestQ;Lksl/modeling/entity/ResourceSelectionRuleIfc;Lksl/modeling/entity/ResourceAllocationRuleIfc;Ljava/lang/String;ILjava/lang/Object;)Lksl/modeling/entity/ResourcePoolAllocation;
 	public final fun canAllocate (Lksl/modeling/entity/ResourceSelectionRuleIfc;I)Z
-	public final fun deallocate (Lksl/modeling/entity/ResourcePoolAllocation;)V
 	public final fun getDefaultResourceAllocationRule ()Lksl/modeling/entity/ResourceAllocationRuleIfc;
 	public final fun getDefaultResourceSelectionRule ()Lksl/modeling/entity/ResourceSelectionRuleIfc;
 	public fun getInitialDefaultResourceAllocationRule ()Lksl/modeling/entity/ResourceAllocationRuleIfc;
@@ -14907,10 +14901,7 @@ public class ksl/modeling/spatial/MovableResourcePool : ksl/modeling/entity/Abst
 	public synthetic fun <init> (Lksl/simulation/ModelElement;Ljava/util/List;Lksl/utilities/random/rvariable/RVariableIfc;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun addResource (Lksl/modeling/entity/Resource;)V
 	public final fun addResource (Lksl/modeling/spatial/MovableResource;)V
-	public final fun allocate (Lksl/modeling/entity/ProcessModel$Entity;Lksl/modeling/spatial/LocationIfc;Lksl/modeling/entity/RequestQ;Lksl/modeling/spatial/MovableResourceSelectionRuleIfc;Lksl/modeling/spatial/MovableResourceAllocationRuleIfc;Ljava/lang/String;)Lksl/modeling/entity/Allocation;
-	public static synthetic fun allocate$default (Lksl/modeling/spatial/MovableResourcePool;Lksl/modeling/entity/ProcessModel$Entity;Lksl/modeling/spatial/LocationIfc;Lksl/modeling/entity/RequestQ;Lksl/modeling/spatial/MovableResourceSelectionRuleIfc;Lksl/modeling/spatial/MovableResourceAllocationRuleIfc;Ljava/lang/String;ILjava/lang/Object;)Lksl/modeling/entity/Allocation;
 	public final fun canAllocate (Lksl/modeling/spatial/MovableResourceSelectionRuleIfc;)Z
-	public final fun deallocate (Lksl/modeling/entity/Allocation;)V
 	public final fun getDefaultMovableResourceAllocationRule ()Lksl/modeling/spatial/MovableResourceAllocationRuleIfc;
 	public final fun getDefaultMovableResourceSelectionRule ()Lksl/modeling/spatial/MovableResourceSelectionRuleIfc;
 	public final fun getInitialDefaultMovableResourceAllocationRule ()Lksl/modeling/spatial/MovableResourceAllocationRuleIfc;

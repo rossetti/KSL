@@ -165,7 +165,7 @@ open class ResourcePool @JvmOverloads constructor(
      * request was made against, so that releasing one of them individually still processes the queue on
      * the pool's behalf rather than on behalf of a single member.
      */
-    fun allocate(
+    internal fun allocate(
         entity: ProcessModel.Entity,
         amountNeeded: Int = 1,
         queue: RequestQ,
@@ -262,7 +262,7 @@ open class ResourcePool @JvmOverloads constructor(
         return makeAllocations(allocation, request.amountRequested, list)
     }
 
-    fun deallocate(poolAllocation: ResourcePoolAllocation) {
+    internal fun deallocate(poolAllocation: ResourcePoolAllocation) {
         for (allocation in poolAllocation.allocations) {
             ProcessModel.logger.trace { "Resource Pool $name is deallocating from resource ${allocation.myResource.name}" }
             allocation.myResource.deallocate(allocation)

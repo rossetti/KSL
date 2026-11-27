@@ -204,11 +204,8 @@ open class Resource @JvmOverloads constructor(
      *  complete, in the order of its steps. A listener that changes the resource makes a change of its own, whose
      *  notices are delivered when it completes, before the listener returns; the notices of the first change still
      *  to be delivered then read the resource as the listener's change left it. A change that throws tells nothing.
-     *  A change that leaves more units available marks the resource, so that units no offer has served by the end of
-     *  the event are offered then (`offerUnitsLeftUnoffered`).
      */
     private inline fun <T> change(block: () -> T): T {
-        val availableBefore = if (myChangeDepth == 0) numAvailableUnits else Int.MAX_VALUE
         myChangeDepth++
         val result = try {
             block()
@@ -218,11 +215,7 @@ open class Resource @JvmOverloads constructor(
             throw e
         }
         myChangeDepth--
-        if (myChangeDepth == 0) {
-            // units the change left available are offered after the event if no offer has served them by then
-            if (numAvailableUnits > availableBefore) model.unofferedUnits.mark(this)
-            if (myDeferredNotices.isNotEmpty()) deliverNotices()
-        }
+        if (myChangeDepth == 0 && myDeferredNotices.isNotEmpty()) deliverNotices()
         return result
     }
 
@@ -736,7 +729,7 @@ open class Resource @JvmOverloads constructor(
     // - the declared failures: countUse, applyDueFailure, the failure clock's update, and repair's resume of the
     //   failure entity;
     // - a subclass's hook for units that came back: unitsRestored.
-    // The checks of waitingPreemptorPassedOver and offerUnitsLeftUnoffered judge nothing once the run has ended.
+    // The check of waitingPreemptorPassedOver judges nothing once the run has ended.
 
     /** Calls the subclass's hook for units that came back, unless the run has ended, when nothing can take them. */
     private fun unitsRestored() {
@@ -1683,7 +1676,8 @@ open class Resource @JvmOverloads constructor(
     /**
      * It is an error to attempt to allocate resource units to an entity if there are insufficient
      * units available. Thus, the amount requested must be less than or equal to the number of units
-     * available at the time of this call.
+     * available at the time of this call. A step of the process view's seize, internal so that units are
+     * taken only by a seize, in the order the waiting requests are served.
      *
      * @param entity the entity that is requesting the units
      * @param amountNeeded that amount to allocate, must be greater than or equal to 1
@@ -1693,7 +1687,7 @@ open class Resource @JvmOverloads constructor(
      * @return an allocation representing that the units have been allocated to the entity. The reference
      * to this allocation is necessary in order to deallocate the allocated units.
      */
-    fun allocate(
+    internal fun allocate(
         entity: Entity,
         amountNeeded: Int = 1,
         queue: RequestQ,
@@ -1714,13 +1708,13 @@ open class Resource @JvmOverloads constructor(
         allocation
     }
 
-    /** Causes the resource to deallocate the amount associated with the allocation
-     *  The primary use of this function is to support the release() function
-     *  of the process view.
+    /** Causes the resource to deallocate the amount associated with the allocation: the accounting of the process
+     *  view's release(), which then offers the freed units. Internal, so that units are freed only by a release, a
+     *  failure, a capacity change or a termination, each of which offers what it frees.
      *
      * @param allocation the allocation to be deallocated
      */
-    open fun deallocate(allocation: Allocation): Unit = change {
+    internal fun deallocate(allocation: Allocation): Unit = change {
         require(allocation.amount >= 1) { "The allocation does not have any amount to deallocate" }
         require(allocation.myResource === this) { "The allocations was not on this resource." }
         require(entityAllocations.contains(allocation.myEntity)) { "The entity associated with the allocation is not using this resource." }
@@ -2410,17 +2404,6 @@ open class Resource @JvmOverloads constructor(
 
     protected fun notifyWaitingRequestsOfCapacityIncrease(available: Int, priority: Int) {
         offerFreedUnits(priority, ResumeSource.REQUEST_Q_CAPACITY_INCREASE, "capacity_increase_resource=$name, available=$available")
-    }
-
-    /**
-     *  After an event in which a change left units of this resource available: offers them if a request in one of its
-     *  queues could take them now, as the invariant checks require after every event. Every path that frees units
-     *  offers them itself, so this finds nothing to do unless one forgot.
-     */
-    internal fun offerUnitsLeftUnoffered() {
-        if (isRunEnded || isFailed || isInactive || numAvailableUnits <= 0) return
-        if (myCapacityChangeQSet.none { it.nextRequestServableBy(this) != null }) return
-        offerFreedUnits(ProcessModel.RESUME_PRIORITY, ResumeSource.UNKNOWN_INTERNAL, "units_left_unoffered_resource=$name")
     }
 
     /**
