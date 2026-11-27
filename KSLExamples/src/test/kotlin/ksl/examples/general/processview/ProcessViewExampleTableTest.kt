@@ -34,7 +34,8 @@ import kotlin.test.assertTrue
  *
  *  - every example in a package is in its table, and every example in the table exists;
  *  - every task a row names runs that row's example;
- *  - the rows are in the order of the tutorial's cases, with the tutorial's tasks.
+ *  - the numbered rows are in the order of the tutorial's cases, with the tutorial's tasks; a row labelled in place
+ *    of a number (an example a tutorial's pitfalls use) is not a case.
  *
  *  Skipped rather than failed when the index is absent, so a checkout without `docs/` still builds.
  */
@@ -45,16 +46,17 @@ class ProcessViewExampleTableTest {
     private val sourceDir: Path = Path.of("src/main/kotlin/ksl/examples/general/processview")
     private val tutorials = mapOf("waits" to "ksl-waits-tutorial.md", "resources" to "ksl-resources-tutorial.md")
 
-    private class Row(val case: Int, val example: String, val task: String)
+    /** A row of the index's table; [case] is null for a row labelled in place of a case number. */
+    private class Row(val case: Int?, val example: String, val task: String)
 
     /** The rows of the index's table for the examples in `general.processview.<pkg>`. */
     private fun table(pkg: String): List<Row> {
         val lines = Files.readAllLines(index)
         val header = lines.indexOfFirst { it.startsWith("| # | Example, in `general.processview.$pkg`") }
         if (header < 0) return emptyList()
-        val row = Regex("""^\|\s*(\d+)\s*\|\s*`(\w+)`\s*\|\s*`:KSLExamples:(\w+)`\s*\|$""")
+        val row = Regex("""^\|\s*(\w+)\s*\|\s*`(\w+)`\s*\|\s*`:KSLExamples:(\w+)`\s*\|$""")
         return lines.drop(header + 2).takeWhile { it.startsWith("|") }.mapNotNull { line ->
-            row.find(line)?.let { Row(it.groupValues[1].toInt(), it.groupValues[2], it.groupValues[3]) }
+            row.find(line)?.let { Row(it.groupValues[1].toIntOrNull(), it.groupValues[2], it.groupValues[3]) }
         }
     }
 
@@ -101,7 +103,8 @@ class ProcessViewExampleTableTest {
         for (pkg in tutorials.keys) {
             val cases = tutorialCases(pkg)
             assertTrue(cases.size >= 4, "the ${tutorials[pkg]} table of cases yields ${cases.size} rows: was it reformatted?")
-            assertEquals(cases, table(pkg).map { it.case to it.task }, "the index's $pkg rows against the tutorial's cases")
+            val numbered = table(pkg).filter { it.case != null }
+            assertEquals(cases, numbered.map { it.case!! to it.task }, "the index's $pkg rows against the tutorial's cases")
         }
     }
 }

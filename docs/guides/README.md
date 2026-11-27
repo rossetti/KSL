@@ -104,6 +104,7 @@ These are the cases of [`ksl-waits-tutorial`](ksl-waits-tutorial.md).
 | 2 | `MachineBreakdowns` | `:KSLExamples:machineBreakdowns` |
 | 3 | `RushOrders` | `:KSLExamples:rushOrders` |
 | 4 | `Rerouting` | `:KSLExamples:rerouting` |
+| Pitfalls | `BehaviorState` | `:KSLExamples:behaviorState` |
 
 These are the cases of [`ksl-resources-tutorial`](ksl-resources-tutorial.md).
 
