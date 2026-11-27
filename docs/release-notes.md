@@ -467,6 +467,150 @@ These notes cover the published library — the simulation engine. As of R1.4 th
 (not published to Maven); it and the Swing applications are separate modules (see the
 README's build section) and are not part of the KSLCore artifact.
 
+## R1.9
+
+*In preparation.* Process-view waits with a time limit, waits for whichever comes first, resource failures,
+shifts, behaviors and preemption. Needs Kotlin 2.4 or later.
+
+**Re-run any model with a `WAIT` capacity change, a random queue, a request selection rule, a merged
+`EstimatedResponse`, or a fleet whose vehicles hold at stops or are interrupted on their way.** Their results can
+change. Details below.
+
+The process-view constructs new in this release are experimental until the textbook covers them: their API may
+change. The entity guide marks each one. Two tutorials teach them: `ksl-waits-tutorial` and
+`ksl-resources-tutorial`.
+
+### Results change
+
+- **A waiting request is allocated when it is served.** A request of a resource, a resource pool or a movable
+  resource pool gets its units when the library serves it, and leaves its queue then; its process takes the
+  allocation when it resumes, later in the same instant. A failure, capacity cut or shift's end in that instant
+  meets it as a holder. It can't be moved or removed with `removeAndTerminate`, and terminating its entity
+  releases its units.
+- **`WAIT` capacity decreases** take the idle units at once and the busy ones as they are released. Before, the
+  whole decrease waited while idle units could still be allocated. The chapter 7 scheduled STEM fair moves.
+- **`IGNORE` capacity decreases** wait only for units that are busy or held for a preemptor, and a change that leaves the capacity as it
+  is offers the free units.
+- **Request selection rules** govern arrivals, timed seizes and moves as they govern releases, and see only the
+  requests not yet served. A pool request is judged by its own rule, and a request moved into a queue is served at
+  the move when that queue would choose it next.
+- **Random queues** keep their order until the queue changes, so the item peeked is the item removed. Draws stay
+  uniform.
+- **Entities served at a release or a capacity change** resume at that event's priority.
+- **`EstimatedResponse.pooledVariance` and `merge`** give the sample variance of all the observations, whatever
+  the split. Cache merges and COMPASS get different variances.
+- **Fleet.** A vehicle interrupted on its way home, repositioning or going to charge goes on once put right. A load
+  is collected only where the vehicle is. A vehicle asked to carry a load not yet waiting waits at the pickup, in
+  `<fleet>:AwaitingLoadHoldQ`, and one told to depart a stop not before an instant stands in
+  `<fleet>:DepartureHoldQ`; both queues' responses join every fleet's results. A cancelled line cycle or a task
+  taken back lets a vehicle holding at a stop go at once. Free-path `LoadsPerLoadedMove` counts movements that begin, and loads per
+  round count only loads that came aboard. `numVehiclesStranded` counts only vehicles out of charge.
+- **Guided transporters** are dispatched only with capacity: one off shift, failed or halted is not offered to its
+  pools, and is offered again when it comes back.
+- **`AgentResource.goOnShift`** restores the replication's `initialCapacity`.
+- **A blocking queue's selector** decides alike when a request arrives and when items arrive.
+
+### Corrected
+
+- `Poisson`, `NegativeBinomial` and `Binomial` loss functions above the mean are summed over the tail, so they no
+  longer go negative or grow far into the upper tail. A negative binomial too wide to sum refuses such a point
+  rather than return an inaccurate value. These and `Geometric` refuse NaN, which overflowed the stack, and
+  whole-number arguments beyond `Int.MAX_VALUE - 5`, which could loop.
+- A solver run that ends normally no longer reports "Execution Halted/Error": `SolverResult.Completed.terminationReason`
+  gives the reason. A failure in a solver's own steps ends the run "Ended With An Error", and a concurrent solver
+  stops its members before it reports it.
+- `EstimatedResponse` pooling no longer overflows at very large values or counts.
+- A movable resource whose replication ends while it heads home, travels or carries a load starts the next one
+  not returning home, not moving empty and not transporting.
+- A process waiting for another entity's process not yet started, and terminated, cancels that start.
+- `removeAndTerminate`, `removeAllAndTerminate` and a terminated waiting process offer the units they free. A
+  moved request keeps its units. Removing an entity whose process is running throws before removing anything.
+- A message handed to a receiver terminated before it resumed goes back to the mailbox.
+- A second request served by the same offer, in a pool or under a selection rule, no longer waits beside a free
+  unit until the next release.
+- An `IGNORE` decrease whose duration ends while it waits is dropped and its units are offered.
+- An entity terminated on a conveyor, in a guided transporter journey or in a fleet leaves it at once.
+- A fleet commitment revoked while its vehicle loads, a transport waited on later, and a free-path transport to
+  where the load already is no longer stop the run.
+- Reading a resource's state statistics no longer calls `resourceBecameActive` or `resourceBecameInactive`.
+- A resource ending its replication with a `WAIT` decrease pending no longer stops the run.
+- A refused `goOffShift` leaves the resource on shift.
+- A seize that waited names its allocation as one that didn't.
+- An iterative process that has not ended reports its elapsed time so far.
+- A model's own entity type named `Driver` or `Carrier` is no longer confused with the library's.
+
+### Changed API
+
+- **`Resource.allocate` and `deallocate`, and those of `ResourcePool` and `MovableResourcePool`, are internal.**
+  Units are taken only by a seize and freed only by a release, a failure, a capacity change or a termination. A
+  model that called them, or a subclass that overrode `deallocate`, must change; an allocation listener is told of
+  every allocation and release.
+- **`Resource` gains final members** a subclass can no longer declare: `isOffShift`, `goOffShift`, `goOnShift`,
+  `isFailed`, `fail`, `repair`, `failures`, `collectFailureStatistics`, `hasFailures`, `interruptRule`,
+  `numTimesPreempted`, `seizeTrigger`, `behavior`, `cyclicBehavior`, `hasBehavior`, `behaviorProcess`,
+  `isBehaviorActive`, `isBehaviorStopRequested`, `behaviorActiveAtStart`, `maxCyclesPerInstant`, `startBehavior`,
+  `stopBehavior` and `onBehaviorStopped`. `GuidedTransporter.isOffShift` is now final. A compiled bundle with such
+  a subclass doesn't load.
+- The protected hook `Resource.afterGoOnShift()` is now `afterUnitsRestored()`, called on going back on shift and
+  at a repair.
+- `KSLProcessBuilder` gains abstract members (`waitForFirst`, `suspendForOrTimeout`, `preempt`,
+  `delay(…, uses = …)`, `delayOrInterrupt`); an outside implementation must add them.
+- New enum values in `SuspendType` and `ResumeSource`, and five new `AnimationEvent` subclasses: an exhaustive
+  `when` without `else` must add them. The trace format version is unchanged.
+- `HoldQueue.removeAndResume`, `removeAndImmediateResume` and `BatchQueue.removeAndResume` require the entity to be
+  in the queue. A second resume of one suspension throws; `Signal.signal(entity)` on an entity already signalled
+  does nothing.
+- `Entity.resumeProcess()` throws for an entity in a delay, a timed wait or a `waitForFirst`; `canResumeProcess`
+  checks first.
+- `AgentResource.agentModel` is public, and a statechart and a behavior on one agent resource are exclusive.
+- `MovableResource`'s home-base driver entity class is `MovableResourceHomeDriver`.
+- `Conveyor.statisticalReportingForSegmentUtilization` replaces the misspelled name, kept as a deprecated alias.
+- A wake-up asked for while a replication's entities are terminated at its end is dropped. Once a replication's
+  events have ended, nothing reacts to a message, a claim or an `AgentSignal`, and a resume is refused;
+  `Suspension.canResume` and `canResumeProcess` check first.
+- `takeAboard(ride)` throws for a ride that is not waiting; check `Ride.isWaiting`. A short turn is refused while a
+  pickup or set-down is still ahead.
+- `ResourceCIfc`, `AllocationIfc`, `AllocationListenerIfc` and `EntityTypeInfo` gain members with defaults.
+- KSLCore's public API is listed in `KSLCore/api/KSLCore.api` and checked by the build.
+
+### New
+
+- **Waits with a time limit:** `seizeOrTimeout` (every resource and pool with a queue), `waitForOrTimeout`,
+  `waitForItemsOrTimeout`, `waitForAnyItemsOrTimeout`, `waitForAnyOrTimeout`, `suspendForOrTimeout`,
+  `receiveMessageOrTimeout` and `receiveMessageOfTypeOrTimeout`. Each returns a `WaitResult`. A timed-out wait
+  takes nothing, and a reneged seize's wait is recorded unless `recordRenegedWait = false`.
+- **Waits for whichever comes first:** `waitForFirst(triggers…, timeout)`, with triggers from mailboxes, signals,
+  blocking queues (`itemsTrigger`, `anyItemsTrigger`), resources and pools (`seizeTrigger`), allocations
+  (`interruptedTrigger`, `restoredTrigger`) and `AgentSignal.trigger()`. `WaitForFirstResult` says which fired.
+  `ProcessModel.TIMEOUT_PRIORITY` is the timer's default priority.
+- **Shifts and behaviors on every `Resource`:** `goOffShift`, `goOnShift`, `isOffShift`; `cyclicBehavior { }` and
+  `behavior { }`, with `stopBehavior`, `startBehavior`, `onBehaviorStopped` and the `behaviorActiveAtStart` control.
+- **Failures:** `fail()`, `repair()`, `isFailed`, `failedState`; `failures(timeBetween, repairTime, basis, rule)`
+  on calendar time, busy time or uses; `collectFailureStatistics()` (`PTimeFailed`, `NumFailures`).
+- **Preemption:** `preempt(resource, …)` takes units from holders of lower priority. `InterruptRule` (`FINISH`,
+  `RESUME`, `RESTART`) sets what happens to the work they were doing; `delay(…, uses = …)` names the allocations a
+  delay depends on.
+- **Reacting to an interruption:** `delayOrInterrupt` returns `DelayResult.Interrupted` or `Completed`;
+  `Allocation.hasMissingUnits`, `timesInterrupted` and `timeInterrupted`; `Resource.numTimesPreempted`.
+- `ProcessModel.isReplicationEnding`, `Dispatcher.removeAndTerminate`, `canMoveRequestToResource` (protected),
+  `isWaitingForFirst`.
+- Trace events `WaitTimedOut`, `SeizeWithdrawn`, `ResourceUnitsLent`, `ResourceUnitsReturned` and
+  `DelayInterrupted`.
+
+### Diagnostics
+
+- With `-Dksl.checkInvariants=true`, every resource and blocking queue checks its accounting after each event.
+- A resource pool or movable resource pool no longer logs two warnings each replication as it restores its default
+  rules.
+
+### Documentation
+
+- Two tutorials, `ksl-waits-tutorial` (eight cases) and `ksl-resources-tutorial` (six cases), each case given in
+  full and checked against an exact answer or a second formulation.
+- The entity guide covers each new construct. The agent guide describes delivery as it happens.
+- `JobShopExample` and `WarehouseAGVExample` bidders wait for a decision with `receiveMessageOrTimeout`.
+
+
 ## R1.8.2
 
 *6 November 2026.* Corrective. Needs Kotlin 2.4 or later.
