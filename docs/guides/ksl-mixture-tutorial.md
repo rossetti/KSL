@@ -4,8 +4,6 @@
 `scoring` and `search` subpackages, `ksl.utilities.distributions.fitting.diagnostics`, and the
 mixture report extensions in `ksl.utilities.io.report.extensions`.
 
-**New in R1.7.**
-
 > **Status: experimental.** These packages are released as experimental. Their public API may
 > change in future releases without notice. Pin your KSL version if you build against them for
 > production use.

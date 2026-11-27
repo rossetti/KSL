@@ -411,7 +411,7 @@ in use together. `ParallelDesignedExperiment` exposes the same methods.
 ### ...run a few named scenarios sequentially
 
 ```kotlin
-// Legacy shared-model path: one model reused across scenarios.
+// Shared-model path: one model reused across scenarios.
 val model = Model("MM1_Test")
 model.numberOfReplications = 20
 model.lengthOfReplication = 1000.0

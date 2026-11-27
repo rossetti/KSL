@@ -6,8 +6,6 @@ every part, shows what it **produced**, and says **how we know it is right**: ea
 against an answer found some other way, either the exact result of a queueing model or the same system
 written another way. Every number on this page came from running the example named beside it.
 
-**New in R1.9.**
-
 > **Status: experimental.** A resource's own behavior (`behavior`, `cyclicBehavior`, `goOffShift`,
 > `goOnShift`), failures and repairs (`failures`, `fail`, `repair`), preemption (`preempt`), and reacting
 > to them (`delayOrInterrupt`, an allocation's `interruptedTrigger` and `restoredTrigger`, a delay's
@@ -25,8 +23,8 @@ resource", "...let urgent work take a resource (preemption)" and "...react to a 
 ## How to read this tutorial
 
 A resource is not always there to be seized. A doctor takes breaks, a machine breaks down, and urgent work
-takes a machine from the job on it. Until R1.9 a model could change a resource's capacity on a timetable,
-but the resource could not act for itself, could not fail, and could not be taken from its holder. The
+takes a machine from the job on it. A capacity schedule can change a resource's capacity on a timetable, but
+it cannot make the resource act for itself, fail, or be taken from its holder. The constructs here do. The
 cases below take a resource away in each of these ways, and the last lets the job that loses it decide
 what to do.
 
@@ -129,8 +127,8 @@ enum class BreakPolicy {
 }
 ```
 
-`AT_ONCE_BY_SCHEDULE` is the same breaks as `AT_ONCE`, made the way the KSL made them before R1.9. It is
-here to check the new way against the old.
+`AT_ONCE_BY_SCHEDULE` is the same breaks as `AT_ONCE`, made by a capacity schedule instead. It is
+here to check the resource's own behavior against the schedule.
 
 #### 2. The clinic's parameters and its elements
 
@@ -1225,7 +1223,7 @@ no limit are what make the comparisons with limits believable.
 ## Checking your own model
 
 - **Compare with an answer found another way.** Every case here does. A queueing model with known answers
-  (cases 1, 2 and 3), the old way of writing the same thing (case 1), or the same system without the new
+  (cases 1, 2 and 3), the same breaks made by a capacity schedule (case 1), or the same system without the new
   reaction (case 4) catch mistakes no amount of reading the code will.
 - **Account for everything.** Conservation of jobs (case 4) is a check a model can make of itself, every
   replication. Count from the start of the replication, not from the end of the warm-up.

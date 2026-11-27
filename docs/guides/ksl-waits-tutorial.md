@@ -6,8 +6,6 @@ every part, shows what it **produced**, and says **how we know it is right**: ea
 against an answer found some other way, either the exact result of a queueing model or the same system
 written another way. Every number on this page came from running the example named beside it.
 
-**New in R1.9.**
-
 > **Status: experimental.** Waits with a time limit (`seizeOrTimeout`, `waitForOrTimeout`,
 > `waitForItemsOrTimeout`, `suspendForOrTimeout`, `receiveMessageOrTimeout`) and waits for the first of
 > several things (`waitForFirst` and its triggers) are released as experimental until the textbook covers
@@ -23,9 +21,9 @@ comes first".
 ## How to read this tutorial
 
 A process waits in many places: for a resource, for a signal, for items in a blocking queue, for a
-message, for another process to resume it. Until R1.9 each of those waits was open-ended. A process could
-not say *wait for at most 15 minutes*, nor *wait for this or that, whichever happens first*, without
-scheduling events of its own to find and remove itself. The cases below show both kinds of wait, one
+message, for another process to resume it. Without a time limit each of those waits is open-ended: a plain wait cannot
+say *wait for at most 15 minutes*, nor *wait for this or that, whichever happens first*, unless the process
+schedules events of its own to find and remove itself. The constructs here say it directly. The cases below show both kinds of wait, one
 construct at a time, and then together.
 
 | # | Case | What it teaches | Run it with |
@@ -323,8 +321,8 @@ caller who hangs up, in case 2 a patient who leaves, in case 5 an assembler who 
 ### The problem
 
 The textbook's walk-in health clinic (section 7.5.1, `WalkInHealthClinic`, run by `Ch7Example8`) lets
-low-priority patients give up on waiting for a doctor. It does that the only way the KSL allowed before
-R1.9: each such patient schedules an event for the end of their patience, and the event finds their request
+low-priority patients give up on waiting for a doctor. It does that with events:
+each such patient schedules an event for the end of their patience, and the event finds their request
 in the doctors' queue and removes it with `removeAndTerminate`. This case writes the same clinic with
 `seizeOrTimeout`, and checks that nothing else changes.
 
@@ -1307,7 +1305,7 @@ causes arrive later, the one whose event runs first wins.
 ## Checking your own model
 
 - **Compare with an answer found another way.** Every case here does. A queueing model with known answers
-  (cases 1 and 3), the old way of writing the same thing (case 2), or another formulation (case 4) catch
+  (cases 1 and 3), the same system written with events and `removeAndTerminate` (case 2), or another formulation (case 4) catch
   mistakes no amount of reading the code will.
 - **Account for everything.** Conservation (case 5) and Little's law (case 1) are checks a model can make
   of itself, every replication.

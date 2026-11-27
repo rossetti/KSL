@@ -1119,7 +1119,7 @@ on the Dokka pages.
   state cancels the pending timeout; re-entering schedules a fresh
   one. Don't rely on the same `onTimeout` firing across exits and
   re-entries.
-- **`AgentResource` grants are not vetoable per request in v1.** Use
+- **`AgentResource` grants are not vetoable per request.** Use
   `goOffShift()` for "refuse new work"; for finer policy, fall back
   to process-view seize logic.
 - **Leaving a context does not stop an agent.** `Context.remove` is a

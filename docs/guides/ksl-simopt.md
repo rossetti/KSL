@@ -305,7 +305,7 @@ problem.responseConstraint(
 ```
 
 Feasibility is then tested with the exact (Clopper-Pearson) binomial bound instead of a
-normal-theory interval (since R1.7.1). It matters when the event is rare: thirty
+normal-theory interval. It matters when the event is rare: thirty
 replications that see no stockout have a sample variance of zero, the normal interval
 then has zero width, and the constraint is certified with no evidence at all, so a
 search keeps exactly those lucky evaluations. The exact bound for zero events in thirty
@@ -699,7 +699,7 @@ and passing it as `ceSampler`):
 | Parameter | Default | Purpose |
 |---|---|---|
 | `meanSmoother` | **0.85** | Exponential-smoothing weight on the *old* mean each iteration (`mean = w·mean + (1-w)·eliteAvg`); closer to 1 = slower drift. |
-| `sdSmoother` | **0.85** | Same idea for standard deviation. **The companion global-default setter for this one (`CENormalSampler.defaultStdDevSmoother = ...`) has a real bug: it validates but never assigns, so the global default silently cannot be changed. Per-instance `sdSmoother` still works fine.** |
+| `sdSmoother` | **0.85** | Same idea for standard deviation. The global default is `CENormalSampler.defaultStdDevSmoother`, assignable like `defaultMeanSmoother`. |
 | `coefficientOfVariationThreshold` | **0.03** | Convergence bound: sampler is "converged" once every dimension's std dev is within 3% of its mean. |
 | `initialVariabilityFactor` (property, not a constructor param) | **1.0** | Multiplier on the range-derived initial std dev (`range/4`); widen or narrow the initial search spread. |
 

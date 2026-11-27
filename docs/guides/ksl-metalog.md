@@ -4,8 +4,6 @@
 `ksl.utilities.random.rvariable.metalog`, and the metalog estimators in
 `ksl.utilities.distributions.fitting.estimators`.
 
-**New in R1.5.**
-
 Runnable examples live in `KSLExamples/.../ksl/examples/general/utilities/fitting/`:
 `MetalogFittingExample.kt`, `MetalogSPTExample.kt`, `MetalogSimulationExample.kt`
 and `MetalogPlottingExample.kt`.

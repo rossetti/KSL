@@ -5,7 +5,8 @@ KSL's simulation-optimization solvers across sets of problems, with results
 captured to a database for statistically defensible analysis. It covers the
 package's purpose and design, how to define problems and solver
 configurations, how to run experiments and analyze the results, and a full
-walkthrough of the pilot study that validated the harness.
+walkthrough of a complete worked study (`PilotStudy`) that exercises every
+feature of the harness end to end.
 
 Prerequisites: working knowledge of KSL simulation models and of the simopt
 basics (`ProblemDefinition`, solvers, evaluators) — see the KSL book's
@@ -865,7 +866,7 @@ Two honesty rules run through all of the above:
 - **Normalize by actual consumption** (`numReplicationsRequested`), not the
   nominal budget — batch solvers overshoot by up to one generation.
 
-The **trace-enabled rerun** pattern (validated in the pilot): run the big grid
+The **trace-enabled rerun** pattern: run the big grid
 without traces (they grow with the budget), then rerun just the problem you want
 convergence curves for with `captureIterationTraces = true` and `saveSummary`
 into the *same* database — the traces land under the new experiment's run ids and
@@ -873,9 +874,9 @@ the old results are untouched.
 
 ### 8.7 Replaying a selection without re-running the study
 
-Evaluating a change to the selection rule against a finished study used to mean running
-the study again — days of compute to answer a question about its last few minutes. The
-search is the expensive part and it does not depend on the rule: same cells, same bests.
+A different selection rule can be evaluated against a finished study without running
+the study again, which would cost days of compute to answer a question about its last few
+minutes. The search is the expensive part and it does not depend on the rule: same cells, same bests.
 Only the choice among those bests changes, and with `tblRunResponse` storing each
 response's average, variance and count, the candidates that choice needs are already in
 the database.
@@ -951,8 +952,8 @@ per-unit-time alternative).
 
 ## 11. The pilot study — setup, execution, results
 
-The pilot (`ksl.examples.general.simopt.PilotStudy`, runnable as-is) is the
-validation pass that preceded any paper-scale use: it exercises every feature
+The pilot (`ksl.examples.general.simopt.PilotStudy`, runnable as-is) is a
+complete worked study: it exercises every feature
 of the harness end-to-end on a real grid and demonstrates the intended
 workflow. It runs **four experiments into one database** (`pilotStudy.db`):
 
@@ -985,7 +986,7 @@ What the results showed:
   shows the expected shapes: point solvers land within one iteration
   (3000–3030), CE overshoots by up to a generation (~3800), RestartSHC by up
   to one inner restart.
-- **The D3 rerun pattern works.** Experiment 4 appended into the same
+- **The append-a-rerun pattern works.** Experiment 4 appended into the same
   database under fresh run ids; its traces are keyed to those runs and the
   earlier experiments are untouched.
 - **One presentation-layer lesson.** Iteration traces faithfully record a
@@ -1020,9 +1021,8 @@ grid was dominated entirely by the RQ problem's 80 ms replications.
   whole numbers. R-SPLINE steps one unit along a coordinate at a time in the
   variable's own units, so a variable with granularity 5 — integer-valued, but
   coarser than the unit lattice — is refused, as it is by COMPASS and ISC. The
-  refusal names the offending inputs and their granularities. (A zero-pseudo-gradient
-  crash on one-dimensional problems, reported in earlier releases, is fixed and
-  regression-tested; R-SPLINE runs 1-D problems normally.)
+  refusal names the offending inputs and their granularities. R-SPLINE runs
+  one-dimensional problems.
 - **Solver-internal convergence checks are superseded** by the budget
   criterion (deliberately — see §2, policy 1). If you specifically want to study
   early-stopping behavior, that is a different experimental design than

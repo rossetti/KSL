@@ -69,7 +69,7 @@ runtime.
 Every node has exactly one supplier. The root is a built-in *external
 supplier* representing the world outside the model; everything else
 attaches via a `parent` reference. Multi-sourcing (one node served by
-several suppliers) is out of scope in v1.
+several suppliers) is not supported.
 
 ### Two node kinds: IHPs and cross-docks
 
@@ -244,7 +244,7 @@ same structure ⇒ same sample path.
 
 ### ...choose an inventory policy
 
-Three policies ship in v1: `(s, Q)`, `(s, S)`, and periodic-review
+Three policies ship: `(s, Q)`, `(s, S)`, and periodic-review
 `(s, S)`. The DSL block names them after their parameters:
 
 ```kotlin
@@ -258,7 +258,7 @@ inventory(widget) {                                                  // periodic
 Programmatic equivalents on an IHP are
 `addReorderPointReorderQuantityInventory(item, s, Q, initialOnHand)`
 and `addReorderPointOrderUpToLevelInventory(item, s, S, initialOnHand)`.
-The periodic policy's review interval must be a constant in v1.
+The periodic policy's review interval must be a constant.
 
 ### ...add a cross-dock between a supplier and a customer
 
@@ -343,7 +343,7 @@ supplyChain("Formation") {
 
 Loading / Shipping / Unloading flow costs accrue per dispatched load,
 not per demand, when formation is enabled. `RULE`-based formation
-(custom user predicate) is the v1 escape hatch — author the spec, then
+(custom user predicate) is the escape hatch — author the spec, then
 install the rule programmatically after building.
 
 ### ...generate customer demand at a node
@@ -427,9 +427,8 @@ from the clock — so a run that ends on an empty calendar is scaled by the time
 it actually observed rather than by the length it was allowed.
 
 Either is a sound `objFnResponseName` for a simulation-optimization problem.
-Earlier releases published a single mixed `GrandTotal` that added rate lines to
-per-replication lines; it was neither denomination, and it has been removed.
-See the R1.7 release notes.
+There is no combined total: rate lines and per-replication lines are different
+denominations.
 
 ### ...vary cost by node
 
@@ -623,7 +622,7 @@ change the initial on-hand with it.
   observe via `Demand.addStateChangeListener(...)` if you need
   per-demand hooks.
 - `DemandFillerFinderIfc` — the per-demand supplier-selection escape
-  hatch (the foundation for v2 multi-sourcing).
+  hatch, the hook for per-demand supplier selection.
 
 **Costs**
 
@@ -671,7 +670,7 @@ change the initial on-hand with it.
   deterministic, and identical streams + identical structure produce
   identical sample paths (bit-identical, not just statistically
   close).
-- **A node has exactly one supplier.** v1 is a tree. If you need
+- **A node has exactly one supplier.** The network is a tree. If you need
   multi-sourcing, treat that as a known limitation; the
   `DemandFillerFinderIfc` primitive is the routing-engine half of it,
   but the network API enforces single-parent.

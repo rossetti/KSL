@@ -46,8 +46,8 @@ paraphrased and nothing load-bearing is left out. Two things are omitted and it 
 worth knowing which:
 
 - **The files' own documentation comments**, because this page replaces them. The
-  short comments *inside* the code are kept — several of them record a mistake that
-  was actually made.
+  short comments *inside* the code are kept — several of them warn of a mistake that
+  is easy to make.
 - **The import lists**, except in case 1, which explains them once. They are
   mechanical, and an IDE writes them for you.
 
@@ -2134,11 +2134,10 @@ fun main() {
 output file rather than the console — six full reports is several hundred lines, and the
 console is where the comparison belongs.
 
-Then three paired tables, one per response. **This block is the correction of a real
-mistake.** An earlier version of this example printed six point estimates of loads delivered,
-observed that five lay within 0.3 loads of each other, and concluded that the rules were
-equivalent in throughput. The half-width on any *one* rule's delivered count is about seven
-loads: nothing on that page could have told a real difference of five loads from none at all.
+Then three paired tables, one per response. **This block guards against a real
+mistake.** Six point estimates of loads delivered, five of them within 0.3 loads of each other,
+invite the conclusion that the rules are equivalent in throughput. The half-width on any *one* rule's delivered count is about seven
+loads: nothing in such a table can tell a real difference of five loads from none at all.
 
 The pairing is what makes the claim possible. All six rules see the same arrivals, so the
 difference can be taken replication by replication, where the arrival variability cancels —
@@ -2207,10 +2206,10 @@ its interval by half a load in about 324. With a fleet this size the guide path 
 the decision, so a study that measured throughput alone would conclude that dispatching
 does not matter here and would be wrong about everything except throughput.
 
-That sentence is worth more than it looks, because **an earlier version of this example
-could not have made it.** It printed six point estimates, saw them lie within 0.3 loads
-of each other, and inferred equivalence. The half-width on any one rule's throughput is
-7.35 loads: that page could not have told a real difference of five loads from none.
+That sentence is worth more than it looks, because **six point estimates could not have
+supported it.** Lying within 0.3 loads of each other, they invite an inference of
+equivalence, but the half-width on any one rule's throughput is 7.35 loads: such a table
+cannot tell a real difference of five loads from none.
 The pairing removes the arrival variability, brings the half-width down to about half a
 load, and turns an impression into a measurement.
 
@@ -6113,7 +6112,7 @@ half-width beside it. That is not decoration:
 | 1 | "Throughput is identical" — true, but nothing on the page said how closely |
 | 7 | "Throughput ceilings" — the last four carts do buy 1.6 loads, which is outside the interval |
 
-Case 4's first table was wrong in exactly the way a table of averages invites. The fix is
+An unpaired table of averages invites exactly the errors above. The remedy is
 the same in every case and it is three lines of code: run the alternatives through a
 `ScenarioRunner` so they share their run parameters and their streams, ask it for
 `observationsAsMap`, and hand that to a `MultipleComparisonAnalyzer`.

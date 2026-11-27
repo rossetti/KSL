@@ -217,10 +217,7 @@ class WaitForFirstResult internal constructor(
         else "WaitForFirstResult(trigger = $trigger, value = $myValue, timeWaited = $timeWaited)"
 }
 
-/**
- *  What the winning registration found when its entity resumed: the value, or that the wait must be
- *  reported as timed out after all.
- */
+/** What the winning registration found when its entity resumed: the value of its trigger. */
 internal sealed class AfterResume {
     class Value(val value: Any?) : AfterResume()
 }
