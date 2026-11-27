@@ -349,7 +349,8 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
 
         /**
          *  True if the request can be filled at the time the property is accessed. A request whose wait is held,
-         *  while a ready trigger of its wait fires, cannot be filled: it leaves with its wait.
+         *  from its claim until it is released or while a ready trigger of it fires, cannot be filled: it leaves with
+         *  its wait.
          */
         open val canBeFilled: Boolean
             get() {
@@ -499,7 +500,8 @@ class BlockingQueue<T : ModelElement.QObject> @JvmOverloads constructor(
 
     /**
      *  Interface for defining request selection. The queue given may hold a request whose wait for the first of
-     *  several things is held for an instant, while a ready trigger of that wait fires; such a request reports
+     *  several things is held for an instant, from the wait's claim until the request is released or while a ready
+     *  trigger of that wait fires; such a request reports
      *  that it cannot be filled.
      */
     interface RequestSelectorIfc<T : ModelElement.QObject> {

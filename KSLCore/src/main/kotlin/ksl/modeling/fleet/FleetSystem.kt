@@ -198,10 +198,10 @@ abstract class FleetSystem @JvmOverloads constructor(
             ?.first
     }
 
-    // ---- the seven hold queues -----------------------------------------------------------------
+    // ---- the eight hold queues -----------------------------------------------------------------
     //
     // Suspension plumbing, not the model's waiting line -- that is the dispatcher's task queue.
-    // All seven are internal so only this subsystem can suspend anything in them, and all seven
+    // All eight are internal so only this subsystem can suspend anything in them, and all eight
     // report nothing, which is what `Conveyor` does for the same reason: a hold queue is how a
     // suspended entity is found again, and letting it double as the statistic conflates a mechanism
     // with a measurement.

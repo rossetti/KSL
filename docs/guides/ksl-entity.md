@@ -101,7 +101,8 @@ from the inside the code reads like a sequence of operations.
 the call returns an `Allocation` — the *receipt* that names which units
 you got. `release(allocation)` returns those specific units. The
 `use(resource, delayDuration = …)` shorthand is `seize`-`delay`-`release`
-in one call; it's also exception-safe.
+in one call. A process terminated during the delay releases what it holds,
+as termination does for any seize.
 
 ### Three flavours of coordination structure
 
@@ -1008,7 +1009,7 @@ nothing is taken.
   the very instant of the deadline wins. Pass an earlier `timeoutPriority` to let the
   deadline win instead.
 - After `suspendForOrTimeout` times out, the suspension's holder must not call
-  `resume()`: it throws. Check `isSuspended` first.
+  `resume()`: it throws. Check `canResume` first.
 - `entity.resumeProcess()` refuses an entity in such a wait, as it refuses one in a
   `delay`; end the wait through what it waits for. `canResumeProcess` tells you
   beforehand.
@@ -1037,8 +1038,9 @@ when (r.trigger) {
 The triggers are `mailbox.trigger(predicate)` and `mailbox.triggerOfType<T>()`,
 `signal.trigger()`, `agentSignal.trigger()` for an `AgentSignal` (the next `fire()`
 ends the wait of every process waiting for it), `queue.itemsTrigger(amount, predicate)` and
-`queue.anyItemsTrigger(predicate)`, and `resource.seizeTrigger(amount)` and
-`pool.seizeTrigger(amount)` for a resource, a resource pool or a movable resource pool.
+`queue.anyItemsTrigger(predicate)`, `resource.seizeTrigger(amount)` and
+`pool.seizeTrigger(amount)` for a resource or a resource pool, and `movablePool.seizeTrigger()`
+(one unit, from an optional `requestLocation`) for a movable resource pool.
 A trigger is only a description, so you can keep one as a property and use it in any
 number of waits, and by several entities at once.
 
@@ -1065,11 +1067,12 @@ when (r.trigger) {
   order of the code. Argument order decides only when several triggers can already fire
   when `waitForFirst` is called (an items trigger can already fire when its queue's request
   selector would fill it at once, even ahead of requests already waiting), and between two seize triggers whose requests wait in the
-  same queue (they enter it in argument order). Seize requests in different queues on one
+  same queue (they enter it in argument order, except that one for a resource with a
+  preemptor waiting or a reservation collecting units enters first). Seize requests in different queues on one
   resource are served by the resource's notification rule. Choose a winner by the
   priority of the events that cause the triggers, never by argument order.
 - **Priorities.** A seize or items trigger ranks its request by the entity's priority when
-  the wait began. A signal trigger's `waitPriority` becomes the entity's priority, as with
+  the wait began, or, for an items trigger given a `blockingPriority`, by that. A signal trigger's `waitPriority` becomes the entity's priority, as with
   `waitFor(signal, waitPriority)`, and stays so after the wait, but it does not reach the
   requests of the wait's other triggers, whichever order they are listed in.
 - **A seize trigger** yields once before the wait starts, at the lowest `seizePriority`
@@ -1219,7 +1222,7 @@ class NamedProcesses(parent: ModelElement) : ProcessModel(parent) {
 
 Use `blockUntilCompleted(otherProcess)` from inside a process body when
 one process should wait for another (e.g. a main flow that waits on a
-recovery sub-process). `blockUntilAllCompleted(...)` waits on a list.
+recovery sub-process). `blockUntilAllCompleted(...)` waits on a set of processes.
 
 ### ...know what runs at the end of a replication
 
@@ -1379,10 +1382,11 @@ on the Dokka pages.
   granted; `release(resource)` releases *everything* the entity is
   currently holding on that resource. The first is almost always what
   you want.
-- **`use(resource, delayDuration = …)` is the safe shorthand.** It's
-  one call, and it releases the allocation even if the body throws.
-  Prefer it over explicit seize/delay/release when the only work
-  between them is the delay.
+- **`use(resource, delayDuration = …)` is the shorthand.** It's one
+  call for `seize`, `delay` and `release`; there is no body, and a
+  process terminated during the delay releases what it holds, as
+  termination does for any seize. Prefer it over explicit
+  seize/delay/release when the only work between them is the delay.
 - **`EntityGenerator` requires the entity's `defaultProcess` to be set.**
   Use `process(isDefaultProcess = true) { … }` when declaring the
   process inside the inner class. Without it, the generator throws at

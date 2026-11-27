@@ -150,7 +150,7 @@ web console.
 
 ## Conventions
 
-- All guides follow the same 7-section template.
+- The reference guides follow the same 7-section template; the tutorials are organized by worked case.
 - Status banners (e.g. *experimental*) appear near the top when an
   API may change between releases.
 - Code snippets are adapted from real, runnable examples under

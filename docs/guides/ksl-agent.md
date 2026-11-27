@@ -1084,12 +1084,14 @@ on the Dokka pages.
   For suspending work, transition to a state that triggers a separate
   `process { … }` body, or use `mailbox.deliver` (non-suspending) for
   send-from-statechart.
-- **Messages are filtered by mailbox reference**, not by name. Send
-  to the wrong `mailbox` and the message is silently dropped — no
-  recipient matches and no error fires.
+- **A message goes to the mailbox you pass.** Send it to the wrong
+  agent's mailbox and it is delivered there, kept or taken by that
+  agent's receivers; the intended recipient never sees it, and no
+  error fires.
 - **Delivery has a precedence order, and consumers compete.** A message
-  goes first to any matching reservation, then to a suspended
-  `receiveMessage` waiter, and only then to the pending queue and the
+  goes first to any matching reservation, then to a waiting receiver
+  (`receiveMessage`, `receiveMessageOrTimeout`, or a mailbox trigger in
+  `waitForFirst`), and only then to the pending queue and the
   statechart's `onMessage` handlers. So an agent that both runs a
   protocol and carries a statechart matching the same traffic has no
   guarantee which sees a given message — it depends on whether the

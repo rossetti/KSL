@@ -1568,14 +1568,15 @@ Eight hold queues carry suspensions — awaiting pickup, awaiting boarding,
 in transit, awaiting a load (a vehicle at a pickup before its load began
 waiting), holding for a departure time, availability, dispatcher idle, out
 of service — and all eight report nothing by default.
-`statisticalReportingForHoldQueues(true)` switches them on for debugging,
-and reaches down to the [space layer's three](ksl-guidedpath.md#find-out-who-is-suspended-in-the-middle-of-a-journey)
-as well, so a model being debugged shows all eleven. Each `Stop` owns a
+`statisticalReportingForHoldQueues(true)` switches them on for debugging.
+On an `AgvSystem` it reaches down to the [space layer's three](ksl-guidedpath.md#find-out-who-is-suspended-in-the-middle-of-a-journey)
+as well, so a model being debugged shows all eleven; a `FreePathFleet`
+switches its own eight only. Each `Stop` owns a
 ninth kind, where a vehicle holding for a load waits; it is not switched
 by that call and never reports, because a vehicle waiting at a stop is
 already counted by the stop's own queue from the other side. Turn them off again:
 they put rows on the report that look like waiting lines, and two of them
-— riding, and the space layer's driving queue — are not. The queues to
+— in transit, and the space layer's driving queue — are not. The queues to
 read are `dispatcher.taskQ` and each `Stop`'s own.
 
 Note which of the space layer's three the vehicles use. A vehicle agent

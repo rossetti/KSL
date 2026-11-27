@@ -1200,7 +1200,8 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             /**
              *  True when the offers of units pass this request over: it was woken already and is on its way (a guided
              *  transporter pool's request, which that pool wakes without serving), it is a preemption's reservation,
-             *  its wait is held while a ready trigger of the same wait fires (`Registration.isHeld`), or its entity
+             *  its wait is held, claimed and not yet released or while a ready trigger of it fires
+             *  (`Registration.isHeld`), or its entity
              *  already has a resume coming (the model's `resumeProcess`), when it takes its units itself.
              */
             internal val isPassedOver: Boolean
@@ -1942,7 +1943,7 @@ open class ProcessModel(parent: ModelElement, name: String? = null) : ModelEleme
             val detail = "request_id=${request.id}, moved_to_resource=${resource.name}, amount=${request.amountRequested}"
             // served at once when a seize arriving now would be: the resource can allocate and the new queue would
             // choose this request next, by the resource's walk of claimants (`Resource.arrivalDecision`). A request
-            // whose wait is held, while a ready trigger of its wait fires, is never chosen (it is passed over), so it
+            // whose wait is held, claimed and not yet released, is never chosen (it is passed over), so it
             // only changes queues, and leaves with the rest of its wait. A waiting preempt is not served here; it waits
             // on as one, below.
             val canServe = request.waitingPreemptRule == null && request.registration?.isHeld != true &&

@@ -230,7 +230,8 @@ class Signal @JvmOverloads constructor(
 
     /**
      *  The entities waiting, in queue order, that a signal by position can reach: an entity whose wait for the first
-     *  of several things is held for an instant, while a ready trigger of that wait fires, keeps its place but
+     *  of several things is held for an instant, from the wait's claim until it is released or while a ready trigger
+     *  of that wait fires, keeps its place but
      *  is passed over, as if it had left. The ranks count only these.
      */
     private fun waiting(): List<ProcessModel.Entity> =

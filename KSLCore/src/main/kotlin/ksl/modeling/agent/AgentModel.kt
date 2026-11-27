@@ -395,7 +395,7 @@ open class AgentModel(
                 return
             }
             // First, try to satisfy a waiting receiver directly. A message trigger's waiter whose wait is held,
-            // while a ready trigger of that wait fires, keeps its place and is passed over.
+            // claimed and not yet released, keeps its place and is passed over.
             val waiterIdx = waiters.indexOfFirst { it.predicate(message) && it.registration?.isHeld != true }
             if (waiterIdx >= 0) {
                 val waiter = waiters.removeAt(waiterIdx)

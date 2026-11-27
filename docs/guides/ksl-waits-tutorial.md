@@ -672,8 +672,9 @@ order plays no part. If a tie should be settled some other way, by a preference 
 triggers accordingly for each patient.
 
 **One wait, any mix of things.** The same `waitForFirst` accepts seize triggers for resources and pools,
-signal triggers, items triggers on blocking queues and message triggers on mailboxes, in any combination.
-Case 5 uses three different kinds.
+signal triggers, items triggers on blocking queues and message triggers on mailboxes, in any combination,
+except that one wait may include at most one signal trigger (an entity waits in only one signal's queue); a
+second throws. Case 5 uses three different kinds.
 
 ---
 
@@ -828,7 +829,8 @@ for each it records the wait and calls `resume(rider.boarded)`, which ends that 
 starts again.
 
 `resume` is the way one process ends another's suspension. Calling `resumeProcess()` on the rider instead
-would throw: an entity in a wait with a time limit can be resumed only through what it waits on.
+would throw: an entity in a wait with a time limit, or in any wait for the first of several things, can be
+resumed only through what it waits on.
 
 #### 4. The same stop, written with events
 
@@ -1325,8 +1327,9 @@ causes arrive later, the one whose event runs first wins.
   which you used.
 - **`valueOf` throws for a trigger that did not end the wait.** Ask `firedBy` first, or use `when` on
   `result.trigger`.
-- **End a timed wait through what it waits on.** `resumeProcess()` refuses an entity in such a wait: resume
-  its suspension, signal its signal, send to its queue.
+- **End a timed wait, or a wait for the first of several things, through what it waits on.**
+  `resumeProcess()` throws for an entity in such a wait, even one with no time limit; check
+  `canResumeProcess` first. Resume its suspension, signal its signal, send to its queue.
 - **The order of the triggers settles only a tie at the start of the wait** (case 3). Later ties go by the
   calendar (case 5).
 - **A negative timeout throws;** `Double.POSITIVE_INFINITY` means no limit.

@@ -54,8 +54,8 @@ Where several versions of a system are compared with one another, they run on co
 each difference from the first comes with the half-width of its own 95% confidence interval, from the
 differences replication by replication.
 
-`ResourcesExamplesValidationTest` in `KSLExamples/src/test` repeats every one of these checks on each
-build.
+`ResourcesExamplesValidationTest` in `KSLExamples/src/test` repeats these checks on each build: cases 1
+to 3 with the example's own settings, case 4 on shorter runs.
 
 ---
 
@@ -436,7 +436,9 @@ streams managed by the model like any other. Declaring failures also adds two st
 The **basis** says what the time between failures counts:
 
 - `BUSY_TIME`, the time the machine is working, so an idle machine does not wear out. A job it is
-  finishing counts, even off shift or through a failure that lets the job finish;
+  finishing counts, even off shift or through a `FINISH` failure made by `fail()`; work done during the
+  repair of one of the machine's own declared failures does not, since the time to the next failure starts
+  at the repair;
 - `CALENDAR_TIME`, simulated time, whether the machine works or not;
 - `USES`, the number of jobs: the machine fails at the release that completes them.
 
@@ -634,8 +636,8 @@ stops when the machine is idle and starts again when it is busy.
 
 **What a failure does to the job in service matters most.** Starting the job again costs 8 minutes in the
 shop on average, and more failures, because the repeated work wears the machine too. Finishing the job
-before the machine stops saves 3 minutes: the repair runs while the job is completed, and the machine is
-counted as failed, not busy, during that time, so it does less work between failures (472.5 against
+before the machine stops saves 3 minutes: the repair runs while the job is completed, and work done during
+a repair does not count toward the next failure, so the same work brings fewer failures (472.5 against
 492.8). Which rule is right is a question about the real machine, not the model.
 
 **What wears the machine matters less here, but it matters.** Counted in calendar time, the machine fails

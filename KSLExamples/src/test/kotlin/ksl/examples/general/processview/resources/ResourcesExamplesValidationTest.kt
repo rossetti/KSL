@@ -28,8 +28,9 @@ import kotlin.test.assertTrue
 
 /**
  *  The resources tutorial's examples checked against answers found another way: the exact results of a
- *  queueing model, or the same system written another way. Each runs as its example's `main` runs, with the
- *  same settings and seeds, so a pass here is a pass for the numbers the tutorial reports.
+ *  queueing model, or the same system written another way. Cases 1 to 3 run as their example's `main` runs, with
+ *  the same settings and seeds, so a pass here is a pass for the numbers the tutorial reports; case 4 runs shorter,
+ *  and checks the identities and the job accounting rather than the reported numbers.
  *
  *  An exact value is required to lie inside the 99% confidence interval of the estimate. The run is seeded,
  *  so the check is deterministic: if it ever fails, the model or the library changed, and the tutorial's
